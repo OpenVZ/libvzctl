@@ -1,0 +1,121 @@
+#!/bin/bash
+# Copyright (C) 1999-2015 Parallels IP Holdings GmbH
+#
+# This file is part of OpenVZ libraries. OpenVZ is free software; you can
+# redistribute it and/or modify it under the terms of the GNU Lesser General
+# Public License as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+# 02110-1301, USA.
+#
+# Our contact details: Parallels IP Holdings GmbH, Vordergasse 59, 8200
+# Schaffhausen, Switzerland.
+#
+# This scripts performe postinstall tasks:
+# 1. Randomizes crontab for given VE so all crontab tasks
+#  of all VEs will not start at the same time.
+# 2. Disables root password if it is empty.
+#
+# Parameters are passed in environment variables.
+# Required parameters:
+#   VE_ROOT - root directory of this VE
+
+. @SCRIPTDIR@/vz-functions
+vzcheckvar VE_ROOT
+
+function randcrontab()
+{
+FILE=$VE_ROOT"/etc/crontab"
+
+	if [ ! -f $FILE ]
+	then
+		vzwarning "No such file $FILE"
+		return 1
+	fi
+
+	FILE_TMP=`mktemp $FILE.XXXXXX` || return 1;
+
+	cat $FILE | awk '
+BEGIN { srand(); }
+{
+	if ($0 ~ /^[ \t]*#/ || $0 ~ /^[ \t]+*$/) {
+		print $0;
+		next;
+	}
+	if ((n = split($0, ar, /[ \t]/)) < 7) {
+		print $0;
+		next;
+	}
+	# min
+	if (ar[1] ~ /^[0-9]+$/) {
+#		print "->"  $0;
+		ar[1] = int(rand() * 59);
+	}
+	# hour
+	if (ar[2] ~ /^[0-9]+$/) {
+		ar[2] = int(rand() * 6);
+	}
+	# day
+	if (ar[3] ~ /^[0-9]+$/) {
+		ar[3] = int(rand() * 31) + 1;
+	}
+	line = ar[1];
+	for (i = 2; i <= n; i++) {
+		line = line " "  ar[i];
+	}
+	print line;
+}
+' > $FILE_TMP && cat $FILE_TMP > $FILE
+	rm -f $FILE_TMP
+}
+
+function disableroot()
+{
+FILE=$VE_ROOT"/etc/passwd"
+
+	if [ ! -f $FILE ]
+	then
+		vzwarning "No such file $FILE"
+		return 1
+	fi
+
+	if grep "^root::" $FILE >/dev/null 2>&1
+	then
+		FILE_TMP=`mktemp $FILE.XXXXXX` || return 1;
+		sed 's/^root::/root:!!:/g' < $FILE > $FILE_TMP && cat $FILE_TMP > $FILE
+		rm -f $FILE_TMP
+	fi
+}
+
+function setupifup()
+{
+	FILE=$VE_ROOT"/sbin/ifup"
+
+	if [ ! -f $FILE ]; then
+		return 0
+	fi
+
+	if grep 'if \[ "\${DEVICE}" = "lo" \]; then' $FILE >/dev/null 2>&1; then
+		cp -fp $FILE $FILE.$$
+		/bin/sed -e "s/if \[ "\${DEVICE}" = "lo" \]; then/if \[ "${IPADDR}" = "127.0.0.1" \]; then/" < $FILE > $FILE.$$
+		if [ $? -eq 0 ]; then
+			mv -f ${FILE}.$$ ${FILE}
+		fi
+		rm -f ${FILE}.$$ 2>/dev/null
+
+	fi
+}
+
+randcrontab
+disableroot
+setupifup
+
+exit 0

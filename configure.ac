@@ -1,0 +1,124 @@
+#  Copyright (C) 2000-2013, Parallels, Inc. All rights reserved.
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+
+# Generic configuration
+AC_PREREQ(2.59)
+AC_INIT(libvzctl, 7.0.41, igor@parallels.com)
+
+# Change sysconfdir default since otherwise some important files
+# (an initscript, files for logrotate, cron, and udev) will be installed
+# to some nonsence/non-working place like under /usr/local/etc/
+#
+# NOTE: this changes expected configure behavior: if you specify --prefix
+#        it will not change sysconfdir, instead now one have to specify
+#        --sysconfdir explicitly. To make it more clear we print
+#        current sysconfdir value at the end of configure run.
+#
+# FIXME: dirty hack, may not work with some autoconf versions.
+test $sysconfdir = '${prefix}/etc' && sysconfdir=/etc
+
+AC_CANONICAL_BUILD
+AC_CANONICAL_HOST
+AC_CANONICAL_TARGET
+
+# If we are on an x86_64, redefine libdir from default value
+if test "$target_cpu" = "x86_64" -a "$libdir" = '${exec_prefix}/lib'; then
+	if debarch=$(dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null); then
+		# Debian/Ubuntu
+		libdir='${exec_prefix}/'$debarch
+	else
+		# Assume Red Hat/SUSE: libs go to lib64
+		libdir='${exec_prefix}/lib64'
+	fi
+fi
+
+# Automake
+AM_INIT_AUTOMAKE([1.6 foreign dist-bzip2])
+
+# Disable build of static libraries by default.
+AC_DISABLE_STATIC
+
+# Checks for programs.
+AC_PROG_CC
+AC_PROG_LIBTOOL
+AC_PROG_INSTALL
+AC_PROG_LN_S
+
+# Checks for libraries.
+AC_CHECK_LIB(dl, dlopen,
+	DL_LIBS="-ldl", AC_MSG_ERROR([libdl not found]),)
+
+AC_SUBST(DL_LIBS)
+
+AC_CHECK_LIB(util, openpty,
+	UTIL_LIBS="-lutil", AC_MSG_ERROR([libutil not found]),)
+
+AC_SUBST(UTIL_LIBS)
+
+# Checks for header files.
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_C_INLINE
+
+# Checks for library functions.
+PKG_CHECK_MODULES([XML2], [libxml-2.0])
+XML_CPPFLAGS=`xml2-config --cflags`
+XML_LIBS=`xml2-config --libs`
+
+# Compiler settings
+#CFLAGS="${CFLAGS} -Wall -Wpointer-arith -Wcast-qual -Winline -Wextra"
+CFLAGS="${CFLAGS} -Wall -Werror -Wpointer-arith -Winline"
+CFLAGS="${CFLAGS} -Wcast-align -Wno-unused-parameter"
+CFLAGS="${CFLAGS} -Wno-missing-field-initializers"
+CFLAGS="${CFLAGS} -D_FILE_OFFSET_BITS=64"
+CFLAGS="$CFLAGS $XML_CPPFLAGS"
+LIBS="$XML_LIBS $LIBS"
+
+if test x$build_cpu = xppc64 -o x$build_cpu = xpowerpc64; then
+	CFLAGS="${CFLAGS} -m64"
+fi
+
+# Site settings
+AM_CONDITIONAL(ARCH_IA64,   test x$build_cpu = xia64)
+AM_CONDITIONAL(ARCH_X86_64, test x$build_cpu = xx86_64)
+
+
+# Final info page
+AC_CONFIG_COMMANDS_PRE([SUMMARY="$PACKAGE_STRING configured successfully:
+
+         CC: $CC ($($CC --version | head -n1))
+     CFLAGS: '$CFLAGS'
+      build: $build
+       host: $host
+     target: $target
+     prefix: $prefix
+ sysconfdir: $sysconfdir
+     libdir: $libdir
+   features: $enable_bashcomp $enable_cron $enable_logrotate $enable_udev
+"])
+
+# Output
+AC_CONFIG_FILES([dists/Makefile
+		lib/Makefile
+		scripts/Makefile
+		src/Makefile
+		test/Makefile
+		Makefile])
+AC_OUTPUT
+
+AC_MSG_NOTICE([$SUMMARY])

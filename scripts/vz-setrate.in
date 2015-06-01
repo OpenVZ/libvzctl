@@ -1,0 +1,826 @@
+#!/bin/bash
+# Copyright (C) 1999-2015 Parallels IP Holdings GmbH
+#
+# This file is part of OpenVZ libraries. OpenVZ is free software; you can
+# redistribute it and/or modify it under the terms of the GNU Lesser General
+# Public License as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+# 02110-1301, USA.
+#
+# Our contact details: Parallels IP Holdings GmbH, Vordergasse 59, 8200
+# Schaffhausen, Switzerland.
+#
+# This script set shaping for ve
+#
+# Parameters are passed in environment variables.
+# Required parameters:
+#   VEID    - VE id
+#   BANDWIDTH - Bandwidth  of  network interfaces
+#   TOTALRATE - maximum VE output speed over specified net­
+#               work interface
+# Optional parameters:
+#   RATE      -  maximum VE output speed over specified net­
+#                work  interface  for  specified  traffic clas
+
+. @SCRIPTDIR@/vz-functions
+. @PKGCONFDIR@/vz.conf
+
+MAX_CLASSES=16
+
+TC_CMD=tc
+VZ_TC_CLASSES="/var/run/vz_tc_classes"
+VZ_TC_CLASSES_LOCK="/var/lock/vz_tc_classes.lock"
+VZ_TC_MAGIC_NUM=10000
+VZ_TC_MAX_CLASS=60000
+VZ_TC_ATTEMPTS=10
+
+# Works under VZ_TC_CLASSES_LOCK.
+# Reads TC_CLASS for VEID
+# Parameters:
+#   $1 - VEID
+vzread_tc_class()
+{
+	local tmp;
+
+	lockfile ${VZ_TC_CLASSES_LOCK}
+	tmp=`grep "^${1} " ${VZ_TC_CLASSES} 2> /dev/null | cut -f2 -d' '`
+	rm -f ${VZ_TC_CLASSES_LOCK} >/dev/null 2>&1
+
+	vzread_tc_class_RET="${tmp}"
+}
+
+# Works under VZ_TC_CLASSES_LOCK.
+# Returns tc class(in vzget_tc_class_RET)
+# as function of VEID or exits with ${VZ_SET_RATE}.
+# Parameters:
+#   $1 - VEID
+vzget_tc_class()
+{
+	local tmp;
+	local range;
+	local tmp_hex;
+	local veid;
+	local try_n;
+	local ret
+
+	if [ ${VZ_TC_MAX_CLASS} -ge 65500 ]; then
+		vzwarning "Wrong VZ_TC_MAX_CLASS(${VZ_TC_MAX_CLASS}). It must be less or equal to 65500."
+		let VZ_TC_MAX_CLASS=65500;
+		vzwarning "VZ_TC_MAX_CLASS(${VZ_TC_MAX_CLASS}) is set."
+	fi
+	if [ ${VZ_TC_MAX_CLASS} -le ${VZ_TC_MAGIC_NUM} ]; then
+		vzwarning "Wrong VZ_TC_MAGIC_NUM(${VZ_TC_MAGIC_NUM}). It must be less then VZ_TC_MAX_CLASS(${VZ_TC_MAX_CLASS})."
+		let VZ_TC_MAGIC_NUM=$[${VZ_TC_MAX_CLASS}/5];
+		vzwarning "VZ_TC_MAX_CLASS(${VZ_TC_MAX_CLASS}) is set."
+	fi
+
+	lockfile ${VZ_TC_CLASSES_LOCK}
+
+	if [ ! -f ${VZ_TC_CLASSES} ]; then
+		vzwarning "Can't access file ${VZ_TC_CLASSES}. Creating new one."
+		echo "#VEID TC_CLASS" > ${VZ_TC_CLASSES}
+		if [ ! $? -eq 0 ]; then
+			rm -f ${VZ_TC_CLASSES_LOCK} >/dev/null 2>&1
+			vzerror "Error while creating file ${VZ_TC_CLASSES}." ${VZ_SET_RATE};
+		fi
+	fi
+	let veid=${1};
+	# get last used tc
+	tmp=`grep "^${veid} " ${VZ_TC_CLASSES} | head -1 | cut -d ' ' -f2`
+	if [ -n "${tmp}" ]; then
+		rm -f ${VZ_TC_CLASSES_LOCK} >/dev/null 2>&1
+		vzget_tc_class_RET="${tmp}"
+		return 0;
+	fi
+
+	let tmp=$[${veid}%${VZ_TC_MAX_CLASS}];
+	[ ${tmp} -eq 0 ] && tmp=${VZ_TC_MAGIC_NUM};
+	tmp_hex=`printf "%x" "${tmp}"`
+	vzis_tc_class_in_use "${tmp_hex}"
+	if [ $? -eq 0 ]; then
+		# class free
+		vzappend_tc_file "${veid}" "${tmp_hex}" "${h_base}"
+		return 0;
+	fi
+
+	let range=$[${VZ_TC_MAX_CLASS}-${VZ_TC_MAGIC_NUM}];
+	let try_n=0;
+	while [ "X" = "X" ]; do
+		if [ ${try_n} -ge ${VZ_TC_ATTEMPTS} ]; then
+			[ ${try_n} -eq ${VZ_TC_ATTEMPTS} ] && vzwarning "Random search failed. Starting linear search."
+			let tmp=$[${try_n}+${VZ_TC_MAGIC_NUM}];
+		else
+	# assign random value in (VZ_TC_MAGIC_NUM, VZ_TC_MAX_CLASS) range
+			let tmp=$[${RANDOM}+${RANDOM}+${RANDOM}];
+			let tmp=$[${tmp}%${range}];
+			let tmp=$[${tmp}+${VZ_TC_MAGIC_NUM}];
+		fi
+		tmp_hex=`printf "%x" "${tmp}"`
+		vzis_tc_class_in_use "${tmp_hex}"
+		if [ $? -eq 0 ]; then
+			vzappend_tc_file "${veid}" "${tmp_hex}" "${h_base}"
+			return 0;
+		fi
+		let try_n=$[${try_n}+1];
+		if [ ${try_n} -ge ${range} ]; then
+			rm -f ${VZ_TC_CLASSES_LOCK} >/dev/null 2>&1
+			vzerror "Can't find free tc class." ${VZ_SET_RATE};
+		fi
+	done
+# should never happen
+	rm -f ${VZ_TC_CLASSES_LOCK} >/dev/null 2>&1
+	return 0;
+}
+
+# Works under VZ_TC_CLASSES_LOCK.
+# Removes TC_CLASS - VEID pair from VZ_TC_CLASSES or
+# exits with ${VZ_SET_RATE}.
+# Parameters:
+#   $1 - VEID
+vzput_tc_class()
+{
+	lockfile ${VZ_TC_CLASSES_LOCK}
+
+	if [ ! -f ${VZ_TC_CLASSES} ]; then
+		rm -f ${VZ_TC_CLASSES_LOCK} >/dev/null 2>&1
+		vzwarning "Can't access file ${VZ_TC_CLASSES}. Continue."
+	fi
+	cat ${VZ_TC_CLASSES} | sed -e "/^${1} /d" | sort -n > ${VZ_TC_CLASSES}.tmp
+	if [ ! $? -eq 0 ]; then
+		rm -f ${VZ_TC_CLASSES_LOCK} >/dev/null 2>&1
+		vzerror "Error while executing <<cat ${VZ_TC_CLASSES} | sed -e \"/^${1} /d\" > ${VZ_TC_CLASSES}.tmp>>." ${VZ_SET_RATE};
+	fi
+	mv -f ${VZ_TC_CLASSES}.tmp ${VZ_TC_CLASSES}
+	if [ ! $? -eq 0 ]; then
+		rm -f ${VZ_TC_CLASSES_LOCK} >/dev/null 2>&1
+		vzerror "Error while executing <<mv -f ${VZ_TC_CLASSES}.tmp ${VZ_TC_CLASSES}>>." ${VZ_SET_RATE};
+	fi
+
+	rm -f ${VZ_TC_CLASSES_LOCK} >/dev/null 2>&1
+}
+
+# VZ_TC_CLASSES_LOCK must be taken.
+# Returns 1 - tc class in use,
+#	  0 - free
+# Parameters:
+#   $1 - tc class (HEX format)
+vzis_tc_class_in_use()
+{
+	local str;
+
+	str=`grep "^[0-9]* ${1}" ${VZ_TC_CLASSES}`
+	# tc free
+	[ -z "${str}" ] && return 0;
+	# tc in use
+	return 1;
+}
+
+# VZ_TC_CLASSES_LOCK must be taken.
+# Appends VZ_TC_CLASSES, unlocks VZ_TC_CLASSES_LOCK
+# and returns tc class as HEX.
+# Parameters:
+#   $1 - VEID
+#   $2 - tc class (HEX format)
+vzappend_tc_file()
+{
+	# class free
+	echo "${1} ${2}" >> ${VZ_TC_CLASSES}
+	if [ ! $? -eq 0 ]; then
+		rm -f ${VZ_TC_CLASSES_LOCK} >/dev/null 2>&1
+		vzerror "Error while appending file ${VZ_TC_CLASSES}." ${VZ_SET_RATE};
+	fi
+
+	rm -f ${VZ_TC_CLASSES_LOCK} >/dev/null 2>&1
+	vzget_tc_class_RET="${2}"
+	return 0;
+}
+
+# Executes a command.
+# Returns exit code of executed command or
+# exits with ${VZ_SET_RATE}.
+# Parameters:
+#   $* - command to execute
+vzrun_tc()
+{
+	local EXIT_CODE
+
+	eval $*
+	EXIT_CODE=$?
+	if [ "X${EXIT_CODE}" != "X0" ]; then
+		vzerror "Error while executing: <<$*>>." ${VZ_SET_RATE}
+	fi
+}
+
+# This function detects $HZ value
+vzgetHZ()
+{
+	local hz_hex;
+	if [ -r /proc/net/psched ]; then
+		hz_hex=`cat /proc/net/psched|cut -f 4 -d ' '`
+		if [ -z "$hz_hex" ]; then
+			let HZ=100;
+		else
+			let HZ=`echo 0x$hz_hex`;
+		fi
+	else
+		let HZ=100;
+	fi
+}
+
+# Calc maxburst value
+# Parameters:
+#   $1 - rate in Kbit
+# Return:
+#   vzgetmaxburst_ret - is set
+vzgetmaxburst()
+{
+	local maxburst;
+	local rate;
+
+	[ ${HZ} -eq 0 ] && vzgetHZ
+	let rate=$[$1];
+	let maxburst=$[(${rate}*1024)/(${AVPKT}*8*${HZ})];
+	if [ $maxburst -le 10 ]; then
+		vzgetmaxburst_ret=" maxburst 10"
+	else
+		vzgetmaxburst_ret=" maxburst ${maxburst}"
+	fi
+}
+
+# Checks classes in list
+# Parameters:
+#   $1 - classes list
+vzcheck_classes()
+{
+	local i;
+
+	[ -z "${1}" ] && return 1;
+
+	for i in ${1} ; do
+		if [ ${i} -ge ${MAX_CLASSES} ]; then
+			vzwarning "Wrong class (${1}). MAX_CLASSES=${MAX_CLASSES}."
+			return 0;
+		fi
+		if [ ${i} -le 0 ]; then
+			vzwarning "Wrong class (${1}). Must be > 0."
+			return 0;
+		fi
+	done
+	return 1;
+}
+
+# Reads IP classes list from VZ_IP_CLASSES
+# Parameters:
+# No
+vzget_classes_list()
+{
+	[ ! -f ${VZ_IP_CLASSES} ] && vzerror "Can't find <<${VZ_IP_CLASSES}>>. Traffic accounting/shaping operations are impossible." ${VZ_SET_ACCOUNT}
+
+	CLASSES_LIST=`grep  '^[1-9]' ${VZ_IP_CLASSES} | cut -f 1 -d ' '| sort | uniq`
+	vzcheck_classes "${CLASSES_LIST}"
+	[ ! $? -eq 1 ] &&  vzerror "Wrong class value in ${VZ_IP_CLASSES}." ${VZ_SET_ACCOUNT}
+}
+
+# Checks BANDWIDTH and TOTALRATE
+# for consistance
+# Parameters:
+#   no
+vzcheck_TOTALRATE()
+{
+	local TOTAL_DEV_LIST mes;
+
+	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return;
+
+	vzcheckvar BANDWIDTH TOTALRATE
+
+	[ -z "${NETDEVICES}" ] && vzgetnetdev
+	expand_DEV ${BANDWIDTH}
+	BANDWIDTH=$RES_EXPAND_DEV
+	# NB:  call after expand_DEV ${BANDWIDTH}
+	set_configured_tc_dev "${BANDWIDTH}"
+	expand_DEV ${TOTALRATE}
+	TOTALRATE=$RES_EXPAND_DEV
+
+	[ -z "${CLASSES_LIST}" ] && vzget_classes_list
+
+	[ -z "${NETDEVICES}" ] && vzgetnetdev
+	# Get devices mentioned in ${BANDWIDTH}
+	vzmk_list1 "${BANDWIDTH}"
+	TOTAL_DEV_LIST="${RET_LIST}"
+	# devices from BANDWIDTH are in RET_LIST now.
+	mes=`vzis_list_in_list "${TOTAL_DEV_LIST}" "${NETDEVICES}"`
+	[ $? -eq 0 ] && \
+		vzerror "Wrong BANDWIDTH value (no such device ${mes} on the node) or device is down." ${VZ_SET_RATE}
+
+	# Get devices mentioned in ${TOTALRATE}
+	vzmk_list1 "${TOTALRATE}"
+	mes=`vzis_list_in_list "${RET_LIST}" "${TOTAL_DEV_LIST}"`
+	[ $? -eq 0 ] && \
+		vzerror "Wrong TOTALRATE value (no such device ${mes} in BANDWIDTH)." ${VZ_SET_RATE}
+	# Get classes mentioned in ${TOTALRATE}
+	vzmk_list2 "${TOTALRATE}"
+	vzcheck_classes "${RET_LIST}"
+	[ $? -eq 0 ] &&  vzerror "Wrong TOTALRATE value (class not in the range)." ${VZ_SET_RATE}
+	mes=`vzis_list_in_list "${RET_LIST}" "${CLASSES_LIST}"`
+	[ $? -eq 0 ] && \
+		vzerror "Wrong TOTALRATE value (class ${mes} not defined)." ${VZ_SET_RATE}
+}
+
+# Find bandwidth for device
+# $1 device
+# $@ list in format dev:[class:]:bandwidth
+vzget_dev_band()
+{
+	local dev=$1; shift
+	local class=$1; shift
+	local i dev_tmp tmp class_tmp band_tmp band_def
+	local band=
+
+	for i in $@; do
+		dev_tmp=${i%%:*}
+		tmp=${i#*:}
+		class_tmp=${tmp%%:*}
+		band_tmp=${i##*:}
+
+		if [ "${class}" = "${class_tmp}" ]; then
+			band_def="${band_tmp}"
+		fi
+		if [ "${dev_tmp}" = "${dev}" ]; then
+			if [ -z "${class}" -o "${class}" = "${class_tmp}" ];
+			then
+				echo "${band_tmp}"
+				return
+			fi
+		elif [ "${dev}" = '*' ]; then
+			if [ -z "${class}" -o "${class}" = "${class_tmp}" ];
+			then
+				band="${band_tmp}"
+			fi
+		elif [ "${dev_tmp}" = '*' ]; then
+			if [ -z "${class}" -o "${class}" = "${class_tmp}" ];
+			then
+				band="${band_tmp}"
+			fi
+		fi
+	done
+	if [ "${dev}" = '*' -a -z "${band}" ]; then
+		band="${band_def}"
+	fi
+	echo "${band}"
+}
+
+expand_default_DEV()
+{
+	local i j
+
+	RET_LIST=
+	for i in ${@}; do
+		for j in ${NETDEVICES}; do
+			# Do not expand not configured devices
+			if [ -n "${VZ_CONFIGURED_TC_DEVICES}" ]; then
+				mes=$(vzis_list_in_list "${j}" "${VZ_CONFIGURED_TC_DEVICES}")
+				[ $? -eq 0 ] && continue
+			fi
+			if ! echo "${RET_LIST}" | grep -q "${j}:${i#*:}"; then
+				RET_LIST="${RET_LIST} ${j}:${i#*:}"
+			fi
+		done
+	done
+}
+
+# Replace '*' in the TOTALRATE | RATE | BANDWIDTH with the real device name
+function expand_DEV()
+{
+	local rate dev tmp class i j rest_rate
+
+	# turn off globbing for processing '*'
+	set -f
+
+	RES_EXPAND_DEV=
+	for i in ${@}; do
+		dev=${i%%:*}
+		tmp=${i#*:}
+		class=
+		if echo "${tmp}" | grep -q ':'; then
+			class="${tmp%%:*}:"
+		fi
+		if [ ${dev} != '*' ]; then
+			if ! echo "${RES_EXPAND_DEV}" | grep -q "${dev}:${class}";
+			then
+				RES_EXPAND_DEV="${RES_EXPAND_DEV} ${i}"
+			fi
+		else
+			rest_rate="${rest_rate} ${i}"
+		fi
+	done
+
+	expand_default_DEV ${rest_rate}
+	RES_EXPAND_DEV="${RES_EXPAND_DEV} ${RET_LIST}"
+	set +f
+}
+
+# Checks BANDWIDTH, TOTALRATE and RATE (new style)
+# for consistance
+# Parameters:
+# No
+vzcheck_RATE()
+{
+	local TOTAL_DEV_LIST;
+	local RATE_DEV_LIST;
+	local BAND_DEV_LIST;
+	local TOTAL_CLASS_LIST;
+	local RATE_CLASS_LIST;
+	local mes
+
+	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return
+	[ -z "${RATE}" ] && return
+
+	vzcheckvar BANDWIDTH TOTALRATE RATE
+
+	[ -z "${NETDEVICES}" ] && vzgetnetdev
+	expand_DEV ${BANDWIDTH}
+	BANDWIDTH=$RES_EXPAND_DEV
+	#NB:  call after expand_DEV ${BANDWIDTH}
+	set_configured_tc_dev "${BANDWIDTH}"
+	expand_DEV ${TOTALRATE}
+	TOTALRATE=$RES_EXPAND_DEV
+	expand_DEV ${RATE}
+	RATE=$RES_EXPAND_DEV
+	[ -z "${CLASSES_LIST}" ] && vzget_classes_list
+
+	# Get devices mentioned in ${TOTALRATE}
+	vzmk_list1 "${TOTALRATE}"
+	TOTAL_DEV_LIST="${RET_LIST}"
+	# Get devices mentioned in ${RATE}
+	vzmk_list1 "${RATE}"
+	RATE_DEV_LIST="${RET_LIST}"
+	# Get devices mentioned in ${BANDWIDTH}
+	vzmk_list1 "${BANDWIDTH}"
+	BAND_DEV_LIST=$RET_LIST
+	mes=`vzis_list_in_list "${BAND_DEV_LIST}" "${NETDEVICES}"`
+	[ $? -eq 0 ] && \
+		vzerror "Wrong BANDWIDTH value (no such device ${mes} on the node) or device is down." ${VZ_SET_RATE}
+	mes=`vzis_list_in_list "${TOTAL_DEV_LIST}" "${NETDEVICES}"`
+	[ $? -eq 0 ] && \
+		vzerror "Wrong TOTALRATE value (no such device ${mes} on the node)." ${VZ_SET_RATE}
+	mes=`vzis_list_in_list "${TOTAL_DEV_LIST}" "${BAND_DEV_LIST}"`
+	[ $? -eq 0 ] && \
+		vzerror "Wrong TOTALRATE value (no such device ${mes} in  the BANDWIDTH)." ${VZ_SET_RATE}
+	mes=`vzis_list_in_list "${RATE_DEV_LIST}" "${TOTAL_DEV_LIST}"`
+	if [ $? -eq 0 ]; then
+		vzwarning "Autocorrect wrong RATE value (no such device ${mes} in the TOTALRATE)"
+		expand_default_DEV ${RATE}
+		RATE=$RET_LIST
+	fi
+
+	# Get classes mentioned in ${TOTALRATE}
+	vzmk_list2 "${TOTALRATE}"
+	vzcheck_classes "${RET_LIST}"
+	[ $? -eq 0 ] && \
+		vzerror "Wrong TOTALRATE value (class not in the range)." ${VZ_SET_RATE}
+	mes=`vzis_list_in_list "${RET_LIST}" "${CLASSES_LIST}"`
+	[ $? -eq 0 ] && \
+		vzerror "Wrong TOTALRATE value (no such class ${mes} in the ${VZ_IP_CLASSES})." ${VZ_SET_RATE}
+	TOTAL_CLASS_LIST=${RET_LIST}
+	# Get classes mentioned in ${RATE}
+	vzmk_list2 "${RATE}"
+	vzcheck_classes "${RET_LIST}"
+	[ ! $? -eq 1 ] && \
+		vzerror "Wrong RATE value (class not in the range)." ${VZ_SET_RATE}
+	mes=`vzis_list_in_list "${RET_LIST}" "${TOTAL_CLASS_LIST}"`
+	[ $? -eq 0 ] && \
+		vzerror "Wrong RATE value (no such class ${mes} in the TOTALRATE)." ${VZ_SET_RATE}
+}
+
+# Create root qdisc for given device and class
+# Parameters:
+# $1 - device
+# $2 - class
+vzcreate_root_class()
+{
+	local dev="$1"
+	local class="$2"
+	local maxburst band total_band class_hex configured
+
+	band=`vzget_dev_band "${dev}" "" ${BANDWIDTH}`
+	[ -z "${band}" ] && vzerror "Device ${dev} not found in BANDWIDTH"
+	total_band=`vzget_dev_band "${dev}" "${class}" ${TOTALRATE}`
+	[ -z "${total_band}" ] && vzerror "Device ${dev} not found in TOTALRATE"
+	vzgetmaxburst ${BAND1}
+	maxburst=$vzgetmaxburst_ret
+	class_hex=`printf "%x" $[${class}+1]`
+
+	configured=`${TC_CMD} qdisc show dev ${dev} | grep 'qdisc htb 1:'`
+	if [ -z "${configured}"	]; then
+		qlen=`${IP_CMD} l l dev ${dev} | grep qlen | sed 's/.* qlen \([0-9]*\).*/\1/'`
+		[ -z "${qlen}" ] && qlen=0
+		if [ "${qlen}" = "0" ]; then
+			${IP_CMD} l s ${dev} txqueuelen 1000
+		fi
+		vzrun_tc $TC_CMD qdisc add dev ${dev} root handle 1: htb
+	fi
+	configured=`${TC_CMD} class show dev ${dev} classid 1:${class_hex}`
+	if [ -z "${configured}" ]; then
+		vzrun_tc ${TC_CMD} class add dev ${dev} parent 1: \
+			classid 1:${class_hex} htb \
+			rate ${total_band}Kbit ${PRIO} ${maxburst}
+
+		vzrun_tc ${TC_CMD} qdisc add dev ${dev} parent 1:${class_hex} \
+			handle ${class_hex}: htb
+	fi
+}
+
+vzcreate_filter()
+{
+	local veid=$1
+	local dev=$2
+	local class=$3
+	local band=$4
+	local rate=$5
+	local tc_class_hex=$6
+	local fl_bounded=
+	local mark_val class_hex configured
+	local action
+
+	if [ -n "${TC_HANDLE_BASE}" ]; then
+		let mark_val=$[${TC_HANDLE_BASE}*${MAX_CLASSES}+${class}];
+	else
+		let mark_val=$[${veid}*2*${MAX_CLASSES}+${class}];
+	fi
+	class_hex=`printf "%x" $[${class}+1]`
+	[ "X${RATEBOUND}" != "Xyes" ] && rate=${band}
+	vzgetmaxburst ${rate}
+	maxburst=$vzgetmaxburst_ret
+	configured=`${TC_CMD} class show dev ${dev} parent ${class_hex}:`
+	[ -z "${configured}" ] && vzcreate_root_class "${dev}" "${class}"
+
+	configured=`${TC_CMD} class show dev ${dev} parent ${class_hex}: classid ${class_hex}:${tc_class_hex}`
+	[ -z "${configured}" ] && action=add || action=change
+	vzrun_tc ${TC_CMD} class ${action} dev ${dev} parent ${class_hex}: \
+		classid ${class_hex}:${tc_class_hex} htb \
+		rate ${rate}Kbit ${PRIO} ${maxburst} ceil ${band}Kbit
+
+	configured=`${TC_CMD} filter show dev ${dev} parent ${class_hex}: | \
+				grep -w "classid ${class_hex}:${tc_class_hex}"`
+	if [ -z "${configured}" ]; then
+		vzrun_tc ${TC_CMD} filter add dev ${dev} protocol ip \
+			parent 1:0 ${PRIO} handle ${mark_val} fw \
+			classid 1:${class_hex}
+		vzrun_tc ${TC_CMD} filter add dev ${dev} protocol ip \
+			parent ${class_hex}:0 ${PRIO} handle ${mark_val} fw \
+			classid ${class_hex}:${tc_class_hex}
+
+		if [ "${IPV6}" = "yes" ]; then
+			vzrun_tc ${TC_CMD} filter add dev ${dev} protocol ipv6 \
+				parent 1:0 ${PRIOV6} handle ${mark_val} fw \
+				classid 1:${class_hex}
+			vzrun_tc ${TC_CMD} filter add dev ${dev} protocol ipv6 \
+				parent ${class_hex}:0 ${PRIOV6} handle ${mark_val} fw \
+				classid ${class_hex}:${tc_class_hex}
+		fi
+	fi
+}
+
+# Create root qdisc for each interface
+# Parameters:
+# NO
+vzcreate_qdisc()
+{
+	local DEV;
+	local BAND;
+	local i;
+	local DEV1;
+	local BAND1;
+	local j;
+	local TMP;
+	local CLASS1;
+	local CLASS_HEX;
+	local WEIGHT;
+	local found;
+	local maxburst;
+
+	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return;
+
+	vzcheck_TOTALRATE
+	for i in ${BANDWIDTH} ; do
+		DEV=${i%%:*}
+		BAND=${i##*:}
+		[ -z ${DEV} -o -z ${BAND} ] && \
+			vzerror "Wrong BANDWIDTH value." ${VZ_SET_RATE};
+		let found=0;
+		for j in ${TOTALRATE} ; do
+			DEV1=${j%%:*}
+			TMP=${j#*:}
+			CLASS1=${TMP%%:*}
+			BAND1=${j##*:}
+
+			[ -z "${DEV1}" -o -z "${BAND1}" -o -z "${CLASS1}" ] && \
+				vzerror "Wrong TOTALRATE value." ${VZ_SET_RATE};
+			[ "X${DEV}" != "X${DEV1}" ] && continue;
+			let found=1;
+			vzcreate_root_class "${DEV}" "${CLASS1}"
+		done
+		if [ ${found} -eq 0 ]; then
+			vzwarning "Network interface ${DEV} is not found in TOTALRATE."
+		fi
+	done
+	if [ "X${1}" != "Xkeepdb" ]; then
+		lockfile ${VZ_TC_CLASSES_LOCK}
+		echo "#VEID TC_CLASS" > ${VZ_TC_CLASSES}
+		rm -f ${VZ_TC_CLASSES_LOCK} >/dev/null 2>&1
+	fi
+}
+
+# Delete VE shaping classes
+# Parameters:
+#   $1 - VE id
+vzdel_ve_sh_classes()
+{
+	local DEV;
+	local HANDLE;
+	local CLASSES_LIST;
+	local CLASS;
+	local TC_CLASS_HEX;
+
+	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return
+
+	[ -z "${1}" ] && vzerror "VEID is not specified." ${VZ_SET_RATE};
+
+	[ -z "${NETDEVICES}" ] && vzgetnetdev
+
+	vzread_tc_class "${1}"
+	[ -z ${vzread_tc_class_RET} ] && return
+
+	TC_CLASS_HEX=${vzread_tc_class_RET}
+
+	for DEV in ${NETDEVICES} ; do
+		CLASSES_LIST=`${TC_CMD} class show dev ${DEV} 2> /dev/null | cut -f 3 -d ' ' | grep -v "^1:" | cut -f1 -d ':' | sort | uniq`
+
+		for CLASS in ${CLASSES_LIST} ; do
+			HANDLE=`${TC_CMD} filter show dev ${DEV} parent ${CLASS}: protocol ip 2> /dev/null | \
+						grep "\<classid ${CLASS}:${TC_CLASS_HEX}\>" | cut -f 6 -d ' '`
+
+			if [ -n "$HANDLE" ]; then
+				HANDLE=`printf "%d" ${HANDLE}`
+				${TC_CMD} filter del dev ${DEV} protocol ip parent 1:0 ${PRIO} handle ${HANDLE} fw #> /dev/null 2>&1
+				${TC_CMD} filter del dev ${DEV} protocol ip parent ${CLASS}:0 ${PRIO} handle ${HANDLE} fw #> /dev/null 2>&1
+			fi
+			HANDLE=`${TC_CMD} filter show dev ${DEV} parent ${CLASS}: protocol ipv6 2> /dev/null | \
+						grep "\<classid ${CLASS}:${TC_CLASS_HEX}\>" | cut -f 6 -d ' '`
+			if [ -n "$HANDLE" ]; then
+				HANDLE=`printf "%d" ${HANDLE}`
+				${TC_CMD} filter del dev ${DEV} protocol ipv6 parent 1:0 ${PRIOV6} handle ${HANDLE} fw #> /dev/null 2>&1
+				${TC_CMD} filter del dev ${DEV} protocol ipv6 parent ${CLASS}:0 ${PRIOV6} handle ${HANDLE} fw #> /dev/null 2>&1
+			fi
+
+			${TC_CMD} class del dev ${DEV} classid ${CLASS}:${TC_CLASS_HEX} #> /dev/null 2>&1
+		done
+	done
+	vzput_tc_class "${1}"
+}
+
+# Adds VE shaping classes
+# Parameters:
+#   $1 - VE id
+vzadd_ve_sh_classes()
+{
+	local CLASS;
+	local CLASS1;
+	local DEV;
+	local DEV1;
+	local i;
+	local j;
+	local BAND;
+	local BAND1;
+	local WEIGHT;
+	local MARK_VAL;
+	local CLASS_HEX;
+	local TC_CLASS_HEX;
+	local TMP;
+
+	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return;
+
+	[ -z "${1}" ] && vzerror "VEID is not specified." ${VZ_SET_RATE};
+
+	vzcheck_RATE
+	vzread_tc_class "${1}"
+	[ ! -z "${vzread_tc_class_RET}" ] && vzdel_ve_sh_classes "${1}"
+	[ -z "${RATE}" ] && exit 0
+
+	vzget_tc_class "${1}"
+	[ -z "${vzget_tc_class_RET}" ] && \
+		vzerror "Can't get free tc class." ${VZ_SET_RATE};
+
+	TC_CLASS_HEX=${vzget_tc_class_RET}
+	for i in ${TOTALRATE} ; do
+		DEV=${i%%:*}
+		BAND=${i##*:}
+		TMP=${i#*:}
+		CLASS=${TMP%%:*}
+
+		[ -z ${DEV} -o -z ${BAND} ] && \
+			vzerror "Wrong TOTALRATE value." ${VZ_SET_RATE};
+
+		for j in ${RATE} ; do
+			DEV1=${j%%:*}
+			BAND1=${j##*:}
+			TMP=${j#*:}
+			CLASS1=${TMP%%:*}
+
+			[ -z "${DEV1}" -o -z "${BAND1}" -o -z "${CLASS1}" ] && \
+				vzerror "Wrong RATE value." ${VZ_SET_RATE};
+			[ "X${DEV}" != "X${DEV1}" -o "X${CLASS}" != "X${CLASS1}" ] && continue;
+
+			vzcreate_filter ${1} ${DEV} ${CLASS} ${BAND} ${BAND1} ${TC_CLASS_HEX}
+		done
+	done
+}
+
+# Clears root qdisc for all configured interfaces
+vzclear_qdisc_all()
+{
+	local dev
+	local dev_all
+	local dev_rm=""
+
+	dev_all=`$TC_CMD qdisc show | grep 'qdisc htb' | awk '/dev/{print $5}'`
+	for dev in ${dev_all}; do
+		if ! echo "${dev_rm}" | grep "${dev}" >/dev/null 2>&1; then
+			vzrun_tc $TC_CMD qdisc del dev ${dev} root
+			dev_rm="${dev_rm} ${dev}"
+		fi
+	done
+}
+
+# Clears root qdisc for each interface
+# Parameters:
+#   NO
+vzclear_qdisc()
+{
+	local DEV;
+	local i;
+
+	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return;
+
+	vzcheckvar BANDWIDTH
+	if [ "X${1}" != "Xkeepdb" ]; then
+		lockfile ${VZ_TC_CLASSES_LOCK}
+		rm -f ${VZ_TC_CLASSES} >/dev/null 2>&1
+		rm -f ${VZ_TC_CLASSES_LOCK} >/dev/null 2>&1
+	fi
+
+	for i in ${BANDWIDTH} ; do
+		DEV=${i%%:*}
+		if [ -z ${DEV} ]; then
+			vzwarning "Wrong BANDWIDTH value." ${VZ_SET_RATE};
+			continue
+		fi
+		vzrun_tc $TC_CMD qdisc del dev ${DEV} root
+	done
+}
+
+# Clears root qdisc for all configured interfaces
+vzclear_qdisc_all()
+{
+	local dev
+	local dev_all
+	local dev_rm=""
+
+	dev_all=`$TC_CMD qdisc show | grep 'qdisc htb' | awk '/dev/{print $5}'`
+	for dev in ${dev_all}; do
+		if ! echo "${dev_rm}" | grep "${dev}" >/dev/null 2>&1; then
+			vzrun_tc $TC_CMD qdisc del dev ${dev} root
+			dev_rm="${dev_rm} ${dev}"
+		fi
+	done
+}
+
+if [ "${1}" = "add" ]; then
+	vzcheckvar VEID BANDWIDTH TOTALRATE
+	if [ "$VE_STATE" = "starting" ]; then
+		vzdel_ve_sh_classes $VEID
+	fi
+	vzadd_ve_sh_classes $VEID
+elif [ "${1}" = "del" ]; then
+	vzcheckvar VEID
+
+	vzdel_ve_sh_classes $VEID
+
+elif [ "${1}" = "shaperoff" ]; then
+	vzclear_qdisc_all	
+elif [ "${1}" = "shaperon" ]; then
+	vzcreate_qdisc
+else
+	vzerror "Action is not specified" $VZ_INVALID_PARAMETER_SYNTAX
+fi	
+
+exit 0

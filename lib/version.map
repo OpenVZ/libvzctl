@@ -1,0 +1,7 @@
+{
+	global:
+		vzctl2_*;
+		vzctl_err;
+	local:
+		*;
+};

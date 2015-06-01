@@ -1,0 +1,59 @@
+#!/bin/bash
+# Copyright (C) 1999-2015 Parallels IP Holdings GmbH
+#
+# This file is part of OpenVZ libraries. OpenVZ is free software; you can
+# redistribute it and/or modify it under the terms of the GNU Lesser General
+# Public License as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+# 02110-1301, USA.
+#
+# Our contact details: Parallels IP Holdings GmbH, Vordergasse 59, 8200
+# Schaffhausen, Switzerland.
+#
+# This script setup traffic accounting rules for given VPS.
+#
+# Parameters are passed in environment variables.
+# Required parameters:
+#   VEID          - VPS id
+. @SCRIPTDIR@/vz-functions
+
+vzcheckvar VEID
+
+load_modules()
+{
+	local ve_conf=/etc/vz/conf/$VEID.conf
+	local f mod msg
+
+	# process tun/tap
+	if grep -qe '^DEVNODES=.*net/tun:' $ve_conf; then
+		modules="$moduels tun"
+	fi
+
+	# process pptp
+	if grep -e '^DEVNODES=.*ppp:' $ve_conf; then
+		modules="$moduels ppp_generic"
+	fi
+
+	for mod in ${modules}; do
+		if /sbin/lsmod | grep -qw $mod; then
+			continue
+		fi
+		msg=`/sbin/modprobe $mod >/dev/null 2>&1`
+		[ $? -ne 0 ] && echo "Warning: failed to load $mod: $msg"
+	done
+}
+
+load_modules
+
+exit 0
+# end of script
+

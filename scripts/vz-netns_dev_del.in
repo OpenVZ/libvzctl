@@ -1,0 +1,42 @@
+#!/bin/sh
+#  Copyright (C) 2012-2015 Parallels IP Holdings GmbH
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+# Destroy a network device using the iproute2 package.
+# Useful for running in non-OpenVZ kernels.
+#
+# Parameters are passed in environment variables.
+# Required parameters:
+#   VEID	- container ID
+#   VNAME       - desired device name as seen by the container.
+# Optional parameters:
+#   HNAME       - host device name. In this case, we'll not destroy the
+#                 container interface, but move it back to the host.
+
+. @PKGCONFDIR@/vz.conf
+. @SCRIPTDIR@/vz-functions
+
+vzcheckvar VEID
+vzcheckvar VNAME
+
+if [ "x$VNAME" = "x$HNAME" ]; then
+	vzregainif
+else
+	vzdestroylink
+fi
+
+exit 0

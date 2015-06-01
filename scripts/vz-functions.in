@@ -1,0 +1,549 @@
+#!/bin/bash
+# Copyright (C) 1999-2015 Parallels IP Holdings GmbH
+#
+# This file is part of OpenVZ libraries. OpenVZ is free software; you can
+# redistribute it and/or modify it under the terms of the GNU Lesser General
+# Public License as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+# 02110-1301, USA.
+#
+# Our contact details: Parallels IP Holdings GmbH, Vordergasse 59, 8200
+# Schaffhausen, Switzerland.
+#
+# Common stuff for vzctl helper scripts
+# get the name of the script
+SELFNAME=`basename $0`
+# Set the sane umask
+umask 022
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin
+
+# Error codes
+VZ_INVALID_PARAMETER_SYNTAX=20
+VZ_FS_NO_DISK_SPACE=46
+VZ_FS_BAD_TMPL=47
+VZ_FS_NEW_VE_PRVT=48
+VZ_CHANGEPASS=74
+VZ_CANT_ADDIP=34
+VZ_IP_INUSE=78
+VZ_SET_RATE=80
+VZ_SET_ACCOUNT=81
+
+# iptables parameters
+VE_STATE_DIR="/var/vz/veip/"
+CONF_DIR=@VPSCONFDIR@
+VZ_IP_CLASSES="${CONF_DIR}/networks_classes"
+SUSPEND_CONF_DIR="/etc/vz/vzreboot"
+PS_START_LOCK_FILE="/var/lock/subsys/ps_start_lock"
+PS_SERVICE="/etc/init.d/parallels-server"
+PRAM_MOUNT_POINT="/mnt/pram"
+
+# tc parameters
+TC_CMD=tc
+IP_CMD=ip
+ARPSEND_CMD="arpsend -c 1 -w 1"
+OVSCTL_CMD="/usr/bin/ovs-vsctl"
+VZ_CONFIGURED_TC_DEVICES=
+
+[ -z "${VZDEV}" ] && VZDEV="venet0"
+
+# interfaces parameters
+ALLOT="allot 3028"
+CELL="cell 8"
+MPU="mpu 64"
+PRIO="prio 1"
+PRIOV6="prio 2"
+
+let AVPKT=1000
+let HZ=0
+
+# inter functions variables
+vzget_ve_parameter_RET=""
+vzget_tc_class_RET=""
+# Prints error message and exits
+# Parameters:
+#   $1 - error message
+#   $2 - exit code
+# Example of usage:
+#   vzerror "Fatal error" 1
+function vzerror()
+{
+	# print errors to stdout too
+	ERR=$?
+	echo "$SELFNAME ERROR: $1"
+	exit $2
+}
+
+# Prints warning message
+# Parameters:
+#   $* - error message
+# Example of usage:
+#   vzwarning Invalid user
+function vzwarning()
+{
+	echo "$SELFNAME WARNING: $*"
+}
+
+# Prints debug message
+# Parameters:
+#   $* - debug message
+# Example of usage:
+#   vzdebug Trying to start ls
+function vzdebug()
+{
+	echo "$SELFNAME: $*"
+}
+
+# Executes a command and logs this fact, with command exit code.
+# Returns exit code of executed command.
+# dx stands for DebugExec
+# Parameters:
+#   $* - command to execute
+# Example of usage:
+#   vzdx ls -l
+function vzdx()
+{
+	vzdebug "EXEC $*"
+	eval $*
+	EXIT_CODE=$?
+	vzdebug "EXIT_CODE $EXIT_CODE"
+	return $EXIT_CODE
+}
+
+# Checks if environment variable exists,
+# and exits with exit code 1 if not
+# Parameters:
+#   $* - option names
+# Example:
+#   vzcheckvar VEID IP_ADDR
+function vzcheckvar()
+{
+	for VAR in $*; do
+		if eval test "\"x\$$VAR\"" = "x"; then
+			vzerror "Missing parameter: $VAR" $VZ_INVALID_PARAMETER_SYNTAX
+		fi
+	done
+}
+
+# Creates a pair of veth devices, being one of them in the host, and the other
+# inside the container The function should be called with the following env
+# variables set:
+#
+#  HNAME: The intended name of the device in the host side
+#  VNAME: The indented name of the device inside the container
+#  VEID:  The numerical container id.
+#
+# HNAME and VNAME must be different, since they will at some point cohexist at
+# the host side, and our name convention forced by vzctl tool guarantees that
+# this shouldn't be a problem for sane setups.
+#
+# This function leaves the host device in the "link up" state, but with no
+# further configuration. The container device setup is left entirely to the
+# container.
+#
+# If the device given by HNAME in the host already exists, this function exits
+# with no visible action.
+vzcreatepair()
+{
+	${IP_CMD} link show | grep -w -F $HNAME >/dev/null 2>&1 && return
+
+	${IP_CMD} netns exec $VEID ${IP_CMD} link add name $HNAME type veth peer name $VNAME
+	${IP_CMD} netns exec $VEID ${IP_CMD} link set $HNAME netns $$
+	${IP_CMD} link set $HNAME up
+}
+
+# Move an already existing interface to the network namespace given by VEID
+vzmoveif()
+{
+	${IP_CMD} link show | grep -w -F $HNAME >/dev/null 2>&1
+	if [ $? -ne 0 ]; then
+		vzerror "Can't move non-existent interface"
+		return;
+	fi
+
+	${IP_CMD} link set $HNAME netns $VEID
+}
+
+# Removes the interface referred to by VNAME from the container.
+vzdestroylink()
+{
+	${IP_CMD} netns exec $VEID ${IP_CMD} link delete $VNAME type veth
+}
+
+# desired mac addresses.  The host mac address is given by HMAC, and the
+# container's by VMAC.  They are both optional parameters. If no mac is
+# specified, this function does nothing.
+vzadjustmacs()
+{
+	if [ "x$HMAC" != "x" ]; then
+		${IP_CMD} link set dev $HNAME address $HMAC
+	fi
+
+	if [ "x$VMAC" != "x" ]; then
+		${IP_CMD} netns exec $VEID ${IP_CMD} link set dev $VNAME address $VMAC
+	fi
+}
+
+# Bridge configuration function.
+#
+# It allows us to automatically insert a given host-side interface (HNAME) into
+# a bridge. Calling the bridge "venet0" has a special meaning, since this is a
+# bridge expected to always exist in our setup. In this case, we'll make sure
+# the bridge exists by creating it in case we are the first caller.  For all
+# other setups, the bridge is expected to already exist and be valid.
+vzconfbridge()
+{
+	if [ "x$BRIDGE" = "xvenet0" ]; then
+		if [ $(brctl show venet0 2>/dev/null | tail -n+2 | wc -l) -eq 0 ]; then
+			brctl addbr venet0
+			${IP_CMD} link set venet0 up
+		fi
+	fi
+
+	if [ "x$BRIDGE" != "x" ]; then
+		brctl addif $BRIDGE $HNAME >/dev/null 2>&1
+	fi
+}
+
+# Move back an interface to the host namespace.
+#
+# When we move a physical host-side network device to the container, this is
+# what we should call to undo the operation.
+vzregainif()
+{
+	${IP_CMD} netns exec $VEID ${IP_CMD} link set $VNAME netns $$
+}
+
+# This function fills $NETDEVICES with all network interfaces
+# You should always call it before calling vzarp
+function vzgetnetdev()
+{
+# Get a list of interfaces, excluding ones with LOOPBACK NOARP or SLAVE flags
+# Accept mask: eth*[0-9]|tr*[0-9]|wlan[0-9]|ath[0-9]|ip6tnl*[0-9]|mip6mnha*[0-9]|bond[0-9]
+	NETDEVICES=`${IP_CMD} a l | awk '
+/^[[:digit:]]+:/ && /\<UP\>/ && !/\<LOOPBACK\>/ && !/\<SLAVE\>/ && !/\<NOARP\>/{
+	print $2
+}' | sed -e 's/:$//' -e 's/@.*//'`
+
+	local tmp_list=""
+	# Open vSwitch mode - IP assigned to bridge over device
+	if [ -d "/sys/module/openvswitch" ]; then
+		for dev in $NETDEVICES; do
+			local tmp=`$OVSCTL_CMD iface-to-br $dev 2>/dev/null`
+			[ $? -ne 0 ] && tmp="$dev"
+			tmp_list="$tmp_list $tmp"
+		done
+		NETDEVICES="$tmp_list"
+	fi
+
+	# step 2 - filter out devices without IP address
+	tmp_list=""
+	for dev in $NETDEVICES; do
+		local tmp=`${IP_CMD} a l $dev | awk -v dev=$dev \
+			'/^^[\ \t]+inet6? / { print(dev); exit; }'`
+		[ -n "$tmp" ] && tmp_list="$tmp_list $tmp"
+	done
+	NETDEVICES="$tmp_list"
+}
+
+# Adds/deletes public ARP records for given IP for all interfaces
+# Parameters:
+#   $1		- should be either "add" or "del"
+#   $2		- IP address
+#   $NETDEVICES - Network devices used to take MAC addresses from
+function vzarp()
+{
+	local DEV
+	local devlist
+
+	if [ "$1" = "del" ]; then
+		if [ "${2#*:}" != "${2}" ]; then
+			# use $NETDEVICES for ipv6 (#PCLIN-30830, #PCLIN-30753)
+			devlist=${NETDEVICES}
+		else
+			devlist=`awk '/^'$2' / {print $6}' /proc/net/arp`
+		fi
+	else
+		devlist=${NETDEVICES}
+	fi
+
+	for DEV in $devlist; do
+		${IP_CMD} neigh $1 proxy $2 dev $DEV > /dev/null 2>&1
+	done
+}
+
+# Send ARP request to detect that somebody already have this IP
+function vzarpipdetect()
+{
+	local DEV
+	local ip
+	local cmd
+
+	[ "${SKIP_ARPDETECT}" = "yes" ] && return
+	[ -z "${1}" ] && return
+
+	for ip in ${1}; do
+		cmd="$cmd -e $ip"
+	done
+
+	for DEV in $NETDEVICES; do
+		${ARPSEND_CMD} -D ${cmd} $DEV || vzwarning "${ARPSEND_CMD} -D ${cmd} $DEV FAILED"
+	done
+}
+
+# Send ARP request to update neighbour ARP caches
+function vzarpipset()
+{
+	local DEV
+	local ip
+	local dev
+
+	[ -z "${1}" ] && return
+
+	for dev in $NETDEVICES; do
+		for ip in ${1}; do
+			opt="-i ${ip} -e ${ip}"
+			${ARPSEND_CMD} -U ${opt} ${dev} || vzwarning "${ARPSEND_CMD} -U ${opt} ${dev} FAILED"
+		done
+	done
+}
+
+# Sets VE0 source routing for given IP
+# Parameters:
+#   $1 - IP address
+function vzaddrouting()
+{
+	local src_addr=
+	local device=
+	local cmd=
+
+	# add route for VM
+	if [ "${VZDEV}" != "venet0" ]; then
+		if ! ${IP_CMD} route list table all $1 | grep "$1 dev ${VZDEV}" > /dev/null 2>&1; then
+			cmd="${IP_CMD} route add $1 dev ${VZDEV}"
+			#for ipv6 default metric 0 is 1024 - set manual
+			[ "${1#*:}" != "${1}" ] && cmd="$cmd metric 1"
+			${cmd} || vzerror "Unable to set route: ${cmd}" $VZ_CANT_ADDIP
+		fi
+	fi
+
+	if ! ${IP_CMD} route list table all $1 | grep "$1 dev venet0" > /dev/null 2>&1;
+	then
+		if [ -n "${VE_ROUTE_SRC_DEV}" -a "${1#*:}" = "${1}" ]; then
+			device="dev ${VE_ROUTE_SRC_DEV}"
+			src_addr=`ip route list table local ${device} | \
+				grep '^local'| \
+				grep -v "dev venet0" | cut -d' ' -f2 | \
+				grep -v '^127\.' | head -1`
+			if [ -z "${src_addr}" ]; then
+				vzerror "Unable to get source ip [${device}]" $VZ_CANT_ADDIP
+			fi
+			src_addr="src ${src_addr}"
+		fi
+		cmd="${IP_CMD} route add $1 dev venet0 ${src_addr} metric 1000"
+		${cmd} || vzerror "Unable to set route: ${cmd}" $VZ_CANT_ADDIP
+	fi
+}
+
+# Deletes VE0 source routing for given IP
+# Parameters:
+#   $1 - IP address
+function vzdelrouting()
+{
+	while ${IP_CMD} route list table all $1 | grep "^$1 dev" >/dev/null 2>&1; do
+		if [ "${1%%:*}" != "${1}" ]; then
+			${IP_CMD} -6 route flush $1 || vzerror "Unable to remove route" 0
+		else
+			${IP_CMD} route del $1 || vzerror "Unable to remove route: ${IP_CMD} route del $1 dev ${VZDEV}" 0
+		fi
+	done
+}
+
+# Checks if all items from the first list
+# are in the second one.
+# Parameters:
+#   $1 - the first list
+#   $2 - the second list
+function vzis_list_in_list()
+{
+	local found;
+	local i;
+	local j;
+
+	[ -z "${1}" -a -z "${2}" ] && return 1;
+
+	for i in ${1} ; do
+		let found=0;
+		for j in ${2} ; do
+			if [ "X${i}" = "X${j}" ]; then
+				let found=1;
+				break;
+			fi
+		done
+		if [ ${found} -eq 0 ]; then
+			echo "${i}"
+			return 0;
+		fi
+	done
+	return 1;
+}
+
+# Makes list of the first fields (: separated)
+# of $1
+# Parameters:
+#   $1 - source list
+function vzmk_list1()
+{
+	local i;
+
+	RET_LIST=
+
+	[ -z "${1}" ] && return;
+
+	for i in ${1} ; do
+		RET_LIST="${RET_LIST} ${i%%:*}"
+	done
+}
+
+# Makes list of the second fields (: separated)
+# of $1
+# Parameters:
+#   $1 - source list
+function vzmk_list2()
+{
+	local TMP;
+	local i;
+
+	RET_LIST=
+
+	[ -z "${1}" ] && return;
+
+	for i in ${1} ; do
+		TMP=${i#*:}
+		RET_LIST="${RET_LIST} ${TMP%%:*}"
+	done
+}
+
+function set_configured_tc_dev()
+{
+:	local dev
+
+	VZ_CONFIGURED_TC_DEVICES=
+	for dev in ${@}; do
+		VZ_CONFIGURED_TC_DEVICES="${VZ_CONFIGURED_TC_DEVICES} ${dev%%:*}"
+	done
+}
+
+function lockfile()
+{
+	local TEMPFILE="${1}.$$"
+	local LOCKFILE="${1}"
+
+	[ -n "${__NOTLOCK}" ] && return 0
+	echo $$ > ${TEMPFILE} 2> /dev/null || {
+		vzerror "Can't write to ${TEMPFILE}." ${VZ_SET_ACCOUNT}
+	}
+	while [ "X" = "X" ]; do
+		[ -f ${TEMPFILE} ] || vzerror "Lock file ${TEMPFILE} not found" ${VZ_SET_ACCOUNT}
+		ln ${TEMPFILE} ${LOCKFILE} >& /dev/null && {
+			rm -f ${TEMPFILE};
+			return 0;
+		}
+		kill -0 `cat $LOCKFILE` >& /dev/null && {
+			sleep 1;
+			continue;
+		}
+		ln ${TEMPFILE} ${LOCKFILE} >& /dev/null && {
+			rm -f ${TEMPFILE};
+			return 0;
+		}
+		vzwarning "Removing stale lock file ${LOCKFILE}"
+		rm -f ${LOCKFILE}
+		sleep 1;
+	done
+}
+
+function is_ps_starting()
+{
+	LANG=en_US.UTF-8 $PS_SERVICE status | grep -q "is running"
+	[ $? -ne 0 ] && return 1
+
+	[ ! -f "$PS_START_LOCK_FILE" ] && return 1
+
+	return 0
+}
+
+# create pram
+function clean_pram()
+{
+	#echo -n $"Waiting for start Parallels Service:"
+	local timeout=0
+	while is_ps_starting ; do
+		if [ $timeout -ge 300 ]; then
+			vzwarning "Timeout wait for start Parallels Service"
+			break;
+		else
+			sleep 1
+			timeout=$((timeout+1))
+		fi
+	done
+
+	echo 0 > "/sys/kernel/pram"
+	echo 1 > "/proc/sys/vm/prune_pswap"
+}
+
+function umount_pram()
+{
+	umount "$PRAM_MOUNT_POINT"
+}
+
+#mount pram as file system
+function mount_pram()
+{
+	local opts=$1
+
+	# detect where to save CT dump
+	if [ ! -f "/sys/kernel/pram" ] ; then
+		echo "Warning: pram in not availabe"
+		return 1
+	fi
+
+	if [ "$opts" = "init" ] ; then
+		opts="-o noload"
+	fi
+
+	[ -d $PRAM_MOUNT_POINT ] || mkdir -p $PRAM_MOUNT_POINT
+
+	# mount pram
+	mount ${opts} -t pram none $PRAM_MOUNT_POINT
+	if [ $? -ne  0 ] ; then
+		echo "Warinig: Failed to mount pram"
+		return 1
+	fi
+
+	return 0
+}
+
+#Detect reboot is configured with kexec for fast reboot
+function is_fast_reboot()
+{
+	is_loaded=$(cat /sys/kernel/kexec_loaded)
+	[ "$is_loaded" != "1" ] && return 1
+
+	return 0
+}
+
+#return list of CTs that were suspended for fast reboot
+function get_suspended_ves()
+{
+	ls -1 ${SUSPEND_CONF_DIR} 2>/dev/null
+}
+

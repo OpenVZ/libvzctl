@@ -1,0 +1,60 @@
+#!/bin/bash
+#  Copyright (C) 2013-2015 Parallels IP Holdings GmbH
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+# Checkpoint a container using CRIU (http://criu.org).
+# Useful with recent upstream (i.e. non-OpenVZ) kernels.
+# Requires criu to be installed.
+#
+# Parameters are passed in environment variables.
+# Required parameters:
+#   VE_ROOT     - container root directory
+#   VE_DUMP_DIR - directory for saving dump files
+#   VE_PID      - PID of CT init process
+exec 1>&2
+
+mkdir -p $VE_DUMP_DIR &&
+criu dump	--file-locks								\
+		--tcp-established							\
+		--evasive-devices							\
+		--manage-cgroups							\
+		--link-remap								\
+		--root $VE_ROOT								\
+		--ext-mount-map /sys/fs/cgroup/cpuset:/ve-cpuset			\
+		--ext-mount-map /sys/fs/cgroup/cpu,cpuacct:/ve-cpu-cpuacct		\
+		--ext-mount-map /sys/fs/cgroup/memory:/ve-memory			\
+		--ext-mount-map /sys/fs/cgroup/devices:/ve-devices			\
+		--ext-mount-map /sys/fs/cgroup/freezer:/ve-freezer			\
+		--ext-mount-map /sys/fs/cgroup/net_cls:/ve-net_cls			\
+		--ext-mount-map /sys/fs/cgroup/blkio:/ve-blkio				\
+		--ext-mount-map /sys/fs/cgroup/perf_event:/ve-perf_event		\
+		--ext-mount-map /sys/fs/cgroup/hugetlb:/ve-hugetlb			\
+		--ext-mount-map /sys/fs/cgroup/systemd:/ve-systemd			\
+		-t $VE_PID								\
+		-D $VE_DUMP_DIR								\
+		-o dump.log								\
+		-vvvv
+if [ $? -ne 0 ]; then
+        [ -d $VE_DUMP_DIR.fail ] && rm -rf $VE_DUMP_DIR.fail
+        mv -f $VE_DUMP_DIR $VE_DUMP_DIR.fail
+        echo Failed to checkpoint the Container
+        echo All dump files and logs were saved to $VE_DUMP_DIR.fail
+        exit 1
+else
+        echo Checkpointing finished successfully
+fi
+

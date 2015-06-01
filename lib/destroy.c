@@ -1,0 +1,313 @@
+/*
+ *  Copyright (c) 1999-2015 Parallels IP Holdings GmbH
+ *
+ * This file is part of OpenVZ libraries. OpenVZ is free software; you can
+ * redistribute it and/or modify it under the terms of the GNU Lesser General
+ * Public License as published by the Free Software Foundation; either version
+ * 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library.  If not, see
+ * <http://www.gnu.org/licenses/> or write to Free Software Foundation,
+ * 51 Franklin Street, Fifth Floor Boston, MA 02110, USA.
+ *
+ * Our contact details: Parallels IP Holdings GmbH, Vordergasse 59, 8200
+ * Schaffhausen, Switzerland.
+ *
+ */
+
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <errno.h>
+#include <string.h>
+#include <signal.h>
+#include <sys/wait.h>
+
+#include "libvzctl.h"
+
+#include "logger.h"
+#include "vzerror.h"
+#include "util.h"
+#include "lock.h"
+#include "vztypes.h"
+#include "config.h"
+#include "name.h"
+#include "net.h"
+#include "util.h"
+#include "env.h"
+#include "disk.h"
+#include "list.h"
+#include "image.h"
+#include "exec.h"
+
+#define BACKUP		0
+#define DESTR		1
+
+const char destroy_dir_magic[] = "vzctl-rm-me.";
+
+static int del_dir(const char *dir)
+{
+	int ret;
+	char *argv[4];
+
+	argv[0] = "/bin/rm";
+	argv[1] = "-rf";
+	argv[2] = (char *)dir;
+	argv[3] = NULL;
+	ret = vzctl2_wrap_exec_script(argv, NULL, 0);
+
+	return ret;
+}
+
+#define DESTROY_DIR_MAGIC       "vzctl-rm-me."
+static int maketmpdir(const char *dir, char *out, int len)
+{
+	char buf[PATH_MAX];
+
+	snprintf(buf, sizeof(buf), "%s/"DESTROY_DIR_MAGIC"XXXXXXX", dir);
+	if (mkdtemp(buf) == NULL) {
+		logger(-1, errno, "Error in mkdtemp(%s)", buf);
+		return 1;
+	}
+	snprintf(out, len, "%s", buf);
+
+	return 0;
+}
+
+/* Removes all the directories under 'root'
+ * those names start with 'destroy_dir_magic'
+ */
+static void do_destroydir(const char *root)
+{
+	char buf[PATH_MAX];
+	struct stat st;
+	struct dirent *ep;
+	DIR *dp;
+	int del, ret;
+
+	do {
+		if (!(dp = opendir(root)))
+			return;
+		del = 0;
+		while ((ep = readdir(dp))) {
+			if (strncmp(ep->d_name, DESTROY_DIR_MAGIC,
+						sizeof(DESTROY_DIR_MAGIC) - 1))
+			{
+				continue;
+			}
+			snprintf(buf, sizeof(buf), "%s/%s", root, ep->d_name);
+			if (stat(buf, &st))
+				continue;
+			if (!S_ISDIR(st.st_mode))
+				continue;
+			snprintf(buf, sizeof(buf), "rm -rf %s/%s",
+					root, ep->d_name);
+			ret = system(buf);
+			if (ret == -1 || WEXITSTATUS(ret))
+				sleep(10);
+			del = 1;
+		}
+		closedir(dp);
+	} while (del);
+}
+
+int destroydir(const char *dir)
+{
+	int ret;
+	char buf[STR_SIZE];
+	char tmp[STR_SIZE];
+	char *tmp_dir;
+	int fd_lock, pid;
+	struct stat st;
+
+	if (stat(dir, &st)) {
+		if (errno != ENOENT)
+			return vzctl_err(-1, errno, "Unable to stat %s", dir);
+		return 0;
+	}
+
+	if (S_ISREG(st.st_mode)) {
+		logger(5, 0, "remove %s", dir);
+		if (unlink(dir))
+			return vzctl_err(-1, errno, "Unable to unlink %s", dir);
+		return 0;
+	}
+
+	tmp_dir = get_fs_root(dir);
+	if (tmp_dir == NULL)
+		return VZCTL_E_FS_DEL_PRVT;
+	snprintf(tmp, sizeof(tmp), "%s/del", tmp_dir);
+	free(tmp_dir);
+
+	if (stat(tmp, &st)) {
+		if (errno != ENOENT)
+			return vzctl_err(-1, errno, "Unable to stat %s", tmp);
+		/* try to create temporary del dir */
+		ret = make_dir(tmp, 1);
+		if (ret)
+			return ret;
+	}
+
+	/* First move to del */
+	if (maketmpdir(tmp, buf, sizeof(buf)))
+		return VZCTL_E_FS_DEL_PRVT;
+
+	logger(5, 0, "remove dir=%s tmp=%s", dir, buf);
+	if (rename(dir, buf)) {
+		logger(-1, errno, "Cannot move %s to %s, remove the directory in place",
+				dir, buf);
+		if (del_dir(dir))
+			return VZCTL_E_FS_DEL_PRVT;
+		return 0;
+	}
+	snprintf(buf, sizeof(buf), "%s/rm.lck", tmp);
+	if ((fd_lock = vzctl2_lock(buf, VZCTL_LOCK_EX | VZCTL_LOCK_NB, 0)) == -2)
+		/* already locked */
+		return 0;
+	else if (fd_lock == -1)
+		return VZCTL_E_FS_DEL_PRVT;
+
+	if (!(pid = fork())) {
+		setsid();
+		close_fds(VZCTL_CLOSE_STD, fd_lock, -1);
+		do_destroydir(tmp);
+		_exit(0);
+	} else if (pid < 0)
+		return vzctl_err(VZCTL_E_FORK, errno, "destroydir: Unable to fork");
+
+	return 0;
+}
+
+int env_destroy_prvt(const char *dir, int layout)
+{
+	return destroydir(dir);
+}
+
+static int destroy_vzcache(struct vzctl_env_handle *h)
+{
+	char *arg[6];
+
+	if (h->env_param->fs->layout >= VZCTL_LAYOUT_5)
+		return 0;
+
+	if (stat_file(VZCACHE))
+		return 0;
+
+	arg[0] = VZCACHE;
+	arg[1] = "--delete";
+	arg[2] = "--quiet";
+	arg[3] = "--skiplock";
+	arg[4] = EID(h);
+	arg[5] = NULL;
+	return vzctl2_wrap_exec_script(arg, NULL, 0);
+}
+
+static void destroy_conf(struct vzctl_env_handle *h)
+{
+	int i;
+        char conf[STR_SIZE];
+        char newconf[STR_SIZE];
+        struct stat st;
+	char *actions[] = {
+		VZCTL_START_PREFIX,
+		VZCTL_STOP_PREFIX,
+		VZCTL_PRE_MOUNT_PREFIX,
+		VZCTL_MOUNT_PREFIX,
+		VZCTL_UMOUNT_PREFIX,
+	};
+
+	snprintf(conf, sizeof(conf), VZ_ENV_CONF_DIR "%s.conf", EID(h));
+	if (stat(conf, &st) == 0 && S_ISREG(st.st_mode)) {
+		snprintf(newconf, sizeof(newconf), "%s.destroyed", conf);
+		rename(conf, newconf);
+	} else
+		unlink(conf);
+
+	for (i = 0; i < sizeof(actions)/sizeof(actions[0]); i++) {
+		snprintf(conf, sizeof(conf), VZ_ENV_CONF_DIR "%s.%s", EID(h), actions[i]);
+		snprintf(newconf, sizeof(newconf), "%s.destroyed", conf);
+		rename(conf, newconf);
+	}
+        get_env_conf_lockfile(h, conf, sizeof(conf));
+        unlink(conf);
+}
+
+static int umount_all(const char *path)
+{
+	int ret;
+	char **s, **devs = NULL;
+
+	ret = vzctl2_get_ploop_devs(path, &devs);
+	if (ret) /* ignore error */
+		return 0;
+
+	for (s = devs; *s != NULL; s++) {
+		if (ploop_umount(*s, NULL))
+			ret = vzctl_err(VZCTL_E_FS_MOUNTED, 0,
+					"Failed to unmount %s", *s);
+	}
+	ploop_free_array(devs);
+
+	return ret;
+}
+
+int vzctl2_env_destroy(struct vzctl_env_handle *h, int flags)
+{
+	int ret;
+	char buf[PATH_LEN];
+	const struct vzctl_fs_param *fs = h->env_param->fs;
+	struct vzctl_disk *disk, *disk_safe;
+
+	if (check_var(fs->ve_private, "VE_PRIVATE is not set"))
+		return VZCTL_E_VE_PRIVATE_NOTSET;
+	if (is_env_run(h))
+		return vzctl_err(VZCTL_E_ENV_RUN, 0, "Container is currently runing."
+				" Stop it before proceeding.");
+	if (vzctl2_env_is_mounted(h))
+		return vzctl_err(VZCTL_E_FS_MOUNTED, 0, "Container is currently mounted."
+				" Unmount it before proceeding.");
+
+	logger(0, 0, "Destroying Container private area: %s", fs->ve_private);
+	if (h->env_param->fs->layout >= VZCTL_LAYOUT_5) {
+		list_for_each_safe(disk, disk_safe, &h->env_param->disk->disks, list) {
+			ret = umount_all(disk->path);
+			if (ret)
+				return ret;
+			vzctl2_del_disk(h, disk->uuid, 0);
+		}
+	}
+
+	destroy_vzcache(h);
+	remove_names(h);
+
+	ret = vzctl2_env_unreg(h, 0);
+	if (ret && ret != VZCTL_E_UNREGISTER)
+		return ret;
+
+	if ((ret = env_destroy_prvt(fs->ve_private,
+			h->env_param->fs->layout)))
+		return ret;
+
+	destroy_conf(h);
+
+	/* Dump file */
+	vzctl2_get_dump_file(h, buf, sizeof(buf));
+	destroydir(buf);
+	/* VE_ROOT */
+	rmdir(fs->ve_root);
+
+	vzctl2_send_state_evt(EID(h), VZCTL_ENV_DELETED);
+	logger(0, 0, "Container private area was destroyed");
+
+	return 0;
+}

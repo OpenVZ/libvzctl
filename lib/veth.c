@@ -1,0 +1,1546 @@
+/*
+ *  Copyright (c) 1999-2015 Parallels IP Holdings GmbH
+ *
+ * This file is part of OpenVZ libraries. OpenVZ is free software; you can
+ * redistribute it and/or modify it under the terms of the GNU Lesser General
+ * Public License as published by the Free Software Foundation; either version
+ * 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library.  If not, see
+ * <http://www.gnu.org/licenses/> or write to Free Software Foundation,
+ * 51 Franklin Street, Fifth Floor Boston, MA 02110, USA.
+ *
+ * Our contact details: Parallels IP Holdings GmbH, Vordergasse 59, 8200
+ * Schaffhausen, Switzerland.
+ *
+ */
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <errno.h>
+#include <sys/ioctl.h>
+#include <string.h>
+#include <time.h>
+#include <uuid/uuid.h>
+
+#include <linux/vzcalluser.h>
+#include <linux/vzctl_veth.h>
+
+#include "libvzctl.h"
+
+#include "vzerror.h"
+#include "util.h"
+#include "veth.h"
+#include "env.h"
+#include "logger.h"
+#include "vz.h"
+#include "exec.h"
+#include "vzctl_param.h"
+#include "config.h"
+#include "net.h"
+#include "env_ops.h"
+
+
+void free_veth_dev(struct vzctl_veth_dev *dev)
+{
+	free(dev->mac);
+	free(dev->mac_ve);
+	free(dev->gw);
+	free(dev->gw6);
+	free(dev->network);
+	free_ip(&dev->ip_list);
+	free_ip(&dev->ip_del_list);
+
+	free(dev);
+}
+
+struct vzctl_veth_dev *alloc_veth_dev(void)
+{
+	struct vzctl_veth_dev *new;
+
+	new = calloc(1, sizeof(struct vzctl_veth_dev));
+	if (new == NULL)
+		return NULL;
+	list_head_init(&new->ip_list);
+	list_head_init(&new->ip_del_list);
+	return new;
+}
+
+void free_veth(list_head_t *head)
+{
+	struct vzctl_veth_dev *tmp, *it;
+
+	if (list_empty(head))
+		return;
+	list_for_each_safe(it, tmp, head, list) {
+		list_del(&it->list);
+		free_veth_dev(it);
+	}
+	list_head_init(head);
+}
+
+void free_veth_param(struct vzctl_veth_param *veth)
+{
+	free_veth(&veth->dev_list);
+	free_veth(&veth->dev_del_list);
+	free(veth);
+}
+
+struct vzctl_veth_param *alloc_veth_param(void)
+{
+	struct vzctl_veth_param *new;
+
+	new = calloc(1, sizeof(struct vzctl_veth_param));
+	if (new == NULL)
+		return NULL;
+	list_head_init(&new->dev_list);
+	list_head_init(&new->dev_del_list);
+
+	return new;
+}
+
+static int fill_veth_dev(struct vzctl_veth_dev *dst,
+		struct vzctl_veth_dev *src)
+{
+	if (src->dev_name[0] != 0)
+		strcpy(dst->dev_name, src->dev_name);
+	//      if (src->custom_dev_name)
+	//              dst->custom_dev_name = src->custom_dev_name;
+	if (src->mac != NULL) {
+		set_hwaddr(src->mac, &dst->mac);
+	}
+	if (src->dev_name_ve[0] != 0)
+		strcpy(dst->dev_name_ve, src->dev_name_ve);
+	if (src->mac_ve != 0) {
+		set_hwaddr(src->mac_ve, &dst->mac_ve);
+	}
+	if (src->network != NULL) {
+		free(dst->network);
+		dst->network = strdup(src->network);
+	}
+	if (src->gw) {
+		free(dst->gw);
+		dst->gw = strdup(src->gw);
+	}
+	if (src->gw6) {
+		free(dst->gw6);
+		dst->gw6 = strdup(src->gw6);
+	}
+	if (src->dhcp)
+		dst->dhcp = src->dhcp;
+	if (src->dhcp6)
+		dst->dhcp6 = src->dhcp6;
+	if (src->mac_filter)
+		dst->mac_filter = src->mac_filter;
+	if (src->ip_filter)
+		dst->ip_filter = src->ip_filter;
+	if (src->configure_mode)
+		dst->configure_mode = src->configure_mode;
+	if (!list_empty(&src->ip_list))
+		copy_ip_param(&dst->ip_list, &src->ip_list);
+	if (!list_empty(&src->ip_del_list))
+		copy_ip_param(&dst->ip_del_list, &src->ip_del_list);
+	dst->ip_delall = src->ip_delall;
+	dst->flags = src->flags;
+
+	return 0;
+}
+
+int add_veth_param(list_head_t *head, struct vzctl_veth_dev *dev)
+{
+	int ret;
+	struct vzctl_veth_dev *new;
+
+	new = alloc_veth_dev();
+	if (new == NULL)
+		return VZCTL_E_NOMEM;
+	ret = fill_veth_dev(new, dev);
+	if (ret) {
+		free_veth_dev(new);
+		return ret;
+	}
+	list_add_tail(&new->list, head);
+
+	return 0;
+}
+
+static void generate_veth_name(ctid_t ctid, const char *dev_name_ve,
+	char *dev_name, int len)
+{
+	int n = 0;
+	char id[9];
+
+	sscanf(dev_name_ve, "%*[^0-9]%d", &n);
+	snprintf(id, sizeof(id), "%s", ctid);
+	snprintf(dev_name, len, "veth%s.%d", id, n);
+}
+
+static void generate_mac(char **mac)
+{
+	unsigned int hash;
+	char hwaddr[ETH_ALEN];
+	uuid_t u;
+
+	uuid_generate(u);
+
+	memcpy(&hash, u, sizeof(hash)); 
+	hash ^= hash << 3;
+	hash += hash >> 5;
+	hash ^= hash << 4;
+	hash += hash >> 17;
+	hash ^= hash << 25;
+	hash += hash >> 6;
+	hwaddr[0] = (char) (SW_OUI >> 0xf);
+	hwaddr[1] = (char) (SW_OUI >> 0x8);
+	hwaddr[2] = (char) SW_OUI;
+	hwaddr[3] = (char) hash;
+	hwaddr[4] = (char) (hash >> 0x8);
+	hwaddr[5] = (char) (hash >> 0xf);
+
+	*mac = hwaddr2str(hwaddr);
+}
+
+static void fill_empty_veth_dev_param(ctid_t ctid, struct vzctl_veth_dev *dev)
+{
+	if (dev->dev_name[0] == '\0')
+		generate_veth_name(ctid, dev->dev_name_ve, dev->dev_name, IFNAMSIZE);
+	if (dev->mac == NULL)
+		generate_mac(&dev->mac);
+	if (dev->mac_ve == NULL)
+		generate_mac(&dev->mac_ve);
+}
+
+static int run_vznetcfg(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
+{
+	int ret;
+	char buf[1024];
+	char *argv[5];
+
+	if (stat_file(VZNETCFG) != 1)
+		return 0;
+
+	argv[0] = VZNETCFG;
+	if (dev->network[0] == 0) {
+		argv[1] = "down";
+		snprintf(buf, sizeof(buf), "%s", dev->dev_name);
+		logger(0, 0, "Detach the veth device %s" , buf);
+	} else {
+		argv[1] = "init";
+		snprintf(buf, sizeof(buf), "%s/%s",
+			dev->dev_name, dev->network);
+		logger(0, 0, "Attach the veth device %s to the %s...",
+			dev->dev_name, dev->network);
+	}
+	argv[2] = "veth";
+	argv[3] = buf;
+	argv[4] = NULL;
+	if ((ret = vzctl2_wrap_exec_script(argv, NULL, 0))) {
+		logger(-1, 0, VZNETCFG " exited with error");
+		ret = VZCTL_E_VETH;
+	}
+	return ret;
+}
+
+static int vz_veth_dev_mac_filter(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
+{
+	struct vzctl_ve_hwaddr hwaddr = {};
+	int ret;
+	unsigned veid = eid2veid(h);
+
+	hwaddr.op = (dev->mac_filter == VZCTL_PARAM_ON) ? VE_ETH_DENY_MAC_CHANGE :
+					VE_ETH_ALLOW_MAC_CHANGE;
+	hwaddr.veid = veid;
+	memcpy(hwaddr.dev_name, dev->dev_name, IFNAMSIZE);
+	memcpy(hwaddr.dev_name_ve, dev->dev_name_ve, IFNAMSIZE);
+	ret = ioctl(get_vzctlfd(), VETHCTL_VE_HWADDR, &hwaddr);
+	if (ret) {
+		if (errno != ENODEV)
+			return vzctl_err(VZCTL_E_VETH, errno, "Unable to set mac filter");
+	}
+	return 0;
+}
+
+static int vz_veth_dev_create(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
+{
+	struct vzctl_ve_hwaddr hwaddr;
+	int ret;
+	unsigned veid = eid2veid(h);
+
+	hwaddr.veid = veid;
+	hwaddr.op = VE_ETH_ADD;
+	memcpy(hwaddr.dev_name, dev->dev_name, IFNAMSIZE);
+	if (dev->mac != NULL) {
+		parse_hwaddr(dev->mac, (char*)hwaddr.dev_addr);
+		hwaddr.addrlen = ETH_ALEN;
+	}
+	if (dev->mac_ve != NULL) {
+		parse_hwaddr(dev->mac_ve, (char*)hwaddr.dev_addr_ve);
+		hwaddr.addrlen_ve = ETH_ALEN;
+	}
+	memcpy(hwaddr.dev_name_ve, dev->dev_name_ve, IFNAMSIZE);
+
+	ret = ioctl(get_vzctlfd(), VETHCTL_VE_HWADDR, &hwaddr);
+	if (ret) {
+		if (errno == ENOTTY)
+			logger(-1, 0, "Error: veth feature is"
+					" not supported by kernel");
+		else
+			logger(-1, errno, "Unable to create veth");
+		return VZCTL_E_VETH;
+	}
+	return 0;
+}
+
+static int vz_veth_dev_remove(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
+{
+	struct vzctl_ve_hwaddr hwaddr = {};
+	int ret;
+	unsigned veid = eid2veid(h);
+
+	if (!dev->dev_name[0])
+		return vzctl_err(VZCTL_E_INVAL, 0, "Veth device name is not specified");
+
+	hwaddr.op = VE_ETH_DEL;
+	hwaddr.veid = veid;
+	memcpy(hwaddr.dev_name, dev->dev_name, IFNAMSIZE);
+	ret = ioctl(get_vzctlfd(), VETHCTL_VE_HWADDR, &hwaddr);
+	if (ret) {
+		if (errno != ENODEV)
+			return vzctl_err(VZCTL_E_VETH, errno, "Unable to remove veth");
+	}
+	return 0;
+}
+
+int vz_veth_ctl(struct vzctl_env_handle *h, int op, struct vzctl_veth_dev *dev, int flags)
+{
+	int ret = 0;
+
+	if (op == ADD) {
+		if (!(dev->flags & VETH_ACTIVE)) {
+			if ((ret = vz_veth_dev_create(h, dev)))
+				return ret;
+		}
+		dev->flags |= VETH_ACTIVE;
+		if (dev->mac_filter) {
+			if ((ret = vz_veth_dev_mac_filter(h, dev)))
+				return ret;
+		}
+	} else {
+		if (dev->flags & VETH_ACTIVE)
+			ret = vz_veth_dev_remove(h, dev);
+	}
+	return ret;
+}
+
+static int veth_ctl(struct vzctl_env_handle *h, int op, list_head_t *head,
+		int flags, int rollback)
+{
+	int ret = 0;
+	char buf[256];
+	char *p, *ep;
+	struct vzctl_veth_dev *it;
+
+	if (list_empty(head))
+		return 0;
+	if (!is_env_run(h))
+		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0,
+				"Unable to %s veth: container is not running",
+				op == ADD ? "create" : "remove");
+	buf[0] = 0;
+	p = buf;
+	ep = buf + sizeof(buf) - 1;
+	list_for_each(it, head, list) {
+		p += snprintf(p, ep - p, "%s ", it->dev_name_ve);
+		if (p >= ep)
+			break;
+	}
+	logger(0, 0, "%s veth device(s): %s",
+			 (op == ADD) ? "Configure" : "Deleting", buf);
+	list_for_each(it, head, list) {
+		if (op == ADD) {
+			fill_empty_veth_dev_param(EID(h), it);
+			ret = get_env_ops()->env_veth_ctl(h, ADD, it, flags);
+			if (ret)
+				break;
+			if (it->network != NULL && (ret = run_vznetcfg(h, it)))
+				break;
+			if (h->env_param->net->rps != VZCTL_PARAM_OFF)
+				configure_net_rps(h->env_param->fs->ve_root, it->dev_name_ve);
+		} else {
+			ret = get_env_ops()->env_veth_ctl(h, DEL, it, flags);
+			if (ret)
+				break;
+		}
+	}
+
+	/* If operation failed remove devices were added. */
+	if (ret && rollback) {
+		list_for_each_prev_continue(it, head, list) {
+			if (op == ADD && !(it->flags & VETH_ACTIVE))
+				get_env_ops()->env_veth_ctl(h, DEL, it, flags);
+		}
+		/* Remove devices from list to skip saving. */
+		free_veth(head);
+	}
+	return ret;
+}
+
+struct vzctl_veth_dev *find_veth_dev(list_head_t *head,
+		const struct vzctl_veth_dev *dev)
+{
+	struct vzctl_veth_dev *it;
+
+	list_for_each(it, head, list) {
+		if (!strcmp(it->dev_name, dev->dev_name))
+			return it;
+	}
+	return NULL;
+}
+
+static struct vzctl_veth_dev *find_veth_by_ifname_ve(list_head_t *head,
+		const char *name)
+{
+	struct vzctl_veth_dev *it;
+
+	list_for_each(it, head, list) {
+		if (!strcmp(it->dev_name_ve, name))
+			return it;
+	}
+	return NULL;
+}
+
+static int merge_veth_dev(struct vzctl_veth_dev *old, struct vzctl_veth_dev *new,
+		struct vzctl_veth_dev *merged)
+{
+	struct vzctl_ip_param *ip;
+
+	fill_veth_dev(merged, old);
+	fill_veth_dev(merged, new);
+
+	/* merge ips */
+	if (!new->ip_delall) {
+		list_head_t *old_ip_list = &old->ip_list;
+		list_head_t *new_ip_list = &new->ip_list;
+
+		free_ip(&merged->ip_list);
+		// Copy old ips
+		list_for_each(ip, old_ip_list, list) {
+			if (find_ip(new_ip_list, ip) != NULL)
+				continue;
+			add_ip_param(&merged->ip_list, ip);
+		}
+		list_for_each(ip, new_ip_list, list) {
+			if (find_ip(&new->ip_del_list, ip) != NULL)
+				continue;
+			add_ip_param(&merged->ip_list, ip);
+		}
+	} else {
+		// Clean ip list in case ip_delall & empty ip list specified
+		if (list_empty(&new->ip_list))
+			free_ip(&merged->ip_list);
+	}
+
+	return 0;
+}
+
+static int merge_veth_list(list_head_t *old, list_head_t *add, list_head_t *del,
+	list_head_t *merged)
+{
+	int ret;
+	struct vzctl_veth_dev *it;
+	list_head_t empty;
+
+	list_head_init(&empty);
+	if (old == NULL)
+		old = &empty;
+	if (add == NULL)
+		add = &empty;
+	if (del == NULL)
+		del = &empty;
+
+	list_for_each(it, old, list) {
+		struct vzctl_veth_dev *new_dev;
+		/* Skip old devices that was deleted */
+		if (find_veth_by_ifname_ve(del, it->dev_name_ve) != NULL)
+			continue;
+		new_dev = find_veth_by_ifname_ve(add, it->dev_name_ve);
+		if (new_dev != NULL) {
+			struct vzctl_veth_dev *merged_dev;
+
+
+			merged_dev = alloc_veth_dev();
+			if (merged_dev == NULL)
+				return VZCTL_E_NOMEM;
+			/* Merge new parameters with old one */
+			merge_veth_dev(it, new_dev, merged_dev);
+			ret = add_veth_param(merged, merged_dev);
+
+			free_veth_dev(merged_dev);
+
+			if (ret)
+				return ret;
+		} else {
+			/* Add old devices */
+			ret = add_veth_param(merged, it);
+			if (ret)
+				return ret;
+		}
+	}
+	/* Add rest of new devices */
+	list_for_each(it, add, list) {
+		if (find_veth_by_ifname_ve(old, it->dev_name_ve) == NULL) {
+			if (add_veth_param(merged, it))
+				return VZCTL_E_NOMEM;
+		}
+	}
+	return 0;
+}
+
+static int read_proc_veth(struct vzctl_env_handle *h, list_head_t *head)
+{
+	FILE *fp;
+	char buf[256];
+	char mac[MAC_SIZE + 1];
+	char mac_ve[MAC_SIZE + 1];
+	char dev_name[IFNAMSIZE + 1];
+	char dev_name_ve[IFNAMSIZE + 1];
+	int id;
+	struct vzctl_veth_dev *dev;
+	unsigned veid = eid2veid(h);
+
+	fp = fopen(PROC_VETH, "r");
+	if (fp == NULL)
+		return -1;
+	while (fgets(buf, sizeof(buf), fp) != NULL) {
+		if (sscanf(buf, "%17s %15s %17s %15s %d",
+			mac, dev_name, mac_ve, dev_name_ve, &id) != 5)
+		{
+			continue;
+		}
+		if (veid != id)
+			continue;
+		dev = alloc_veth_dev();
+		if (dev == NULL)
+			break;
+		dev->mac = strdup(mac);
+		dev->mac_ve = strdup(mac_ve);
+		strncpy(dev->dev_name, dev_name, IFNAMSIZE);
+		dev->dev_name[IFNAMSIZE] = 0;
+		strncpy(dev->dev_name_ve, dev_name_ve, IFNAMSIZE);
+		dev->dev_name_ve[IFNAMSIZE] = 0;
+		dev->flags = VETH_ACTIVE;
+		list_add_tail(&dev->list, head);
+	}
+	fclose(fp);
+	return 0;
+}
+
+#if 0
+static struct vzctl_veth_dev *find_veth_by_ifname(list_head_t *head,
+		const char *name)
+{
+	struct vzctl_veth_dev *it;
+
+	list_for_each(it, head, list) {
+		if (!strcmp(it->dev_name, name))
+			return it;
+	}
+	return NULL;
+}
+
+int check_veth_param(ctid_t ctid, struct vzctl_veth_param *veth_old,
+		struct vzctl_veth_param *veth_new,
+		struct vzctl_veth_param *veth_del)
+{
+	int merge;
+	struct vzctl_veth_dev *dev_t, *dev;
+
+	/* merge data for --veth_del */
+	list_for_each(dev, &veth_del->dev, list) {
+		if (dev->dev_name[0] == 0)
+			continue;
+		dev_t = find_veth_by_ifname(&veth_old->dev, dev->dev_name);
+		if (dev_t != NULL)
+			fill_veth_dev(dev, dev_t);
+	}
+
+	dev_t = find_veth_configure(&veth_new->dev);
+	if (dev_t == NULL)
+		return 0;
+	if (dev_t->dev_name_ve[0] == 0) {
+		logger(-1, 0, "Invalid usage.  Option --ifname not specified");
+		return -1;
+	}
+	/* merge --netif_add & --ifname */
+	merge = 0;
+	list_for_each(dev, &veth_new->dev, list) {
+		if (dev != dev_t && 
+		    !strcmp(dev->dev_name_ve, dev_t->dev_name_ve))
+		{
+			fill_veth_dev(dev_t, dev);
+			dev_t->configure = 0;
+			list_del(&dev->list);
+			free_veth_dev(dev);
+			merge = 1;
+			break;
+		}
+	}
+	/* Is corresponding device configured for --ifname <iface> */
+	if (!merge &&
+	    (veth_old == NULL ||
+	    find_veth_by_ifname_ve(&veth_old->dev, dev_t->dev_name_ve) == NULL))
+	{
+		logger(-1, 0, "Invalid usage: veth device %s is"
+			" not configured, use --netif_add option first",
+			dev_t->dev_name_ve);
+		return -1;
+	}
+	return 0;
+}
+
+static int copy_veth_param(list_head_t *dst, list_head_t *src)
+{
+	int ret;
+	struct vzctl_veth_dev *it;
+
+	list_for_each(it, src, list) {
+		if ((ret = add_veth_param(dst, it)))
+			return ret;
+	}
+	return 0;
+}
+
+#endif
+
+static void announce_mac_addr(list_head_t *phead)
+{
+	struct vzctl_veth_dev *it_dev;
+	char mac[18];
+	char *argv[13];
+
+	argv[0] = "/usr/sbin/arpsend";
+	argv[1] = "-U";
+	argv[2] = "-f";
+	argv[3] = "-c1";
+	argv[4] = "-w1";
+	argv[5] = "-S";
+	argv[6] = mac;
+	argv[7] = "-s";
+	argv[8] = mac;
+	argv[9] = "-i0.0.0.0";
+	argv[10] = "-e0.0.0.0";
+	argv[11] = NULL; /* dev name */
+	argv[12] = NULL;
+
+	list_for_each(it_dev, phead, list) {
+		/* Skip not attached device */
+		if (it_dev->network == NULL || *it_dev->network == '\0')
+			continue;
+		snprintf(mac, sizeof(mac), MAC2STR_FMT,
+				MAC2STR(it_dev->mac_ve));
+		argv[11] = it_dev->dev_name;
+
+		vzctl2_wrap_exec_script(argv, NULL, 0);
+	}
+}
+
+static int env_veth_configure(struct vzctl_env_handle *h, int add,
+		list_head_t *phead, int flags)
+{
+	struct vzctl_veth_dev *it_dev;
+	struct vzctl_ip_param *it_ip;
+	char buf[STR_SIZE];
+	char ip_buf[STR_SIZE * 100];
+	char *env[MAX_ARGS];
+	int ret, r, i = 0;
+	int changed = 0;
+	const char *script;
+	int ipv6 = 0;
+
+	if (flags & VZCTL_RESTORE)
+		announce_mac_addr(phead);
+
+	if (flags & VZCTL_SKIP_CONFIGURE)
+		return 0;
+
+	if ((ret = read_dist_actions(h)))
+		return ret;
+
+	if (add) {
+		script = h->dist_actions->netif_add;
+		if (script == NULL) {
+			logger(-1, 0, "Warning: NETIF_ADD action not is"
+					" specified");
+			return 0;
+		}
+	} else {
+		script = h->dist_actions->netif_del;
+		if (script == NULL) {
+			logger(-1, 0, "Warning: NETIF_DEL action not is"
+					" specified");
+			return 0;
+		}
+	}
+	if (vzctl2_env_get_param_bool(h, "IPV6") == VZCTL_PARAM_ON)
+		ipv6 = 1;
+
+	list_for_each(it_dev, phead, list) {
+		list_head_t *ip_list_head;
+
+		if (it_dev->configure_mode == VZCTL_VETH_CONFIGURE_NONE)
+			continue;
+
+		if (!add)
+			changed++;
+
+		i = 0;
+		snprintf(buf, sizeof(buf), "VE_STATE=%s", get_state(h));
+		env[i++] = strdup(buf);
+
+		snprintf(buf, sizeof(buf), "DEVICE=%s", it_dev->dev_name_ve);
+		env[i++] = strdup(buf);
+		if (ipv6)
+			env[i++] = strdup("IPV6=yes");
+		if (it_dev->gw != NULL) {
+			changed++;
+			if (*it_dev->gw == 0)
+				snprintf(buf, sizeof(buf), "GWDEL=%s", it_dev->dev_name_ve);
+			else
+				snprintf(buf, sizeof(buf), "GW=%s", it_dev->gw);
+
+			env[i++] = strdup(buf);
+		}
+		if (it_dev->gw6 != NULL) {
+			changed++;
+			if (*it_dev->gw6 == 0)
+				snprintf(buf, sizeof(buf), "GW6DEL=%s", it_dev->dev_name_ve);
+			else
+				snprintf(buf, sizeof(buf), "GW6=%s", it_dev->gw6);
+
+			env[i++] = strdup(buf);
+		}
+
+		if (it_dev->dhcp) {
+			changed++;
+			snprintf(buf, sizeof(buf), "DHCP4=%s",
+					it_dev->dhcp == VZCTL_PARAM_ON ? "yes" : "no");
+			env[i++] = strdup(buf);
+		}
+		if (it_dev->dhcp6) {
+			changed++;
+			snprintf(buf, sizeof(buf), "DHCP6=%s",
+					it_dev->dhcp6 == VZCTL_PARAM_ON ? "yes" : "no");
+			env[i++] = strdup(buf);
+		}
+		if (it_dev->ip_delall) {
+			changed++;
+			snprintf(buf, sizeof(buf), "IPDEL=all");
+			env[i++] = strdup(buf);
+		}
+
+		if (!list_empty(&it_dev->ip_list)) {
+			char *ip_p, *ip_e;
+
+			r = sprintf(ip_buf, "IPADD=");
+			ip_e = ip_buf +  sizeof(ip_buf);
+			ip_p = ip_buf + r;
+			ip_list_head = &it_dev->ip_list;
+			list_for_each(it_ip, ip_list_head, list) {
+				unsigned int addr[4];
+				int family;
+
+				family = get_netaddr(it_ip->ip, addr);
+				if (it_dev->dhcp == VZCTL_PARAM_ON && family == AF_INET)
+					continue;
+				if (it_dev->dhcp6 == VZCTL_PARAM_ON && family == AF_INET6)
+					continue;
+
+				changed++;
+				r = snprintf(ip_p, ip_e - ip_p, "%s", it_ip->ip);
+				ip_p += r;
+				if (r < 0 || ip_p > ip_e)
+					break;
+				if (it_ip->mask) {
+
+					if (family == AF_INET6)
+						ip_p += snprintf(ip_p, ip_e - ip_p, "/%d",
+								it_ip->mask);
+					else
+						ip_p += snprintf(ip_p, ip_e - ip_p, "/%s",
+								get_ip4_name(it_ip->mask));
+				}
+				r = snprintf(ip_p, ip_e - ip_p, " ");
+				ip_p += r;
+				if (r < 0 || ip_p > ip_e)
+					break;
+			}
+			env[i++] = strdup(ip_buf);
+
+			if (!it_dev->ip_delall) {
+				r = sprintf(ip_buf, "IPDEL=");
+				ip_p = ip_buf + r;
+				ip_list_head = &it_dev->ip_del_list;
+				list_for_each(it_ip, ip_list_head, list) {
+					changed++;
+					r = snprintf(ip_p, ip_e - ip_p, "%s ", it_ip->ip);
+					ip_p += r;
+					if (r < 0 || ip_p > ip_e)
+						break;
+				}
+			}
+			env[i++] = strdup(ip_buf);
+		}
+		env[i++] = NULL;
+		do {
+			if (it_dev->configure_mode == VZCTL_VETH_CONFIGURE_NONE)
+				break;
+			if (h->state & VZCTL_STATE_STARTING) {
+				/* Compatibility: no parameters set */
+				if (it_dev->configure_mode == 0 && !changed)
+					break;
+			} else if (!changed)
+				break;
+
+			ret = vzctl2_wrap_env_exec_vzscript(h, h->env_param->fs->ve_root,
+					NULL, env, script, VZCTL_SCRIPT_EXEC_TIMEOUT, EXEC_LOG_OUTPUT);
+			if (ret) {
+				logger(-1, 0, "veth network configuration"
+						" script exited with error %d", ret);
+				free_ar_str(env);
+				goto out;
+			}
+		} while(0);
+
+		changed = 0;
+		free_ar_str(env);
+	}
+out:
+	return ret;
+}
+
+static void fill_veth_dev_name(list_head_t *configured,	list_head_t *new)
+{
+	struct vzctl_veth_dev *it, *dev;
+
+	if (list_empty(configured))
+		return;
+
+	list_for_each(it, new, list) {
+		dev = find_veth_by_ifname_ve(configured, it->dev_name_ve);
+		if (dev != NULL) {
+			memcpy(it->dev_name, dev->dev_name, sizeof(dev->dev_name));
+			it->flags |= VETH_ACTIVE;
+		} else {
+			logger(-1, 0, "Container does not have "
+					"configured veth: %s, skipped",
+					it->dev_name_ve);
+		}
+	}
+}
+
+int apply_veth_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
+		int flags)
+{
+	list_head_t configured_dev;
+	struct vzctl_veth_param *veth = env->veth;
+	int ret = 0;
+
+	if (list_empty(&veth->dev_list) &&
+		list_empty(&veth->dev_del_list) &&
+		!veth->delall)
+	{
+		return 0;
+	}
+	list_head_init(&configured_dev);
+	read_proc_veth(h, &configured_dev);
+
+	if (veth->delall) {
+		env_veth_configure(h, 0, &configured_dev, flags);
+		veth_ctl(h, DEL, &configured_dev, flags, 0);
+		free_veth(&configured_dev);
+	} else if (!list_empty(&veth->dev_del_list)) {
+		fill_veth_dev_name(&configured_dev, &veth->dev_del_list);
+		env_veth_configure(h, 0, &veth->dev_del_list, flags);
+		veth_ctl(h, DEL, &veth->dev_del_list, flags, 0);
+	}
+	if (!list_empty(&veth->dev_list)) {
+		struct vzctl_veth_dev *it;
+		LIST_HEAD(add);
+
+		list_for_each(it, &veth->dev_list, list)
+			add_veth_param(&add, it);
+
+		fill_veth_dev_name(&configured_dev, &add);
+
+		ret = veth_ctl(h, ADD, &add, flags, 1);
+		if (ret == 0)
+			env_veth_configure(h, 1, &add, flags);
+
+		free_veth(&add);
+	}
+
+	free_veth(&configured_dev);
+	return ret;
+}
+
+/**************************** Config functions ***************************/
+char *veth2str(struct vzctl_env_param *env, struct vzctl_veth_param *new)
+{
+	char buf[STR_SIZE * 10];
+	list_head_t *phead;
+	struct vzctl_veth_dev *it;
+	list_head_t merged;
+	struct vzctl_ip_param *ip;
+	char *sp, *ep, *prev;
+	struct vzctl_veth_param *old = env->veth;
+	unsigned int addr[4];
+	int f;
+
+
+	if (list_empty(&new->dev_list) &&
+	    list_empty(&new->dev_del_list) &&
+	    !new->delall)
+		return NULL;
+
+	if (new->delall) {
+		phead = &new->dev_list;
+	} else {
+		phead = &merged;
+		list_head_init(phead);
+		if (merge_veth_list(&old->dev_list, &new->dev_list, &new->dev_del_list,
+					phead))
+			return NULL;
+	}
+
+	*buf = 0;
+	sp = buf;
+	ep = buf + sizeof(buf) - 2;
+	prev = sp;
+	list_for_each(it, phead, list) {
+		if (prev != sp)
+			*(sp-1) = ';';
+		prev = sp;
+		if (it->dev_name_ve[0] != 0) {
+			sp += snprintf(sp, ep - sp, "ifname=%s,",
+				it->dev_name_ve);
+			if (sp >= ep)
+				break;
+		} else {
+			continue;
+		}
+		if (it->mac_ve == NULL)
+			generate_mac(&it->mac_ve);
+		if (it->mac_ve != NULL) {
+			sp += snprintf(sp, ep - sp, "mac=%s,",
+				it->mac_ve);
+			if (sp >= ep)
+				break;
+		}
+		if (it->dev_name[0] != 0) {
+			sp += snprintf(sp, ep - sp, "host_ifname=%s,",
+				it->dev_name);
+			if (sp >= ep)
+				break;
+		}
+		if (it->mac == NULL)
+			generate_mac(&it->mac);
+
+		if (it->mac != NULL) {
+			sp += snprintf(sp, ep - sp, "host_mac=%s,",
+				it->mac);
+			if (sp >= ep)
+				break;
+		}
+		if (it->network != NULL && it->network[0] != 0) {
+			sp += snprintf(sp, ep - sp, "network=%s,",
+					it->network);
+			if (sp >= ep)
+				break;
+		}
+		if (it->gw != NULL && it->gw[0] != 0) {
+			sp += snprintf(sp, ep - sp, "gw=%s,", it->gw);
+			if (sp >= ep)
+				break;
+		}
+		if (it->gw6 != NULL && it->gw6[0] != 0) {
+			sp += snprintf(sp, ep - sp, "gw6=%s,", it->gw6);
+			if (sp >= ep)
+				break;
+		}
+		if (it->mac_filter == VZCTL_PARAM_OFF) {
+			sp += snprintf(sp, ep - sp, "mac_filter=%s,",
+				id2onoff(it->mac_filter));
+			if (sp >= ep)
+				break;
+		}
+		if (it->ip_filter == VZCTL_PARAM_OFF) {
+			sp += snprintf(sp, ep - sp, "ip_filter=%s,",
+				id2onoff(it->ip_filter));
+			if (sp >= ep)
+				break;
+		}
+
+		if (it->configure_mode) {
+			sp += snprintf(sp, ep - sp, "configure=%s,",
+					it->configure_mode == VZCTL_VETH_CONFIGURE_NONE ? "none" : "all");
+			if (sp >= ep)
+				break;
+		}
+		if (it->dhcp == VZCTL_PARAM_ON ) {
+			sp += snprintf(sp, ep - sp, "dhcp=%s,",
+				it->dhcp == VZCTL_PARAM_ON ? "yes" : "no");
+			if (sp >= ep)
+				break;
+		} else if (!list_empty(&it->ip_list)) {
+			list_head_t *head = &it->ip_list;
+
+			sp += snprintf(sp, ep - sp, "ip=");
+			if (sp >= ep)
+				break;
+			list_for_each(ip, head, list) {
+				f = get_netaddr(ip->ip, addr);
+				if (f == -1)
+					logger(1, 0, "Waring: invalid veth ip address: %s",
+							ip->ip);
+				if (f != AF_INET)
+					continue;
+				sp += snprintf(sp, ep - sp, "%s", ip->ip);
+				if (sp >= ep)
+					break;
+				if (ip->mask != 0) {
+					sp += snprintf(sp, ep - sp, "/%s",
+							get_ip4_name(ip->mask));
+					if (sp >= ep)
+						break;
+				}
+				sp += snprintf(sp, ep - sp, ":");
+				if (sp >= ep)
+					break;
+			}
+			if (*(sp - 1) == '=')
+				sp += snprintf(sp, ep - sp, ",");
+			else if (*(sp - 1) == ':')
+				*(sp - 1) = ',';
+		}
+		if (it->dhcp6 == VZCTL_PARAM_ON) {
+			sp += snprintf(sp, ep - sp, "dhcp6=%s,",
+				it->dhcp6 == VZCTL_PARAM_ON ? "yes" : "no");
+			if (sp >= ep)
+				break;
+		} else if (!list_empty(&it->ip_list)) {
+			list_head_t *head = &it->ip_list;
+
+			sp += snprintf(sp, ep - sp, "ip6=");
+			if (sp >= ep)
+				break;
+			list_for_each(ip, head, list) {
+				f = get_netaddr(ip->ip, addr);
+				if (f == -1)
+					logger(1, 0, "Waring: invalid veth ip address: %s",
+							ip->ip);
+				if (f != AF_INET6)
+					continue;
+				sp += snprintf(sp, ep - sp, "%s", ip->ip);
+				if (sp >= ep)
+					break;
+				if (ip->mask != 0) {
+					sp += snprintf(sp, ep - sp, "/%d",
+							ip->mask);
+					if (sp >= ep)
+						break;
+				}
+				sp += snprintf(sp, ep - sp, ",");
+				if (sp >= ep)
+					break;
+			}
+		}
+		if (*(sp - 1) == ',')
+			*(sp - 1) = 0;
+		if (sp >= ep)
+			break;
+	}
+	if (phead == &merged)
+		free_veth(&merged);
+	return strdup(buf);
+}
+
+static int parse_netif_str(struct vzctl_env_handle *h, const char *str,
+		struct vzctl_veth_dev *dev)
+{
+	const char *p, *next, *e_ip, *ep;
+	int len, err, id;
+	char tmp[256];
+	struct vzctl_ip_param *ip;
+
+	next = p = str;
+	ep = p + strlen(str);
+	do {
+		while (*next != '\0' && *next != ',') next++;
+		if (!strncmp("ifname=", p, 7)) {
+			p += 7;
+			len = next - p;
+			if (len == 0)
+				continue;
+			if (len > IFNAMSIZE)
+				return VZCTL_E_INVAL;
+			if (dev->dev_name_ve[0] == '\0')
+				strncpy(dev->dev_name_ve, p, len);
+		} else if (!strncmp("host_ifname=", p, 12)) {
+			p += 12;
+			len = next - p;
+			if (len == 0)
+				continue;
+			if (len > IFNAMSIZE)
+				return VZCTL_E_INVAL;
+			if (dev->dev_name[0] == '\0')
+				strncpy(dev->dev_name, p, len);
+			dev->flags |= VETH_CUSTOM_DEV_NAME;
+		} else if (!strncmp("mac=", p, 4)) {
+			p += 4;
+			len = next - p;
+			if (len == 0)
+				continue;
+			if (len >= sizeof(tmp))
+				return VZCTL_E_INVAL;
+			strncpy(tmp, p, len);
+			tmp[len] = 0;
+			err = set_hwaddr(tmp, &dev->mac_ve);
+			if (err) {
+				logger(-1, 0, "Incorrect mac=%s", tmp);
+				return err;
+			}
+		} else if (!strncmp("host_mac=", p, 9)) {
+			p += 9;
+			len = next - p;
+			if (len == 0)
+				continue;
+			if (len >= sizeof(tmp))
+				return VZCTL_E_INVAL;
+			strncpy(tmp, p, len);
+			tmp[len] = 0;
+			err = set_hwaddr(tmp, &dev->mac);
+			if (err) {
+				logger(-1, 0, "Incorrect host_mac=%s", tmp);
+				return err;
+			}
+		} else if (!strncmp("gw=", p, 3)) {
+			p += 3;
+			len = next - p;
+			if (len == 0 || dev->gw != NULL)
+				continue;
+			if (len >= sizeof(tmp))
+				return VZCTL_E_INVAL;
+			strncpy(tmp, p, len);
+			tmp[len] = 0;
+			err = parse_ip(tmp, &ip);
+			free_ip_param(ip);
+			if (err)
+				return VZCTL_E_INVAL;
+			dev->gw = strdup(tmp);
+		} else if (!strncmp("gw6=", p, 4)) {
+			p += 4;
+			len = next - p;
+			if (len == 0 || dev->gw6 != NULL)
+				continue;
+			if (len >= sizeof(tmp))
+				return VZCTL_E_INVAL;
+			strncpy(tmp, p, len);
+			tmp[len] = 0;
+			err = parse_ip(tmp, &ip);
+			free_ip_param(ip);
+			if (err)
+				return VZCTL_E_INVAL;
+			dev->gw6 = strdup(tmp);
+		} else if (!strncmp("dhcp=", p, 5)) {
+			p += 5;
+			len = next - p;
+			if (len == 0)
+				continue;
+			if (len >= sizeof(tmp))
+				return VZCTL_E_INVAL;
+			strncpy(tmp, p, len);
+			tmp[len] = 0;
+			if ((id = yesno2id(tmp)) < 0)
+				return VZCTL_E_INVAL;
+			dev->dhcp = id;
+		} else if (!strncmp("dhcp6=", p, 6)) {
+			p += 6;
+			len = next - p;
+			if (len == 0)
+				continue;
+			if (len >= sizeof(tmp))
+				return VZCTL_E_INVAL;
+			strncpy(tmp, p, len);
+			tmp[len] = 0;
+			if ((id = yesno2id(tmp)) < 0)
+				return VZCTL_E_INVAL;
+			dev->dhcp6 = id;
+                } else if (!strncmp("mac_filter=", p, 11)) {
+                        p += 11;
+                        len = next - p;
+                        if (len == 0)
+                                continue;
+                        if (len >= sizeof(tmp))
+                                return VZCTL_E_INVAL;
+                        strncpy(tmp, p, len);
+                        tmp[len] = 0;
+			if ((id = onoff2id(tmp)) < 0)
+				return VZCTL_E_INVAL;
+			dev->mac_filter = id;
+		} else if (!strncmp("ip_filter=", p, 10)) {
+			p += 10;
+			len = next - p;
+			if (len == 0)
+				continue;
+			if (len >= sizeof(tmp))
+				return VZCTL_E_INVAL;
+			strncpy(tmp, p, len);
+			tmp[len] = 0;
+			if ((id = onoff2id(tmp)) < 0)
+				return VZCTL_E_INVAL;
+			dev->ip_filter = id;
+                } else if (!strncmp("configure=", p, 10)) {
+                        p += 10;
+                        len = next - p;
+                        if (len == 0)
+                                continue;
+                        if (len >= sizeof(tmp))
+                                return VZCTL_E_INVAL;
+                        strncpy(tmp, p, len);
+                        tmp[len] = 0;
+			if (!strcmp(tmp, "none"))
+				dev->configure_mode = VZCTL_VETH_CONFIGURE_NONE;
+			else if (!strcmp(tmp, "all"))
+				dev->configure_mode = VZCTL_VETH_CONFIGURE_ALL;
+		} else if (!strncmp("network=", p, 8)) {
+			p += 8;
+			len = next - p;
+			if (len == 0 || dev->network != NULL)
+				continue;
+			dev->network = malloc(len + 1);
+			if (dev->network == NULL)
+				return VZCTL_E_NOMEM;
+			strncpy(dev->network, p, len);
+			dev->network[len] = 0;
+			if (!vzctl2_is_networkid_valid(dev->network))
+				return vzctl_err(VZCTL_E_INVAL, 0,
+						"Incorrect veth network '%s' parameter",
+						dev->network);
+		} else if (!strncmp("ip=", p, 3)) {
+			p += 3;
+			do {
+				e_ip = p;
+				while (*e_ip != ':' && e_ip < next) e_ip++;
+				len = e_ip - p;
+				if (len > 0 && len < sizeof(tmp)) {
+					strncpy(tmp, p, len);
+					tmp[len] = 0;
+					if (parse_ip(tmp, &ip)) {
+						logger(-1, 0, "Incorrect veth"
+							" ip %s, skipped", tmp);
+					} else {
+						list_add_tail(&ip->list, &dev->ip_list);
+					}
+				}
+				p = ++e_ip;
+			} while (p < next);
+		} else if (!strncmp("ip6=", p, 4)) {
+			p += 4;
+			do {
+				// ip6= have to be last as far as the ',' is separator
+				e_ip = p;
+				while (*e_ip != ',' && e_ip < ep) e_ip++;
+				len = e_ip - p;
+				if (len > 0 && len < sizeof(tmp)) {
+					strncpy(tmp, p, len);
+					tmp[len] = 0;
+					if (parse_ip(tmp, &ip)) {
+						logger(-1, 0, "Incorrect veth"
+							" ip6 %s, skipped", tmp);
+					} else {
+						list_add_tail(&ip->list, &dev->ip_list);
+					}
+				}
+				p = ++e_ip;
+			} while (p < ep);
+		}
+	} while ((p = ++next) < ep);
+	if (dev->dev_name_ve[0] == 0)
+		return VZCTL_E_INVAL;
+	if (h)
+		fill_empty_veth_dev_param(EID(h), dev);
+
+	return 0;
+}
+
+int parse_netif_ifname(struct vzctl_veth_param *veth, const char *str, int op)
+{
+	int len, id, ret;
+	struct vzctl_veth_dev *dev;
+	int update_configure = 0;
+
+	if (veth->ifname == NULL) {
+		veth->ifname = alloc_veth_dev();
+		if (veth->ifname == NULL)
+			return VZCTL_E_NOMEM;
+	}
+	dev = veth->ifname;
+	len = strlen(str);
+	switch (op) {
+	case VZCTL_PARAM_NETIF_IFNAME:
+		if (dev->dev_name_ve[0] != 0) {
+			logger(-1, 0,"Multiple use of --ifname option not"
+				" allowed");
+			return VZCTL_E_INVAL;
+		}
+		if (len > IFNAMSIZE)
+			return VZCTL_E_INVAL;
+		strcpy(dev->dev_name_ve, str);
+		break;
+	case VZCTL_PARAM_NETIF_MAC:
+		if (set_hwaddr(str, &dev->mac_ve))
+			return VZCTL_E_INVAL;
+		break;
+	case VZCTL_PARAM_NETIF_HOST_IFNAME:
+		if (len > IFNAMSIZE)
+			return VZCTL_E_INVAL;
+		strcpy(dev->dev_name, str);
+		break;
+	case VZCTL_PARAM_NETIF_HOST_MAC:
+		if (set_hwaddr(str, &dev->mac))
+			return VZCTL_E_INVAL;
+		break;
+	case VZCTL_PARAM_NETIF_GW:
+		free(dev->gw);
+		dev->gw = strdup(str);
+		update_configure = 1;
+		break;
+	case VZCTL_PARAM_NETIF_GW6:
+		free(dev->gw6);
+		dev->gw6 = strdup(str);
+		break;
+	case VZCTL_PARAM_NETIF_DHCP:
+		if ((id = yesno2id(str)) == -1)
+			return VZCTL_E_INVAL;
+		dev->dhcp = id;
+		update_configure = 1;
+		break;
+	case VZCTL_PARAM_NETIF_DHCP6:
+		if ((id = yesno2id(str)) == -1)
+			return VZCTL_E_INVAL;
+		dev->dhcp6 = id;
+		update_configure = 1;
+		break;
+	case VZCTL_PARAM_NETIF_NETWORK:
+		if (str[0] != 0 && !vzctl2_is_networkid_valid(str))
+			return VZCTL_E_INVAL;
+		if (dev->network == NULL)
+			dev->network = strdup(str);
+		break;
+	case VZCTL_PARAM_NETIF_MAC_FILTER:
+		if ((id = onoff2id(str)) == -1)
+			return VZCTL_E_INVAL;
+		dev->mac_filter = id;
+		break;
+	case VZCTL_PARAM_NETIF_IP_FILTER:
+		if ((id = onoff2id(str)) == -1)
+			return VZCTL_E_INVAL;
+		dev->ip_filter = id;
+		break;
+	case VZCTL_PARAM_NETIF_CONFIGURE_MODE:
+		if (!strcmp(str, "none") ||
+				!strcmp(str, "no"))
+			dev->configure_mode = VZCTL_VETH_CONFIGURE_NONE;
+		else if (!strcmp(str, "all") ||
+				!strcmp(str, "yes"))
+			dev->configure_mode = VZCTL_VETH_CONFIGURE_ALL;
+		else
+			return VZCTL_E_INVAL;
+		break;
+	case VZCTL_PARAM_NETIF_IPADD:
+		ret = parse_ip_str(&dev->ip_list, str, 1);
+		if (ret)
+			return ret;
+		update_configure = 1;
+		break;
+	case VZCTL_PARAM_NETIF_IPDEL:
+		ret = parse_ip_str(&dev->ip_del_list, str, 1);
+		if (ret)
+			return ret;
+		break;
+	default :
+		debug(DBG_CFG, "parse_netif_ifname: unhandled op %d", op);
+		break;
+	}
+	/* set VZCTL_VETH_CONFIGURE_ALL mode on parameters set */
+	if (!dev->configure_mode && update_configure)
+		dev->configure_mode = VZCTL_VETH_CONFIGURE_ALL;
+	return 0;
+}
+
+int parse_netif(struct vzctl_env_handle *h, list_head_t *head, const char *val)
+{
+	int ret = 0;
+	char *token, *p;
+	struct vzctl_veth_dev *dev;
+	char *tmp = NULL;
+	char *savedptr = NULL;
+
+	ret = xstrdup(&tmp, val);
+	if (ret)
+		return ret;
+
+	free_veth(head);
+
+	if ((token = strtok_r(tmp, ";", &savedptr)) == NULL) {
+		free(tmp);
+		return 0;
+	}
+	do {
+		if ((dev = alloc_veth_dev()) == NULL) {
+			ret = VZCTL_E_NOMEM;
+			break;
+		}
+		if (parse_netif_str(h, token, dev) == 0) {
+			if (find_veth_by_ifname_ve(head, dev->dev_name_ve) == NULL)
+			{
+				list_add_tail(&dev->list, head);
+				dev = NULL;
+			}
+		} else {
+			if ((p = strchr(token, ';')) != NULL)
+				*p = 0;
+			logger(-1, 0, "Incorrect netif parameter %s", token);
+			if (p != NULL)
+				*p = ';';
+			ret = VZCTL_E_INVAL;
+		}
+		if (dev != NULL)
+			free_veth_dev(dev);
+	} while ((token = strtok_r(NULL, ";", &savedptr)) != NULL);
+	free(tmp);
+	return ret;
+}
+
+static int parse_netif_str_cmd(struct vzctl_env_handle *h, const char *str,
+		struct vzctl_veth_dev *dev)
+{
+	const char *ch, *tmp, *ep;
+	int len, err;
+
+	ep = str + strlen(str);
+	/* Parsing veth device name in Container */
+	if ((ch = strchr(str, ',')) == NULL) {
+		ch = ep;
+		len = ep - str;
+	} else {
+		len = ch - str;
+		ch++;
+	}
+	if (len > IFNAMSIZE)
+		return VZCTL_E_INVAL;
+	snprintf(dev->dev_name_ve, len + 1, "%s", str);
+	tmp = ch;
+	if (ch == ep) {
+		if (h)
+			generate_veth_name(EID(h), dev->dev_name_ve, dev->dev_name,
+				sizeof(dev->dev_name));
+		generate_mac(&dev->mac);
+		generate_mac(&dev->mac_ve);
+		return 0;
+	}
+	/* Parsing veth MAC address in Container */
+	if ((ch = strchr(tmp, ',')) == NULL) {
+		ch = ep;
+		len = ch - tmp;
+	} else {
+		len = ch - tmp;
+		ch++;
+	}
+	if (len != MAC_SIZE) {
+		logger(-1, 0, "Invalid Container MAC address length: %s", tmp);
+		return VZCTL_E_INVAL;
+	}
+	err = set_hwaddr(tmp, &dev->mac_ve);
+	if (err) {
+		logger(-1, 0, "Invalid Container MAC address format");
+		return VZCTL_E_INVAL;
+	}
+	tmp = ch;
+	if (ch == ep) {
+		if (h)
+			generate_veth_name(EID(h), dev->dev_name_ve, dev->dev_name,
+				sizeof(dev->dev_name));
+		if (dev->mac_ve != NULL)
+			set_hwaddr(dev->mac_ve, &dev->mac);
+		return 0;
+	}
+	/* Parsing veth name in VE0 */
+	if ((ch = strchr(tmp, ',')) == NULL) {
+		ch = ep;
+		len = ch - tmp;
+	} else {
+		len = ch - tmp;
+		ch++;
+	}
+	if (len > IFNAMSIZE)
+		return VZCTL_E_INVAL;
+	snprintf(dev->dev_name, len + 1, "%s", tmp);
+	if (ch == ep) {
+		if (dev->mac_ve != NULL)
+			set_hwaddr(dev->mac_ve, &dev->mac);
+		return 0;
+	}
+	/* Parsing veth MAC address in Container */
+	len = strlen(ch);
+	if (len != MAC_SIZE) {
+		logger(-1, 0, "Invalid host MAC address");
+		return VZCTL_E_INVAL;
+	}
+	err = set_hwaddr(ch, &dev->mac);
+	if (err) {
+		logger(-1, 0, "Invalid host MAC address");
+		return VZCTL_E_INVAL;
+	}
+	return 0;
+}
+
+int parse_netif_cmd(struct vzctl_env_handle *h, list_head_t *head, const char *val)
+{
+	int ret = 0;
+	char *token;
+	struct vzctl_veth_dev *dev;
+	char *tmp;
+	char *savedptr = NULL;
+
+	tmp = strdup(val);
+	if ((token = strtok_r(tmp, " ", &savedptr)) == NULL) {
+		free(tmp);
+		return 0;
+	}
+	do {
+		if ((dev = alloc_veth_dev()) == NULL)
+			return VZCTL_E_NOMEM;
+		if ((ret = parse_netif_str_cmd(h, token, dev)) == 0) {
+			if (find_veth_by_ifname_ve(head,
+						dev->dev_name_ve) == NULL)
+			{
+				list_add_tail(&dev->list, head);
+				dev = NULL;
+			}
+		}
+		if (dev != NULL)
+			free_veth_dev(dev);
+	} while ((token = strtok_r(NULL, " ", &savedptr)) != NULL);
+	free(tmp);
+	return ret;
+}

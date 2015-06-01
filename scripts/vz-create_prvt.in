@@ -1,0 +1,134 @@
+#!/bin/bash
+# Copyright (C) 1999-2015 Parallels IP Holdings GmbH
+#
+# This file is part of OpenVZ libraries. OpenVZ is free software; you can
+# redistribute it and/or modify it under the terms of the GNU Lesser General
+# Public License as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+# 02110-1301, USA.
+#
+# Our contact details: Parallels IP Holdings GmbH, Vordergasse 59, 8200
+# Schaffhausen, Switzerland.
+#
+# This script should create VE private area
+# For usage info see vz-create_prvt(5) man page.
+#
+# Parameters are passed in environment variables.
+# Required parameters:
+#   VE_PRVT		- path to root of VE private areas
+#   PRIVATE_TEMPLATE	- path to private template used as a source for copying
+# Optional parameters:
+. @SCRIPTDIR@/vz-functions
+PKG_DB_DIRS="/var/lib/rpm /var/lib/dpkg"
+VZTAR=/bin/tar
+vzcheckvar VE_PRVT PRIVATE_TEMPLATE
+
+# 10Gbytes disk space reserved by default
+[ -z "$RESERVED_DISKSPACE" ] && RESERVED_DISKSPACE=10485760
+
+
+function backup_pkgdb()
+{
+	local pkg
+	for pkg in ${PKG_DB_DIRS}; do
+		[ -d "${VE_PRVT}/root/${pkg}" ] || continue
+		[ -d "${VE_PRVT}/root/${pkg}.sav" ] && \
+			rm -rf "${VE_PRVT}/root/${pkg}.sav" >/dev/null 2>&1
+		mv -f "${VE_PRVT}/root/${pkg}" "${VE_PRVT}/root/${pkg}.sav" >/dev/null 2>&1
+	done
+}
+
+function restore_pkgdb()
+{
+	local pkg
+	for pkg in ${PKG_DB_DIRS}; do
+		[ -d "${VE_PRVT}/root/${pkg}.sav" ] || continue
+		rm -rf "${VE_PRVT}/root/${pkg}" >/dev/null 2>&1
+		mv -f "${VE_PRVT}/root/${pkg}.sav" "${VE_PRVT}/root/${pkg}" >/dev/null 2>&1
+	done
+}
+
+function remove_backup()
+{
+	local pkg
+	for pkg in ${PKG_DB_DIRS}; do
+		[ -d "${VE_PRVT}/root/${pkg}.sav" ] && rm -rf "${VE_PRVT}/root/${pkg}.sav" >/dev/null 2>&1
+	done
+}
+
+function create_prvt()
+{
+	local cmd
+	local compressor
+	local archive
+
+	if test ! -d ${VE_PRVT}; then
+		vzerror "Destination dir doesn't exists: ${VE_PRVT}" $VZ_FS_NEW_VE_PRVT
+	fi
+
+	# detect compress method
+	archive=$PRIVATE_TEMPLATE
+
+	if test ! -f $archive; then
+		vzerror "Tarball does not exist: ${archive}" $VZ_FS_NEW_VE_PRVT
+	fi
+
+	ext=${archive##*.}
+	case $ext in
+	gz | tgz)
+		cmd="${VZTAR} -C ${VE_PRVT} -xzf ${archive}"
+		NEEDED=`gzip -l ${archive} | awk 'END{print int($2/1024)}'`
+		;;
+	lzrw)
+		compressor="/usr/bin/prlcompress -u"
+		cmd="${VZTAR} -C ${VE_PRVT} -x"
+		# Guess archive size
+		NEEDED=`stat -c%s ${archive}`
+		let NEEDED=$NEEDED*2/1024
+		;;
+	esac
+
+	QUOTA_LIMIT=`vzquota stat ${VEID} -f 2>/dev/null | awk '/1k-blocks/{min=$3; if ($4 < min) min=$4;print min}'`
+	TMP=`df -P ${VE_PRVT}`
+	AVAIL=`echo "${TMP}" | awk 'END{print $4}'`
+	if [ -n "${QUOTA_LIMIT}" ]; then
+		[ ${QUOTA_LIMIT} -lt ${AVAIL} ] && AVAIL=${QUOTA_LIMIT}
+	else
+		# Use reserved logic for ploop based CT only
+		[ "$NEEDED" -lt "$RESERVED_DISKSPACE" ] && NEEDED=$RESERVED_DISKSPACE
+	fi
+	if test ${AVAIL} -lt ${NEEDED}; then
+		vzerror "Insufficient disk space in ${VE_PRVT} available: ${AVAIL} needed: ${NEEDED}" ${VZ_FS_NO_DISK_SPACE}
+	fi
+	[ "x${RECOVER_VE}" = "xyes" ] && backup_pkgdb
+
+	if [ -n "${compressor}" ]; then
+		$compressor < $archive | $cmd
+	else
+		${cmd}
+	fi
+	if [ $? -ne 0 ]; then
+		[ "x${RECOVER_VE}" = "xyes" ] && restore_pkgdb
+		case $ext in
+		gz | tgz)
+			vzerror "Error in tar -xzf $archive" $VZ_FS_NEW_VE_PRVT
+			;;
+		lzrw)
+			vzerror "Error in $compressor < $archive | $cmd" $VZ_FS_NEW_VE_PRVT
+			;;
+		esac
+	fi
+	[ "x${RECOVER_VE}" = "xyes" ] && remove_backup
+}
+
+create_prvt
+exit 0
