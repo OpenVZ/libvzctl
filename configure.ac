@@ -77,6 +77,8 @@ AC_C_INLINE
 
 PKG_CHECK_MODULES([XML], [libxml-2.0 > 2.6.16], ,
 	AC_MSG_ERROR([Please install libxml2 devel package]))
+PKG_CHECK_MODULES([UUID], [uuid], ,
+	AC_MSG_ERROR([Please install libuuid devel package]))
 
 # Compiler settings
 #CFLAGS="${CFLAGS} -Wall -Wpointer-arith -Wcast-qual -Winline -Wextra"

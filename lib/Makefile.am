@@ -71,5 +71,5 @@ libvzctl2_la_SOURCES =  bitmap.c \
 # 5. If any interfaces have been added since the last public release, then increment age.
 # 6. If any interfaces have been removed since the last public release, then set age to 0. 
 libvzctl2_la_LDFLAGS = -version-info 2:1:0 -Wl,--version-script=version.map
-libvzctl2_la_LIBADD = $(XML_LIBS) -lvzevent -lutil -lploop -lcrypt -luuid
+libvzctl2_la_LIBADD = $(XML_LIBS) -lvzevent -lutil -lploop -lcrypt $(UUID_LIBS)
 
