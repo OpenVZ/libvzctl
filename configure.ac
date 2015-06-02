@@ -75,6 +75,13 @@ AC_CHECK_HEADER([vz/vzevent.h], ,
 AC_CHECK_LIB([vzevent], [vzevt_register], ,
 	AC_MSG_ERROR([Please install libvzevent devel package]))
 
+# Checks for ploop lib
+AC_CHECK_HEADER([ploop/libploop.h], ,
+	AC_MSG_ERROR([Please install ploop devel package]))
+AC_CHECK_LIB([ploop], [ploop_replace_image], PLOOP_LIBS="-lploop",
+	AC_MSG_ERROR([Please install ploop package]))
+AC_SUBST(PLOOP_LIBS)
+
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_C_INLINE
