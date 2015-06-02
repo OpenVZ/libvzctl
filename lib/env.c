@@ -2571,6 +2571,19 @@ int vzctl2_get_env_meminfo(const ctid_t ctid, struct vzctl_meminfo *meminfo, int
 	if (data.cached > (data.total - data.free))
 		data.cached = data.total - data.free;
 
+	snprintf(buf, sizeof(buf), "/proc/bc/%s/vmaux", id);
+	if ((fp = fopen(buf, "r")) == NULL) {
+		if (errno != ENOENT)
+			logger(-1, errno, "Cannot open %s", buf);
+		return -1;
+	}
+
+	while (fgets(buf, sizeof(buf), fp)) {
+		sscanf(buf, "swapin %llu", &data.swap_in);
+		sscanf(buf, "swapout %llu", &data.swap_out);
+	}
+	fclose(fp);
+
 	memcpy(meminfo, &data, size);
 
 	return 0;

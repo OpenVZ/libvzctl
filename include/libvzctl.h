@@ -332,6 +332,8 @@ struct vzctl_meminfo {
 	unsigned long long total;
 	unsigned long long free;
 	unsigned long long cached;
+	unsigned long long swap_in;
+	unsigned long long swap_out;
 };
 
 #define VZCTL_SNAPSHOT_SKIP_DUMP	0x01
