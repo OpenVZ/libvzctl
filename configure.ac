@@ -69,7 +69,11 @@ AC_CHECK_LIB(util, openpty,
 
 AC_SUBST(UTIL_LIBS)
 
-# Checks for header files.
+# Checks for libvzevent
+AC_CHECK_HEADER([vz/vzevent.h], ,
+	AC_MSG_ERROR([Please install libvzevent devel package]))
+AC_CHECK_LIB([vzevent], [vzevt_register], ,
+	AC_MSG_ERROR([Please install libvzevent devel package]))
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
