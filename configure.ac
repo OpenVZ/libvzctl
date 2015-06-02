@@ -59,11 +59,6 @@ AC_PROG_INSTALL
 AC_PROG_LN_S
 
 # Checks for libraries.
-AC_CHECK_LIB(dl, dlopen,
-	DL_LIBS="-ldl", AC_MSG_ERROR([libdl not found]),)
-
-AC_SUBST(DL_LIBS)
-
 AC_CHECK_LIB(util, openpty,
 	UTIL_LIBS="-lutil", AC_MSG_ERROR([libutil not found]),)
 
@@ -118,7 +113,6 @@ AC_CONFIG_COMMANDS_PRE([SUMMARY="$PACKAGE_STRING configured successfully:
      prefix: $prefix
  sysconfdir: $sysconfdir
      libdir: $libdir
-   features: $enable_bashcomp $enable_cron $enable_logrotate $enable_udev
 "])
 
 # Output

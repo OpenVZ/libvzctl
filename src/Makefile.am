@@ -16,5 +16,5 @@ VZCTL_LIBS = $(top_builddir)/lib/libvzctl2.la -lpthread $(UUID_LIBS)
 
 
 exec_wrap_SOURCES = exec_wrap.c
-exec_wrap_LDADD = $(VZCTL_LIBS) $(DL_LIBS) $(UTIL_LIBS)
+exec_wrap_LDADD = $(VZCTL_LIBS) $(UTIL_LIBS)
 
