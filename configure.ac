@@ -75,10 +75,8 @@ AC_SUBST(UTIL_LIBS)
 AC_C_CONST
 AC_C_INLINE
 
-# Checks for library functions.
-PKG_CHECK_MODULES([XML2], [libxml-2.0])
-XML_CPPFLAGS=`xml2-config --cflags`
-XML_LIBS=`xml2-config --libs`
+PKG_CHECK_MODULES([XML], [libxml-2.0 > 2.6.16], ,
+	AC_MSG_ERROR([Please install libxml2 devel package]))
 
 # Compiler settings
 #CFLAGS="${CFLAGS} -Wall -Wpointer-arith -Wcast-qual -Winline -Wextra"
@@ -86,8 +84,6 @@ CFLAGS="${CFLAGS} -Wall -Werror -Wpointer-arith -Winline"
 CFLAGS="${CFLAGS} -Wcast-align -Wno-unused-parameter"
 CFLAGS="${CFLAGS} -Wno-missing-field-initializers"
 CFLAGS="${CFLAGS} -D_FILE_OFFSET_BITS=64"
-CFLAGS="$CFLAGS $XML_CPPFLAGS"
-LIBS="$XML_LIBS $LIBS"
 
 if test x$build_cpu = xppc64 -o x$build_cpu = xpowerpc64; then
 	CFLAGS="${CFLAGS} -m64"

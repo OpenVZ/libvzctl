@@ -9,7 +9,7 @@ AM_CPPFLAGS = -I. -I./include -I../include \
 	      -DPKGLIBDIR=\"$(pkglibdir)\" \
 	      -DSCRIPTDIR=\"$(scriptdir)\" \
 	      -DDISTCONFDIR=\"$(distconfdir)\" \
-	      $(XML_CPPFLAGS)
+	      $(XML_CFLAGS)
 
 lib_LTLIBRARIES = libvzctl2.la
 pkginclude_HEADERS = vzctl_param.h vzerror.h list.h
