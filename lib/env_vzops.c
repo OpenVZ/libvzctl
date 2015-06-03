@@ -820,6 +820,79 @@ static int vz_env_enter(struct vzctl_env_handle *h, int flags)
 	return 0;
 }
 
+static int vz_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
+		int flags, pid_t *pid)
+{
+	int ret;
+	pid_t pid2;
+
+	*pid = fork();
+	if (*pid < 0) {
+		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
+	} else if (*pid == 0) {
+		ret = vzctl_setluid(h);
+		if (ret)
+			goto err;
+
+		pid2 = fork();
+		if (pid2 < 0) {
+			ret = vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
+			goto err;
+		} else if (pid2 == 0) {
+			ret = vz_env_enter(h, flags);
+			if (ret == 0)
+				ret = real_env_exec(h, param, flags);
+			_exit(ret);
+		}
+
+		if (param->timeout)
+			set_timeout_handler(pid2, param->timeout);
+
+		ret = env_wait(pid2, param->timeout, NULL);
+err:
+		_exit(ret);
+	}
+
+	return 0;
+}
+
+static int vz_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
+		int *data_fd, int timeout, int flags, pid_t *pid)
+{
+	int ret;
+	pid_t pid2;
+
+	*pid = fork();
+	if (*pid < 0) {
+		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
+	} else if (*pid == 0) { 
+		ret = vzctl_setluid(h);
+		if (ret)
+			goto err;
+
+		pid2 = fork();
+		if (pid2 < 0) {
+			ret = vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
+			goto err;
+		} else if (pid2 == 0) {
+			ret = vz_env_enter(h, flags);
+			if (ret == 0)
+				ret = real_env_exec_fn(h, fn, data, data_fd, timeout, flags);
+
+			_exit(ret);
+		}
+
+		if (timeout)
+			set_timeout_handler(pid2, timeout);
+
+		ret = env_wait(pid2, timeout, NULL);
+err:
+		_exit(ret);
+	}
+
+	return 0;
+}
+
 static int vz_env_set_devperm(struct vzctl_env_handle *h, struct vzctl_dev_perm *perm)
 {
         struct vzctl_setdevperms devperms;

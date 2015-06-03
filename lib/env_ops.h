@@ -68,9 +68,9 @@ struct vzctl_env_ops {
 	int (* env_get_veip)(struct vzctl_env_handle *h, list_head_t *list);
 	int (* env_veth_ctl)(struct vzctl_env_handle *h, int op, struct vzctl_veth_dev *dev, int flags);
 	int (* env_exec)(struct vzctl_env_handle *h, struct exec_param *param,
-			int flags, int *pid);
+			int flags, pid_t *pid);
 	int (* env_exec_fn)(struct vzctl_env_handle *h, execFn fn, void *data,
-			int *data_fd, int timeout, int flags);
+			int *data_fd, int timeout, int flags, pid_t *pid);
 	void (* close)(void);
 };
 
