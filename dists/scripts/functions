@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (C) 2001-@LAST_COPYRIGHT_YEAR@, @COPYRIGHT_OWNER@
+# Copyright (c) 2001-2015 Parallels IP Holdings GmbH
 
 # Set the sane umask
 umask 022
@@ -511,7 +511,7 @@ setup_vzquota_common()
 # Required-Stop:
 # Default-Start: 2 3 4 5
 # Default-Stop: 0 1 6
-# Description: Set up @PRODUCT_NAME_LONG@ second level quota
+# Description: Set up OpenVZ second level quota
 ### END INIT INFO
 
 start() {
