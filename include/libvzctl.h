@@ -1010,6 +1010,7 @@ int vzctl2_is_networkid_valid(char const *name);
 int vzctl2_parse_ctid(const char *in, ctid_t out);
 void vzctl2_generate_ctid(ctid_t ctid);
 int vzctl2_get_normalized_guid(const char *str, char *buf, int len);
+int vzctl2_get_normalized_uuid(const char *str, char *buf, int len);
 
 /************** Depricated *****************************/
 struct vzctl_config *vzctl2_conf_open(const char *fname, int flags, int *err);
