@@ -46,19 +46,17 @@ struct exec_param {
 	int *in_p;
 	int *out_p;
 	int *err_p;
+	int timeout;
 };
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-int vz_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
-                int flags, int *pid);
-int ns_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
-                int flags, int *pid);
-int vz_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
-		int *data_fd, int timeout, int flags);
-int ns_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
+int real_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
                 int *data_fd, int timeout, int flags);
+int real_env_exec(struct vzctl_env_handle *h, struct exec_param *param, int flags);
+
+void set_timeout_handler(pid_t pid, int timeout);
 
 /** Execute function inside VE.
  * All file descriptors are closed.

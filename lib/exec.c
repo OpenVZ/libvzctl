@@ -324,7 +324,7 @@ int env_wait(int pid, int timeout, int *retcode)
 	return ret;
 }
 
-static void set_timeout(int pid, int timeout)
+void set_timeout_handler(pid_t pid, int timeout)
 {
 	struct sigaction act;
 
@@ -338,7 +338,7 @@ static void set_timeout(int pid, int timeout)
 	alarm(timeout);
 }
 
-static int real_env_exec_init(struct exec_param *param, int timeout)
+static int real_env_exec_init(struct exec_param *param)
 {
 	struct sigaction act;
 
@@ -360,7 +360,7 @@ static int real_env_exec_init(struct exec_param *param, int timeout)
 	return 0;
 }
 
-static int real_env_exec(struct vzctl_env_handle *h, struct exec_param *param, int flags)
+int real_env_exec(struct vzctl_env_handle *h, struct exec_param *param, int flags)
 {
 	int ret;
 	int skip_fds[7];
@@ -525,93 +525,17 @@ out:
 	return ret;
 }
 
-int vz_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
-		int flags, int *pid)
-{
-	int ret;
-
-	ret = get_env_ops()->env_setluid(h);
-	if (ret)
-		return ret;
-
-	if ((*pid = fork()) < 0) {
-		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
-	} else if (*pid == 0) {
-		ret = get_env_ops()->env_enter(h, flags);
-		if (ret == 0)
-			ret = real_env_exec(h, param, flags);
-		_exit(ret);
-	}
-
-	return 0;
-}
-
-int ns_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
-		int flags, int *pid)
-{
-	int ret;
-
-	*pid = fork();
-	if (*pid < 0) {
-		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
-	} else if (*pid == 0) {
-		ret = get_env_ops()->env_enter(h, flags);
-		if (ret == 0)
-			ret = real_env_exec(h, param, flags);
-		_exit(ret);
-	}
-
-	return 0;
-}
-
-static int env_exec(struct vzctl_env_handle *h, struct exec_param *param,
-		int timeout, int flags)
-{
-	int pid, ret;
-	int in_p[2] = {-1, -1};
-	int out_p[2] = {-1, -1};
-	int err_p[2] = {-1, -1};
-	int status_p[2] = {-1, -1};
-	struct vzctl_cleanup_hook *hook;
-
-	param->in_p = in_p;
-	param->out_p = out_p;
-	param->err_p = err_p;
-	param->status_p = status_p;
-
-	ret = real_env_exec_init(param, timeout);
-	if (ret)
-		goto err;
-
-	ret = get_env_ops()->env_exec(h, param, flags, &pid);
-	if (ret)
-		goto err;
-
-	if (timeout)
-		set_timeout(pid, timeout);
-
-	hook = register_cleanup_hook(cleanup_kill_process, (void *) &pid);
-	ret = real_env_exec_waiter(param, pid, timeout, flags);
-	unregister_cleanup_hook(hook);
-	if (timeout) {
-		alarm(0);
-		s_timeout_pid = -1;
-	}
-err:
-	close(status_p[0]); close(status_p[1]);
-	close(out_p[0]); close(out_p[1]);
-	close(err_p[0]); close(err_p[1]);
-	close(in_p[0]); close(in_p[1]);
-
-	return ret;
-}
-
 static int do_env_exec(struct vzctl_env_handle *h, exec_mode_e exec_mode,
 		char *const argv[], char *const envp[], char *std_in,
 		execFn fn, void *data, int *data_fd, int timeout,
 		int flags, int stdfd[3])
 {
-	int pid, ret, lfd;
+	int ret, lfd;
+	pid_t pid;
+	int in_p[2] = {-1, -1};
+	int out_p[2] = {-1, -1};
+	int err_p[2] = {-1, -1};
+	int status_p[2] = {-1, -1};
 	struct vzctl_cleanup_hook *hook;
 	struct exec_param param = {
 		.exec_mode = exec_mode,
@@ -622,37 +546,50 @@ static int do_env_exec(struct vzctl_env_handle *h, exec_mode_e exec_mode,
 		.fn = fn,
 		.data = data,
 		.data_fd = data_fd,
+		.in_p = in_p,
+		.out_p = out_p,
+		.err_p = err_p,
+		.status_p = status_p,
+		.timeout = timeout,
 	};
 
 	lfd = vzctl2_get_enter_lock(h, VZCTL_LOCK_SH);
 	if (lfd < 0)
 		return VZCTL_E_LOCK;
 
-	if ((pid = fork()) < 0) {
-		ret = vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
+	ret = real_env_exec_init(&param);
+	if (ret)
 		goto err;
-	} else if (pid == 0) {
-		ret = env_exec(h, &param, timeout, flags);
-		_exit(ret);
-	}
+
+	ret = get_env_ops()->env_exec(h, &param, flags, &pid);
+	if (ret)
+		goto err;
+
 	hook = register_cleanup_hook(cleanup_kill_process, (void *) &pid);
-	ret = env_wait(pid, timeout, NULL);
+	ret = real_env_exec_waiter(&param, pid, timeout, flags);
 	unregister_cleanup_hook(hook);
+	if (timeout) {
+		alarm(0);
+		s_timeout_pid = -1;
+	}
 
 err:
+	close(status_p[0]); close(status_p[1]);
+	close(out_p[0]); close(out_p[1]);
+	close(err_p[0]); close(err_p[1]);
+	close(in_p[0]); close(in_p[1]);
+
 	vzctl2_release_enter_lock(lfd);
 
 	return ret;
 }
 
-static int real_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
+int real_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 		int *data_fd, int timeout, int flags)
 {
 	int ret;
 
 	_close_fds(data_fd != NULL ? VZCTL_CLOSE_STD : 0, data_fd);
-	if (timeout)
-		set_timeout(getpid(), timeout);
 
 	ret = fn(data);
 
@@ -662,46 +599,6 @@ static int real_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 	}
 
 	return ret;
-}
-
-int vz_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
-		int *data_fd, int timeout, int flags)
-{
-	int ret, pid;
-
-	ret = get_env_ops()->env_setluid(h);
-	if (ret)
-		return ret;
-
-	if ((pid = fork()) < 0)
-		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
-	else if (pid == 0) {
-		ret = get_env_ops()->env_enter(h, flags);
-		if (ret == 0)
-			ret = real_env_exec_fn(h, fn, data, data_fd, timeout, flags);
-
-		_exit(ret);
-	}
-
-	return env_wait(pid, timeout, NULL);
-}
-
-int ns_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
-		int *data_fd, int timeout, int flags)
-{
-	int ret, pid;
-
-	if ((pid = fork()) < 0)
-		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
-	else if (pid == 0) {
-		ret = get_env_ops()->env_enter(h, flags);
-		if (ret == 0)
-			ret = real_env_exec_fn(h, fn, data, data_fd, timeout, flags);
-
-		_exit(ret);
-	}
-
-	return env_wait(pid, timeout, NULL);
 }
 
 static void set_proc_title(char *tty)
@@ -1039,29 +936,18 @@ int vzctl2_env_exec(struct vzctl_env_handle *h, exec_mode_e exec_mode,
 static int do_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 		int *data_fd, int timeout, int flags)
 {
-	int ret, pid, lfd;
+	pid_t pid;
+	int ret, lfd;
 	struct vzctl_cleanup_hook *hook;
 
 	lfd = vzctl2_get_enter_lock(h, VZCTL_LOCK_SH);
 	if (lfd < 0)
 		return VZCTL_E_LOCK;
 
-	if ((pid = fork()) < 0) {
-		ret = vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
+	ret = get_env_ops()->env_exec_fn(h, fn, data, data_fd, timeout, flags, &pid);
+	if (ret)
 		goto err;
-	} else if (pid == 0) {
-#if 0
-		if (flags & EXEC_STD_REDIRECT)
-			ret = do_env_exec(h, MODE_EXECFN, NULL, NULL, NULL,
-					fn, data, data_fd, timeout, flags, NULL);
-		else if (flags & EXEC_OPENPTY)
-			ret = env_exec_pty(h, MODE_EXECFN, NULL, NULL, NULL,
-					fn, data, data_fd, timeout, flags);
-		else
-#endif
-		ret = get_env_ops()->env_exec_fn(h, fn, data, data_fd, timeout, flags);
-		_exit(ret);
-	}
+
 	hook = register_cleanup_hook(cleanup_kill_process, (void *) &pid);
 	ret = env_wait(pid, timeout, NULL);
 	unregister_cleanup_hook(hook);
@@ -1157,10 +1043,6 @@ int vzctl2_env_exec_script(const ctid_t ctid, const char *ve_root,
 	int ret, len;
 	char *script = NULL;
 	char *const *_envp = NULL;
-	struct exec_param param = {
-		.exec_mode = MODE_BASH_NOSTDIN,
-		.argv = argv,
-	};
 
 	h = vzctl2_env_open(ctid, 0, &ret);
 	if (h == NULL)
@@ -1176,11 +1058,11 @@ int vzctl2_env_exec_script(const ctid_t ctid, const char *ve_root,
 		ret = VZCTL_E_NOSCRIPT;
 		goto err;
 	}
-	param.std_in = script;
-	_envp = make_bash_env(envp);
-	param.envp = _envp;
 
-	ret = env_exec(h, &param, timeout, flags);
+	_envp = make_bash_env(envp);
+
+	ret = do_env_exec(h, MODE_BASH_NOSTDIN, argv, _envp, script,
+			NULL, NULL, NULL, 0, flags, NULL);
 
 err:
 	free(script);
