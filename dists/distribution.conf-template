@@ -9,7 +9,7 @@
 # the default configuration file is used for this distribution.
 # If no configuration file was found, the default.conf file is used.
 #
-# Copyright (C) @COPYRIGHT_OWNER@, 1999-@LAST_COPYRIGHT_YEAR@. All rights reserved.
+# Copyright (c) 1999-2015 Parallels IP Holdings GmbH. All rights reserved.
 
 # This script is launched inside a VPS on executing the following commands:
 #	vzctl start VPSID
