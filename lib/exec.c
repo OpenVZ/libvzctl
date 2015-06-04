@@ -360,6 +360,26 @@ static int real_env_exec_init(struct exec_param *param)
 	return 0;
 }
 
+void real_env_exec_close(struct exec_param *param)
+{
+	if (param->status_p[0] != -1)
+		close(param->status_p[0]);
+	if (param->status_p[1] != -1)
+		close(param->status_p[1]);
+	if (param->out_p[0] != -1)
+		close(param->out_p[0]);
+	if (param->out_p[1] != -1)
+		close(param->out_p[1]);
+	if (param->err_p[0] != -1)
+		close(param->err_p[0]);
+	if (param->err_p[1] != -1)
+		close(param->err_p[1]);
+	if (param->in_p[0] != -1)
+		close(param->in_p[0]);
+	if (param->in_p[1] != -1)
+		close(param->in_p[1]);
+}
+
 int real_env_exec(struct vzctl_env_handle *h, struct exec_param *param, int flags)
 {
 	int ret;
@@ -532,10 +552,6 @@ static int do_env_exec(struct vzctl_env_handle *h, exec_mode_e exec_mode,
 {
 	int ret, lfd;
 	pid_t pid;
-	int in_p[2] = {-1, -1};
-	int out_p[2] = {-1, -1};
-	int err_p[2] = {-1, -1};
-	int status_p[2] = {-1, -1};
 	struct vzctl_cleanup_hook *hook;
 	struct exec_param param = {
 		.exec_mode = exec_mode,
@@ -546,10 +562,10 @@ static int do_env_exec(struct vzctl_env_handle *h, exec_mode_e exec_mode,
 		.fn = fn,
 		.data = data,
 		.data_fd = data_fd,
-		.in_p = in_p,
-		.out_p = out_p,
-		.err_p = err_p,
-		.status_p = status_p,
+		.in_p = {-1, -1},
+		.out_p = {-1, -1},
+		.err_p = {-1, -1},
+		.status_p = {-1, -1},
 		.timeout = timeout,
 	};
 
@@ -574,11 +590,7 @@ static int do_env_exec(struct vzctl_env_handle *h, exec_mode_e exec_mode,
 	}
 
 err:
-	close(status_p[0]); close(status_p[1]);
-	close(out_p[0]); close(out_p[1]);
-	close(err_p[0]); close(err_p[1]);
-	close(in_p[0]); close(in_p[1]);
-
+	real_env_exec_close(&param);
 	vzctl2_release_enter_lock(lfd);
 
 	return ret;

@@ -779,6 +779,8 @@ static int ns_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
 			_exit(ret);
 		}
 
+		real_env_exec_close(param);
+
 		if (param->timeout)
 			set_timeout_handler(pid2, param->timeout);
 

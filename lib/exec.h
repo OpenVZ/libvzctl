@@ -42,16 +42,17 @@ struct exec_param {
 	execFn fn;
 	void *data;
 	int *data_fd;
-	int *status_p;
-	int *in_p;
-	int *out_p;
-	int *err_p;
+	int status_p[2];
+	int in_p[2];
+	int out_p[2];
+	int err_p[2];
 	int timeout;
 };
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+void real_env_exec_close(struct exec_param *param);
 int real_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
                 int *data_fd, int timeout, int flags);
 int real_env_exec(struct vzctl_env_handle *h, struct exec_param *param, int flags);
