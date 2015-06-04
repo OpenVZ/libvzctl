@@ -88,12 +88,16 @@ function create_prvt()
 		cmd="${VZTAR} -C ${VE_PRVT} -xzf ${archive}"
 		NEEDED=`gzip -l ${archive} | awk 'END{print int($2/1024)}'`
 		;;
-	lzrw)
-		compressor="/usr/bin/prlcompress -u"
+	lzrw | lz4)
+		if [ "x${ext}" = "xlzrw" ]; then
+			compressor="/usr/bin/prlcompress -u"
+		else
+			compressor="/usr/bin/lz4 -d"
+		fi
 		cmd="${VZTAR} -C ${VE_PRVT} -x"
 		# Guess archive size
 		NEEDED=`stat -c%s ${archive}`
-		let NEEDED=$NEEDED*2/1024
+		let NEEDED=$NEEDED*3/1024
 		;;
 	esac
 
@@ -122,7 +126,7 @@ function create_prvt()
 		gz | tgz)
 			vzerror "Error in tar -xzf $archive" $VZ_FS_NEW_VE_PRVT
 			;;
-		lzrw)
+		lzrw | lz4)
 			vzerror "Error in $compressor < $archive | $cmd" $VZ_FS_NEW_VE_PRVT
 			;;
 		esac
