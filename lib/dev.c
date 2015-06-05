@@ -299,9 +299,12 @@ void free_dev_param(struct vzctl_dev_param *dev)
 	free(dev);
 }
 
-static const char *devperm2str(unsigned int perms, char mask[4])
+static const char *devperm2str(unsigned int perms, char mask[5])
 {
 	int i = 0;
+
+	if (perms == 0)
+		return "none";
 
 	if (perms & S_IROTH)
 		mask[i++] = 'r';
@@ -322,6 +325,7 @@ static int parse_dev_perm(const char *str, unsigned int *perms)
 {
 	const char *ch;
 
+	*perms = 0;
 	if (strcmp(str, "none")) {
 		for (ch = str; *ch; ch++) {
 			if (*ch == 'r')
@@ -344,10 +348,10 @@ int parse_devices_str(struct vzctl_dev_perm *perm, const char *str)
 	unsigned long val, major;
 	char type[2];
 	char minor[32];
-	char mode[3];
+	char mode[6];
 
-	ret = sscanf(str, "%1[^:]:%lu:%16[^:]:%2s", type, &major, minor, mode);
-	if (ret != 4)
+	ret = sscanf(str, "%1[^:]:%lu:%16[^:]:%5s", type, &major, minor, mode);
+	if (ret != 3 && ret != 4)
 		return vzctl_err(VZCTL_E_INVAL, 0, "An incorrect device format: %s", str);
 	bzero(perm, sizeof(struct vzctl_dev_perm));
 	if (!strcmp(type, "b"))
@@ -449,7 +453,7 @@ int parse_devnodes(struct vzctl_dev_param *dev, const char *val)
 
 char *devices2str(struct vzctl_dev_param *dev)
 {
-	char mask[4];
+	char mask[5];
 	int r;
 	unsigned int major, minor;
 	struct vzctl_dev_perm *it;
