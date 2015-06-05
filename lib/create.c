@@ -464,8 +464,8 @@ int vzctl2_env_create(struct vzctl_env_param *env,
                         sizeof(vzpkg_src_conf));
 
 		if (stat_file(src_conf) != 1)
-			return vzctl_err(VZCTL_E_INVAL, 0, "Sample config file %s not found",
-					src_conf);
+			return vzctl_err(VZCTL_E_CP_CONFIG, 0,
+					"Sample config file %s not found", src_conf);
 		use_sample = 1;
 	} else if (stat_file(conf) == 1) {
 		/* Use VEID.conf */
