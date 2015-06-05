@@ -300,69 +300,75 @@ char *bindmount2str(struct vzctl_bindmount_param *old_mnt, struct vzctl_bindmoun
 	return buf;
 }
 
-int vzctl2_bind_umount(struct vzctl_env_handle *h, struct vzctl_bindmount_param *mnt, int flags)
+static int bind_mount(struct vzctl_env_handle *h, struct vzctl_bindmount *mnt)
 {
-        char dst[PATH_MAX];
-        struct vzctl_bindmount *it;
+	char s[STR_SIZE];
+	char d[PATH_MAX];
+	struct stat st;
+	int flags = mnt->mntopt;
+	char *root = h->env_param->fs->ve_root;
 
-        if (mnt == NULL || list_empty(&mnt->mounts))
-                return 0;
-        list_for_each(it, &mnt->mounts, list) {
-                if (env_realpath(h->env_param->fs->ve_root, it->dst, dst, sizeof(dst)))
-                        continue;
-		logger(1, 0, "Unmount bindmount: %s", dst);
-                umount(dst);
-        }
-        return 0;
-}
+	snprintf(d, sizeof(d), "%s/%s", root, mnt->dst);
+	if (lstat(d, &st)) {
+		if (errno != ENOENT)
+			return vzctl_err(VZCTL_E_MOUNT, 0,
+				"Unable to stat bindmount target %s", d);
 
-static int bind_mount(const char *src, const char *dst, int flags)
-{
-	if (!stat_file(dst))
-		make_dir(dst, 1);
+		if (mkdir(d, 1))
+			return vzctl_err(VZCTL_E_CREATE_DIR, errno,
+				"Unable to create bindmount target %s", d);
+		if (lstat(d, &st))
+			return vzctl_err(VZCTL_E_MOUNT, 0,
+				"Unable to stat bindmount target %s", d);
 
-	logger(0, 0, "Set up the bind mount: %s", dst);
-	if (mount(src, dst, "simfs", flags, src) < 0)
-		return vzctl_err(VZCTL_E_MOUNT, errno, "Cannot bind-mount: %s %s",
-				src, dst);
+	}
+
+	if (!S_ISDIR(st.st_mode))
+		return vzctl_err(VZCTL_E_MOUNT, 0,
+				"Unable to setup bindmount: the target"
+				" is not a folder '%s'", d);
+
+	if (mnt->src == NULL) {
+		snprintf(s, sizeof(s), "%s/%s/%s",
+				root, BINDMOUNT_DIR, mnt->dst);
+		if (access(s, F_OK)) {
+			if (stat(d, &st))
+				st.st_mode = 0777;
+			make_dir(s, 1);
+			chmod(s, st.st_mode);
+		}
+	} else {
+		snprintf(s, sizeof(s), "%s", mnt->src);
+	}
+
+	logger(0, 0, "Set up the bind mount: %s", s);
+
+	if (mount(s, d, "", MS_BIND, NULL) < 0)
+		return vzctl_err(VZCTL_E_MOUNT, errno,
+			"Cannot bind-mount: %s %s", s, d);
+
+	/* apply flags */
+	if (flags && mount(s, d, "", flags | MS_REMOUNT | MS_BIND, NULL))
+		return vzctl_err(VZCTL_E_MOUNT, errno,
+				"Cannot bind-mount: %s %s", s, d);
+
 	return 0;
 }
 
-int vzctl2_bind_mount(struct vzctl_env_handle *h, struct vzctl_bindmount_param *mnt, int flags)
+int vzctl2_bind_mount(struct vzctl_env_handle *h,
+		struct vzctl_bindmount_param *mnt, int flags)
 {
-	char src[STR_SIZE];
-	char dst[4096];
-	struct vzctl_bindmount *it;
 	int ret;
-	struct stat st;
-	int ve_layout = h->env_param->fs->layout;
-	char *root = h->env_param->fs->ve_root;
+	struct vzctl_bindmount *it;
 
 	if (mnt == NULL || list_empty(&mnt->mounts))
 		return 0;
+
 	list_for_each(it, &mnt->mounts, list) {
-		ret = env_realpath(root, it->dst, dst, sizeof(dst));
+		ret = bind_mount(h, it);
 		if (ret)
-			return vzctl_err(VZCTL_E_MOUNT, 0, "Unable to set up the bindmount %s",
-					it->dst);
-		if (it->src == NULL) {
-			if (ve_layout == VZCTL_LAYOUT_5)
-				snprintf(src, sizeof(src), "%s/%s/%s",
-						root, BINDMOUNT_DIR, it->dst);
-			else
-				snprintf(src, sizeof(src), "%s/mnt/%s",
-						 h->env_param->fs->ve_private_fs, it->dst);
-			if (stat(src, &st)) {
-				if (stat(dst, &st))
-					st.st_mode = 0777;
-				make_dir(src, 1);
-				chmod(src, st.st_mode);
-			}
-		} else {
-			snprintf(src, sizeof(src), "%s", it->src);
-		}
-		if ((ret = bind_mount(src, dst, it->mntopt)))
 			return ret;
 	}
+
 	return 0;
 }

@@ -427,58 +427,6 @@ int make_dir(const char *path, int full)
 	return 0;
 }
 
-int env_realpath(char *root, char *mnt, char *resolved, int size)
-{
-	int ret = 0, len;
-	char buf[256];
-	int root_fd = -1;
-	int mnt_fd = -1;
-	struct stat st;
-	DIR *dir = NULL;
-
-	if ((root_fd = open("/", O_RDONLY)) == -1) {
-		logger(0, errno, "Unable to open /");
-		return -1;
-	}
-	if (chroot(root)) {
-		logger(0, errno, "Unable to chroot %s", root);
-		return -1;
-	}
-	if (lstat(mnt, &st)) {
-		if (errno != ENOENT) {
-			ret = -1;
-			goto err;
-		}
-		make_dir(mnt, 1);
-	}
-	if ((dir = opendir(mnt)) != NULL) {
-		if ((mnt_fd = dirfd(dir)) == -1)
-			ret = -1;
-	} else
-		ret = -1;
-err:
-	/* Exist from chroot */
-	if (fchdir(root_fd)) {
-		printf("Oops unable to exit from chroot: %s\n",
-			strerror(errno));
-		return -1;
-	}
-	if (chroot("."))
-		logger(-1, errno, "chroot .");
-	if (ret == 0) {
-		sprintf(buf, "/proc/%d/fd/%d", getpid(), mnt_fd);
-		len = readlink(buf, resolved, size - 1);
-		if (len == -1) {
-			logger(-1, errno, "Unable to read link %s", buf);
-			ret = -1;
-		} else
-			resolved[len] = 0;
-	}
-	close(root_fd);
-	if (dir != NULL) closedir(dir);
-	return ret;
-}
-
 int get_mul(char c, unsigned long long *n)
 {
         *n = 1;

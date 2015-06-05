@@ -155,7 +155,6 @@ int is_str_valid(const char *name);
 int vzctl_get_dump_file(struct vzctl_env_handle *h, char *buf, int size);
 int wait_on_fifo(void *data);
 int vzctl_check_owner(const char *ve_private);
-int env_realpath(char *root, char *mnt, char *resolved, int size);
 char *get_ip4_name(unsigned int ip);
 char *get_mnt_root(const char *path);
 void free_ar_str(char **ar);

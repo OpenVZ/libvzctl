@@ -135,6 +135,10 @@ static int setup_rootfs(struct vzctl_env_handle *h)
 	if (mount("", root, NULL, MS_SLAVE|MS_REC, NULL) < 0)
 		return vzctl_err(-1, errno, "Can't make slave %s", root);
 
+	ret = vzctl2_bind_mount(h, h->env_param->bindmount, 0);
+	if (ret)
+		return ret;
+
 	ret = bindmount_env_cgroup(h);
 	if (ret)
 		return ret;

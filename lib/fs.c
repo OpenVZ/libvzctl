@@ -212,12 +212,6 @@ int vzctl2_env_mount(struct vzctl_env_handle *h, int flags)
 		return ret;
 
 skip:
-	if (!(flags & VZCTL_SKIP_SETUP)) {
-		ret = vzctl2_bind_mount(h, h->env_param->bindmount, flags);
-		if (ret)
-			goto err;
-	}
-
 	/* Execute per Container & global mount scripts */
 	if (!(flags & VZCTL_SKIP_ACTION_SCRIPT)) {
 		ret = run_action_scripts(h, VZCTL_ACTION_MOUNT);
@@ -229,7 +223,6 @@ skip:
 	return 0;
 
 err:
-	vzctl2_bind_umount(h, h->env_param->bindmount, flags);
 	do_env_umount(h);
 
 	return ret;
@@ -257,8 +250,6 @@ int vzctl2_env_umount(struct vzctl_env_handle *h, int flags)
 	ret = do_env_umount(h);
 	if (ret)
 		return ret;
-
-	vzctl2_bind_umount(h, h->env_param->bindmount, flags);
 
 	logger(0, 0, "Container is unmounted");
 

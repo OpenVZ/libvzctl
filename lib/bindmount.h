@@ -44,7 +44,6 @@ struct vzctl_bindmount_param *alloc_bindmount_param(void);
 void free_bindmount_param(struct vzctl_bindmount_param *mnt);
 int parse_bindmount(struct vzctl_bindmount_param *mnt, const char *str, int add);
 char *bindmount2str(struct vzctl_bindmount_param *old_mnt, struct vzctl_bindmount_param *mnt);
-int vzctl2_bind_umount(struct vzctl_env_handle *h, struct vzctl_bindmount_param *mnt, int flags);
 int vzctl2_bind_mount(struct vzctl_env_handle *h, struct vzctl_bindmount_param *mnt, int flags);
 
 #endif // _BINDMOUNT_H_
