@@ -41,7 +41,7 @@ static struct mount_opt {
 	{"nosuid", MS_NOSUID},
 	{"noexec", MS_NOEXEC},
 	{"nodev", MS_NODEV},
-/*	{"ro", MS_RDONLY}, */
+	{"ro", MS_RDONLY},
 };
 
 static int get_mount_opt(char* str)
