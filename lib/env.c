@@ -391,40 +391,31 @@ static void fix_cpu_param(struct vzctl_cpu_param *cpu)
 #define SYSTEMD_BIN "systemd"
 #define SBIN_INIT "/sbin/init"
 
-static int add_inittab_entry(char *entry, char *id)
+static int add_inittab_entry(const char *entry, const char *id)
 {
-	FILE *rfp;
-	int wfd, len, err, found;
+	FILE *rfp = NULL;
+	int wfd =1, len, err = -1, found = 0;
 	struct stat st;
-	char buf[4096];
-
-	wfd = -1;
+	char buf[PATH_MAX];
 
 	if (stat(INITTAB_FILE, &st))
-		return -1;
+		return vzctl_err(-1, errno, "Can't stat "INITTAB_FILE);
 
-	if ((rfp = fopen(INITTAB_FILE, "r")) == NULL) {
-		fprintf(stderr, "Unable to open " INITTAB_FILE " %s\n",
-			strerror(errno));
-		close(wfd);
-		return -1;
-	}
+	if ((rfp = fopen(INITTAB_FILE, "r")) == NULL)
+		return vzctl_err(-1, errno, "Unable to open " INITTAB_FILE);
 
-	if ((wfd = open(INITTAB_FILE ".tmp", O_WRONLY|O_TRUNC|O_CREAT,
-							st.st_mode)) == -1) {
-		fprintf(stderr, "Unable to open " INITTAB_FILE ".tmp %s\n",
-			strerror(errno));
-		return -1;
+	wfd = open(INITTAB_FILE ".tmp", O_WRONLY|O_TRUNC|O_CREAT, st.st_mode);
+	if (wfd == -1) {
+		logger(-1, errno, "Unable to open " INITTAB_FILE ".tmp");
+		goto err;
 	}
 
 	set_fattr(wfd, &st);
 
-	err = 0;
-	found = 0;
 	while (!feof(rfp)) {
 		if (fgets(buf, sizeof(buf), rfp) == NULL) {
 			if (ferror(rfp))
-				err = -1;
+				goto err;
 			break;
 		}
 		if (!strcmp(buf, entry)) {
@@ -436,26 +427,31 @@ static int add_inittab_entry(char *entry, char *id)
 
 		len = strlen(buf);
 		if (write(wfd, buf, len) == -1) {
-			fprintf(stderr, "Unable to write to " INITTAB_FILE" %s\n",
-				strerror(errno));
-			err = -1;
-			break;
+			logger(-1, errno, "Unable to write to " INITTAB_FILE);
+			goto err;
 		}
 	}
-	if (!err && !found) {
-		if (write(wfd, entry, strlen(entry)) == -1 || write(wfd, "\n", 1) == -1) {
-			fprintf(stderr, "Unable to write to " INITTAB_FILE" %s\n",
-					strerror(errno));
-			err = -1;
+
+	if (!found) {
+		if (write(wfd, entry, strlen(entry)) == -1 ||
+				write(wfd, "\n", 1) == -1)
+		{
+			logger(-1, errno, "Unable to write to " INITTAB_FILE);
+			goto err;
 		}
 		if (err == 0 && rename(INITTAB_FILE ".tmp", INITTAB_FILE)) {
-			fprintf(stderr, "Unable to rename " INITTAB_FILE " %s\n",
-				strerror(errno));
-			err = -1;
+			logger(-1, errno, "Unable to rename " INITTAB_FILE);
+			goto err;
 		}
 	}
-	close(wfd);
-	fclose(rfp);
+	err = 0;
+err:
+
+	if (wfd != -1)
+		close(wfd);
+	if (rfp != NULL)
+		fclose(rfp);
+
 	unlink(INITTAB_FILE ".tmp");
 
 	return err;
