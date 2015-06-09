@@ -915,7 +915,13 @@ static int ns_set_devperm(struct vzctl_env_handle *h, struct vzctl_dev_perm *dev
 	perms[i++] = 'm'; /* mknod */
 	perms[i++] = '\0';
 
-	snprintf(dev_str, sizeof(dev_str), "%c %d:%d %s",
+	if (dev->use_major)
+		snprintf(dev_str, sizeof(dev_str), "%c %d:* %s",
+			S_ISBLK(dev->type) ? 'b' : 'c',
+			major(dev->dev),
+			deny ? "rwm" : perms);
+	else
+		snprintf(dev_str, sizeof(dev_str), "%c %d:%d %s",
 			S_ISBLK(dev->type) ? 'b' : 'c',
 			major(dev->dev), minor(dev->dev),
 			deny ? "rwm" : perms);
