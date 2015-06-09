@@ -29,3 +29,5 @@ pkglibexecdir = $(libexecdir)/libvzctl
 distconfdir = $(pkglibexecdir)/dists
 scriptdir   = $(pkglibexecdir)/scripts
 scriptddir  = $(pkglibexecdir)/script.d
+
+pkgincludedir = $(includedir)/vzctl

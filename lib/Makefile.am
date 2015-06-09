@@ -12,7 +12,7 @@ AM_CPPFLAGS = -I. -I./include -I../include \
 	      $(XML_CPPFLAGS)
 
 lib_LTLIBRARIES = libvzctl2.la
-
+pkginclude_HEADERS = vzctl_param.h vzerror.h list.h
 libvzctl2_la_SOURCES =  bitmap.c \
 			bindmount.c \
 			cap.c \

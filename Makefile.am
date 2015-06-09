@@ -5,8 +5,8 @@ include $(top_srcdir)/paths.am
 
 SUBDIRS = dists lib scripts src
 
-noinst_HEADERS = $(wildcard include/*.h) \
-                 $(wildcard include/linux/*.h)
+noinst_HEADERS = $(wildcard include/linux/*.h)
+pkginclude_HEADERS = include/libvzctl.h
 
 EXTRA_DIST = libvzctl.spec
 
