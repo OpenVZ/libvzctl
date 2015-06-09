@@ -60,6 +60,7 @@ struct vzctl_env_ops {
 	int (* env_set_devperm)(struct vzctl_env_handle *h, struct vzctl_dev_perm *dev);
 	int (* env_set_cpumask)(struct vzctl_env_handle *h, struct vzctl_cpumask *cpumask);
 	int (* env_set_nodemask)(struct vzctl_env_handle *h, struct vzctl_nodemask *nodemask);
+	int (* env_set_ioprio)(struct vzctl_env_handle *h, int prio);
 	int (* env_set_iolimit)(struct vzctl_env_handle *h, unsigned int speed);
 	int (* env_get_iolimit)(struct vzctl_env_handle *h, unsigned int *speed);
 	int (* env_set_iopslimit)(struct vzctl_env_handle *h, unsigned int speed);

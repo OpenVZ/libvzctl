@@ -1203,6 +1203,11 @@ static int ns_get_iolimit(struct vzctl_env_handle *h, unsigned int *speed)
 	return ret;
 }
 
+static int ns_set_ioprio(struct vzctl_env_handle *h, int prio)
+{
+	return vzctl_err(VZCTL_E_INVAL, 0, "IOPRIO is not implemented");
+}
+
 static int ns_set_iopslimit(struct vzctl_env_handle *h, unsigned int speed)
 {
 	logger(0, 0, "Set up iopslimit: %u", speed);
@@ -1238,6 +1243,7 @@ static struct vzctl_env_ops env_nsops = {
 	.env_set_nodemask = ns_set_nodemask,
 	.env_set_iolimit = ns_set_iolimit,
 	.env_get_iolimit = ns_get_iolimit,
+	.env_set_ioprio = ns_set_ioprio,
 	.env_set_iopslimit = ns_set_iopslimit,
 	.env_get_iopslimit = ns_get_iopslimit,
 	.env_ip_ctl = ns_ip_ctl,

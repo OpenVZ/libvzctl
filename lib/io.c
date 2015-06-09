@@ -37,6 +37,40 @@
 #include "vz.h"
 #include "env_ops.h"
 
+static inline int _setioprio(int which, unsigned who, int prio)
+{
+	return syscall(__NR_ioprio_set, which, who, prio);
+}
+
+int vz_set_ioprio(struct vzctl_env_handle *h, int prio)
+{
+	int ret;
+	unsigned veid = eid2veid(h);
+
+	if (prio < 0)
+		return VZCTL_E_SET_IO;
+
+	logger(0, 0, "Set up ioprio: %d", prio);
+	ret = _setioprio(IOPRIO_WHO_UBC, veid,
+			prio | IOPRIO_CLASS_BE << IOPRIO_CLASS_SHIFT);
+	if (ret) {
+		if (errno == ESRCH)
+			return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0,
+					"Container is not running");
+		else if (errno == EINVAL)
+			return vzctl_err(0, 0, "Warning: ioprio feature is not supported"
+					" by the kernel: ioprio configuration is skippe");
+		return vzctl_err(VZCTL_E_SET_IO, errno, "Unable to set ioprio");
+	}
+
+	return 0;
+}
+
+int vzctl2_set_ioprio(struct vzctl_env_handle *h, int prio)
+{
+	return get_env_ops()->env_set_ioprio(h, prio);
+}
+
 int vz_set_iolimit(struct vzctl_env_handle *h, unsigned int limit)
 {
 	int ret;
@@ -142,6 +176,12 @@ int apply_io_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int 
 {
 	int ret;
 
+	if (env->io->prio >= 0) {
+		ret = vzctl2_set_ioprio(h, env->io->prio);
+		if (ret)
+			return ret;
+	}
+
 	if (env->io->limit != UINT_MAX) {
 		ret = vzctl2_set_iolimit(h, env->io->limit);
 		if (ret)
@@ -168,9 +208,23 @@ struct vzctl_io_param *alloc_io_param(void)
 	new = malloc(sizeof(struct vzctl_io_param));
 	if (new == NULL)
 		return NULL;
+	new->prio = -1;
 	new->limit = UINT_MAX;
 	new->iopslimit = UINT_MAX;
 	return new;
+}
+
+int parse_ioprio(struct vzctl_io_param *io, const char *val)
+{
+	int n;
+
+	if (parse_int(val, &n))
+		return VZCTL_E_INVAL;
+	if (n < VE_IOPRIO_MIN || n > VE_IOPRIO_MAX)
+		return VZCTL_E_INVAL;
+	io->prio = n;
+
+	return 0;
 }
 
 int parse_iolimit(struct vzctl_io_param *io, const char *str, int def_mul)

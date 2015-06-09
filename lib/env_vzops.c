@@ -945,6 +945,7 @@ static struct vzctl_env_ops env_vzops = {
 	.env_set_cpumask = vz_env_set_cpumask,
 	.env_set_nodemask = vz_env_set_nodemask,
 	.env_set_iolimit = vz_set_iolimit,
+	.env_set_ioprio  = vz_set_ioprio,
 	.env_get_iolimit = vz_get_iolimit,
 	.env_set_iopslimit = vz_set_iopslimit,
 	.env_get_iopslimit = vz_get_iopslimit,

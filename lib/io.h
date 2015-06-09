@@ -32,6 +32,7 @@
 #define IOPRIO_CLASS_BE		2
 
 struct vzctl_io_param {
+	int prio;
 	unsigned int limit;
 	unsigned int iopslimit;
 };
@@ -43,6 +44,7 @@ int parse_iolimit(struct vzctl_io_param *io, const char *val, int def_mul);
 int parse_iopslimit(struct vzctl_io_param *io, const char *str);
 int apply_io_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags);
 void free_io_param(struct vzctl_io_param *io);
+int vz_set_ioprio(struct vzctl_env_handle *h, int prio);
 int vz_set_iolimit(struct vzctl_env_handle *h, unsigned int limit);
 int vz_get_iolimit(struct vzctl_env_handle *h, unsigned int *limit);
 int vz_set_iopslimit(struct vzctl_env_handle *h, unsigned int limit);

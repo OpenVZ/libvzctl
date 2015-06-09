@@ -136,6 +136,7 @@ static struct vzctl_config_param config_param_map[] = {
 
 {"IPTABLES",	VZCTL_PARAM_IPTABLES},
 {"NETFILTER",	VZCTL_PARAM_NETFILTER},
+{"IOPRIO",	VZCTL_PARAM_IOPRIO},
 {"IOLIMIT",	VZCTL_PARAM_IOLIMIT},
 {"IOPSLIMIT",	VZCTL_PARAM_IOPSLIMIT},
 /* Global parameters */
@@ -537,6 +538,7 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 		ret = parse_pcidev(&env->dev->pci_del, str, 0, replace);
 		break;
 	case VZCTL_PARAM_IOPRIO:
+		ret = parse_ioprio(env->io, str);
 		break;
 	case VZCTL_PARAM_IOLIMIT:
 		ret = parse_iolimit(env->io, str, 1);
@@ -1080,6 +1082,13 @@ static char *env_param2str(struct vzctl_env_handle *h,
 		return netdev2str(h->env_param->netdev, env->netdev);
 	case VZCTL_PARAM_PCI:
 		return pci2str(h->env_param->dev, env->dev);
+	case VZCTL_PARAM_IOPRIO:
+		if (env->io->prio >= 0) {
+			snprintf(buf, sizeof(buf), "%d",
+					env->io->prio);
+			return strdup(buf);
+		}
+		break;
 	case VZCTL_PARAM_IOLIMIT:
 		if (env->io->limit != UINT_MAX) {
 			snprintf(buf, sizeof(buf), "%u",
