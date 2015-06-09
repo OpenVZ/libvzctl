@@ -212,9 +212,6 @@ static int real_ns_env_create(void *arg)
 	if (ret)
 		goto err;
 
-	if (ret)
-		return ret;
-
 	ret = setup_rootfs(param->h);
 	if (ret)
 		goto err;
@@ -967,6 +964,12 @@ static int ns_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param
 		ret = vzctl_env_configure(h, env, flags);
 		if (ret)
 			return ret;
+	
+		if (h->state == VZCTL_STATE_STARTING) {
+			ret = env_console_configure(h, flags);
+			if (ret)
+				return ret;
+		}
 	}
 
 	return 0;
