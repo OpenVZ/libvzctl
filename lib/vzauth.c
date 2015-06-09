@@ -90,7 +90,7 @@ static int check_gid_passwd(const char *user, int gid)
 	int _uid, _gid;
 	int ret;
 
-	ret = VZCTL_E_AUTH;
+	ret = VZCTL_E_AUTH_GUID;
 	if ((fp = openfile("/etc/passwd")) == NULL)
 		return ret;
 
@@ -119,7 +119,7 @@ static int check_gid_group(const char *user, int gid)
 	const char *sp, *ep, *p;
 	int len = 0;
 
-	ret = VZCTL_E_AUTH;
+	ret = VZCTL_E_AUTH_GUID;
 	if ((fp = openfile("/etc/group")) == NULL)
 		return ret;
 

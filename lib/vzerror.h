@@ -187,6 +187,7 @@
 #define VZCTL_E_CACHE_NOT_FOUND		221
 #define VZCTL_E_CPUINFO			222
 #define VZCTL_E_AUTH			224
+#define VZCTL_E_AUTH_GUID		225
 
 #define debug(level, fmt, args...)      logger(level, 0, fmt, ##args)
 
