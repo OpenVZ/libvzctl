@@ -317,13 +317,7 @@ static int bind_mount(struct vzctl_env_handle *h, struct vzctl_bindmount *mnt)
 		if (mkdir(d, 1))
 			return vzctl_err(VZCTL_E_CREATE_DIR, errno,
 				"Unable to create bindmount target %s", d);
-		if (lstat(d, &st))
-			return vzctl_err(VZCTL_E_MOUNT, 0,
-				"Unable to stat bindmount target %s", d);
-
-	}
-
-	if (!S_ISDIR(st.st_mode))
+	} else if (!S_ISDIR(st.st_mode))
 		return vzctl_err(VZCTL_E_MOUNT, 0,
 				"Unable to setup bindmount: the target"
 				" is not a folder '%s'", d);
