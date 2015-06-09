@@ -1703,11 +1703,21 @@ int vzctl2_env_get_iolimit(struct vzctl_env_param *env, unsigned int *limit)
 
 int vzctl2_env_set_ioprio(struct vzctl_env_param *env, int prio)
 {
+	if (prio < VE_IOPRIO_MIN || prio > VE_IOPRIO_MAX)
+		return -1;
+
+	env->io->prio = prio;
+
 	return 0;
 }
 
 int vzctl2_env_get_ioprio(struct vzctl_env_param *env, int *prio)
 {
+	if (env->io->prio < 0)
+		return -1;
+
+	*prio = env->io->prio;
+
 	return 0;
 }
 
