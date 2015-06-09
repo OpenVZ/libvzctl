@@ -443,7 +443,7 @@ static int add_inittab_entry(char *entry, char *id)
 		}
 	}
 	if (!err && !found) {
-		if (write(wfd, entry, strlen(entry) == -1) || write(wfd, "\n", 1) == -1) {
+		if (write(wfd, entry, strlen(entry)) == -1 || write(wfd, "\n", 1) == -1) {
 			fprintf(stderr, "Unable to write to " INITTAB_FILE" %s\n",
 					strerror(errno));
 			err = -1;
