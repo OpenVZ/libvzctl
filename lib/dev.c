@@ -604,6 +604,8 @@ static int get_root_device(const char *dir, char *buf, int size)
 		return vzctl_err(-1, errno, "Unable to open /proc/mounts");
 
 	while ((mnt = getmntent(fp)) != NULL) {
+		if (!strcmp(mnt->mnt_type, "rootfs"))
+			continue;
 		if (!strcmp(mnt->mnt_dir, dir)) {
 			snprintf(buf, size, "%s", mnt->mnt_fsname);
 			ret = 0;
@@ -623,6 +625,7 @@ int create_root_dev(void *data)
 	if (get_root_device(root, device, sizeof(device)))
 		return vzctl_err(-1, 0, "Unable to get the root device name");
 
+	logger(10, 0, "Root device: %s", device);
 	if (stat(root, &st))
 		return vzctl_err(-1, errno, "Failed to stat /");
 

@@ -902,7 +902,7 @@ static int ns_set_devperm(struct vzctl_env_handle *h, struct vzctl_dev_perm *dev
 	int deny = 0;
 
 	if (dev->mask & S_IXGRP)
-		return vzctl_err(VZCTL_E_INVAL, 0, "Quota setup not implemented");
+		return 0;
 
 	if (dev->mask & S_IROTH)
 		perms[i++] = 'r';
@@ -966,6 +966,9 @@ static int ns_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param
 		if (ret)
 			return ret;
 		if ((ret = vzctl_apply_tc_param(h, env, flags)))
+			return ret;
+		ret = apply_quota_param(h, env, flags);
+		if (ret)
 			return ret;
 		ret = vzctl_env_configure(h, env, flags);
 		if (ret)
