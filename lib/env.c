@@ -439,7 +439,8 @@ static int add_inittab_entry(const char *entry, const char *id)
 			logger(-1, errno, "Unable to write to " INITTAB_FILE);
 			goto err;
 		}
-		if (err == 0 && rename(INITTAB_FILE ".tmp", INITTAB_FILE)) {
+
+		if (rename(INITTAB_FILE ".tmp", INITTAB_FILE)) {
 			logger(-1, errno, "Unable to rename " INITTAB_FILE);
 			goto err;
 		}
