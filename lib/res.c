@@ -130,15 +130,18 @@ int vzctl2_get_env_total_meminfo(unsigned long *limit_bytes, unsigned long *usag
 
 #define ADD_VSWAP_PARAM(id, size) \
 {	\
-	res.b = (long)(size > LONG_MAX ? LONG_MAX : size); \
+	if (size >= LONG_MAX)			\
+		res.b = LONG_MAX;		\
+	else					\
+		res.b = size;			\
 	res.l = res.b; \
 	vzctl_add_ub_param(vswap_param, id, &res); \
 }
 
 #define ADD_VSWAP_PARAM2(id, size) \
 {	\
-	res.b = (long)size[0] > LONG_MAX ? LONG_MAX : size[0]; \
-	res.l = (long)size[1] > LONG_MAX ? LONG_MAX : size[1]; \
+	res.b = size[0] > LONG_MAX ? LONG_MAX : size[0]; \
+	res.l = size[1] > LONG_MAX ? LONG_MAX : size[1]; \
 	vzctl_add_ub_param(vswap_param, id, &res); \
 }
 
