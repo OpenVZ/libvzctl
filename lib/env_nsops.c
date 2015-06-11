@@ -503,8 +503,20 @@ static int init_env_cgroup(struct vzctl_env_handle *h)
 		"cpuset.cpus",
 		"cpuset.mems"
 	};
+	char *bc[] = {
+		"beancounter.memory",
+		"beancounter.blkio"
+	};
 
 	logger(10, 0, "* init Container cgroup");
+
+	/* Bind beancounter with blkio/memory cgroups */
+	for (i = 0; i < sizeof(bc)/sizeof(bc[0]); i++) {
+		snprintf(buf, sizeof(buf), "/%s", EID(h));
+		ret = cg_set_param(EID(h), CG_UB, bc[i], buf);
+		if (ret)
+			return ret;
+	}
 
 	ret = cg_env_set_memory(h->ctid, "memory.use_hierarchy", 1);
 	if (ret)
