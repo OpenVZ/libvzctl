@@ -92,6 +92,8 @@ void free_veth_param(struct vzctl_veth_param *veth)
 {
 	free_veth(&veth->dev_list);
 	free_veth(&veth->dev_del_list);
+	if (veth->ifname != NULL)
+		free_veth_dev(veth->ifname);
 	free(veth);
 }
 
@@ -544,82 +546,14 @@ static int read_proc_veth(struct vzctl_env_handle *h, list_head_t *head)
 	return 0;
 }
 
-#if 0
-static struct vzctl_veth_dev *find_veth_by_ifname(list_head_t *head,
-		const char *name)
+int merge_veth_ifname_param(struct vzctl_env_handle *h,
+		struct vzctl_env_param *env)
 {
-	struct vzctl_veth_dev *it;
-
-	list_for_each(it, head, list) {
-		if (!strcmp(it->dev_name, name))
-			return it;
-	}
-	return NULL;
-}
-
-int check_veth_param(ctid_t ctid, struct vzctl_veth_param *veth_old,
-		struct vzctl_veth_param *veth_new,
-		struct vzctl_veth_param *veth_del)
-{
-	int merge;
-	struct vzctl_veth_dev *dev_t, *dev;
-
-	/* merge data for --veth_del */
-	list_for_each(dev, &veth_del->dev, list) {
-		if (dev->dev_name[0] == 0)
-			continue;
-		dev_t = find_veth_by_ifname(&veth_old->dev, dev->dev_name);
-		if (dev_t != NULL)
-			fill_veth_dev(dev, dev_t);
-	}
-
-	dev_t = find_veth_configure(&veth_new->dev);
-	if (dev_t == NULL)
+	if (env->veth->ifname == NULL)
 		return 0;
-	if (dev_t->dev_name_ve[0] == 0) {
-		logger(-1, 0, "Invalid usage.  Option --ifname not specified");
-		return -1;
-	}
-	/* merge --netif_add & --ifname */
-	merge = 0;
-	list_for_each(dev, &veth_new->dev, list) {
-		if (dev != dev_t && 
-		    !strcmp(dev->dev_name_ve, dev_t->dev_name_ve))
-		{
-			fill_veth_dev(dev_t, dev);
-			dev_t->configure = 0;
-			list_del(&dev->list);
-			free_veth_dev(dev);
-			merge = 1;
-			break;
-		}
-	}
-	/* Is corresponding device configured for --ifname <iface> */
-	if (!merge &&
-	    (veth_old == NULL ||
-	    find_veth_by_ifname_ve(&veth_old->dev, dev_t->dev_name_ve) == NULL))
-	{
-		logger(-1, 0, "Invalid usage: veth device %s is"
-			" not configured, use --netif_add option first",
-			dev_t->dev_name_ve);
-		return -1;
-	}
-	return 0;
+
+	return add_veth_param(&env->veth->dev_list, env->veth->ifname);
 }
-
-static int copy_veth_param(list_head_t *dst, list_head_t *src)
-{
-	int ret;
-	struct vzctl_veth_dev *it;
-
-	list_for_each(it, src, list) {
-		if ((ret = add_veth_param(dst, it)))
-			return ret;
-	}
-	return 0;
-}
-
-#endif
 
 static void announce_mac_addr(list_head_t *phead)
 {
@@ -1373,9 +1307,13 @@ int parse_netif_ifname(struct vzctl_veth_param *veth, const char *str, int op)
 		update_configure = 1;
 		break;
 	case VZCTL_PARAM_NETIF_IPDEL:
-		ret = parse_ip_str(&dev->ip_del_list, str, 1);
-		if (ret)
-			return ret;
+		if (strcmp(str, "all") == 0)
+			dev->ip_delall = 1;
+		else {
+			ret = parse_ip_str(&dev->ip_del_list, str, 1);
+			if (ret)
+				return ret;
+		}
 		break;
 	default :
 		debug(DBG_CFG, "parse_netif_ifname: unhandled op %d", op);

@@ -1150,10 +1150,15 @@ static int check_setmode(struct vzctl_env_handle *h, struct vzctl_env_param *env
 	return ret;
 }
 
-int vzctl2_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags)
+int vzctl2_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
+		int flags)
 {
 	int ret = 0;
 	int setmode_err = 0;
+
+	ret = merge_veth_ifname_param(h, env);
+	if (ret)
+		return ret;
 
 	if (flags & VZCTL_SKIP_SETUP)
 		goto err;

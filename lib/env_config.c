@@ -313,12 +313,14 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 	case VZCTL_PARAM_NETIF_HOST_IFNAME:
 	case VZCTL_PARAM_NETIF_HOST_MAC:
 	case VZCTL_PARAM_NETIF_GW:
+	case VZCTL_PARAM_NETIF_GW6:
 	case VZCTL_PARAM_NETIF_DHCP:
 	case VZCTL_PARAM_NETIF_DHCP6:
 	case VZCTL_PARAM_NETIF_MAC_FILTER:
 	case VZCTL_PARAM_NETIF_NETWORK:
 	case VZCTL_PARAM_NETIF_IPADD:
 	case VZCTL_PARAM_NETIF_IPDEL:
+	case VZCTL_PARAM_NETIF_CONFIGURE_MODE:
 		ret = parse_netif_ifname(env->veth, str, param_id);
 		break;
 	case VZCTL_PARAM_LOCKEDPAGES:
