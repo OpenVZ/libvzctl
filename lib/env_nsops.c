@@ -856,7 +856,7 @@ static int ns_env_stop(struct vzctl_env_handle *h, int stop_mode)
 		ret = ns_env_enter(h, 0);
 		if (ret)
 			_exit(ret);
-
+		close_fds(1, -1);
 		pid2 = fork();
 		if (pid2 == -1) {
 			ret = vzctl_err(VZCTL_E_FORK, errno, "failed to fork");
