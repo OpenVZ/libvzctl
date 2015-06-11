@@ -1226,7 +1226,7 @@ static int ns_get_iolimit(struct vzctl_env_handle *h, unsigned int *speed)
 
 static int ns_set_ioprio(struct vzctl_env_handle *h, int prio)
 {
-	return vzctl_err(VZCTL_E_INVAL, 0, "IOPRIO is not implemented");
+	return vzctl_err(0, 0, "IOPRIO is not implemented");
 }
 
 static int ns_set_iopslimit(struct vzctl_env_handle *h, unsigned int speed)
