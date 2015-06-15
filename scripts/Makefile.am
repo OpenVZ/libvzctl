@@ -21,6 +21,7 @@ script_SCRIPTS = \
 		 vz-cpt \
 		 vz-create_prvt \
 		 vz-functions \
+		 vznetcfg \
 		 vz-net_add \
 		 vz-net_del \
 		 vz-netns_dev_add \

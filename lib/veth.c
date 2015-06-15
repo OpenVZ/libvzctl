@@ -223,33 +223,23 @@ static void fill_empty_veth_dev_param(ctid_t ctid, struct vzctl_veth_dev *dev)
 
 static int run_vznetcfg(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
 {
-	int ret;
-	char buf[1024];
-	char *argv[5];
-
-	if (stat_file(VZNETCFG) != 1)
+	char fname[PATH_MAX];
+	char *arg[] = {
+		fname,
+		dev->network[0] == '\0' ? "delif" : "addif",
+		dev->dev_name,
+		dev->network,
+		NULL
+	};
+		
+	get_script_path("vznetcfg", fname, sizeof(fname));
+	if (access(fname, F_OK))
 		return 0;
 
-	argv[0] = VZNETCFG;
-	if (dev->network[0] == 0) {
-		argv[1] = "down";
-		snprintf(buf, sizeof(buf), "%s", dev->dev_name);
-		logger(0, 0, "Detach the veth device %s" , buf);
-	} else {
-		argv[1] = "init";
-		snprintf(buf, sizeof(buf), "%s/%s",
-			dev->dev_name, dev->network);
-		logger(0, 0, "Attach the veth device %s to the %s...",
-			dev->dev_name, dev->network);
-	}
-	argv[2] = "veth";
-	argv[3] = buf;
-	argv[4] = NULL;
-	if ((ret = vzctl2_wrap_exec_script(argv, NULL, 0))) {
-		logger(-1, 0, VZNETCFG " exited with error");
-		ret = VZCTL_E_VETH;
-	}
-	return ret;
+	if (vzctl2_wrap_exec_script(arg, NULL, 0))
+		return vzctl_err(VZCTL_E_VETH, 0, "%s exited with error",
+				fname);
+	return 0;
 }
 
 static int vz_veth_dev_mac_filter(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
