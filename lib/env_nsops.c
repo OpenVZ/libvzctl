@@ -1231,7 +1231,19 @@ static int ns_get_iolimit(struct vzctl_env_handle *h, unsigned int *speed)
 
 static int ns_set_ioprio(struct vzctl_env_handle *h, int prio)
 {
-	return vzctl_err(0, 0, "IOPRIO is not implemented");
+	static unsigned long ioprio_weight[] = {
+		320, 365, 410, 460, 500, 550, 600, 640
+	};
+
+	if (prio < 0 || prio > sizeof(ioprio_weight)/sizeof(ioprio_weight[0]))
+		return vzctl_err(VZCTL_E_INVAL, 0,
+				"Invalid ioprio %d", prio);
+
+	logger(0, 0, "Set up ioprio: %d", prio);
+	if (cg_set_ul(EID(h), CG_BLKIO, "blkio.weight", ioprio_weight[prio]))
+		return VZCTL_E_SET_IO;
+
+	return 0;
 }
 
 static int ns_set_iopslimit(struct vzctl_env_handle *h, unsigned int speed)

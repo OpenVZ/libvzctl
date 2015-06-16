@@ -234,7 +234,7 @@ int cg_set_param(const char *ctid, const char *subsys, const char *name, const c
 	return cg_write(path, data);
 }
 
-static int cg_set_ul(const char *ctid, const char *subsys, const char *name,
+int cg_set_ul(const char *ctid, const char *subsys, const char *name,
 		unsigned long value)
 {
         char data[32];
