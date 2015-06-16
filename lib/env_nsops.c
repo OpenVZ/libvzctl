@@ -1214,7 +1214,10 @@ static int ns_veth_ctl(struct vzctl_env_handle *h, int op, struct vzctl_veth_dev
 static int ns_set_iolimit(struct vzctl_env_handle *h, unsigned int speed)
 {
 	logger(0, 0, "Set up iolimit: %u", speed);
-	return cg_env_set_iolimit(EID(h), speed, speed * 3, 10*1000);
+	if (cg_env_set_iolimit(EID(h), speed, speed * 3, 10*1000))
+		return VZCTL_E_SET_IO;
+
+	return 0;
 }
 
 static int ns_get_iolimit(struct vzctl_env_handle *h, unsigned int *speed)
@@ -1249,7 +1252,10 @@ static int ns_set_ioprio(struct vzctl_env_handle *h, int prio)
 static int ns_set_iopslimit(struct vzctl_env_handle *h, unsigned int speed)
 {
 	logger(0, 0, "Set up iopslimit: %u", speed);
-	return cg_env_set_iopslimit(EID(h), speed, speed * 3, 10*1000);
+	if (cg_env_set_iopslimit(EID(h), speed, speed * 3, 10*1000))
+		return VZCTL_E_SET_IO;
+
+	return 0;
 }
 
 static int ns_get_iopslimit(struct vzctl_env_handle *h, unsigned int *speed)
