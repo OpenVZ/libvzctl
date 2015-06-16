@@ -67,6 +67,8 @@ case "$1" in
 			usage
 			exit 1
 		fi
+
+		delif "$2"
 		addif "$2" "$3"
 	;;
 	delif)
