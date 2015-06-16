@@ -219,6 +219,8 @@ static void fill_empty_veth_dev_param(ctid_t ctid, struct vzctl_veth_dev *dev)
 		generate_mac(&dev->mac);
 	if (dev->mac_ve == NULL)
 		generate_mac(&dev->mac_ve);
+	if (dev->mac_filter == 0)
+		dev->mac_filter = VZCTL_PARAM_ON;
 }
 
 static int run_vznetcfg(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
@@ -1376,6 +1378,7 @@ static int parse_netif_str_cmd(struct vzctl_env_handle *h, const char *str,
 	}
 	if (len > IFNAMSIZE)
 		return VZCTL_E_INVAL;
+	dev->mac_filter = VZCTL_PARAM_ON;
 	snprintf(dev->dev_name_ve, len + 1, "%s", str);
 	tmp = ch;
 	if (ch == ep) {

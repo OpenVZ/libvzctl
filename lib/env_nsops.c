@@ -34,6 +34,10 @@
 #include <dirent.h>
 #include <grp.h>
 #include <sys/utsname.h>
+#include <sys/socket.h>
+#include <linux/if.h>
+#include <linux/veth.h>
+#include <sys/ioctl.h>
 
 #define __USE_GNU /* for CLONE_XXX */
 #include <sched.h>
@@ -1156,15 +1160,54 @@ static int ns_get_veip(struct vzctl_env_handle *h, list_head_t *list)
 	return cg_get_veip(EID(h), list);
 }
 
+static int veth_configure(struct vzctl_veth_dev *veth)
+{
+	int sk, ret;
+	struct ifreq req;
+
+	sk = socket(AF_UNIX, SOCK_DGRAM, 0);
+	if (sk < 0)
+		return vzctl_err(VZCTL_E_VETH, errno, "Can't creaet socket");
+
+	strncpy(req.ifr_ifrn.ifrn_name, veth->dev_name,
+			sizeof(req.ifr_ifrn.ifrn_name)-1);
+	ret = VZCTL_E_VETH;
+	if (ioctl(sk, SIOCSVENET, &req)) {
+		logger(-1, errno, "ioctl SIOCSVENET %s",
+				veth->dev_name);
+		goto err;
+	}
+
+	if (veth->mac_filter) {
+		int deny = veth->mac_filter == VZCTL_PARAM_OFF ? 0 : 1;
+
+		logger(3, 0, "%s to change mac for %s",
+			deny ? "Deny" : "Allow", veth->dev_name_ve);
+		req.ifr_ifru.ifru_flags = deny;
+		if (ioctl(sk, SIOCSFIXEDADDR, &req)) {
+			logger(-1, errno, "ioctl SIOCSFIXEDADDR %s",
+					veth->dev_name);
+			goto err;
+		}
+	}
+	ret = 0;
+
+err:
+	close(sk);
+
+	return ret;
+}
+
 /*
  * This function is the simplest one among the network handling functions.
  * It will create a veth pair, and move one of its ends to the container.
  *
  * MAC addresses and Bridge parameters are optional
  */
-static int ns_veth_ctl(struct vzctl_env_handle *h, int op, struct vzctl_veth_dev *dev, int flags)
+static int veth_ctl(struct vzctl_env_handle *h, int op,
+		struct vzctl_veth_dev *dev, int flags)
 {
-	int ret = -1;
+	int ret = 0;
 	char *arg[] = { NULL, NULL };
 	char *envp[11];
 	char buf[STR_SIZE];
@@ -1174,7 +1217,7 @@ static int ns_veth_ctl(struct vzctl_env_handle *h, int op, struct vzctl_veth_dev
 	if (flags & VZCTL_RESTORE)
 		return 0;
 
-	snprintf(buf, sizeof(buf), "VEID=%s", h->ctid);
+	snprintf(buf, sizeof(buf), "VEID=%s", EID(h));
 	envp[i++] = strdup(buf);
 
 	snprintf(buf, sizeof(buf), "VNAME=%s", dev->dev_name_ve);
@@ -1204,9 +1247,25 @@ static int ns_veth_ctl(struct vzctl_env_handle *h, int op, struct vzctl_veth_dev
 
 	arg[0] = get_script_path((op == ADD) ? VZCTL_NETNS_DEV_ADD : VZCTL_NETNS_DEV_DEL,
 			script, sizeof(script));
-	ret = vzctl2_wrap_exec_script(arg, envp, 0);
+	if (vzctl2_wrap_exec_script(arg, envp, 0))
+		ret = VZCTL_E_VETH;
 
 	free_ar_str(envp);
+
+	return ret;
+}
+
+static int ns_veth_ctl(struct vzctl_env_handle *h, int op,
+		struct vzctl_veth_dev *dev, int flags)
+{
+	int ret;
+
+	ret = veth_ctl(h, op, dev, flags);
+	if (ret)
+		return ret;
+
+	if (op == ADD)
+		ret = veth_configure(dev);
 
 	return ret;
 }
