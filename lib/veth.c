@@ -521,6 +521,7 @@ int merge_veth_ifname_param(struct vzctl_env_handle *h,
 		struct vzctl_env_param *env)
 {
 	struct vzctl_veth_dev *d, *veth = env->veth->ifname;
+	struct vzctl_ip_param *it;
 
 	if (veth == NULL || veth->dev_name_ve[0] == '\0')
 		return 0;
@@ -540,6 +541,14 @@ int merge_veth_ifname_param(struct vzctl_env_handle *h,
 				" is not configured", veth->dev_name_ve);
 	if (veth->dev_name[0] == '\0')
 		strcpy(veth->dev_name, d->dev_name);
+
+	/* trun dhcp off on ip address set*/
+	list_for_each(it, &veth->ip_list, list) {
+		if (is_ip6(it->ip))
+			veth->dhcp6 = VZCTL_PARAM_OFF;
+		else
+			veth->dhcp = VZCTL_PARAM_OFF;
+	}
 
 	return add_veth_param(&env->veth->dev_list, veth);
 }
