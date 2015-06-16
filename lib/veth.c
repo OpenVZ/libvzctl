@@ -335,6 +335,35 @@ int vz_veth_ctl(struct vzctl_env_handle *h, int op, struct vzctl_veth_dev *dev, 
 	return ret;
 }
 
+static struct vzctl_veth_dev *find_veth_by_ifname_ve(list_head_t *head,
+		const char *name)
+{
+	struct vzctl_veth_dev *it;
+
+	list_for_each(it, head, list) {
+		if (!strcmp(it->dev_name_ve, name))
+			return it;
+	}
+	return NULL;
+}
+
+static void fill_veth_dev_name(struct vzctl_env_handle *h,
+		struct vzctl_veth_dev *dev)
+{
+	struct vzctl_veth_dev *d;
+
+	if (dev->dev_name[0] != '\0')
+		return;
+
+	d = find_veth_by_ifname_ve(&h->env_param->veth->dev_list,
+			dev->dev_name_ve);
+	if (d != NULL)
+		strncpy(dev->dev_name, d->dev_name, sizeof(dev->dev_name));
+	else
+		generate_veth_name(EID(h), dev->dev_name_ve, dev->dev_name,
+				sizeof(dev->dev_name));
+}
+
 static int veth_ctl(struct vzctl_env_handle *h, int op, list_head_t *head,
 		int flags, int rollback)
 {
@@ -345,6 +374,7 @@ static int veth_ctl(struct vzctl_env_handle *h, int op, list_head_t *head,
 
 	if (list_empty(head))
 		return 0;
+
 	if (!is_env_run(h))
 		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0,
 				"Unable to %s veth: container is not running",
@@ -360,8 +390,8 @@ static int veth_ctl(struct vzctl_env_handle *h, int op, list_head_t *head,
 	logger(0, 0, "%s veth device(s): %s",
 			 (op == ADD) ? "Configure" : "Deleting", buf);
 	list_for_each(it, head, list) {
+		fill_veth_dev_name(h, it);
 		if (op == ADD) {
-			fill_empty_veth_dev_param(EID(h), it);
 			ret = get_env_ops()->env_veth_ctl(h, ADD, it, flags);
 			if (ret)
 				break;
@@ -395,18 +425,6 @@ struct vzctl_veth_dev *find_veth_dev(list_head_t *head,
 
 	list_for_each(it, head, list) {
 		if (!strcmp(it->dev_name, dev->dev_name))
-			return it;
-	}
-	return NULL;
-}
-
-static struct vzctl_veth_dev *find_veth_by_ifname_ve(list_head_t *head,
-		const char *name)
-{
-	struct vzctl_veth_dev *it;
-
-	list_for_each(it, head, list) {
-		if (!strcmp(it->dev_name_ve, name))
 			return it;
 	}
 	return NULL;
@@ -499,52 +517,31 @@ static int merge_veth_list(list_head_t *old, list_head_t *add, list_head_t *del,
 	return 0;
 }
 
-static int read_proc_veth(struct vzctl_env_handle *h, list_head_t *head)
-{
-	FILE *fp;
-	char buf[256];
-	char mac[MAC_SIZE + 1];
-	char mac_ve[MAC_SIZE + 1];
-	char dev_name[IFNAMSIZE + 1];
-	char dev_name_ve[IFNAMSIZE + 1];
-	int id;
-	struct vzctl_veth_dev *dev;
-	unsigned veid = eid2veid(h);
-
-	fp = fopen(PROC_VETH, "r");
-	if (fp == NULL)
-		return -1;
-	while (fgets(buf, sizeof(buf), fp) != NULL) {
-		if (sscanf(buf, "%17s %15s %17s %15s %d",
-			mac, dev_name, mac_ve, dev_name_ve, &id) != 5)
-		{
-			continue;
-		}
-		if (veid != id)
-			continue;
-		dev = alloc_veth_dev();
-		if (dev == NULL)
-			break;
-		dev->mac = strdup(mac);
-		dev->mac_ve = strdup(mac_ve);
-		strncpy(dev->dev_name, dev_name, IFNAMSIZE);
-		dev->dev_name[IFNAMSIZE] = 0;
-		strncpy(dev->dev_name_ve, dev_name_ve, IFNAMSIZE);
-		dev->dev_name_ve[IFNAMSIZE] = 0;
-		dev->flags = VETH_ACTIVE;
-		list_add_tail(&dev->list, head);
-	}
-	fclose(fp);
-	return 0;
-}
-
 int merge_veth_ifname_param(struct vzctl_env_handle *h,
 		struct vzctl_env_param *env)
 {
-	if (env->veth->ifname == NULL)
+	struct vzctl_veth_dev *d, *veth = env->veth->ifname;
+
+	if (veth == NULL || veth->dev_name_ve[0] == '\0')
 		return 0;
 
-	return add_veth_param(&env->veth->dev_list, env->veth->ifname);
+	d = find_veth_by_ifname_ve(&env->veth->dev_list, veth->dev_name_ve);
+	if (d != NULL) {
+		/* merge netif + ifname */
+		fill_veth_dev(d, veth);
+		fill_empty_veth_dev_param(EID(h), d);
+		return 0;
+	}
+
+	d = find_veth_by_ifname_ve(&h->env_param->veth->dev_list,
+				veth->dev_name_ve);
+	if (d == NULL)
+		return vzctl_err(VZCTL_E_INVAL, 0, "Virtual adapter %s"
+				" is not configured", veth->dev_name_ve);
+	if (veth->dev_name[0] == '\0')
+		strcpy(veth->dev_name, d->dev_name);
+
+	return add_veth_param(&env->veth->dev_list, veth);
 }
 
 static void announce_mac_addr(list_head_t *phead)
@@ -753,30 +750,9 @@ out:
 	return ret;
 }
 
-static void fill_veth_dev_name(list_head_t *configured,	list_head_t *new)
-{
-	struct vzctl_veth_dev *it, *dev;
-
-	if (list_empty(configured))
-		return;
-
-	list_for_each(it, new, list) {
-		dev = find_veth_by_ifname_ve(configured, it->dev_name_ve);
-		if (dev != NULL) {
-			memcpy(it->dev_name, dev->dev_name, sizeof(dev->dev_name));
-			it->flags |= VETH_ACTIVE;
-		} else {
-			logger(-1, 0, "Container does not have "
-					"configured veth: %s, skipped",
-					it->dev_name_ve);
-		}
-	}
-}
-
 int apply_veth_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 		int flags)
 {
-	list_head_t configured_dev;
 	struct vzctl_veth_param *veth = env->veth;
 	int ret = 0;
 
@@ -786,35 +762,20 @@ int apply_veth_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 	{
 		return 0;
 	}
-	list_head_init(&configured_dev);
-	read_proc_veth(h, &configured_dev);
 
 	if (veth->delall) {
-		env_veth_configure(h, 0, &configured_dev, flags);
-		veth_ctl(h, DEL, &configured_dev, flags, 0);
-		free_veth(&configured_dev);
+		env_veth_configure(h, 0, &h->env_param->veth->dev_list, flags);
+		veth_ctl(h, DEL, &h->env_param->veth->dev_list, flags, 0);
 	} else if (!list_empty(&veth->dev_del_list)) {
-		fill_veth_dev_name(&configured_dev, &veth->dev_del_list);
 		env_veth_configure(h, 0, &veth->dev_del_list, flags);
 		veth_ctl(h, DEL, &veth->dev_del_list, flags, 0);
 	}
 	if (!list_empty(&veth->dev_list)) {
-		struct vzctl_veth_dev *it;
-		LIST_HEAD(add);
-
-		list_for_each(it, &veth->dev_list, list)
-			add_veth_param(&add, it);
-
-		fill_veth_dev_name(&configured_dev, &add);
-
-		ret = veth_ctl(h, ADD, &add, flags, 1);
+		ret = veth_ctl(h, ADD, &veth->dev_list, flags, 1);
 		if (ret == 0)
-			env_veth_configure(h, 1, &add, flags);
-
-		free_veth(&add);
+			env_veth_configure(h, 1, &veth->dev_list, flags);
 	}
 
-	free_veth(&configured_dev);
 	return ret;
 }
 
