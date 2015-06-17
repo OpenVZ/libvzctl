@@ -1802,6 +1802,11 @@ int vzctl2_env_add_veth_ipaddress(struct vzctl_veth_dev *dev, const char *ipstr)
 
 	if ((ret = parse_ip(ipstr, &ip)))
 		return ret;
+	/* turn dhcp off on ip address set */
+	if (is_ip6(ipstr))
+		dev->dhcp6 = VZCTL_PARAM_OFF;
+	else
+		dev->dhcp = VZCTL_PARAM_OFF;
 
 	list_add_tail(&ip->list, &dev->ip_list);
 
