@@ -878,6 +878,10 @@ static int ns_env_stop(struct vzctl_env_handle *h, int stop_mode)
 	}
 
 	ret = wait_env_state(h, VZCTL_ENV_STOPPED, MAX_SHTD_TM);
+	if (ret) {
+		logger(0, 0, "Container stop timeout has expired");
+		kill(pid, SIGKILL);
+	}
 	env_wait(pid, 0, NULL);
 
 force:
