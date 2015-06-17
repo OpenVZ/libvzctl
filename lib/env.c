@@ -876,9 +876,6 @@ err:
 		logger(-1, 0, "Failed to start the Container");
 	}
 
-	if (param.pid > 0)
-		env_wait(param.pid, 0, NULL);
-
 err_pipe:
 	if (wait_p[0] != -1)
 		close(wait_p[0]);
@@ -1044,9 +1041,6 @@ err:
 		logger(-1, 0, "Failed to restore the Container");
 	} else
 		logger(0, 0, "Container was restored successfully");
-
-	if (start_param.pid > 0)
-		env_wait(start_param.pid, 0, NULL);
 
 err_pipe:
 	if (wait_p[0] != -1)

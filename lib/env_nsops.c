@@ -646,6 +646,7 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 		get_netns_path(h, nspath, sizeof(nspath));
 		snprintf(pidpath, sizeof(pidpath), "/proc/%d/ns/net", pid);
 		unlink(nspath);
+
 		if (symlink(pidpath, nspath)) {
 			kill(pid, SIGKILL);
 			return vzctl_err(VZCTL_E_SYSTEM, errno,
@@ -660,17 +661,18 @@ static int ns_env_create(struct vzctl_env_handle *h, struct start_param *param)
 {
 	int ret;
 	int status_p[2];
+	pid_t pid;
 
 	if (pipe(status_p) < 0)
 		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
 
 	param->status_p = status_p;
 
-	param->pid = fork();
-	if (param->pid < 0) {
+	pid = fork();
+	if (pid < 0) {
 		ret = vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
 		goto err;
-	} else if (param->pid == 0) {
+	} else if (pid == 0) {
 		close(param->status_p[0]); param->status_p[0] = -1;
 		close(param->err_p[0]); param->err_p[0] = -1;
 		close(param->wait_p[1]); param->wait_p[1] = -1;
@@ -682,8 +684,7 @@ static int ns_env_create(struct vzctl_env_handle *h, struct start_param *param)
 
 	close(status_p[1]); status_p[1] = -1;
 	ret = wait_on_pipe(status_p[0]);
-	if (ret)
-		goto err;
+	env_wait(pid, 0, NULL);
 
 err:
 	close(status_p[0]);
