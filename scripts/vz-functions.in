@@ -157,6 +157,7 @@ vzcreatepair()
 
 	${IP_CMD} netns exec $VEID ${IP_CMD} link add name $HNAME type veth peer name $VNAME
 	${IP_CMD} netns exec $VEID ${IP_CMD} link set $HNAME netns $$
+	${IP_CMD} netns exec $VEID ${IP_CMD} link set dev $VNAME up
 	${IP_CMD} link set $HNAME up
 }
 
