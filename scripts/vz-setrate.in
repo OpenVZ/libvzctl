@@ -27,6 +27,11 @@
 #   BANDWIDTH - Bandwidth  of  network interfaces: "<dev>[:<bandwidth>] ..."
 #   TOTALRATE - maximum VE output speed over specified net­
 #               work interface: "<dev|*>:<class>:<bandwidth> ..."
+#   RATEMPU  -  MPU value for packet rate limitation on specified
+#               network interface for specified traffic class:
+#               "<dev|*>:<class>[:mpu] ..."
+#               Packets smaller than MPU bytes will consume MPU HTB tokens.
+#               If MPU is omitted then VZ_TC_DEFAULT_MPU is used.
 # Optional parameters:
 #   RATE      -  maximum VE output speed over specified net­
 #                work  interface  for  specified  traffic class:
@@ -43,6 +48,7 @@ VZ_TC_CLASSES_LOCK="/var/lock/vz_tc_classes.lock"
 VZ_TC_MAGIC_NUM=10000
 VZ_TC_MAX_CLASS=60000
 VZ_TC_ATTEMPTS=10
+VZ_TC_DEFAULT_MPU=1000
 
 # Works under VZ_TC_CLASSES_LOCK.
 # Reads TC_CLASS for VEID
@@ -338,7 +344,8 @@ vzcheck_TOTALRATE()
 
 # Find bandwidth for device
 # $1 device
-# $@ list in format dev:[class:]:bandwidth
+# $2 class
+# $@ list in format dev:[class:]bandwidth
 vzget_dev_band()
 {
 	local dev=$1; shift
@@ -379,6 +386,53 @@ vzget_dev_band()
 	echo "${band}"
 }
 
+# Find mpu for device and class
+# $1 device
+# $2 class
+# $@ list in format dev:class[:mpu]
+# If mpu is not set then use default.
+vzget_dev_mpu()
+{
+	local dev=$1; shift
+	local class=$1; shift
+	local i dev_tmp tmp class_tmp ratempu ratempu_res
+
+	for i in $@; do
+		dev_tmp=${i%%:*}
+		tmp=${i#*:}
+		class_tmp=${tmp%%:*}
+		if [ "${class_tmp}" = "${tmp}" ]; then
+			ratempu=$VZ_TC_DEFAULT_MPU
+		else
+			ratempu=${tmp#*:}
+		fi
+
+		# If it is not mentioned in param, then packet rate
+		# limitation is disabled, so no MPU is to be set.
+		if [ "${dev_tmp}" = "${dev}" ]; then
+			if [ -z "${class}" -o "${class}" = "${class_tmp}" ];
+			then
+				ratempu_res="${ratempu}"
+				break
+			fi
+		elif [ "${dev}" = '*' ]; then
+			if [ -z "${class}" -o "${class}" = "${class_tmp}" ];
+			then
+				ratempu_res="${ratempu}"
+			fi
+		elif [ "${dev_tmp}" = '*' ]; then
+			if [ -z "${class}" -o "${class}" = "${class_tmp}" ];
+			then
+				ratempu_res="${ratempu}"
+			fi
+		fi
+	done
+	# Only if it is set, otherwise ignore.
+	if [ -n "${ratempu_res}" ]; then
+		echo "mpu $ratempu_res"
+	fi
+}
+
 expand_default_DEV()
 {
 	local i j
@@ -398,7 +452,7 @@ expand_default_DEV()
 	done
 }
 
-# Replace '*' in the TOTALRATE | RATE | BANDWIDTH with the real device name
+# Replace '*' in the TOTALRATE | RATE | BANDWIDTH | RATEMPU with the real device name
 # HINT: '*' in BANDWIDTH is invalid.
 function expand_DEV()
 {
@@ -439,6 +493,7 @@ vzcheck_RATE()
 	local TOTAL_DEV_LIST;
 	local RATE_DEV_LIST;
 	local BAND_DEV_LIST;
+	local RATEMPU_DEV_LIST;
 	local TOTAL_CLASS_LIST;
 	local RATE_CLASS_LIST;
 	local mes
@@ -446,7 +501,7 @@ vzcheck_RATE()
 	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return
 	[ -z "${RATE}" ] && return
 
-	vzcheckvar BANDWIDTH TOTALRATE RATE
+	vzcheckvar BANDWIDTH TOTALRATE RATE RATEMPU
 
 	[ -z "${NETDEVICES}" ] && vzgetnetdev
 	expand_DEV ${BANDWIDTH}
@@ -457,6 +512,8 @@ vzcheck_RATE()
 	TOTALRATE=$RES_EXPAND_DEV
 	expand_DEV ${RATE}
 	RATE=$RES_EXPAND_DEV
+	expand_DEV ${RATEMPU}
+	RATEMPU=$RES_EXPAND_DEV
 	[ -z "${CLASSES_LIST}" ] && vzget_classes_list
 
 	# Get devices mentioned in ${TOTALRATE}
@@ -468,6 +525,10 @@ vzcheck_RATE()
 	# Get devices mentioned in ${BANDWIDTH}
 	vzmk_list1 "${BANDWIDTH}"
 	BAND_DEV_LIST=$RET_LIST
+	# Get devices mentioned in ${RATEMPU}
+	vzmk_list1 "${RATEMPU}"
+	RATEMPU_DEV_LIST=$RET_LIST
+
 	mes=`vzis_list_in_list "${BAND_DEV_LIST}" "${NETDEVICES}"`
 	[ $? -eq 0 ] && \
 		vzerror "Wrong BANDWIDTH value (no such device ${mes} on the node) or device is down." ${VZ_SET_RATE}
@@ -483,6 +544,12 @@ vzcheck_RATE()
 		expand_default_DEV ${RATE}
 		RATE=$RET_LIST
 	fi
+	mes=`vzis_list_in_list "${RATEMPU_DEV_LIST}" "${NETDEVICES}"`
+	[ $? -eq 0 ] && \
+		vzerror "Wrong RATEMPU value (no such device ${mes} on the node)." ${VZ_SET_RATE}
+	mes=`vzis_list_in_list "${RATEMPU_DEV_LIST}" "${TOTAL_DEV_LIST}"`
+	[ $? -eq 0 ] && \
+		vzerror "Wrong RATEMPU value (no such device ${mes} in TOTALRATE)." ${VZ_SET_RATE}
 
 	# Get classes mentioned in ${TOTALRATE}
 	vzmk_list2 "${TOTALRATE}"
@@ -501,6 +568,14 @@ vzcheck_RATE()
 	mes=`vzis_list_in_list "${RET_LIST}" "${TOTAL_CLASS_LIST}"`
 	[ $? -eq 0 ] && \
 		vzerror "Wrong RATE value (no such class ${mes} in the TOTALRATE)." ${VZ_SET_RATE}
+	# Get classes mentioned in ${RATEMPU}
+	vzmk_list2 "${RATEMPU}"
+	vzcheck_classes "${RET_LIST}"
+	[ ! $? -eq 1 ] && \
+		vzerror "Wrong RATEMPU value (class not in the range)." ${VZ_SET_RATE}
+	mes=`vzis_list_in_list "${RET_LIST}" "${TOTAL_CLASS_LIST}"`
+	[ $? -eq 0 ] && \
+		vzerror "Wrong RATEMPU value (no such class ${mes} in TOTALRATE)." ${VZ_SET_RATE}
 }
 
 # Create root qdisc for given device and class
@@ -518,6 +593,7 @@ vzcreate_root_class()
 	vzgetmaxburst ${BAND1}
 	maxburst=$vzgetmaxburst_ret
 	class_hex=`printf "%x" $[${class}+1]`
+	total_mpu=`vzget_dev_mpu "${dev}" "${class}" ${RATEMPU}`
 
 	configured=`${TC_CMD} qdisc show dev ${dev} | grep 'qdisc htb 1:'`
 	if [ -z "${configured}"	]; then
@@ -532,7 +608,7 @@ vzcreate_root_class()
 	if [ -z "${configured}" ]; then
 		vzrun_tc ${TC_CMD} class add dev ${dev} parent 1: \
 			classid 1:${class_hex} htb \
-			rate ${total_band}Kbit ${PRIO} ${maxburst}
+			rate ${total_band}Kbit ${PRIO} ${maxburst} ${total_mpu}
 
 		vzrun_tc ${TC_CMD} qdisc add dev ${dev} parent 1:${class_hex} \
 			handle ${class_hex}: htb
@@ -545,8 +621,9 @@ vzcreate_filter()
 	local dev=$2
 	local class=$3
 	local band=$4
-	local rate=$5
-	local tc_class_hex=$6
+	local mpu=$5
+	local rate=$6
+	local tc_class_hex=$7
 	local fl_bounded=
 	local mark_val class_hex configured
 	local action
@@ -567,7 +644,7 @@ vzcreate_filter()
 	[ -z "${configured}" ] && action=add || action=change
 	vzrun_tc ${TC_CMD} class ${action} dev ${dev} parent ${class_hex}: \
 		classid ${class_hex}:${tc_class_hex} htb \
-		rate ${rate}Kbit ${PRIO} ${maxburst} ceil ${band}Kbit
+		rate ${rate}Kbit ${PRIO} ${maxburst} ceil ${band}Kbit ${mpu}
 
 	configured=`${TC_CMD} filter show dev ${dev} parent ${class_hex}: | \
 				grep -w "classid ${class_hex}:${tc_class_hex}"`
@@ -704,6 +781,7 @@ vzadd_ve_sh_classes()
 	local CLASS_HEX;
 	local TC_CLASS_HEX;
 	local TMP;
+	local ratempu, MPU=;
 
 	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return;
 
@@ -728,6 +806,23 @@ vzadd_ve_sh_classes()
 		[ -z ${DEV} -o -z ${BAND} ] && \
 			vzerror "Wrong TOTALRATE value." ${VZ_SET_RATE};
 
+		for j in ${RATEMPU} ; do
+			DEV1=${j%%:*}
+			TMP=${j#*:}
+			CLASS1=${TMP%%:*}
+			if [ "${CLASS1}" = "${TMP}" ]; then
+				ratempu=$VZ_TC_DEFAULT_MPU
+			else
+				ratempu=${TMP#*:}
+			fi
+
+			[ -z "${DEV1}" -o -z "${ratempu}" -o -z "${CLASS1}" ] && \
+				vzerror "Wrong RATEMPU value." ${VZ_SET_RATE};
+			[ "X${DEV}" != "X${DEV1}" -o "X${CLASS}" != "X${CLASS1}" ] && continue;
+
+			[ -n "$ratempu" ] && MPU=" mpu $ratempu" && break
+		done
+
 		for j in ${RATE} ; do
 			DEV1=${j%%:*}
 			BAND1=${j##*:}
@@ -738,7 +833,7 @@ vzadd_ve_sh_classes()
 				vzerror "Wrong RATE value." ${VZ_SET_RATE};
 			[ "X${DEV}" != "X${DEV1}" -o "X${CLASS}" != "X${CLASS1}" ] && continue;
 
-			vzcreate_filter ${1} ${DEV} ${CLASS} ${BAND} ${BAND1} ${TC_CLASS_HEX}
+			vzcreate_filter ${1} ${DEV} ${CLASS} ${BAND} "${MPU}" ${BAND1} ${TC_CLASS_HEX}
 		done
 	done
 }
