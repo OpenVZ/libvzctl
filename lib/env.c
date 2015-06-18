@@ -1061,7 +1061,7 @@ int vzctl2_env_restart(struct vzctl_env_handle *h, int flags)
 
 	logger(0, 0, "Restart the Container");
 	if (is_env_run(h)) {
-		ret = vzctl2_env_stop(h, M_REBOOT, flags);
+		ret = vzctl2_env_stop(h, M_HALT, flags);
 		if (ret)
 			return ret;
 	}
