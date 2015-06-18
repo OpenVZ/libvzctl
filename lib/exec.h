@@ -90,7 +90,7 @@ int vzctl2_wrap_env_exec_vzscript(struct vzctl_env_handle *h, const char *ve_roo
 
 int vzctl2_wrap_exec_script_rc(char *const argv[], char *const env[], int flags, int *retcode);
 int vzctl2_wrap_exec_script(char *const argv[], char *const envp[], int flags);
-int vzctl2_stdredir(int rdfd, int wrfd);
+void vzctl_stdredir(int rdfd, int wrfd, int log);
 
 #ifdef __cplusplus
 }

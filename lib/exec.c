@@ -282,9 +282,12 @@ int stdredir(int rdfd, int wrfd, int log)
 	return 0;
 }
 
-int vzctl2_stdredir(int rdfd, int wrfd)
+void vzctl_stdredir(int rdfd, int wrfd, int log)
 {
-	return stdredir(rdfd, wrfd, 0);
+	initoutput();
+	while (stdredir(rdfd, wrfd, log) == 0);
+	if (log)
+		writeoutput(0);
 }
 
 static void winchange_handler(int sig)

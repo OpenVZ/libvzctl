@@ -1552,10 +1552,14 @@ int vzctl2_exec_script(char *const argv[], char *const env[], int flags)
 	char *cmd;
 	char *envp[ENV_SIZE];
 	struct vzctl_cleanup_hook *h;
+	int out[2];
 
 	if (strchr(argv[0], '/') && !stat_file(argv[0]))
 		return vzctl_err(VZCTL_E_NOSCRIPT, 0,
 			"run_script: executable %s not found", argv[0]);
+
+	if (pipe(out))
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "Cannot create pipe");
 
 	cmd = arg2str(argv);
 	if (cmd != NULL) {
@@ -1573,15 +1577,17 @@ int vzctl2_exec_script(char *const argv[], char *const env[], int flags)
 
 	if ((child = fork()) == 0) {
 		fd = open("/dev/null", O_WRONLY);
-		if (fd < 0)
-			close(0);
-		else
-			dup2(fd, 0);
-
+		dup2(fd, 0);
 		if (flags & EXEC_QUIET) {
-			dup2(fd, 1);
-			dup2(fd, 2);
+			dup2(fd, STDOUT_FILENO);
+			dup2(fd, STDERR_FILENO);
+		} else {
+			dup2(out[1], STDOUT_FILENO);
+			dup2(out[1], STDERR_FILENO);
 		}
+
+		close_fds(0, -1);
+
 		if (flags & EXEC_NOENV)
 			execv(argv[0], argv);
 		else
@@ -1594,10 +1600,17 @@ int vzctl2_exec_script(char *const argv[], char *const env[], int flags)
 		goto err;
 	}
 	h = register_cleanup_hook(cleanup_kill_process, (void *) &child);
+	close(out[1]);
+	out[1] = -1;
+
+	vzctl_stdredir(out[0], STDOUT_FILENO, !(flags & EXEC_QUIET));
+
 	ret = env_wait(child, 0, &retcode);
 	unregister_cleanup_hook(h);
 err:
-
+	close(out[0]);
+	if (out[1] != -1)
+		close(out[1]);
 	return ret ? ret : retcode;
 }
 
