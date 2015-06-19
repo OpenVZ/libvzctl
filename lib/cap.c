@@ -286,7 +286,7 @@ unsigned long vzctl2_get_default_capmask(void)
  * @param features	features mask.
  * @return		0 on success.
  */
-int env_set_cap(struct vzctl_cap_param *cap, struct vzctl_features_param *features)
+int env_set_cap(struct vzctl_cap_param *cap)
 {
 	cap_t mask = CAPDEFAULTMASK_UPSTREAM;
 	int ret;

@@ -56,10 +56,9 @@ int get_cap_mask(char *name, unsigned long *mask);
 /** Apply capability mask to VE.
  *
  * @param cap		capability mask.
- * @param features	features mask.
  * @return		0 on success.
  */
-int env_set_cap(struct vzctl_cap_param *cap, struct vzctl_features_param *features);
+int env_set_cap(struct vzctl_cap_param *cap);
 
 /** Merge capabilities and return in string format.
  *

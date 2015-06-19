@@ -585,7 +585,7 @@ int pre_setup_env(struct start_param *param)
 	/* Clear supplementary group IDs */
 	setgroups(0, NULL);
 
-	errcode = env_set_cap(env->cap, env->features);
+	errcode = env_set_cap(env->cap);
 	if (errcode)
 		return errcode;
 
