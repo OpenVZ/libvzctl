@@ -41,7 +41,7 @@ export VE_PIDFILE=$VE_DUMP_DIR/init.pid
 criu restore	--file-locks								\
 		--tcp-established							\
 		--evasive-devices							\
-		--manage-cgroups=bindroot,props						\
+		--manage-cgroups							\
 		--link-remap								\
 		--root $VE_ROOT								\
 		--ext-mount-map /ve-cpuset:/sys/fs/cgroup/cpuset			\
