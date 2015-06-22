@@ -29,7 +29,7 @@
 #               work interface: "<dev|*>:<class>:<bandwidth> ..."
 #   RATEMPU  -  MPU value for packet rate limitation on specified
 #               network interface for specified traffic class:
-#               "<dev|*>:<class>[:mpu] ..."
+#               "<dev|*>:<class>[:<mpu>] ..."
 #               Packets smaller than MPU bytes will consume MPU HTB tokens.
 #               If MPU is omitted then VZ_TC_DEFAULT_MPU is used.
 # Optional parameters:
@@ -297,17 +297,17 @@ vzget_classes_list()
 	[ ! $? -eq 1 ] &&  vzerror "Wrong class value in ${VZ_IP_CLASSES}." ${VZ_SET_ACCOUNT}
 }
 
-# Checks BANDWIDTH and TOTALRATE
+# Checks BANDWIDTH, TOTALRATE and RATEMPU
 # for consistance
 # Parameters:
 #   no
 vzcheck_TOTALRATE()
 {
-	local TOTAL_DEV_LIST mes;
+	local TOTAL_DEV_LIST mes TOTALRATE_DEV_LIST TOTALRATE_CLASS_LIST;
 
 	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return;
 
-	vzcheckvar BANDWIDTH TOTALRATE
+	vzcheckvar BANDWIDTH TOTALRATE RATEMPU
 
 	[ -z "${NETDEVICES}" ] && vzgetnetdev
 	expand_DEV ${BANDWIDTH}
@@ -316,6 +316,8 @@ vzcheck_TOTALRATE()
 	set_configured_tc_dev "${BANDWIDTH}"
 	expand_DEV ${TOTALRATE}
 	TOTALRATE=$RES_EXPAND_DEV
+	expand_DEV ${RATEMPU}
+	RATEMPU=$RES_EXPAND_DEV
 
 	[ -z "${CLASSES_LIST}" ] && vzget_classes_list
 
@@ -330,16 +332,33 @@ vzcheck_TOTALRATE()
 
 	# Get devices mentioned in ${TOTALRATE}
 	vzmk_list1 "${TOTALRATE}"
+	TOTALRATE_DEV_LIST="${RET_LIST}"
 	mes=`vzis_list_in_list "${RET_LIST}" "${TOTAL_DEV_LIST}"`
 	[ $? -eq 0 ] && \
 		vzerror "Wrong TOTALRATE value (no such device ${mes} in BANDWIDTH)." ${VZ_SET_RATE}
+
+	# Get devices mentioned in ${RATEMPU}
+	vzmk_list1 "${RATEMPU}"
+	mes=`vzis_list_in_list "${RET_LIST}" "${TOTALRATE_DEV_LIST}"`
+	[ $? -eq 0 ] && \
+		vzerror "Wrong RATEMPU value (no such device ${mes} in TOTALRATE)." ${VZ_SET_RATE}
+
 	# Get classes mentioned in ${TOTALRATE}
 	vzmk_list2 "${TOTALRATE}"
 	vzcheck_classes "${RET_LIST}"
 	[ $? -eq 0 ] &&  vzerror "Wrong TOTALRATE value (class not in the range)." ${VZ_SET_RATE}
+	TOTALRATE_CLASS_LIST="${RET_LIST}"
 	mes=`vzis_list_in_list "${RET_LIST}" "${CLASSES_LIST}"`
 	[ $? -eq 0 ] && \
 		vzerror "Wrong TOTALRATE value (class ${mes} not defined)." ${VZ_SET_RATE}
+
+	# Get classes mentioned in ${RATEMPU}
+	vzmk_list2 "${RATEMPU}"
+	vzcheck_classes "${RET_LIST}"
+	[ $? -eq 0 ] &&  vzerror "Wrong RATEMPU value (class not in the range)." ${VZ_SET_RATE}
+	mes=`vzis_list_in_list "${RET_LIST}" "${TOTALRATE_CLASS_LIST}"`
+	[ $? -eq 0 ] && \
+		vzerror "Wrong RATEMPU value (no such class ${mes} in TOTALRATE)." ${VZ_SET_RATE}
 }
 
 # Find bandwidth for device
