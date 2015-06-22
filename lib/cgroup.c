@@ -788,3 +788,20 @@ err:
 
 	return 0;
 }
+
+int cg_set_veid(const char *ctid, int veid)
+{
+	char path[PATH_MAX];
+	char id[12];
+	int ret;
+
+	ret = cg_get_path(ctid, CG_VE, "ve.veid", path, sizeof(path));
+	if (ret)
+		return ret;
+
+	if (access(path, F_OK))
+		return 0;
+
+	sprintf(id, "%d", veid);
+	return cg_write(path, id);
+}

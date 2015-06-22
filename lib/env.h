@@ -130,6 +130,7 @@ struct vzctl_env_param {
 struct vzctl_config;
 struct vzctl_env_handle {
 	ctid_t ctid;
+	int veid;
 	int state;
 	struct vzctl_config *conf;
 	struct vzctl_env_param *env_param;

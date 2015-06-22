@@ -73,4 +73,5 @@ int cg_add_veip(const char *ctid, const char *ip);
 int cg_del_veip(const char *ctid, const char *ip);
 int cg_get_veip(const char *ctid, list_head_t *list);
 int bindmount_env_cgroup(struct vzctl_env_handle *h);
+int cg_set_veid(const char *ctid, int veid);
 #endif

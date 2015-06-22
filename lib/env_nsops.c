@@ -196,7 +196,11 @@ static int start_container(struct vzctl_env_handle *h)
 	if (!is_vz_kernel())
 		return 0;
 
-	if (cg_set_param(h->ctid, CG_VE, "ve.state", "START") == -1)
+	if (cg_set_veid(EID(h), h->veid) == -1)
+		return vzctl_err(VZCTL_E_RESOURCE, 0,
+				"Failed to set VEID=%u", h->veid);
+
+	if (cg_set_param(EID(h), CG_VE, "ve.state", "START") == -1)
 		return vzctl_err(VZCTL_E_RESOURCE, 0,
 				"Failed to switch CT to the START state");
 

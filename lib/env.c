@@ -1310,6 +1310,20 @@ struct vzctl_env_param *vzctl2_get_env_param(struct vzctl_env_handle *h)
 	return h->env_param;
 }
 
+static int ctid2veid(ctid_t ctid, int *veid)
+{
+	unsigned int id;
+
+	if (sscanf(ctid, strlen(ctid) < 36 ? "%u" : "%x-", &id) != 1)
+		return vzctl_err(VZCTL_E_INVAL, 0,
+			"Unable to convert ctid=%s to veid: invalid format",
+			ctid);
+
+	*veid = id & 0x7fffffff;
+
+	return 0;
+}
+
 struct vzctl_env_handle *vzctl2_env_open_conf(const ctid_t ctid,
 		const char *fname, int flags, int *err)
 {
@@ -1326,6 +1340,10 @@ struct vzctl_env_handle *vzctl2_env_open_conf(const ctid_t ctid,
 			*err = vzctl_err(VZCTL_E_INVAL, 0, "Invalid CTID: %s", ctid);
 			goto err;
 		}
+
+		*err = ctid2veid(EID(h), &h->veid);
+		if (*err)
+			goto err;
 
 		lckfd = vzctl_env_conf_lock(h, VZCTL_LOCK_SH);
 	}
