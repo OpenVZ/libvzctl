@@ -1586,8 +1586,6 @@ int vzctl2_exec_script(char *const argv[], char *const env[], int flags)
 			dup2(out[1], STDERR_FILENO);
 		}
 
-		close_fds(0, -1);
-
 		if (flags & EXEC_NOENV)
 			execv(argv[0], argv);
 		else
