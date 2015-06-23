@@ -34,6 +34,7 @@
 #include <linux/vzcalluser.h>
 #include <sys/mount.h>
 #include <libgen.h>
+#include <dirent.h>
 
 #include "vzerror.h"
 #include "image.h"
@@ -787,6 +788,80 @@ static int configure_devperm(struct vzctl_env_handle *h, struct vzctl_disk *disk
 	return get_env_ops()->env_set_devperm(h, &devperms);
 }
 
+static int add_sysfs_entry(struct vzctl_env_handle *h, const char *sysfs)
+{
+	char path[PATH_MAX];
+	struct dirent **namelist;
+	struct stat st;
+	int n;
+	int ret = 0;
+
+	snprintf(path, sizeof(path), "%s rx", sysfs);
+	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", path))
+		return VZCTL_E_DISK_CONFIGURE;
+
+	snprintf(path, sizeof(path), "/sys/%s", sysfs);
+	if (lstat(path, &st))
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "Cant stat %s", path);
+
+	if (!S_ISDIR(st.st_mode))
+		return 0;
+
+	n = scandir(path, &namelist, NULL, NULL);
+	if (n < 0)
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "Unabel to open %s",
+				path);
+
+	while (n--) {
+		if (strcmp(namelist[n]->d_name, ".") == 0 ||
+				strcmp(namelist[n]->d_name, "..") == 0)
+			continue;
+
+		snprintf(path, sizeof(path), "%s/%s rx",
+				sysfs, namelist[n]->d_name);
+		if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", path))
+			ret = VZCTL_E_DISK_CONFIGURE;
+
+		free(namelist[n]);
+	}
+	free(namelist);
+
+	return ret;
+}
+
+static int configure_sysfsperm(struct vzctl_env_handle *h, const char *devname)
+{
+	char buf[STR_SIZE];
+	int ret;
+	const char *dev;
+
+	dev = strrchr(devname, '/');
+	if (dev != NULL)
+		dev++;
+	else
+		dev = devname;
+
+	snprintf(buf, sizeof(buf), "devices/virtual/block rx");
+	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
+		return VZCTL_E_DISK_CONFIGURE;
+
+	snprintf(buf, sizeof(buf), "devices/virtual/block/%s rx", dev);
+	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
+		return VZCTL_E_DISK_CONFIGURE;
+
+	snprintf(buf, sizeof(buf), "devices/virtual/block/%s/%sp1", dev, dev);
+	ret =  add_sysfs_entry(h, buf);
+	if (ret)
+		return ret;
+
+	snprintf(buf, sizeof(buf), "class/block/%sp1", dev);
+	ret = add_sysfs_entry(h, buf);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 		int flags, int automount)
 {
@@ -812,10 +887,11 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	dev = st.st_rdev;
 
 	if (!disk->use_device) {
+		char part[STR_SIZE];
 		/* Give access to the first partition 'ploopNp1' */
 		dev += 1;
-		get_partition_dev_name(dev, devname, sizeof(devname));
-		ret = get_fs_uuid(devname, disk->fsuuid);
+		get_partition_dev_name(dev, part, sizeof(part));
+		ret = get_fs_uuid(part, disk->fsuuid);
 		if (ret)
 			return ret;
 	}
@@ -825,6 +901,10 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 		return ret;
 
 	ret = configure_devperm(h, disk, dev, 0);
+	if (ret)
+		return ret;
+
+	ret = configure_sysfsperm(h, devname);
 	if (ret)
 		return ret;
 
