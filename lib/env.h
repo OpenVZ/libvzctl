@@ -142,6 +142,7 @@ struct start_param {
 	int *err_p;
 	int *wait_p;
 	int *status_p;
+	pid_t pid;
 	vzctl_env_create_FN fn;
 	void *data;
 };
