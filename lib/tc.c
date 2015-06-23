@@ -170,18 +170,23 @@ char *rate2str(list_head_t *head)
 	return strdup(buf);
 }
 
-static int tc_get_base(struct vzctl_env_handle *h, int *tc_base)
+int tc_get_base(struct vzctl_env_handle *h, int *tc_base)
 {
-	int ret = -1;
+	int ret;
 
-	if (is_vz_kernel()) {
-		unsigned veid = eid2veid(h);
+	ret = ioctl(get_vzctlfd(), VZCTL_TC_GET_BASE, h->veid);
+	if (ret == -1) {
+		return vzctl_err(VZCTL_E_SET_RATE, errno, "tc_get_base failed");
+	} else if (ret == 0) {
+		struct vzctl_tc_set_base tc = {.veid = h->veid};
 
-		ret = ioctl(get_vzctlfd(), VZCTL_TC_GET_BASE, veid);
-		if (ret == -1 )
-			return vzctl_err(VZCTL_E_SET_RATE, errno, "tc_get_base failed");
+		ret = ioctl(get_vzctlfd(), VZCTL_TC_SET_BASE, &tc);
+		if (ret == -1)
+			return vzctl_err(VZCTL_E_SET_RATE, errno,
+					"tc_set_base failed");
 	}
 
+	logger(5, 0, "TC base %d veid=%d", ret, h->veid);
 	*tc_base = ret;
 
 	return 0;

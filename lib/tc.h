@@ -45,6 +45,7 @@ int vzctl_apply_tc_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 char *rate2str(list_head_t *head);
 struct vzctl_rate *alloc_rate();
 void free_rate(struct vzctl_rate *rate);
+int tc_get_base(struct vzctl_env_handle *h, int *tc_base);
 
 #endif /* __TC_H_ */
 

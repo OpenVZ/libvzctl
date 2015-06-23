@@ -423,10 +423,19 @@ static int ns_apply_cpu_param(struct vzctl_env_handle *h, struct vzctl_cpu_param
  * AAAA is the major handle number and
  * BBBB is the minor handle number.
  */
-static unsigned int get_net_classid(struct vzctl_env_handle *h, unsigned int *classd)
+static int set_net_classid(struct vzctl_env_handle *h)
 {
-	/* FIXME: */
-	return vzctl_err(VZCTL_E_INVAL, 0, "Error: Traffic shaping is not implemented");
+	int ret;
+	unsigned int classid = 0;
+
+	if (h->env_param->vz->tc->traffic_shaping != VZCTL_PARAM_ON)
+		return 0;
+
+	ret = tc_get_base(h, (int *) &classid);
+	if (ret)
+		return ret;
+
+	return cg_env_set_net_classid(h->ctid, classid);
 }
 
 static int set_features(struct vzctl_env_handle *h,
@@ -468,16 +477,6 @@ static int setup_env_cgroup(struct vzctl_env_handle *h, struct vzctl_env_param *
 	ret = set_features(h, env->features);
 	if (ret)
 		return ret;
-
-	if (h->env_param->vz->tc->traffic_shaping == VZCTL_PARAM_ON) {
-		unsigned int classid = 0;
-		ret = get_net_classid(h, &classid);
-		if (ret)
-			return ret;
-		ret = cg_env_set_net_classid(h->ctid, classid);
-		if (ret)
-			return ret;
-	}
 
 	ret = cg_env_set_memory(h->ctid, CG_KMEM_LIMIT, LONG_MAX);
 	if (ret)
@@ -970,6 +969,12 @@ static int ns_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param
 	int ret;
 
 	if (ns_is_env_run(h)) {
+		if (h->state == VZCTL_STATE_STARTING) {
+			ret = set_net_classid(h);
+			if (ret)
+				return ret;
+		}
+
 		ret = ns_apply_res_param(h, env);
 		if (ret)
 			return ret;
