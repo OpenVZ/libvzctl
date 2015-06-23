@@ -717,7 +717,7 @@ static int set_ns(pid_t pid, const char *name, int flags)
 
 	snprintf(path, sizeof(path), "/proc/%d/ns/%s", pid, name);
 	if ((fd = open(path, O_RDONLY)) < 0)
-		return vzctl_err(-1, 0, "Failed to open %s", path);
+		return vzctl_err(-1, errno, "Failed to open %s", path);
 
 	logger(10, 0, "* attach to %s", name);
 	ret = setns(fd, flags);
