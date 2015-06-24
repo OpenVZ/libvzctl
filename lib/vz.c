@@ -253,8 +253,12 @@ static int get_env_ids_exists(vzctl_ids_t *ctids)
 	cnt = 0;
 	while ((ent = readdir(dir)) != NULL) {
 		ctid_t id, ctid = {};
-		if (sscanf(ent->d_name, "%37[^.].conf", id) != 1)
+		char str[6];
+
+		if (sscanf(ent->d_name, "%37[^.].%5s", id, str) != 2 ||
+				strcmp(str, "conf"))
 			continue;
+
 		if (vzctl2_parse_ctid(id, ctid))
 			continue;
 
