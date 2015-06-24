@@ -800,12 +800,11 @@ void configure_net_rps(const char *ve_root, const char *dev)
 int vzctl2_clear_ve_netstat(struct vzctl_env_handle *h)
 {
 	int rc;
-	unsigned veid = eid2veid(h);
 
-	rc = ioctl(get_vzctlfd(), VZCTL_TC_CLEAR_STAT, veid);
+	rc = ioctl(get_vzctlfd(), VZCTL_TC_CLEAR_STAT, h->veid);
 
 	if (rc && errno == ENOTTY)
-		rc = ioctl(get_vzctlfd(), VZCTL_TC_DESTROY_STAT, veid);
+		rc = ioctl(get_vzctlfd(), VZCTL_TC_DESTROY_STAT, h->veid);
 
 	if (rc == 0 || errno == ESRCH)
 		return 0;
