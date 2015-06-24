@@ -907,9 +907,6 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 	ctid_t eid_old = {};
 	ctid_t uuid = {};
 
-	if (get_cid_uuid_pair(param->ctid, param->uuid, ctid, uuid))
-		return -1;
-
 	/* preserve compatibility
 	 * VZ_REG_SKIP_HA_CLUSTER is alias for VZ_REG_SKIP_CLUSTER
 	 */
@@ -935,9 +932,17 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 		return -1;
 	}
 
-	h = vzctl2_env_open_conf(ctid, veconf, VZCTL_CONF_BASE_SET, &err);
+	h = vzctl2_env_open_conf(param->ctid, veconf, VZCTL_CONF_BASE_SET, &err);
 	if (h == NULL)
 		return -1;
+
+	data = param->uuid;
+	/* get UUID from config if not specified */
+	if (data == NULL)
+		vzctl2_env_get_param(h, "UUID", &data);
+
+	if (get_cid_uuid_pair(param->ctid, data, ctid, uuid))
+		goto err;
 
 	owner_check_res = vzctl_check_owner_quiet(
 			path_r, host, sizeof(host), ve_host, sizeof(ve_host));
