@@ -34,16 +34,9 @@ criu dump	--file-locks								\
 		--manage-cgroups							\
 		--link-remap								\
 		--root $VE_ROOT								\
-		--ext-mount-map /sys/fs/cgroup/cpuset:/ve-cpuset			\
-		--ext-mount-map /sys/fs/cgroup/cpu,cpuacct:/ve-cpu-cpuacct		\
-		--ext-mount-map /sys/fs/cgroup/memory:/ve-memory			\
-		--ext-mount-map /sys/fs/cgroup/devices:/ve-devices			\
-		--ext-mount-map /sys/fs/cgroup/freezer:/ve-freezer			\
-		--ext-mount-map /sys/fs/cgroup/net_cls:/ve-net_cls			\
-		--ext-mount-map /sys/fs/cgroup/blkio:/ve-blkio				\
-		--ext-mount-map /sys/fs/cgroup/perf_event:/ve-perf_event		\
-		--ext-mount-map /sys/fs/cgroup/hugetlb:/ve-hugetlb			\
-		--ext-mount-map /sys/fs/cgroup/systemd:/ve-systemd			\
+		--ext-mount-map auto							\
+		--enable-external-sharing						\
+		--enable-external-masters						\
 		-t $VE_PID								\
 		-D $VE_DUMP_DIR								\
 		-o dump.log								\

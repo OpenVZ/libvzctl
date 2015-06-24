@@ -44,16 +44,9 @@ criu restore	--file-locks								\
 		--manage-cgroups							\
 		--link-remap								\
 		--root $VE_ROOT								\
-		--ext-mount-map /ve-cpuset:/sys/fs/cgroup/cpuset			\
-		--ext-mount-map /ve-cpu-cpuacct:/sys/fs/cgroup/cpu,cpuacct		\
-		--ext-mount-map /ve-memory:/sys/fs/cgroup/memory			\
-		--ext-mount-map /ve-devices:/sys/fs/cgroup/devices			\
-		--ext-mount-map /ve-freezer:/sys/fs/cgroup/freezer			\
-		--ext-mount-map /ve-net_cls:/sys/fs/cgroup/net_cls			\
-		--ext-mount-map /ve-blkio:/sys/fs/cgroup/blkio				\
-		--ext-mount-map /ve-perf_event:/sys/fs/cgroup/perf_event		\
-		--ext-mount-map /ve-hugetlb:/sys/fs/cgroup/hugetlb			\
-		--ext-mount-map /ve-systemd:/sys/fs/cgroup/systemd			\
+		--ext-mount-map auto							\
+		--enable-external-sharing						\
+		--enable-external-masters						\
 		--restore-detached							\
 		--action-script $action_script						\
 		-D $VE_DUMP_DIR								\
