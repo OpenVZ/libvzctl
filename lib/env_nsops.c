@@ -196,10 +196,6 @@ static int start_container(struct vzctl_env_handle *h)
 	if (!is_vz_kernel())
 		return 0;
 
-	if (cg_set_veid(EID(h), h->veid) == -1)
-		return vzctl_err(VZCTL_E_RESOURCE, 0,
-				"Failed to set VEID=%u", h->veid);
-
 	if (cg_set_param(EID(h), CG_VE, "ve.state", "START") == -1)
 		return vzctl_err(VZCTL_E_RESOURCE, 0,
 				"Failed to switch CT to the START state");
@@ -516,6 +512,10 @@ static int init_env_cgroup(struct vzctl_env_handle *h)
 	};
 
 	logger(10, 0, "* init Container cgroup");
+
+	if (cg_set_veid(EID(h), h->veid) == -1)
+		return vzctl_err(VZCTL_E_RESOURCE, 0,
+				"Failed to set VEID=%u", h->veid);
 
 	/* Bind beancounter with blkio/memory cgroups */
 	for (i = 0; i < sizeof(bc)/sizeof(bc[0]); i++) {
