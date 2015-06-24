@@ -2789,6 +2789,11 @@ const char *vzctl2_env_get_ctid(struct vzctl_env_handle *h)
 	return EID(h);
 }
 
+int vzctl2_env_get_veid(struct vzctl_env_handle *h)
+{
+	return h->veid;
+}
+
 int vzctl2_env_set_cpumask(struct vzctl_env_param *env, const char *str)
 {
 	return parse_cpumask(str, &env->cpu->cpumask);

@@ -706,6 +706,7 @@ int vzctl2_env_set_type(struct vzctl_env_param *env, vzctl_env_type type);
 int vzctl2_env_get_type(struct vzctl_env_param *env, vzctl_env_type *type);
 
 const char *vzctl2_env_get_ctid(struct vzctl_env_handle *h);
+int vzctl2_env_get_veid(struct vzctl_env_handle *h);
 int vzctl2_env_set_uuid(struct vzctl_env_param *env, const char *uuid);
 int vzctl2_env_get_uuid(struct vzctl_env_param *env, const char **uuid);
 int vzctl2_env_set_cpumask(struct vzctl_env_param *env, const char *str);
