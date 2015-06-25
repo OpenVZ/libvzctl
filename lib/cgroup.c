@@ -153,7 +153,7 @@ out:
 	return ret;
 }
 
-static int cg_write(const char *path, const char *data)
+int write_data(const char *path, const char *data)
 {
 	int fd, len, w;
 
@@ -231,7 +231,7 @@ int cg_set_param(const char *ctid, const char *subsys, const char *name, const c
 	if (ret)
 		return ret;
 
-	return cg_write(path, data);
+	return write_data(path, data);
 }
 
 int cg_set_ul(const char *ctid, const char *subsys, const char *name,
@@ -803,5 +803,5 @@ int cg_set_veid(const char *ctid, int veid)
 		return 0;
 
 	sprintf(id, "%d", veid);
-	return cg_write(path, id);
+	return write_data(path, id);
 }

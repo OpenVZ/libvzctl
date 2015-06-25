@@ -40,6 +40,7 @@
 
 struct vzctl_env_handle;
 
+int write_data(const char *path, const char *data);
 int cg_new_cgroup(const char *ctid);
 int cg_destroy_cgroup(const char *ctid);
 int cg_attach_task(const char *ctid, pid_t pid);
