@@ -43,6 +43,7 @@
 #include "vztypes.h"
 #include "exec.h"
 #include "cgroup.h"
+#include "dev.h"
 
 struct exec_disk_param {
 	const char *fsuuid;
@@ -281,9 +282,10 @@ static int env_configure_disk(struct exec_disk_param *param)
 	struct vzctl_disk *disk = param->disk;
 
 	get_partition_dev_name(param->dev, device, sizeof(device));
-	unlink(device);
-	if (mknod(device, S_IFBLK|S_IRUSR|S_IWUSR, param->dev))
-		return vzctl_err(-1, errno, "Failed to mknod %s", device);
+
+	if (create_static_dev(device, NULL, S_IFBLK | S_IRUSR | S_IWUSR,
+				param->dev))
+		return -1;
 
 	if (send_uevent(device))
 		return -1;
