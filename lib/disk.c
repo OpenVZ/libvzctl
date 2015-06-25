@@ -817,8 +817,9 @@ static int add_sysfs_entry(struct vzctl_env_handle *h, const char *sysfs)
 				strcmp(namelist[n]->d_name, "..") == 0)
 			continue;
 
-		snprintf(path, sizeof(path), "%s/%s rx",
-				sysfs, namelist[n]->d_name);
+		snprintf(path, sizeof(path), "%s/%s %s",
+			sysfs, namelist[n]->d_name,
+			!strcmp(namelist[n]->d_name, "uevent") ? "w" : "rx");
 		if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", path))
 			ret = VZCTL_E_DISK_CONFIGURE;
 
@@ -833,13 +834,7 @@ static int configure_sysfsperm(struct vzctl_env_handle *h, const char *devname)
 {
 	char buf[STR_SIZE];
 	int ret;
-	const char *dev;
-
-	dev = strrchr(devname, '/');
-	if (dev != NULL)
-		dev++;
-	else
-		dev = devname;
+	const char *dev = get_devname(devname);
 
 	snprintf(buf, sizeof(buf), "devices/virtual/block rx");
 	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
@@ -850,7 +845,7 @@ static int configure_sysfsperm(struct vzctl_env_handle *h, const char *devname)
 		return VZCTL_E_DISK_CONFIGURE;
 
 	snprintf(buf, sizeof(buf), "devices/virtual/block/%s/%sp1", dev, dev);
-	ret =  add_sysfs_entry(h, buf);
+	ret = add_sysfs_entry(h, buf);
 	if (ret)
 		return ret;
 

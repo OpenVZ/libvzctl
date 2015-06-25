@@ -217,6 +217,7 @@ int is_ip6(const char *ip);
 int get_eid(const char *uuid, ctid_t out);
 void generate_eid(ctid_t ctid);
 unsigned eid2veid(struct vzctl_env_handle *h);
+const char *get_devname(const char *device);
 #ifdef __cplusplus
 }
 #endif

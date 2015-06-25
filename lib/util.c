@@ -2544,3 +2544,10 @@ unsigned eid2veid(struct vzctl_env_handle *h)
 
 	return veid;
 }
+
+const char *get_devname(const char *device)
+{
+	char *p = strrchr(device, '/');
+
+	return p == NULL ? device : ++p;
+}

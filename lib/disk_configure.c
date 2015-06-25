@@ -42,6 +42,7 @@
 #include "logger.h"
 #include "vztypes.h"
 #include "exec.h"
+#include "cgroup.h"
 
 struct exec_disk_param {
 	const char *fsuuid;
@@ -264,6 +265,16 @@ void get_partition_dev_name(dev_t dev, char *out, int len)
 	snprintf(out, len, "/dev/ploop%dp1", gnu_dev_minor(dev) >> 4);
 }
 
+int send_uevent(const char *devname)
+{
+	char path[PATH_MAX];
+
+	snprintf(path, sizeof(path), "/sys/class/block/%s/uevent",
+			get_devname(devname));
+
+	return write_data(path, "add");
+}
+
 static int env_configure_disk(struct exec_disk_param *param)
 {
 	char device[STR_SIZE];
@@ -273,6 +284,9 @@ static int env_configure_disk(struct exec_disk_param *param)
 	unlink(device);
 	if (mknod(device, S_IFBLK|S_IRUSR|S_IWUSR, param->dev))
 		return vzctl_err(-1, errno, "Failed to mknod %s", device);
+
+	if (send_uevent(device))
+		return -1;
 
 	if (disk->mnt != NULL) {
 		if (access(disk->mnt, F_OK))
