@@ -340,23 +340,21 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 				get_pagesize(), get_pagesize());
 		break;
 	case VZCTL_PARAM_NUMPROC:
-	case VZCTL_PARAM_NUMTCPSOCK:
 	case VZCTL_PARAM_NUMFLOCK:
 	case VZCTL_PARAM_NUMPTY:
 	case VZCTL_PARAM_NUMSIGINFO:
-	case VZCTL_PARAM_NUMOTHERSOCK:
 	case VZCTL_PARAM_NUMFILE:
 	case VZCTL_PARAM_NUMIPTENT:
 	case VZCTL_PARAM_AVNUMPROC:
 		ret = parse_ub(env->res->ub, str, param_id, 0, 0);
 		break;
+
+	case VZCTL_PARAM_NUMTCPSOCK:
+	case VZCTL_PARAM_NUMOTHERSOCK:
 	case VZCTL_PARAM_TCPSNDBUF:
 	case VZCTL_PARAM_TCPRCVBUF:
 	case VZCTL_PARAM_OTHERSOCKBUF:
 	case VZCTL_PARAM_DGRAMRCVBUF:
-		ret = parse_ub(env->res->ub, str, param_id, 1, 0);
-		break;
-
 	case VZCTL_PARAM_OOMGUARPAGES:
 	case VZCTL_PARAM_KMEMSIZE:
 	case VZCTL_PARAM_DCACHESIZE:
