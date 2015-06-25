@@ -846,32 +846,18 @@ static int validate_eid(const char *veconf, ctid_t ctid, ctid_t eid_old)
 }
 
 static int renew_VE_PRIVATE(struct vzctl_env_handle *h, const char *path,
-		ctid_t ctid, char *veconf, int veconf_len)
+		ctid_t ctid)
 {
 	char path_new[PATH_MAX];
 	char *dir, *p;
-	int renew_ve_private = 0;
-	ctid_t eid_dir = {};
 
 	dir = strdupa(path);
-	if ((p = strrchr(dir, '/')) != NULL) {
-		if (vzctl2_parse_ctid(p + 1, eid_dir) == 0)
-			renew_ve_private = 1;
+	if ((p = strrchr(dir, '/')) != NULL)
 		*p = '\0';
-	}
 
 	/* Sync VE_PRIVATE with EID */
 	snprintf(path_new, sizeof(path_new), "%s/%s", dir, ctid);
-	if (renew_ve_private && strcmp(path, path_new) != 0) {
-		snprintf(veconf, veconf_len, "%s/" VZCTL_VE_CONF, path_new);
-		logger(0, 0, "CT uuid changed %s -> %s", eid_dir, ctid);
-		logger(0, 0, "Update VE_PRIVATE to %s", path_new);
-		if (rename(path, path_new))
-			return vzctl_err(-1, errno, "Failed to rename %s -> %s",
-					path, path_new);
-	}
-
-	if (renew_ve_private) {
+	if (strcmp(path, path_new) == 0) {
 		snprintf(path_new, sizeof(path_new), "%s/$VEID", dir);
 		vzctl2_env_set_param(h, "VE_PRIVATE", path_new);
 	} else
@@ -1030,7 +1016,7 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 	/* Update UUID */
 	vzctl2_env_set_param(h, "UUID", uuid);
 
-	ret = renew_VE_PRIVATE(h, path_r, ctid, veconf, sizeof(veconf));
+	ret = renew_VE_PRIVATE(h, path_r, ctid);
 	if (ret)
 		goto err;
 
