@@ -819,7 +819,7 @@ static int add_sysfs_entry(struct vzctl_env_handle *h, const char *sysfs)
 
 		snprintf(path, sizeof(path), "%s/%s %s",
 			sysfs, namelist[n]->d_name,
-			!strcmp(namelist[n]->d_name, "uevent") ? "w" : "rx");
+			!strcmp(namelist[n]->d_name, "uevent") ? "rw" : "rx");
 		if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", path))
 			ret = VZCTL_E_DISK_CONFIGURE;
 
