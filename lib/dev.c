@@ -95,14 +95,6 @@ static int create_tmpfiles(const char *name, const char *alias, mode_t mode, dev
 	return 0;
 }
 
-static void clean_tmpfile(const char *filter)
-{
-	char f[128];
-
-	snprintf(f, sizeof(f), "/etc/tmpfiles.d/device-%s.conf", filter);
-	unlink(f);
-}
-
 static const char *get_static_dev_dir(void)
 {
 	if (access("/etc/udev/devices", F_OK) == 0)
@@ -118,17 +110,11 @@ static const char *get_static_dev_dir(void)
 int create_static_dev(const char *name, const char *alias, mode_t mode, dev_t dev)
 {
 	char buf[128];
-	const char *device;
+	const char *device = get_devname(name);
 	const char *dir;
 
 	if (name == NULL)
 		return 0;
-
-	device = strrchr(name, '/');
-	if (device == NULL)
-		device = name;
-	else
-		device++;
 
 	snprintf(buf, sizeof(buf), "/dev/%s", device);
 	unlink(buf);
@@ -155,15 +141,13 @@ static void clean_dev_file(const char *dir, const char *filter)
 {
 	DIR *dp;
 	struct dirent *ep;
-	int n;
 
 	dp = opendir(dir);
 	if (dp == NULL)
 		return;
 
-	n = strlen(filter);
 	while ((ep = readdir(dp))) {
-		if (strncmp(ep->d_name, filter, n) == 0)
+		if (strstr(ep->d_name, filter))
 			unlinkat(dirfd(dp), ep->d_name, 0);
 	}
 	closedir(dp);
@@ -171,15 +155,7 @@ static void clean_dev_file(const char *dir, const char *filter)
 
 void clean_static_dev(const char *filter)
 {
-	const char *dir;
-
-	dir = get_static_dev_dir();
-	if (dir != NULL) {
-		if (!strcmp(dir, "/etc/tmpfiles.d"))
-			clean_tmpfile(filter);
-		else
-			clean_dev_file(dir, filter);
-	}
+	clean_dev_file(get_static_dev_dir(), filter);
 }
 
 static int create_devs(struct vzctl_dev_param *devs)
