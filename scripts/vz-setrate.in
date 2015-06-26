@@ -5,7 +5,7 @@
 # redistribute it and/or modify it under the terms of the GNU Lesser General
 # Public License as published by the Free Software Foundation; either version 2
 # of the License, or (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
 # WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
@@ -24,12 +24,13 @@
 # Parameters are passed in environment variables.
 # Required parameters:
 #   VEID    - VE id
-#   BANDWIDTH - Bandwidth  of  network interfaces
+#   BANDWIDTH - Bandwidth  of  network interfaces: "<dev>[:<bandwidth>] ..."
 #   TOTALRATE - maximum VE output speed over specified net­
-#               work interface
+#               work interface: "<dev|*>:<class>:<bandwidth> ..."
 # Optional parameters:
 #   RATE      -  maximum VE output speed over specified net­
-#                work  interface  for  specified  traffic clas
+#                work  interface  for  specified  traffic class:
+#                "<dev|*>:<class>:<bandwidth> ..."
 
 . @SCRIPTDIR@/vz-functions
 . @PKGCONFDIR@/vz.conf
@@ -398,6 +399,7 @@ expand_default_DEV()
 }
 
 # Replace '*' in the TOTALRATE | RATE | BANDWIDTH with the real device name
+# HINT: '*' in BANDWIDTH is invalid.
 function expand_DEV()
 {
 	local rate dev tmp class i j rest_rate
@@ -509,10 +511,8 @@ vzcreate_root_class()
 {
 	local dev="$1"
 	local class="$2"
-	local maxburst band total_band class_hex configured
+	local maxburst total_band class_hex configured
 
-	band=`vzget_dev_band "${dev}" "" ${BANDWIDTH}`
-	[ -z "${band}" ] && vzerror "Device ${dev} not found in BANDWIDTH"
 	total_band=`vzget_dev_band "${dev}" "${class}" ${TOTALRATE}`
 	[ -z "${total_band}" ] && vzerror "Device ${dev} not found in TOTALRATE"
 	vzgetmaxburst ${BAND1}
@@ -596,7 +596,6 @@ vzcreate_filter()
 vzcreate_qdisc()
 {
 	local DEV;
-	local BAND;
 	local i;
 	local DEV1;
 	local BAND1;
@@ -613,8 +612,7 @@ vzcreate_qdisc()
 	vzcheck_TOTALRATE
 	for i in ${BANDWIDTH} ; do
 		DEV=${i%%:*}
-		BAND=${i##*:}
-		[ -z ${DEV} -o -z ${BAND} ] && \
+		[ -z ${DEV} ] && \
 			vzerror "Wrong BANDWIDTH value." ${VZ_SET_RATE};
 		let found=0;
 		for j in ${TOTALRATE} ; do
@@ -788,22 +786,6 @@ vzclear_qdisc()
 	done
 }
 
-# Clears root qdisc for all configured interfaces
-vzclear_qdisc_all()
-{
-	local dev
-	local dev_all
-	local dev_rm=""
-
-	dev_all=`$TC_CMD qdisc show | grep 'qdisc htb' | awk '/dev/{print $5}'`
-	for dev in ${dev_all}; do
-		if ! echo "${dev_rm}" | grep "${dev}" >/dev/null 2>&1; then
-			vzrun_tc $TC_CMD qdisc del dev ${dev} root
-			dev_rm="${dev_rm} ${dev}"
-		fi
-	done
-}
-
 if [ "${1}" = "add" ]; then
 	vzcheckvar VEID BANDWIDTH TOTALRATE
 	if [ "$VE_STATE" = "starting" ]; then
@@ -816,11 +798,11 @@ elif [ "${1}" = "del" ]; then
 	vzdel_ve_sh_classes $VEID
 
 elif [ "${1}" = "shaperoff" ]; then
-	vzclear_qdisc_all	
+	vzclear_qdisc_all
 elif [ "${1}" = "shaperon" ]; then
 	vzcreate_qdisc
 else
 	vzerror "Action is not specified" $VZ_INVALID_PARAMETER_SYNTAX
-fi	
+fi
 
 exit 0
