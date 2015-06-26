@@ -142,6 +142,9 @@ static void clean_dev_file(const char *dir, const char *filter)
 	DIR *dp;
 	struct dirent *ep;
 
+	if (dir == NULL)
+		return;
+
 	dp = opendir(dir);
 	if (dp == NULL)
 		return;
