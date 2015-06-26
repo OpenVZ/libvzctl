@@ -327,10 +327,6 @@ static int create_env_private(struct vzctl_env_handle *h, const char *ve_private
 	char dst_tmp[PATH_MAX];
 	int ret, lckfd = -1;
 
-	if (stat_file(ve_private))
-		return vzctl_err(VZCTL_E_FS_PRVT_AREA_EXIST, 0, "Private area %s already exists",
-				ve_private);
-
 	if ((ret = make_dir(ve_private, 0)))
 		return ret;
 
@@ -492,6 +488,14 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 	if (ret)
 		goto free_conf;
 
+	fs = h->env_param->fs;
+	if (stat_file(fs->ve_private)) {
+		 vzctl_err(VZCTL_E_FS_PRVT_AREA_EXIST, 0,
+				"Private area %s already exists",
+				fs->ve_private);
+		goto free_conf;
+	}
+
 	vzctl2_merge_env_param(h, env);
 
 	ret = validate_env_name(h, env->name->name, t);
@@ -499,7 +503,6 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 		goto free_conf;
 
 	ostmpl = h->env_param->tmpl->ostmpl;
-	fs = h->env_param->fs;
 	fs->layout = layout;
 
 	if (stat_file(conf) == 1 &&
