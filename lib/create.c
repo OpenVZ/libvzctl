@@ -32,6 +32,7 @@
 #include <sys/wait.h>
 #include <sys/vfs.h>
 #include <uuid/uuid.h>
+#include <sys/mount.h>
 
 #include "libvzctl.h"
 #include "env.h"
@@ -422,6 +423,27 @@ static int merge_create_param(struct vzctl_env_handle *h, struct vzctl_env_param
 	return 0;
 }
 
+static void set_fs_uuid(struct vzctl_env_handle *h)
+{
+	struct vzctl_disk *d;
+	struct vzctl_mount_param param = {};
+	char *arg[] = {"/sbin/tune2fs", "-Urandom", param.device, NULL};
+
+	list_for_each(d, &h->env_param->disk->disks, list) {
+
+		if (d->use_device)
+			continue;
+
+		if (vzctl2_mount_disk_image(d->path, &param))
+			continue;
+
+		strcat(param.device, "p1");
+		vzctl2_wrap_exec_script(arg, NULL, 0);
+
+		vzctl2_umount_disk_image(d->path);
+	}
+}
+
 int vzctl2_env_create(struct vzctl_env_param *env,
 		struct vzctl_env_create_param *param, int flags)
 {
@@ -532,8 +554,12 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 		ret = vzctl2_env_mount(h, 8);
 		if (ret)
 			goto err;
+
 		post_create(h);
 		vzctl2_env_umount(h, 0);
+
+		if (layout >= VZCTL_LAYOUT_5)
+			set_fs_uuid(h);
 	}
 
 	if ((ret = vzctl2_env_save_conf(h, conf)))
