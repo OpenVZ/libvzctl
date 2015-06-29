@@ -905,9 +905,9 @@ force:
 	}
 
 	if (ret == 0) {
-		destroy_cgroup(h);
 		if (is_managed_by_vcmmd())
 			vcmmd_unregister(h);
+		destroy_cgroup(h);
 	}
 out:
 	return ret ? VZCTL_E_ENV_STOP : 0;
