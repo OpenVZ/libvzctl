@@ -83,13 +83,13 @@ struct vzctl_tc_param *alloc_tc_param(void)
 
 int parse_rate(list_head_t *head, const char *str, int num)
 {
-        char *tail, *tail2;
-        char *s;
-        int numparam = 0;
+	char *tail, *tail2;
+	char *s;
+	int numparam = 0;
 	struct vzctl_rate *rate;
 	int len, ret;
 
-        if ((s = strchr(str, ':')) == NULL)
+	if ((s = strchr(str, ':')) == NULL)
 		return VZCTL_E_INVAL;
 	len = s - str;
 	if (len <= 0)
@@ -202,6 +202,7 @@ static int vzctl_set_tc_param(struct vzctl_env_handle *h, struct vzctl_tc_param 
 	int ret, i = 0;
 	const char *bandwidth = NULL;
 	const char *totalrate = NULL;
+	const char *ratempu = NULL;
 	int ratebound;
 	list_head_t *rate = !list_empty(&tc->rate_list) ? &tc->rate_list :
 		&h->env_param->vz->tc->rate_list;
@@ -215,6 +216,7 @@ static int vzctl_set_tc_param(struct vzctl_env_handle *h, struct vzctl_tc_param 
 	vzctl2_env_get_param(h, "TOTALRATE", &totalrate);
 	if (totalrate == NULL)
 		return vzctl_err(VZCTL_E_SET_RATE, 0, "TOTALRATE is not set");
+	vzctl2_env_get_param(h, "RATEMPU", &ratempu);
 
 	ret = tc_get_base(h, &tc_base);
 	if (ret)
@@ -226,6 +228,11 @@ static int vzctl_set_tc_param(struct vzctl_env_handle *h, struct vzctl_tc_param 
 	envp[i++] = strdup(buf);
 	snprintf(buf, sizeof(buf), "TOTALRATE=%s", totalrate);
 	envp[i++] = strdup(buf);
+	if (ratempu != NULL) {
+		snprintf(buf, sizeof(buf), "RATEMPU=%s", ratempu);
+		envp[i++] = strdup(buf);
+	}
+
 	if (tc_base != -1)
 		snprintf(buf, sizeof(buf), "TC_HANDLE_BASE=%d", tc_base);
 	envp[i++] = strdup(buf);
