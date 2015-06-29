@@ -553,38 +553,6 @@ int merge_veth_ifname_param(struct vzctl_env_handle *h,
 	return add_veth_param(&env->veth->dev_list, veth);
 }
 
-static void announce_mac_addr(list_head_t *phead)
-{
-	struct vzctl_veth_dev *it_dev;
-	char mac[18];
-	char *argv[13];
-
-	argv[0] = "/usr/sbin/arpsend";
-	argv[1] = "-U";
-	argv[2] = "-f";
-	argv[3] = "-c1";
-	argv[4] = "-w1";
-	argv[5] = "-S";
-	argv[6] = mac;
-	argv[7] = "-s";
-	argv[8] = mac;
-	argv[9] = "-i0.0.0.0";
-	argv[10] = "-e0.0.0.0";
-	argv[11] = NULL; /* dev name */
-	argv[12] = NULL;
-
-	list_for_each(it_dev, phead, list) {
-		/* Skip not attached device */
-		if (it_dev->network == NULL || *it_dev->network == '\0')
-			continue;
-		snprintf(mac, sizeof(mac), MAC2STR_FMT,
-				MAC2STR(it_dev->mac_ve));
-		argv[11] = it_dev->dev_name;
-
-		vzctl2_wrap_exec_script(argv, NULL, 0);
-	}
-}
-
 static int env_veth_configure(struct vzctl_env_handle *h, int add,
 		list_head_t *phead, int flags)
 {
@@ -597,9 +565,6 @@ static int env_veth_configure(struct vzctl_env_handle *h, int add,
 	int changed = 0;
 	const char *script;
 	int ipv6 = 0;
-
-	if (flags & VZCTL_RESTORE)
-		announce_mac_addr(phead);
 
 	if (flags & VZCTL_SKIP_CONFIGURE)
 		return 0;

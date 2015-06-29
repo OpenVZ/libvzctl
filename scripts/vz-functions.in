@@ -49,7 +49,10 @@ PRAM_MOUNT_POINT="/mnt/pram"
 # tc parameters
 TC_CMD=tc
 IP_CMD=ip
-ARPSEND_CMD="arpsend -c 1 -w 1"
+MAX_FORKS=100
+ARPING_CMD="/sbin/arping"
+ARPING_ARGS="-c 1 -w 1 -q"
+NDSEND_CMD="/usr/sbin/ndsend"
 OVSCTL_CMD="/usr/bin/ovs-vsctl"
 VZ_CONFIGURED_TC_DEVICES=
 
@@ -281,40 +284,96 @@ function vzarp()
 	done
 }
 
+function parallel_execution()
+{
+	local counter=0
+	local fork_counter=0
+	local ex="${1}"
+	local pids=""
+	local cmd=""
+	declare -a args=("${!2}")
+
+	while ((${counter} < ${#args[@]})); do
+		fork_counter=${MAX_FORKS}
+		pids=""
+		while ((${fork_counter} > 0 && ${counter} < ${#args[@]})); do
+			cmd="${ex} ${args[${counter}]}"
+			(${cmd};) &
+			command_list[$!]="${cmd}"
+			pids="${pids} $!"
+			counter=$((${counter}+1))
+			fork_counter=$((${fork_counter}-1))
+		done
+
+		while [ ! -z "${pids}" ]; do
+			for pid in ${pids}; do
+				kill -0 ${pid} > /dev/null 2>&1
+				[ $? -eq 0 ] && sleep 1 && continue
+				wait ${pid} || vzwarning "${command_list[${pid}]} FAILED"
+				pids=$(echo ${pids} | sed "s,\<${pid}\>,,g")
+			done
+		done
+	done
+}
+
 # Send ARP request to detect that somebody already have this IP
 function vzarpipdetect()
 {
-	local DEV
+	local dev
 	local ip
-	local cmd
+	local ips
+	local ipv4_pairs=()
 
+	ips=${1}
+
+	if [ ! -x ${ARPING_CMD} ]; then
+		echo "There is no ${ARPING_CMD}!"
+		return 1
+	fi
 	[ "${SKIP_ARPDETECT}" = "yes" ] && return
-	[ -z "${1}" ] && return
+	[ -z "${ips}" ] && return
 
-	for ip in ${1}; do
-		cmd="$cmd -e $ip"
+	for dev in ${NETDEVICES}; do
+		for ip in ${ips}; do
+			if [ $(expr index ${ip} ":") -eq 0 ]; then
+				ipv4_pairs+=("${dev} ${ip}")
+			fi
+		done
 	done
-
-	for DEV in $NETDEVICES; do
-		${ARPSEND_CMD} -D ${cmd} $DEV || vzwarning "${ARPSEND_CMD} -D ${cmd} $DEV FAILED"
-	done
+	parallel_execution "${ARPING_CMD} ${ARPING_ARGS} -D -I" ipv4_pairs[@]
 }
 
 # Send ARP request to update neighbour ARP caches
 function vzarpipset()
 {
-	local DEV
-	local ip
 	local dev
+	local ip
+	local ips=${1}
+	local binary
+	local ipv4_pairs=()
+	local ipv6_pairs=()
 
-	[ -z "${1}" ] && return
+	[ -z "${ips}" ] && return
 
-	for dev in $NETDEVICES; do
-		for ip in ${1}; do
-			opt="-i ${ip} -e ${ip}"
-			${ARPSEND_CMD} -U ${opt} ${dev} || vzwarning "${ARPSEND_CMD} -U ${opt} ${dev} FAILED"
+	for binary in ${ARPING_CMD} ${NDSEND_CMD}; do
+		if [ ! -x ${binary} ]; then
+			echo "There is no ${binary}"
+			return 1
+		fi
+	done
+
+	for dev in ${NETDEVICES}; do
+		for ip in ${ips}; do
+			if [ $(expr index ${ip} ":") -eq 0 ]; then
+				ipv4_pairs+=("${dev} ${ip}")
+			else
+				ipv6_pairs+=("${dev} ${ip}")
+			fi
 		done
 	done
+
+	parallel_execution "${ARPING_CMD} ${ARPING_ARGS} -D -A -I" ipv4_pairs[@]
+	parallel_execution "${NDSEND_CMD}" ipv6_pairs[@]
 }
 
 # Sets VE0 source routing for given IP

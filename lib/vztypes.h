@@ -60,6 +60,7 @@
 #define VZCTL_PCI_CONFIGURE	"vz-pci_configure"
 #define VZCTL_NETNS_DEV_ADD	"vz-netns_dev_add"
 #define VZCTL_NETNS_DEV_DEL	"vz-netns_dev_del"
+#define VZCTL_ANNOUNCE_IPS	"vz-announce_ips"
 #define VZCTL_REINSTALL_SCRIPT  "vps.reinstall"
 #define VZCTL_CONFIGURE_SCRIPT  "vps.configure"
 
