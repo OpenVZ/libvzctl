@@ -1,0 +1,52 @@
+#!/bin/bash
+
+VEROOT=${1}
+
+if [[ -z ${VEROOT} ]]; then
+	exit 1
+fi
+
+if [ ! -d ${VEROOT} ]; then
+	echo "${VEROOT} is not a directory"
+	exit 1
+fi
+
+if [ ! -d "${VEROOT}/sys/class/net" ]; then
+	echo "${VEROOT}/sys/class/net is not a directory"
+	exit 1
+fi
+
+ARPING_CMD=/sbin/arping
+ARPING_ARGS="-c 1 -w 1"
+IP_CMD=/sbin/ip
+NDSEND_CMD=/usr/sbin/ndsend
+
+for BINARY in ${ARPING_CMD} ${IP_CMD} ${NDSEND_CMD}; do
+	if [ ! -x ${BINARY} ]; then
+		echo "There is no ${BINARY}!"
+		exit 1
+	fi
+done
+
+for DIR in ${VEROOT}/sys/class/net/*; do
+	NETDEV=$(basename ${DIR})
+	[ -d ${DIR}/bridge ] && continue
+	[ ${NETDEV} = "lo" ] && continue
+	FLAGS=$(cat ${DIR}/flags 2>/dev/null) || continue
+	((${FLAGS} & 0x10 )) && continue # ignore point-to-point devices
+
+	IPS=$(${IP_CMD} -o a l ${NETDEV} 2>/dev/null | sed -rn 's/.*inet ([^\/]*).*/\1/p')
+	if [ ${PIPESTATUS[0]} -eq 0 ]; then
+		for IP in ${IPS}; do
+			${ARPING_CMD} ${ARPING_ARGS} -U -I ${NETDEV} ${IP} > /dev/null 2>&1
+		done
+	fi
+
+	IPS6=$(${IP_CMD} -o a l ${NETDEV} 2>/dev/null | sed -rn 's/.*inet6 ([^\/]*).*/\1/p')
+	if [ ${PIPESTATUS[0]} -eq 0 ]; then
+		for IP6 in ${IPS6}; do
+			${NDSEND_CMD} ${NETDEV} ${IP6} > /dev/null 2>&1
+		done
+	fi
+done
+

@@ -18,6 +18,7 @@
 include $(top_srcdir)/pathsubst.am
 
 script_SCRIPTS = \
+		 vz-announce_ips \
 		 vz-cpt \
 		 vz-create_prvt \
 		 vz-functions \

@@ -702,7 +702,7 @@ static int ns_is_env_run(struct vzctl_env_handle *h)
 	return pid != 0 ? 1 : 0;
 }
 
-static int set_ns(pid_t pid, const char *name, int flags)
+int set_ns(pid_t pid, const char *name, int flags)
 {
 	int ret, fd;
 	char path[PATH_MAX];
