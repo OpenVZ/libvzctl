@@ -116,7 +116,7 @@ int vz_env_cpt_cmd(struct vzctl_env_handle *h, int action, int cmd,
 	int fd;
 	int err, ret = 0;
 	const char *file;
-	unsigned veid = eid2veid(h);
+	unsigned veid = h->veid;
 
 	if (!is_env_run(h))
 		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
@@ -193,7 +193,7 @@ static int real_chkpnt(struct vzctl_env_handle *h, int cpt_fd, int cmd,
 	int ret, len;
 	char buf[PIPE_BUF];
 	int err_p[2];
-	unsigned veid = eid2veid(h);
+	unsigned veid = h->veid;
 
 	if ((ret = vzctl_chroot(h->env_param->fs->ve_root)))
 		return ret;
@@ -309,7 +309,7 @@ int vz_env_chkpnt(struct vzctl_env_handle *h, int cmd, struct vzctl_cpt_param *p
 	int cpt_fd, pid, ret;
 	int lfd = -1;
 	const char *root = h->env_param->fs->ve_root;
-	unsigned veid = eid2veid(h);
+	unsigned veid = h->veid;
 	LIST_HEAD(ip);
 
 	ret = VZCTL_E_CHKPNT;
@@ -452,7 +452,7 @@ static int restore_FN(struct vzctl_env_handle *h, struct start_param *param)
 	struct vzctl_cpt_param *cpt_param = (struct vzctl_cpt_param *) param->data;
 	char buf[PIPE_BUF];
 	int error_pipe[2];
-	unsigned veid = eid2veid(h);
+	unsigned veid = h->veid;
 
 	status = VZCTL_E_RESTORE;
 
@@ -648,9 +648,8 @@ int vz_env_get_cpt_state(struct vzctl_env_handle *h, int *state)
 {
 	int ret;
 	unsigned int cpt_state;
-	unsigned veid = eid2veid(h);
 
-	ret = env_get_cpt_state(veid, &cpt_state);
+	ret = env_get_cpt_state(h->veid, &cpt_state);
 	if (ret)
 		return ret;
 

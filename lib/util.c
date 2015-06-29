@@ -2536,15 +2536,6 @@ void vzctl2_generate_ctid(ctid_t ctid)
 	uuid_unparse(u, ctid);
 }
 
-unsigned eid2veid(struct vzctl_env_handle *h)
-{
-	unsigned veid = -1;
-
-	sscanf(EID(h), "%u", &veid);
-
-	return veid;
-}
-
 const char *get_devname(const char *device)
 {
 	char *p = strrchr(device, '/');

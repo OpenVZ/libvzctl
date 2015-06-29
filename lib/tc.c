@@ -237,7 +237,7 @@ static int vzctl_set_tc_param(struct vzctl_env_handle *h, struct vzctl_tc_param 
 		snprintf(buf, sizeof(buf), "TC_HANDLE_BASE=%d", tc_base);
 	envp[i++] = strdup(buf);
 	envp[i++] = strdup("TRAFFIC_SHAPING=yes");
-	snprintf(buf, sizeof(buf), "VEID=%d", eid2veid(h));
+	snprintf(buf, sizeof(buf), "VEID=%d", h->veid);
 	envp[i++] = strdup(buf);
 	if ((p = rate2str(rate)) != NULL) {
 		logger(1, 0, "Setup shaping: %s", p);

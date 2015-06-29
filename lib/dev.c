@@ -62,9 +62,8 @@ int setup_vzlink_dev(struct vzctl_env_handle *h, int flags)
 		.mask = S_IWOTH,
 		.type = S_IFCHR | VE_USE_MINOR,
 	};
-	unsigned veid = eid2veid(h);
 
-	if (veid < 100)
+	if (h->veid < 100)
 		perm.mask |= S_IROTH;
 
 	if (!(flags & VZCTL_SKIP_CONFIGURE))

@@ -45,13 +45,12 @@ static inline int _setioprio(int which, unsigned who, int prio)
 int vz_set_ioprio(struct vzctl_env_handle *h, int prio)
 {
 	int ret;
-	unsigned veid = eid2veid(h);
 
 	if (prio < 0)
 		return VZCTL_E_SET_IO;
 
 	logger(0, 0, "Set up ioprio: %d", prio);
-	ret = _setioprio(IOPRIO_WHO_UBC, veid,
+	ret = _setioprio(IOPRIO_WHO_UBC, h->veid,
 			prio | IOPRIO_CLASS_BE << IOPRIO_CLASS_SHIFT);
 	if (ret) {
 		if (errno == ESRCH)
@@ -75,12 +74,11 @@ int vz_set_iolimit(struct vzctl_env_handle *h, unsigned int limit)
 {
 	int ret;
 	struct iolimit_state io;
-	unsigned veid = eid2veid(h);
 
 	if (limit < 0)
 		return VZCTL_E_SET_IO;
 
-	io.id = veid;
+	io.id = h->veid;
 	// Hardcoded values according the bug #483045
 	io.speed = limit;
 	io.burst = limit * 3;
@@ -107,9 +105,8 @@ int vz_get_iolimit(struct vzctl_env_handle *h, unsigned int *limit)
 {
 	int ret;
 	struct iolimit_state io;
-	unsigned veid = eid2veid(h);
 
-	io.id = veid;
+	io.id = h->veid;
 	ret = ioctl(get_vzctlfd(), VZCTL_GET_IOLIMIT, &io);
 	if (ret == 0)
 		*limit = io.speed;
@@ -126,11 +123,10 @@ int vz_set_iopslimit(struct vzctl_env_handle *h, unsigned int limit)
 {
 	int ret;
 	struct iolimit_state io;
-	unsigned veid = eid2veid(h);
 
 	if (limit < 0)
 		return VZCTL_E_SET_IO;
-	io.id = veid;
+	io.id = h->veid;
 	// Hardcoded values according the bug #483045
 	io.speed = limit;
 	io.burst = limit * 3;
@@ -157,9 +153,8 @@ int vz_get_iopslimit(struct vzctl_env_handle *h, unsigned int *limit)
 {
 	int ret;
 	struct iolimit_state io;
-	unsigned veid = eid2veid(h);
 
-	io.id = veid;
+	io.id = h->veid;
 	ret = ioctl(get_vzctlfd(), VZCTL_GET_IOPSLIMIT, &io);
 	if (ret == 0)
 		*limit = io.speed;

@@ -248,11 +248,10 @@ static int vz_veth_dev_mac_filter(struct vzctl_env_handle *h, struct vzctl_veth_
 {
 	struct vzctl_ve_hwaddr hwaddr = {};
 	int ret;
-	unsigned veid = eid2veid(h);
 
 	hwaddr.op = (dev->mac_filter == VZCTL_PARAM_ON) ? VE_ETH_DENY_MAC_CHANGE :
 					VE_ETH_ALLOW_MAC_CHANGE;
-	hwaddr.veid = veid;
+	hwaddr.veid = h->veid;
 	memcpy(hwaddr.dev_name, dev->dev_name, IFNAMSIZE);
 	memcpy(hwaddr.dev_name_ve, dev->dev_name_ve, IFNAMSIZE);
 	ret = ioctl(get_vzctlfd(), VETHCTL_VE_HWADDR, &hwaddr);
@@ -267,9 +266,8 @@ static int vz_veth_dev_create(struct vzctl_env_handle *h, struct vzctl_veth_dev 
 {
 	struct vzctl_ve_hwaddr hwaddr;
 	int ret;
-	unsigned veid = eid2veid(h);
 
-	hwaddr.veid = veid;
+	hwaddr.veid = h->veid;
 	hwaddr.op = VE_ETH_ADD;
 	memcpy(hwaddr.dev_name, dev->dev_name, IFNAMSIZE);
 	if (dev->mac != NULL) {
@@ -298,13 +296,12 @@ static int vz_veth_dev_remove(struct vzctl_env_handle *h, struct vzctl_veth_dev 
 {
 	struct vzctl_ve_hwaddr hwaddr = {};
 	int ret;
-	unsigned veid = eid2veid(h);
 
 	if (!dev->dev_name[0])
 		return vzctl_err(VZCTL_E_INVAL, 0, "Veth device name is not specified");
 
 	hwaddr.op = VE_ETH_DEL;
-	hwaddr.veid = veid;
+	hwaddr.veid = h->veid;
 	memcpy(hwaddr.dev_name, dev->dev_name, IFNAMSIZE);
 	ret = ioctl(get_vzctlfd(), VETHCTL_VE_HWADDR, &hwaddr);
 	if (ret) {

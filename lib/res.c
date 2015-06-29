@@ -351,13 +351,12 @@ static int set_vswap_limit(struct vzctl_env_handle *h, struct vzctl_env_param *e
 {
 	int ret;
 	struct vzctl_ub_param *ub;
-	unsigned veid = eid2veid(h);
 
 	ret = get_vswap_param(h, env, &ub);
 	if (ret)
 		return ret;
 
-	ret = set_ub(veid, ub);
+	ret = set_ub(h->veid, ub);
 	free_ub_param(ub);
 
 	return ret;
@@ -414,9 +413,8 @@ static int vswap_configure(struct vzctl_env_handle *h, struct vzctl_env_param *e
 
 int vzctl_res_setup_post(struct vzctl_env_handle *h)
 {
-	unsigned veid = eid2veid(h);
 
-	env_ub_set_unl(veid);
+	env_ub_set_unl(h->veid);
 	return set_vswap_limit(h, h->env_param);
 }
 

@@ -243,13 +243,12 @@ int vz_ip_ctl(struct vzctl_env_handle *h, int op, const char *ipstr, int flags)
 	unsigned int addr[4];
 	int family;
 	const char *mes;
-	unsigned veid = eid2veid(h);
 
 	family = get_netaddr(ipstr, addr);
 	if (family == -1)
 		return 0;
 
-	ret = do_ip_ctl(veid, op, family, addr);
+	ret = do_ip_ctl(h->veid, op, family, addr);
 	if (ret) {
 		switch (op) {
 		case VE_IP_ADD:
@@ -439,7 +438,6 @@ int read_proc_veip(struct vzctl_env_handle *h, list_head_t *ip)
         char tmp[65];
         int id, ret;
         FILE *fp;
-	unsigned veid = eid2veid(h);
 
         if ((fp = fopen(PROCVEIP, "r")) == NULL)
                 return -1;
@@ -451,7 +449,7 @@ int read_proc_veip(struct vzctl_env_handle *h, list_head_t *ip)
                 if (sscanf(str, "%64s %d", tmp, &id) != 2)
                         continue;
 
-                if (id != veid)
+                if (id != h->veid)
 			continue;
 
 //		if (get_ip_name(tmp, ip_str, sizeof(ip_str)))
@@ -670,7 +668,6 @@ static int netdev_ctl(unsigned veid, list_head_t *netdev, int op)
 int apply_netdev_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags)
 {
 	int ret;
-	unsigned veid = eid2veid(h);
 
 	if (!is_env_run(h)){
 		logger(-1, 0, "Unable to setup network devices: "
@@ -678,9 +675,9 @@ int apply_netdev_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, 
 		return VZCTL_E_ENV_NOT_RUN;
 	}
 
-	ret = netdev_ctl(veid, &env->netdev->dev_del, VE_NETDEV_DEL);
+	ret = netdev_ctl(h->veid, &env->netdev->dev_del, VE_NETDEV_DEL);
 	if (ret == 0)
-		ret = netdev_ctl(veid, &env->netdev->dev, VE_NETDEV_ADD);
+		ret = netdev_ctl(h->veid, &env->netdev->dev, VE_NETDEV_ADD);
 	return ret;
 }
 

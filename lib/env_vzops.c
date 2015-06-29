@@ -158,10 +158,8 @@ int vzctl_chroot(const char *root)
 int vzctl_setluid(struct vzctl_env_handle *h)
 {
 	int ret;
-	unsigned veid = eid2veid(h);
 
-	logger(10, 0, "* setluid %d", veid);
-	ret = setluid(veid);
+	ret = setluid(h->veid);
 	if (ret == -1) {
 		if (errno == ENOSYS)
 			return vzctl_err(VZCTL_E_SETLUID, 0,
@@ -272,9 +270,8 @@ static int env_kill(struct vzctl_env_handle *h)
 {
 	int ret, i;
 	pid_t *pids = NULL;
-	unsigned veid = eid2veid(h);
 
-	ret = env_get_pids_ioctl(veid, &pids);
+	ret = env_get_pids_ioctl(h->veid, &pids);
 	if (ret < 0)
 		return -1;
 	/* Kill all Container processes from VE0 */
@@ -285,7 +282,7 @@ static int env_kill(struct vzctl_env_handle *h)
 
 	/* Wait for real Container shutdown */
 	for (i = 0; i < (MAX_SHTD_TM / 2); i++) {
-		if (!env_is_run(veid))
+		if (!env_is_run(h->veid))
 			return 0;
 		usleep(500000);
 	}
@@ -296,7 +293,7 @@ static int vz_env_stop(struct vzctl_env_handle *h, int stop_mode)
 {
 	const char *ve_root = h->env_param->fs->ve_root;
 	int pid, child_pid, ret = 0;
-	unsigned veid = eid2veid(h);
+	unsigned veid = h->veid;
 
 	/* Get ips from running Container before stop for latter cleanup */
 	free_ip(&h->env_param->net->ip_del);
@@ -404,7 +401,7 @@ static int env_is_run(unsigned veid)
 
 static int vz_is_env_run(struct vzctl_env_handle *h)
 {
-	return env_is_run(eid2veid(h));
+	return env_is_run(h->veid);
 }
 
 static void build_feature_mask(struct vzctl_features_param *features,
@@ -473,7 +470,6 @@ int _env_create(struct vzctl_env_handle *h, struct start_param *param)
 	struct vzctl_env_create_data env_create_data;
 	struct env_create_param3 create_param;
 	struct vzctl_env_param *env = h->env_param;
-	unsigned veid = eid2veid(h);
 
 	bzero(&create_param, sizeof(struct env_create_param3));
 
@@ -487,7 +483,7 @@ int _env_create(struct vzctl_env_handle *h, struct start_param *param)
 	}
 	build_feature_mask(env->features, &create_param);
 
-	env_create_data.veid = veid;
+	env_create_data.veid = h->veid;
 	env_create_data.class_id = 0;
 	env_create_data.flags = VE_CREATE | VE_EXCLUSIVE;
 	env_create_data.data = &create_param;
@@ -530,7 +526,7 @@ try:
 		return ret;
 	}
 
-	ret = set_virt_osrelease(veid, h->env_param->tmpl->osrelease);
+	ret = set_virt_osrelease(h->veid, h->env_param->tmpl->osrelease);
 	if (ret)
 		return ret;
 
@@ -807,12 +803,11 @@ err:
 static int vz_env_enter(struct vzctl_env_handle *h, int flags)
 {
 	int ret;
-	unsigned veid = eid2veid(h);
 
 	if ((ret = vzctl_chroot(h->env_param->fs->ve_root)))
 		return ret;
 
-	if (env_create_ioctl(veid, VE_ENTER |
+	if (env_create_ioctl(h->veid, VE_ENTER |
 				(flags & VE_SKIPLOCK)) < 0)
 		return vzctl_err(errno == ESRCH ? VZCTL_E_ENV_NOT_RUN : VZCTL_E_ENVCREATE,
 				errno, "Failed to enter");
@@ -898,9 +893,8 @@ err:
 static int vz_env_set_devperm(struct vzctl_env_handle *h, struct vzctl_dev_perm *perm)
 {
         struct vzctl_setdevperms devperms;
-	unsigned veid = eid2veid(h);
 
-        devperms.veid = veid;
+        devperms.veid = h->veid;
         devperms.dev = perm->dev;
         devperms.mask = perm->mask;
         devperms.type = perm->type;

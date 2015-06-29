@@ -68,7 +68,7 @@ int apply_meminfo_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 			param->mode != VE_MEMINFO_NONE)
 		return 0;
 
-	meminfo.veid = eid2veid(h);
+	meminfo.veid = h->veid;
 	switch (param->mode) {
 	case VE_MEMINFO_NONE:
 		logger(0, 0, "Configure meminfo: none");
