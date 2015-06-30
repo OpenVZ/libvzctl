@@ -905,50 +905,35 @@ int vzctl2_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 	return get_env_ops()->env_chkpnt(h, cmd, param, flags);
 }
 
-extern int set_ns(pid_t pid, const char *name, int flags);
-
-static void do_announce_ips(pid_t ve_pid)
+static int _announce_ips(pid_t pid)
 {
-	int i;
 	char script_bin[PATH_MAX];
 	char ve_root_via_proc[PATH_MAX];
 	char *arg[] = {script_bin, ve_root_via_proc, NULL};
-	const char *ns[] = {"net", "uts", "ipc", "pid"};
-
-	for (i = 0; i < sizeof(ns) / sizeof(ns[0]); ++i) {
-		if (set_ns(ve_pid, ns[i], 0)) {
-			logger(-1, errno, "Cannot switch to namespace %s\n", ns[i]);
-			return;
-		}
-	}
-
+	
 	get_script_path(VZCTL_ANNOUNCE_IPS, script_bin, sizeof(script_bin));
-	snprintf(ve_root_via_proc, sizeof(ve_root_via_proc), "/proc/%d/root", ve_pid);
+	snprintf(ve_root_via_proc, sizeof(ve_root_via_proc),
+			"/proc/%d/root", pid);
 
-	vzctl2_wrap_exec_script(arg, NULL, 0);
+	return vzctl2_wrap_exec_script(arg, NULL, 0);
 }
 
-static void announce_ips(struct vzctl_env_handle *h)
+static int announce_ips(struct vzctl_env_handle *h)
 {
-	pid_t ve_first_pid = -1;
-	pid_t p;
+	int ret;
+	pid_t ct_pid, pid;
 
-	logger(-1, 0, "%s", h->ctid);
-	if (cg_env_get_first_pid(h->ctid, &ve_first_pid)) {
-		logger(-1, 0, "First pid was not found\n");
-		return;
-	}
+	pid = fork();
+	if (pid == 0) {
+		ret = enter_net_ns(h, &ct_pid);
+		if (ret == 0)
+			ret = _announce_ips(ct_pid);
 
-	if ((p = fork()) == 0) {
-		do_announce_ips(ve_first_pid);
-		_exit(0);
-	}
-	if (p < 0) {
-		logger(-1, errno, "Unable to fork!\n");
-		return;
-	}
+		_exit(ret);
+	} else if (pid < 0)
+		return vzctl_err(-1, errno, "Unable to fork!\n");
 
-	env_wait(p, 0, NULL);
+	return env_wait(pid, 0, NULL);
 }
 
 int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param, int flags)
