@@ -721,6 +721,25 @@ int set_ns(pid_t pid, const char *name, int flags)
 	return ret;
 }
 
+int enter_net_ns(struct vzctl_env_handle *h, pid_t *ct_pid)
+{
+	pid_t pid;
+	int i;
+	const char *ns[] = {"net", "uts", "ipc", "pid"};
+
+	if (cg_env_get_first_pid(h->ctid, &pid))
+		return -1;
+
+	for (i = 0; i < sizeof(ns) / sizeof(ns[0]); ++i)
+		if (set_ns(pid, ns[i], 0))
+			return vzctl_err(-1, errno,
+					"Cannot switch to namespace %s", ns[i]);
+	if (ct_pid != NULL)
+		*ct_pid = pid;
+
+	return 0;
+}
+
 static int ns_env_enter(struct vzctl_env_handle *h, int flags)
 {
 	DIR *dp;
@@ -1170,10 +1189,56 @@ static int ns_get_veip(struct vzctl_env_handle *h, list_head_t *list)
 	return cg_get_veip(EID(h), list);
 }
 
-static int veth_configure(struct vzctl_veth_dev *veth)
+static int _set_mac_filter(struct vzctl_env_handle *h,
+		struct vzctl_veth_dev *veth)
 {
 	int sk, ret;
-	struct ifreq req;
+	struct ifreq req = {};
+	int deny = veth->mac_filter == VZCTL_PARAM_OFF ? 0 : 1;
+
+	logger(3, 0, "%s to change mac for %s",
+			deny ? "Deny" : "Allow",
+			veth->dev_name_ve);
+
+	if (enter_net_ns(h, NULL))
+		return -1;
+
+	sk = socket(AF_UNIX, SOCK_DGRAM, 0);
+	if (sk < 0)
+		return vzctl_err(-1, errno, "Can't create socket");
+
+	strncpy(req.ifr_ifrn.ifrn_name, veth->dev_name_ve,
+			sizeof(req.ifr_ifrn.ifrn_name) - 1);
+	req.ifr_ifru.ifru_flags = deny;
+
+	ret = ioctl(sk, SIOCSFIXEDADDR, &req);
+	if (ret)
+		ret = vzctl_err(-1, errno, "ioctl SIOCSFIXEDADDR %s",
+				veth->dev_name);
+	close(sk);
+
+	return ret;
+}
+
+static int set_mac_filter(struct vzctl_env_handle *h,
+		struct vzctl_veth_dev *veth)
+{
+	pid_t pid;
+
+	pid = fork();
+	if (pid < 0)
+		return vzctl_err(-1, errno, "Cannot fork");
+	else if (pid == 0)
+		_exit(_set_mac_filter(h, veth));
+
+	return env_wait(pid, 0, NULL);
+}
+
+static int veth_configure(struct vzctl_env_handle *h,
+		struct vzctl_veth_dev *veth)
+{
+	int sk, ret;
+	struct ifreq req = {};
 
 	sk = socket(AF_UNIX, SOCK_DGRAM, 0);
 	if (sk < 0)
@@ -1188,18 +1253,9 @@ static int veth_configure(struct vzctl_veth_dev *veth)
 		goto err;
 	}
 
-	if (veth->mac_filter) {
-		int deny = veth->mac_filter == VZCTL_PARAM_OFF ? 0 : 1;
+	if (veth->mac_filter && set_mac_filter(h, veth))
+		goto err;	
 
-		logger(3, 0, "%s to change mac for %s",
-			deny ? "Deny" : "Allow", veth->dev_name_ve);
-		req.ifr_ifru.ifru_flags = deny;
-		if (ioctl(sk, SIOCSFIXEDADDR, &req)) {
-			logger(-1, errno, "ioctl SIOCSFIXEDADDR %s",
-					veth->dev_name);
-			goto err;
-		}
-	}
 	ret = 0;
 
 err:
@@ -1275,7 +1331,7 @@ static int ns_veth_ctl(struct vzctl_env_handle *h, int op,
 		return ret;
 
 	if (op == ADD)
-		ret = veth_configure(dev);
+		ret = veth_configure(h, dev);
 
 	return ret;
 }
