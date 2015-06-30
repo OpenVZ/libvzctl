@@ -828,6 +828,7 @@ static int env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
 			_exit(ret);
 		} else if (pid == 0) {
 			char prompt[32];
+			char id[12];
 			char buf[64];
 			char *term;
 			char *arg[] = {"-bash", NULL};
@@ -844,9 +845,8 @@ static int env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
 			dup2(slave, 2);
 			close(slave);
 			close(in[0]); close(out[1]); close(st[1]); close(info[0]);
-
-			snprintf(prompt, sizeof(prompt), "PS1=CT-%s\\s-\\v\\$ ",
-					EID(h));
+			snprintf(id, sizeof(id), "CT-%s", EID(h));
+			snprintf(prompt, sizeof(prompt), "PS1=%s \\W\\$ ", id);
 
 			if ((term = getenv("TERM")) != NULL) {
 				snprintf(buf, sizeof(buf), "TERM=%s", term);
