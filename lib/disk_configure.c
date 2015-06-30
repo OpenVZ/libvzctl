@@ -317,9 +317,6 @@ int configure_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk, dev_t de
 		.automount = automount
 	};
 
-	if (disk->mnt == NULL)
-		return 0;
-
 	if (vzctl2_env_exec_fn2(h, (execFn) env_configure_disk, &param, VZCTL_SCRIPT_EXEC_TIMEOUT,
 				(flags & VZCTL_RESTORE ? VE_SKIPLOCK : 0)))
 		return vzctl_err(VZCTL_E_DISK_CONFIGURE, 0, "Failed to configure disk");
