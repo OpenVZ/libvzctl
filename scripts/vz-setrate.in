@@ -307,7 +307,7 @@ vzcheck_TOTALRATE()
 
 	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return;
 
-	vzcheckvar BANDWIDTH TOTALRATE RATEMPU
+	vzcheckvar BANDWIDTH TOTALRATE
 
 	[ -z "${NETDEVICES}" ] && vzgetnetdev
 	expand_DEV ${BANDWIDTH}
@@ -520,7 +520,7 @@ vzcheck_RATE()
 	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return
 	[ -z "${RATE}" ] && return
 
-	vzcheckvar BANDWIDTH TOTALRATE RATE RATEMPU
+	vzcheckvar BANDWIDTH TOTALRATE RATE
 
 	[ -z "${NETDEVICES}" ] && vzgetnetdev
 	expand_DEV ${BANDWIDTH}
@@ -800,7 +800,7 @@ vzadd_ve_sh_classes()
 	local CLASS_HEX;
 	local TC_CLASS_HEX;
 	local TMP;
-	local ratempu, MPU=;
+	local ratempu MPU=;
 
 	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return;
 
