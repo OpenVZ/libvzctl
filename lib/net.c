@@ -361,10 +361,11 @@ int run_net_script(struct vzctl_env_handle *h, const char *script,
 		list_head_t *ip, int flags)
 {
 	char *argv[2];
-	char *envp[255];
+	char *envp[5];
 	char veid_str[64];
 	char *ip_str;
 	char buf[STR_SIZE];
+	char s_state[STR_SIZE];
 	int ret = 0, i = 0;
 
 	if (list_empty(ip))
@@ -375,7 +376,10 @@ int run_net_script(struct vzctl_env_handle *h, const char *script,
 	envp[i++] = ip_str;
 	if (flags & VZCTL_SKIP_ARPDETECT)
 		envp[i++] = "SKIP_ARPDETECT=yes";
+	snprintf(s_state, sizeof(s_state), "VE_STATE=%s", get_state(h));
+	envp[i++] = s_state;
 	envp[i] = NULL;
+
 	argv[0] = get_script_path(script, buf, sizeof(buf));
 	argv[1] = NULL;
 	ret = vzctl2_wrap_exec_script(argv, envp, 0);
