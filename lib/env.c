@@ -143,7 +143,7 @@ static int run_start_script(struct vzctl_env_handle *h)
 	return vzctl2_wrap_exec_script(arg, env, 0);
 }
 
-static int run_stop_script(struct vzctl_env_handle *h, list_head_t *ips)
+int run_stop_script(struct vzctl_env_handle *h, list_head_t *ips)
 {
 	char buf[STR_SIZE];
 	char *arg[2];
