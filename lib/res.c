@@ -243,8 +243,6 @@ static int update_vswap_param(struct vzctl_env_handle *h, struct vzctl_env_param
 
 	switch(get_conf_mm_mode(h->env_param->res)) {
 	case MM_VSWAP:
-		logger(1, 0, "VSwap mode");
-
 		if (h->env_param->res->slm->memorylimit != NULL)
 			logger(0, 0, "Warning: the old slmmemorylimit=%lu parameter is skipped.",
 					h->env_param->res->slm->memorylimit->quality);
@@ -277,7 +275,7 @@ static int update_vswap_param(struct vzctl_env_handle *h, struct vzctl_env_param
 			fill_vswap_param(h, vswap_param, ram, swap, overcommit);
 		break;
 	case MM_SLM:
-		logger(0, 0, "Warning: VSwap_slm compatiblity mode");
+		logger(3, 0, "Warning: VSwap_slm compatiblity mode");
 
 		if (ub->physpages == NULL || ub->swappages == NULL)
 			get_ub_resources(EID(h), ram, swap);
@@ -308,7 +306,7 @@ static int update_vswap_param(struct vzctl_env_handle *h, struct vzctl_env_param
 			fill_vswap_param(h, vswap_param, ram, swap, 1.0);
 		break;
 	default:
-		logger(0, 0, "Warning: VSwap_ub compatiblity mode");
+		logger(3, 0, "Warning: VSwap_ub compatiblity mode");
 		if (vswap_param->privvmpages != NULL) {
 			ram[0] =  ub->privvmpages->b;
 			ram[1] =  ub->privvmpages->l;
