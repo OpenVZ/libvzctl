@@ -193,25 +193,6 @@ int env_destroy_prvt(const char *dir, int layout)
 	return destroydir(dir);
 }
 
-static int destroy_vzcache(struct vzctl_env_handle *h)
-{
-	char *arg[6];
-
-	if (h->env_param->fs->layout >= VZCTL_LAYOUT_5)
-		return 0;
-
-	if (stat_file(VZCACHE))
-		return 0;
-
-	arg[0] = VZCACHE;
-	arg[1] = "--delete";
-	arg[2] = "--quiet";
-	arg[3] = "--skiplock";
-	arg[4] = EID(h);
-	arg[5] = NULL;
-	return vzctl2_wrap_exec_script(arg, NULL, 0);
-}
-
 static void destroy_conf(struct vzctl_env_handle *h)
 {
 	int i;
@@ -287,7 +268,6 @@ int vzctl2_env_destroy(struct vzctl_env_handle *h, int flags)
 		}
 	}
 
-	destroy_vzcache(h);
 	remove_names(h);
 
 	ret = vzctl2_env_unreg(h, 0);

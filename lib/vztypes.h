@@ -76,7 +76,6 @@
 #define VZPKGINFO		"/usr/bin/vzpkginfo"
 #define VZPKGADD		"/usr/sbin/vzpkgadd"
 #define VZPKG			"/usr/sbin/vzpkg"
-#define VZCACHE			"/usr/sbin/vzcache"
 
 #define QUOTA_U			"/aquota.user"
 #define QUOTA_G			"/aquota.group"
