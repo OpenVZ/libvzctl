@@ -1904,10 +1904,10 @@ int vzctl2_env_set_veth_param(struct vzctl_veth_dev *dev, struct vzctl_veth_dev_
 	struct vzctl_ip_param *ip = NULL;
 	struct vzctl_veth_dev_param tmp = {};
 
-	memcpy(&tmp, param, size);
-
 	if (param == NULL || tmp.dev_name_ve == NULL)
 		return VZCTL_E_INVAL;
+
+	memcpy(&tmp, param, size);
 
 	if (strlen(tmp.dev_name_ve) >= IFNAMSIZE)
 		return VZCTL_E_INVAL;
