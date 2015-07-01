@@ -315,6 +315,9 @@ static int cg_destroy(const char *ctid, struct cg_ctl *ctl)
 {
 	char path[PATH_MAX];
 	struct stat st;
+	struct vzctl_str_param *it;
+	LIST_HEAD(dirs);
+	int ret = 0;
 
 	if (ctl->mount_path == NULL)
 		return 0;
@@ -324,10 +327,17 @@ static int cg_destroy(const char *ctid, struct cg_ctl *ctl)
 		return 0;
 
 	logger(3, 0, "Destroy cgroup %s", path);
-	if (rmdir(path))
-		return vzctl_err(-1, errno, "Uanble to destroy %s",
-				path);
-	return 0;
+	if (get_dir_list(&dirs, path, -1))
+		return -1;
+
+	list_for_each_prev(it, &dirs, list) {
+		if (rmdir(it->str))
+			ret = vzctl_err(-1, errno, "Cannot rmdir %s", it->str);
+	}
+
+	free_str(&dirs);
+
+	return ret;
 }
 
 int cg_new_cgroup(const char *ctid)

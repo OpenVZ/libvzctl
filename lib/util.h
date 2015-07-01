@@ -217,6 +217,7 @@ int is_ip6(const char *ip);
 int get_eid(const char *uuid, ctid_t out);
 void generate_eid(ctid_t ctid);
 const char *get_devname(const char *device);
+int get_dir_list(list_head_t *head, const char *root, int level);
 #ifdef __cplusplus
 }
 #endif
