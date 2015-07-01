@@ -1422,7 +1422,12 @@ int get_cid_uuid_pair(const char *ctid, const char *uuid,
 	 * CTID =UUID
 	 */
 	if (vzctl2_get_normalized_uuid(ctid, ctid_out, sizeof(ctid_t)) == 0) {
-		SET_CTID(uuid_out, ctid_out);
+		if (uuid != NULL) {
+			if (vzctl2_get_normalized_uuid(uuid, uuid_out, sizeof(ctid_t)))
+				return VZCTL_E_INVAL;
+		} else
+			SET_CTID(uuid_out, ctid_out);
+
 		return 0;
 	}
 
