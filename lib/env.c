@@ -1912,7 +1912,7 @@ int vzctl2_env_set_veth_param(struct vzctl_veth_dev *dev, struct vzctl_veth_dev_
 	struct vzctl_ip_param *ip = NULL;
 	struct vzctl_veth_dev_param tmp = {};
 
-	if (param == NULL || tmp.dev_name_ve == NULL)
+	if (param == NULL || param->dev_name_ve == NULL)
 		return VZCTL_E_INVAL;
 
 	memcpy(&tmp, param, size);
