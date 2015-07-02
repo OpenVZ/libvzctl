@@ -1387,12 +1387,15 @@ struct vzctl_env_handle *vzctl2_env_open_conf(const ctid_t ctid,
 		lckfd = vzctl_env_conf_lock(h, VZCTL_LOCK_SH);
 	}
 
+	if (flags & VZCTL_CONF_SKIP_PARSE)
+		goto out;
+
 	*err = conf_parse(h->conf, fname, flags);
 	if (*err)
 		goto err;
 
 	*err = vzctl_update_env_param(h, flags);
-
+out:
 	vzctl_env_conf_unlock(lckfd);
 	return h;
 err:

@@ -157,6 +157,7 @@ enum vzctl_config_flags {
 						  IP_ADDRESS, OSTEMPLATE. VE_PRIVATE, ... */
 	VZCTL_CONF_USE_RELATIVE_PATH	= 0x10,
 	VZCTL_CONF_SKIP_PARAM_ERRORS	= 0x20,
+	VZCTL_CONF_SKIP_PARSE		= 0x40,
 };
 
 /** Exec modes.
