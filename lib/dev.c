@@ -87,7 +87,7 @@ static int remove_tmpfiles_caps(void)
 	char string_buf[STR_MAX];
 	struct stat st;
 	int substituted = 0;
-	int ret = 0;
+	int ret = -1;
 	int len;
 
 	if (stat(tmpfiles_unit, &st)) {
@@ -101,7 +101,6 @@ static int remove_tmpfiles_caps(void)
 
 	if ((fp_dst = fopen(tmpfiles_unit_t, "w")) == NULL) {
 		logger(-1, errno, "Failed to open %s for write", tmpfiles_unit_t);
-		ret = -1;
 		goto cleanup1;
 	}
 
@@ -116,21 +115,18 @@ static int remove_tmpfiles_caps(void)
 
 		if (fwrite(string_buf, 1, len, fp_dst) < len) {
 			logger(-1, errno, "Failed to write %s", tmpfiles_unit_t);
-			ret = -1;
 			goto cleanup2;
 		}
 	}
 
 	if (ferror(fp_src) || !feof(fp_src)) {
 		logger(-1, errno, "fgets() from %s error", tmpfiles_unit);
-		ret = -1;
 		goto cleanup2;
 	}
 
 	if (substituted) {
 		if (rename(tmpfiles_unit_t, tmpfiles_unit)) {
 			logger(-1, errno, "Failed to move %s to %s", tmpfiles_unit_t, tmpfiles_unit);
-			ret = -1;
 			goto cleanup2;
 		}
 		if (lchown(tmpfiles_unit, st.st_uid, st.st_gid))
@@ -140,6 +136,8 @@ static int remove_tmpfiles_caps(void)
 	} else {
 		unlink(tmpfiles_unit_t);
 	}
+
+	ret = 0;
 
 cleanup2:
 	fclose(fp_dst);
