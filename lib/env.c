@@ -2365,18 +2365,9 @@ int vzctl2_env_set_ve_root_path(struct vzctl_env_param *env,
 
 int vzctl2_get_name(struct vzctl_env_handle *h, const char **name)
 {
-	const char *_name = h->env_param->name->name;
-	ctid_t ctid;
+	*name = h->env_param->name->name;
 
-	if (_name == NULL)
-		return -1;
-	if (vzctl2_get_envid_by_name(_name, ctid) != 0)
-		return -1;
-	if (CMP_CTID(ctid, EID(h)))
-		return -1;
-	*name = _name;
-
-	return 0;
+	return name != NULL ? 0 : -1;
 }
 
 int vzctl2_env_get_name(struct vzctl_env_handle *h, const char **name)
