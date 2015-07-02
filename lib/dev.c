@@ -102,7 +102,6 @@ static int remove_tmpfiles_caps(void)
 		logger(-1, errno, "Failed to open %s for write", tmpfiles_unit_t);
 		ret = -1;
 		goto cleanup1;
-		return -1;
 	}
 
 	while (fgets(string_buf, STR_MAX, fp_src))
