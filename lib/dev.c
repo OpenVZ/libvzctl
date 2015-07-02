@@ -85,27 +85,26 @@ static int remove_tmpfiles_caps(void)
 	char tmpfiles_unit[] = SYSTEMD_TMPFILES_SERVICE_CAP;
 	char tmpfiles_unit_t[] = SYSTEMD_TMPFILES_SERVICE_CAP_TMP;
 	char string_buf[STR_MAX];
+	struct stat st;
 	int substituted = 0;
 	int ret = 0;
 
 	if (access(tmpfiles_unit, F_OK) != 0)
 		return 0;
 
-	if ((fp_src = fopen(tmpfiles_unit, "r+")) == NULL)
-	{
-		logger(-1, errno, "Failed to open %s for read", tmpfiles_unit);
-		return -1;
-	}
+	if (stat(tmpfiles_unit, &st))
+		vzctl_err(-1, errno, "Failed to stat %s", tmpfiles_unit);
 
-	if ((fp_dst = fopen(tmpfiles_unit_t, "w")) == NULL)
-	{
+	if ((fp_src = fopen(tmpfiles_unit, "r+")) == NULL)
+		vzctl_err(-1, errno, "Failed to open %s for read", tmpfiles_unit);
+
+	if ((fp_dst = fopen(tmpfiles_unit_t, "w")) == NULL) {
 		logger(-1, errno, "Failed to open %s for write", tmpfiles_unit_t);
 		ret = -1;
 		goto cleanup1;
 	}
 
-	while (fgets(string_buf, STR_MAX, fp_src))
-	{
+	while (fgets(string_buf, STR_MAX, fp_src)) {
 		if (strstr(string_buf, CAP_SYS_MODULE_STR)) {
 			string_buf[0] = '\n';
 			string_buf[1] = 0;
@@ -119,16 +118,22 @@ static int remove_tmpfiles_caps(void)
 		}
 	}
 
-	if (ferror(fp_src) || !feof(fp_src))
-	{
+	if (ferror(fp_src) || !feof(fp_src)) {
 		logger(-1, errno, "fgets() from %s error", tmpfiles_unit);
 		ret = -1;
 		goto cleanup2;
 	}
 
-	if (substituted && rename(tmpfiles_unit_t, tmpfiles_unit)) {
-		logger(-1, errno, "Failed to move %s to %s", tmpfiles_unit_t, tmpfiles_unit);
-		ret = -1;
+	if (substituted) {
+		if (rename(tmpfiles_unit_t, tmpfiles_unit)) {
+			logger(-1, errno, "Failed to move %s to %s", tmpfiles_unit_t, tmpfiles_unit);
+			ret = -1;
+			goto cleanup2;
+		}
+		if (lchown(tmpfiles_unit, st.st_uid, st.st_gid))
+			logger(-1, errno, "Can set owner for %s", tmpfiles_unit);
+		if (chmod(tmpfiles_unit, st.st_mode & 07777))
+			logger(-1, errno, "Can set mode for %s", tmpfiles_unit);
 	} else {
 		unlink(tmpfiles_unit_t);
 	}
