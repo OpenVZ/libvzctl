@@ -888,7 +888,6 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 	int ha_resource_added = 0;
 	int ha_enable = 0;
 	const char *data, *name;
-	unsigned long ul;
 	ctid_t ctid = {};
 	ctid_t eid_old = {};
 	ctid_t uuid = {};
@@ -1010,9 +1009,7 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 		fclose(fp);
 	}
 
-	/* Compatibility ctid = VEID */
-	if (parse_ul(ctid, &ul) == 0)
-		vzctl2_env_set_param(h, "VEID", ctid);
+	vzctl2_env_set_param(h, "VEID", ctid);
 	/* Update UUID */
 	vzctl2_env_set_param(h, "UUID", uuid);
 
