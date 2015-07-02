@@ -1945,6 +1945,7 @@ int vzctl2_env_set_veth_param(struct vzctl_veth_dev *dev, struct vzctl_veth_dev_
 	}
 	if (tmp.gw != NULL) {
 		free(dev->gw);
+		dev->gw = NULL;
 		if (tmp.gw[0] == '\0')
 			dev->gw = strdup("");
 		else if (parse_ip(tmp.gw, &ip) == 0) {
@@ -1956,6 +1957,7 @@ int vzctl2_env_set_veth_param(struct vzctl_veth_dev *dev, struct vzctl_veth_dev_
 	}
 	if (tmp.gw6 != NULL) {
 		free(dev->gw6);
+		dev->gw6 = NULL;
 		if (tmp.gw6[0] == '\0')
 			dev->gw6 = strdup("");
 		else if (parse_ip(tmp.gw6, &ip) == 0) {
