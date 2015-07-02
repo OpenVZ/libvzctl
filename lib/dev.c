@@ -75,6 +75,78 @@ int setup_vzlink_dev(struct vzctl_env_handle *h, int flags)
 	return 0;
 }
 
+#define CAP_SYS_MODULE_STR "ConditionCapability=CAP_SYS_MODULE"
+#define SYSTEMD_TMPFILES_SERVICE_CAP "/lib/systemd/system/systemd-tmpfiles-setup-dev.service"
+#define SYSTEMD_TMPFILES_SERVICE_CAP_TMP SYSTEMD_TMPFILES_SERVICE_CAP "_tmp"
+
+static int remove_tmpfiles_caps(void)
+{
+	FILE *fp_src, *fp_dst;
+	char tmpfiles_unit[] = SYSTEMD_TMPFILES_SERVICE_CAP;
+	char tmpfiles_unit_t[] = SYSTEMD_TMPFILES_SERVICE_CAP_TMP;
+	char string_buf[STR_MAX];
+	struct stat st;
+	int substituted = 0;
+	int ret = -1;
+	int len;
+
+	if (stat(tmpfiles_unit, &st)) {
+		if (errno == ENOENT)
+			return 0;
+		return vzctl_err(-1, errno, "Failed to stat %s", tmpfiles_unit);
+	}
+
+	if ((fp_src = fopen(tmpfiles_unit, "r")) == NULL)
+		return vzctl_err(-1, errno, "Failed to open %s for read", tmpfiles_unit);
+
+	if ((fp_dst = fopen(tmpfiles_unit_t, "w")) == NULL) {
+		logger(-1, errno, "Failed to open %s for write", tmpfiles_unit_t);
+		goto cleanup1;
+	}
+
+	while (fgets(string_buf, sizeof(string_buf), fp_src)) {
+		if (strstr(string_buf, CAP_SYS_MODULE_STR)) {
+			string_buf[0] = '\n';
+			string_buf[1] = 0;
+			substituted = 1;
+		}
+
+		len = strlen(string_buf);
+
+		if (fwrite(string_buf, 1, len, fp_dst) < len) {
+			logger(-1, errno, "Failed to write %s", tmpfiles_unit_t);
+			goto cleanup2;
+		}
+	}
+
+	if (ferror(fp_src) || !feof(fp_src)) {
+		logger(-1, errno, "fgets() from %s error", tmpfiles_unit);
+		goto cleanup2;
+	}
+
+	if (substituted) {
+		if (rename(tmpfiles_unit_t, tmpfiles_unit)) {
+			logger(-1, errno, "Failed to move %s to %s", tmpfiles_unit_t, tmpfiles_unit);
+			goto cleanup2;
+		}
+		if (lchown(tmpfiles_unit, st.st_uid, st.st_gid))
+			logger(-1, errno, "Can set owner for %s", tmpfiles_unit);
+		if (chmod(tmpfiles_unit, st.st_mode & 07777))
+			logger(-1, errno, "Can set mode for %s", tmpfiles_unit);
+	} else {
+		unlink(tmpfiles_unit_t);
+	}
+
+	ret = 0;
+
+cleanup2:
+	fclose(fp_dst);
+cleanup1:
+	fclose(fp_src);
+
+	return ret;
+}
+
 static int create_tmpfiles(const char *name, const char *alias, mode_t mode, dev_t dev)
 {
 	FILE *fp;
@@ -91,7 +163,7 @@ static int create_tmpfiles(const char *name, const char *alias, mode_t mode, dev
 			name, gnu_dev_major(dev), gnu_dev_minor(dev));
 	fclose(fp);
 
-	return 0;
+	return remove_tmpfiles_caps();
 }
 
 static const char *get_static_dev_dir(void)
