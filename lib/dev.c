@@ -75,6 +75,73 @@ int setup_vzlink_dev(struct vzctl_env_handle *h, int flags)
 	return 0;
 }
 
+#define CAP_SYS_MODULE_STR "ConditionCapability=CAP_SYS_MODULE"
+#define SYSTEMD_TMPFILES_SERVICE_CAP "/lib/systemd/system/systemd-tmpfiles-setup-dev.service"
+#define SYSTEMD_TMPFILES_SERVICE_CAP_TMP SYSTEMD_TMPFILES_SERVICE_CAP "_tmp"
+
+static int remove_tmpfiles_caps(void)
+{
+	FILE *fp_src, *fp_dst;
+	char tmpfiles_unit[] = SYSTEMD_TMPFILES_SERVICE_CAP;
+	char tmpfiles_unit_t[] = SYSTEMD_TMPFILES_SERVICE_CAP_TMP;
+	char string_buf[STR_MAX];
+	int substituted = 0;
+	int ret = 0;
+
+	if (access(tmpfiles_unit, F_OK) != 0)
+		return 0;
+
+	if ((fp_src = fopen(tmpfiles_unit, "r+")) == NULL)
+	{
+		logger(-1, errno, "Failed to open %s for read", tmpfiles_unit);
+		return -1;
+	}
+
+	if ((fp_dst = fopen(tmpfiles_unit_t, "w")) == NULL)
+	{
+		logger(-1, errno, "Failed to open %s for write", tmpfiles_unit_t);
+		ret = -1;
+		goto cleanup1;
+		return -1;
+	}
+
+	while (fgets(string_buf, STR_MAX, fp_src))
+	{
+		if (strstr(string_buf, CAP_SYS_MODULE_STR)) {
+			string_buf[0] = '\n';
+			string_buf[1] = 0;
+			substituted = 1;
+		}
+
+		if (fwrite(string_buf, 1, strlen(string_buf), fp_dst) < strlen(string_buf)) {
+			logger(-1, errno, "Failed to write %s", tmpfiles_unit_t);
+			ret = -1;
+			goto cleanup2;
+		}
+	}
+
+	if (ferror(fp_src) || !feof(fp_src))
+	{
+		logger(-1, errno, "fgets() from %s error", tmpfiles_unit);
+		ret = -1;
+		goto cleanup2;
+	}
+
+	if (substituted && rename(tmpfiles_unit_t, tmpfiles_unit)) {
+		logger(-1, errno, "Failed to move %s to %s", tmpfiles_unit_t, tmpfiles_unit);
+		ret = -1;
+	} else {
+		unlink(tmpfiles_unit_t);
+	}
+
+cleanup2:
+	fclose(fp_dst);
+cleanup1:
+	fclose(fp_src);
+
+	return ret;
+}
+
 static int create_tmpfiles(const char *name, const char *alias, mode_t mode, dev_t dev)
 {
 	FILE *fp;
@@ -91,7 +158,7 @@ static int create_tmpfiles(const char *name, const char *alias, mode_t mode, dev
 			name, gnu_dev_major(dev), gnu_dev_minor(dev));
 	fclose(fp);
 
-	return 0;
+	return remove_tmpfiles_caps();
 }
 
 static const char *get_static_dev_dir(void)
