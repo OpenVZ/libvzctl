@@ -499,7 +499,7 @@ int vzctl2_get_envid_by_name(const char *name, ctid_t ctid)
 	if (stat_file(buf) != 1)
 		return -1;
 
-	h = vzctl2_env_open_conf(NULL, buf, 0, &ret);
+	h = vzctl2_env_open_conf(NULL, buf, VZCTL_CONF_SKIP_GLOBAL, &ret);
 	if (ret)
 		return -1;
 
@@ -511,9 +511,6 @@ int vzctl2_get_envid_by_name(const char *name, ctid_t ctid)
 		const char *id = NULL;
 
 		vzctl2_env_get_param(h, "VEID", &id);
-		if (id == NULL || *id == '\0')
-			id = h->env_param->misc->uuid;
-		
 		ret = vzctl2_parse_ctid(id, ctid);
 	}
 
