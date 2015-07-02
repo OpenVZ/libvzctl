@@ -88,15 +88,16 @@ static int remove_tmpfiles_caps(void)
 	struct stat st;
 	int substituted = 0;
 	int ret = 0;
+	int len;
 
-	if (access(tmpfiles_unit, F_OK) != 0)
-		return 0;
+	if (stat(tmpfiles_unit, &st)) {
+		if (errno == ENOENT)
+			return 0;
+		return vzctl_err(-1, errno, "Failed to stat %s", tmpfiles_unit);
+	}
 
-	if (stat(tmpfiles_unit, &st))
-		vzctl_err(-1, errno, "Failed to stat %s", tmpfiles_unit);
-
-	if ((fp_src = fopen(tmpfiles_unit, "r+")) == NULL)
-		vzctl_err(-1, errno, "Failed to open %s for read", tmpfiles_unit);
+	if ((fp_src = fopen(tmpfiles_unit, "r")) == NULL)
+		return vzctl_err(-1, errno, "Failed to open %s for read", tmpfiles_unit);
 
 	if ((fp_dst = fopen(tmpfiles_unit_t, "w")) == NULL) {
 		logger(-1, errno, "Failed to open %s for write", tmpfiles_unit_t);
@@ -104,14 +105,16 @@ static int remove_tmpfiles_caps(void)
 		goto cleanup1;
 	}
 
-	while (fgets(string_buf, STR_MAX, fp_src)) {
+	while (fgets(string_buf, sizeof(string_buf), fp_src)) {
 		if (strstr(string_buf, CAP_SYS_MODULE_STR)) {
 			string_buf[0] = '\n';
 			string_buf[1] = 0;
 			substituted = 1;
 		}
 
-		if (fwrite(string_buf, 1, strlen(string_buf), fp_dst) < strlen(string_buf)) {
+		len = strlen(string_buf);
+
+		if (fwrite(string_buf, 1, len, fp_dst) < len) {
 			logger(-1, errno, "Failed to write %s", tmpfiles_unit_t);
 			ret = -1;
 			goto cleanup2;
