@@ -222,6 +222,21 @@ kill:
 			" operation timed out");
 }
 
+static int do_env_post_stop(struct vzctl_env_handle *h, list_head_t *ips,
+		int flags)
+{
+	int ret = 0;
+
+	vzctl2_unregister_running_state(h->env_param->fs->ve_private);
+
+	if (!(flags & VZCTL_SKIP_UMOUNT))
+		ret = vzctl2_env_umount(h, flags);
+
+	run_stop_script(h, ips);
+
+	return ret;
+}
+
 int vzctl2_env_stop(struct vzctl_env_handle *h, stop_mode_e stop_mode, int flags)
 {
 	int ret;
@@ -263,13 +278,9 @@ int vzctl2_env_stop(struct vzctl_env_handle *h, stop_mode_e stop_mode, int flags
 	if ((ret = do_env_stop(h, stop_mode)))
 		goto end;
 
-	vzctl2_unregister_running_state(h->env_param->fs->ve_private);
-
 	logger(0, 0, "Container was stopped");
-	if (!(flags & VZCTL_SKIP_UMOUNT))
-		ret = vzctl2_env_umount(h, flags);
 
-	run_stop_script(h, &ips);
+	ret = do_env_post_stop(h, &ips, flags);
 end:
 
 	free_ip(&ips);
@@ -896,13 +907,26 @@ err_pipe:
 int vzctl2_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 		struct vzctl_cpt_param *param, int flags)
 {
+	int ret;
+	LIST_HEAD(ips);
+
 	if (!is_env_run(h))
 		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
 
 	if (cmd == VZCTL_CMD_KILL || cmd == VZCTL_CMD_RESUME)
 		return vzctl2_cpt_cmd(h, VZCTL_CMD_CHKPNT, cmd, param, flags);
 
-	return get_env_ops()->env_chkpnt(h, cmd, param, flags);
+	get_env_ops()->env_get_veip(h, &ips);
+
+	if ((ret = get_env_ops()->env_chkpnt(h, cmd, param, flags)))
+		goto end;
+
+	ret = do_env_post_stop(h, &ips, flags);
+end:
+
+	free_ip(&ips);
+
+	return ret;
 }
 
 static int _announce_ips(pid_t pid)
