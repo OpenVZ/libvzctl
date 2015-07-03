@@ -321,7 +321,7 @@ static int vcmmd_set_memory_param(struct vzctl_env_handle *h, struct vzctl_ub_pa
 
 static int ns_set_memory_param(struct vzctl_env_handle *h, struct vzctl_ub_param *ub)
 {
-	int ret;
+	int ret = 0;
 	int pagesize;
 	unsigned long val;
 
