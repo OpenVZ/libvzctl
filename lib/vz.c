@@ -302,6 +302,9 @@ static int fs_is_mounted_check_by_dev(const char *target)
 	struct stat st1, st2;
 	char parent[MAXPATHLEN];
 
+	if (target == NULL)
+		return -1;
+
 	if (stat(target, &st1)) {
 		if (errno != ENOENT)
 			logger(-1, errno, "stat(%s)", target);
