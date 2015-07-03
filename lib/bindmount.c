@@ -99,16 +99,22 @@ static int add_bindmount(struct vzctl_bindmount_param *mnt,
 
 	ret = xstrdup(&p->src, data->src);
 	if (ret)
-		return ret;
+		goto err;
 	ret = xstrdup(&p->dst, data->dst);
-	if (ret)
-		return ret;
+	if (ret) 
+		goto err;
 
 	p->op = data->op;
 	p->mntopt = data->mntopt;
 	list_add_tail(&p->list, &mnt->mounts);
 
 	return 0;
+
+err:
+	free_bindmount(p);
+	free(p);
+
+	return ret;
 }
 
 static struct vzctl_bindmount *find_bindmount(struct vzctl_bindmount_param *mnt,
