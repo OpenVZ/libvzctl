@@ -360,7 +360,7 @@ static void read_env_transition(ctid_t ctid, char *lockdir, char *str, int sz)
 		return;
 	len = read(fd, buf, sizeof(buf));
 	close(fd);
-	if (len < 0)
+	if (len < 0 || len >= sizeof(buf))
 		return;
 	buf[len] = 0;
 	/* skip pid */
