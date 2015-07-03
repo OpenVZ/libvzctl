@@ -1709,7 +1709,9 @@ err:
 	alarm(0);
 	sigaction(SIGALRM, &actold, NULL);
 	unlink(VZFIFO_FILE);
-	close(fd);
+
+	if (fd != -1)
+		close(fd);
 
 	return ret;
 }
