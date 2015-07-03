@@ -2082,6 +2082,7 @@ char *get_mnt_root(const char *path)
 	while (1) {
 		if ((end = strrchr(p, '/')) == NULL) {
 			logger(-1, 0, "Unable to get mount point for %s", path);
+			free(p);
 			return NULL;
 		}
 		prev = end;
