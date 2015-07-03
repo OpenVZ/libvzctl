@@ -2375,7 +2375,7 @@ int vzctl2_get_name(struct vzctl_env_handle *h, const char **name)
 {
 	*name = h->env_param->name->name;
 
-	return name != NULL ? 0 : -1;
+	return *name != NULL ? 0 : -1;
 }
 
 int vzctl2_env_get_name(struct vzctl_env_handle *h, const char **name)
