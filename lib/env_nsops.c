@@ -366,7 +366,7 @@ static int ns_apply_res_param(struct vzctl_env_handle *h, struct vzctl_env_param
 	if (is_vz_kernel()) {
 		ret = ns_set_ub(h, ub);
 		if (ret)
-			return ret;
+			goto err;
 	}
 
 	if (is_managed_by_vcmmd())
@@ -374,6 +374,7 @@ static int ns_apply_res_param(struct vzctl_env_handle *h, struct vzctl_env_param
 	else
 		ret = ns_set_memory_param(h, ub);
 
+err:
 	free_ub_param(ub);
 
 	return ret;
