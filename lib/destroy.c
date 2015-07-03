@@ -177,15 +177,17 @@ int destroydir(const char *dir)
 	else if (fd_lock == -1)
 		return VZCTL_E_FS_DEL_PRVT;
 
+	ret = 0;
 	if (!(pid = fork())) {
 		setsid();
 		close_fds(VZCTL_CLOSE_STD, fd_lock, -1);
 		do_destroydir(tmp);
 		_exit(0);
 	} else if (pid < 0)
-		return vzctl_err(VZCTL_E_FORK, errno, "destroydir: Unable to fork");
+		ret = vzctl_err(VZCTL_E_FORK, errno, "destroydir: Unable to fork");
+	close(fd_lock);
 
-	return 0;
+	return ret;
 }
 
 int env_destroy_prvt(const char *dir, int layout)
