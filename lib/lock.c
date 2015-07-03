@@ -413,7 +413,12 @@ int vzctl2_lock(const char *lockfile, int mode, unsigned int timeout)
 	else
 		ret = _lock_flock(fd, mode, timeout);
 
-	return ret;
+	if (ret) {
+		close(fd);
+		return -1;
+	}
+		
+	return fd;
 }
 
 void vzctl2_unlock(int fd, const char *lockfile)
