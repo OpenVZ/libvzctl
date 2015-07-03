@@ -442,6 +442,11 @@ int parse_disk(struct vzctl_env_disk *env_disk, const char *str)
 		return vzctl_err(VZCTL_E_NOMEM, ENOMEM, "parse_disk");
 
 	token = strtok_r(tmp, ";", &saveptr);
+	if (token == NULL) {
+		free(tmp);
+		return 0;
+	}
+
 	do {
 		struct vzctl_disk *disk;
 
