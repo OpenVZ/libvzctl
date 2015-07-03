@@ -1191,6 +1191,7 @@ static char *env_param2str(struct vzctl_env_handle *h,
 	case VZCTL_PARAM_ORIGIN_SAMPLE:
 		if (env->opts->config != NULL)
 			return strdup(env->opts->config);
+		break;
 	case VZCTL_PARAM_DISABLED:
 		if (env->misc->start_disabled) {
 			str = id2yesno(env->misc->start_disabled);
