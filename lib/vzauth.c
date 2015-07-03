@@ -169,7 +169,7 @@ static char *get_user_pw(FILE *fp, const char *user)
 	int len;
 
 	len = strlen(user);
-	if (len >= sizeof(buf))
+	if (len >= sizeof(buf) - 1)
 		goto error;
 	sp = buf + len;
 	end = buf + sizeof(buf);
