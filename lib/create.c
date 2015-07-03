@@ -452,7 +452,7 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 	struct vzctl_fs_param *fs;
 	struct vzctl_env_handle *h;
 	char conf[PATH_LEN];
-	char src_conf[STR_SIZE];
+	char src_conf[PATH_MAX];
 	char vzpkg_src_conf[STR_SIZE];
 	int use_sample = 0;
 	int layout = param->layout ?: get_def_ve_layout();
