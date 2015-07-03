@@ -921,6 +921,10 @@ int vzctl2_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 	if ((ret = get_env_ops()->env_chkpnt(h, cmd, param, flags)))
 		goto end;
 
+	/* Dumped processes can live for a while after dump return success due to
+	criu bug. Wait some time for dumped processes termination. */
+	wait_env_state(h, VZCTL_ENV_STOPPED, 5);
+
 	ret = do_env_post_stop(h, &ips, flags);
 end:
 
