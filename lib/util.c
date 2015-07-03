@@ -2414,14 +2414,20 @@ FILE *vzctl_popen(char *argv[], char *env[], int quiet)
 	envp[i] = NULL;
 	if ((pid = fork()) == 0) {
 		fd = open("/dev/null", O_WRONLY);
-		dup2(fd, STDIN_FILENO);
-		if (quiet) {
-			dup2(fd, STDOUT_FILENO);
-			dup2(fd, STDERR_FILENO);
-		} else {
-			dup2(out[1], STDOUT_FILENO);
+		if (fd != -1) { 
+			dup2(fd, STDIN_FILENO);
+			if (quiet) {
+				dup2(fd, STDOUT_FILENO);
+				dup2(fd, STDERR_FILENO);
+			}
+			close(fd);
 		}
-		close(fd);
+
+		if (!quiet) {
+			dup2(out[1], STDOUT_FILENO);
+			dup2(out[1], STDERR_FILENO);
+		}
+
 		close(out[0]);
 		close(out[1]);
 		execve(argv[0], argv, envp);
