@@ -121,8 +121,6 @@ int vz_set_iopslimit(struct vzctl_env_handle *h, unsigned int limit)
 	int ret;
 	struct iolimit_state io;
 
-	if (limit < 0)
-		return VZCTL_E_SET_IO;
 	io.id = h->veid;
 	// Hardcoded values according the bug #483045
 	io.speed = limit;
