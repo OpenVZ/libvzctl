@@ -219,6 +219,7 @@ int vztmpl_install_app(ctid_t ctid, const char *apps, int force)
 					(total + 1) * sizeof(char *));
 			if (tmp == NULL)
 				goto err;
+			arg = tmp;
 		}
 		arg[i++] = strdup(token);
 		arg[i] = NULL;
