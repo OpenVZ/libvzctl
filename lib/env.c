@@ -713,6 +713,9 @@ int exec_init(struct start_param *param)
 	execve("/sbin/init", argv, env);
 	execve("/etc/init", argv, env);
 	execve("/bin/init", argv, env);
+	free_ar_str(env);
+	free(env);
+
 	return VZCTL_E_BAD_TMPL;
 }
 
