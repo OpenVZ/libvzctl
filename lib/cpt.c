@@ -451,7 +451,7 @@ static int restore_FN(struct vzctl_env_handle *h, struct start_param *param)
 	int status, len;
 	struct vzctl_cpt_param *cpt_param = (struct vzctl_cpt_param *) param->data;
 	char buf[PIPE_BUF];
-	int error_pipe[2];
+	int error_pipe[2] = {-1, -1};
 	unsigned veid = h->veid;
 
 	status = VZCTL_E_RESTORE;
@@ -507,7 +507,11 @@ static int restore_FN(struct vzctl_env_handle *h, struct start_param *param)
 	logger(10, 0, "* Undump done");
 	status = 0;
 err:
-	close(error_pipe[0]);
+	if (error_pipe[0] != -1)
+		close(error_pipe[0]);
+	if (error_pipe[1] != -1)
+		close(error_pipe[1]);
+
 	if (write(param->err_p[1], &status, sizeof(status)) == -1)
 		logger(-1, errno, "Failed to write to error pipe (restore_FN)");
 	return status;
@@ -518,7 +522,12 @@ err_undump:
 		buf[len - 1] = '\0';
 		logger(-1, 0, "%s", buf);
 	}
-	close(error_pipe[0]);
+
+	if (error_pipe[0] != -1)
+		close(error_pipe[0]);
+	if (error_pipe[1] != -1)
+		close(error_pipe[1]);
+
 	if (write(param->err_p[1], &status, sizeof(status)) == -1)
 		logger(-1, errno, "Failed to write to error pipe");
 	return status;
