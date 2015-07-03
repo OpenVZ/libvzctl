@@ -536,7 +536,8 @@ void vzctl2_env_unlock(struct vzctl_env_handle *h, int lckfd)
 {
 	if (h == NULL)
 		vzctl2_unlock(lckfd, NULL);
-	vzctl2_env_unlock_prvt(h->ctid, lckfd, NULL);
+	else
+		vzctl2_env_unlock_prvt(h->ctid, lckfd, NULL);
 }
 
 
