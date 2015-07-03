@@ -511,8 +511,12 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 		goto free_conf;
 
 	fs = h->env_param->fs;
+	if (fs->ve_private == NULL) {
+		ret = vzctl_err(VZCTL_E_INVAL, 0, "VE_PRIVATE is not specified");
+		goto free_conf;
+	}
 	if (stat_file(fs->ve_private)) {
-		 vzctl_err(VZCTL_E_FS_PRVT_AREA_EXIST, 0,
+		ret = vzctl_err(VZCTL_E_FS_PRVT_AREA_EXIST, 0,
 				"Private area %s already exists",
 				fs->ve_private);
 		goto free_conf;
@@ -527,9 +531,7 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 	ostmpl = h->env_param->tmpl->ostmpl;
 	fs->layout = layout;
 
-	if (stat_file(conf) == 1 &&
-			fs->ve_private != NULL &&
-			stat_file(fs->ve_private) == 1)
+	if (stat_file(conf) == 1 && stat_file(fs->ve_private) == 1)
 	{
 		ret = vzctl_err(VZCTL_E_FS_PRVT_AREA_EXIST, 0,
 				"Container %s already exists", EID(h));
