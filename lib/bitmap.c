@@ -211,11 +211,12 @@ int bitmap_snprintf(char *buf, unsigned int buflen,
 	return len;
 }
 
-static int parse_range(const char *str, int *a, int *b, char **endptr)
+static int parse_range(const char *str, unsigned *a, unsigned *b,
+		char **endptr)
 {
-	if (!isdigit(*str))
-		return -1;
-	*a = *b = strtol(str, endptr, 10);
+	*a = *b = strtoul(str, endptr, 10);
+	if (errno == ERANGE)
+                return -1;
 	if (**endptr == '-') {
 		str = *endptr + 1;
 		if (!isdigit(*str))
@@ -229,9 +230,9 @@ static int parse_range(const char *str, int *a, int *b, char **endptr)
 
 int bitmap_parse(const char *str, unsigned long *maskp, int size)
 {
-	int a, b;
+	unsigned a, b;
 	char *endptr;
-	int nmaskbits = size * 8;
+	unsigned nmaskbits = size * 8;
 
 	if (!strcmp(str, "all") || !strcmp(str, "")) {
 		memset(maskp, 0xff, size);
