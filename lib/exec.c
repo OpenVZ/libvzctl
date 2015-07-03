@@ -1043,7 +1043,7 @@ static char * const* make_bash_env(char * const *env)
 		return NULL;
 	for (i = 0; env != NULL && env[i] != NULL; i++)
 		penv[i] = env[i];
-	for (j = 0; envp_bash != NULL && envp_bash[j] != NULL; j++)
+	for (j = 0; envp_bash[j] != NULL; j++)
 		penv[i++] = envp_bash[j];
 	penv[i] = NULL;
 
