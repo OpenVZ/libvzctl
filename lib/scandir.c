@@ -200,8 +200,8 @@ err:
 char **vzctl2_scan_private(void)
 {
 	list_head_t head;
-	char **storage;
-	char **p = NULL;
+	char **storage, **p;
+	char **out = NULL;
 
 	if ((storage = vzctl2_get_storage()) == NULL)
 		return NULL;
@@ -211,11 +211,12 @@ char **vzctl2_scan_private(void)
 			goto err;
 	}
 
-	p = list2ar_str(&head);
+	out = list2ar_str(&head);
 err:
 
 	free_ar_str(storage);
 	free(storage);
 	free_str(&head);
-	return p;
+
+	return out;
 }
