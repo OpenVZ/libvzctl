@@ -1382,10 +1382,13 @@ int parse_netif_cmd(struct vzctl_env_handle *h, list_head_t *head, const char *v
 	int ret = 0;
 	char *token;
 	struct vzctl_veth_dev *dev;
-	char *tmp;
+	char *tmp = NULL;
 	char *savedptr;
 
-	tmp = strdup(val);
+	ret = xstrdup(&tmp, val);
+	if (ret)
+		return ret;
+
 	if ((token = strtok_r(tmp, " ", &savedptr)) == NULL) {
 		free(tmp);
 		return 0;

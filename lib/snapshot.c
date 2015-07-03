@@ -275,7 +275,7 @@ static int copy_snapshot_config(struct vzctl_env_handle *h, const char *from, co
 		return res;
 
 	snap_h = vzctl2_env_open_conf(EID(h), to, 0, &res);
-	if (res)
+	if (h == NULL)
 		return res;
 
 	/* XXX: using *_safe here because vzctl2_env_detach_disk() internally calls list_del() */

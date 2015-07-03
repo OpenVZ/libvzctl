@@ -503,7 +503,7 @@ int vzctl2_get_envid_by_name(const char *name, ctid_t ctid)
 		return -1;
 
 	h = vzctl2_env_open_conf(NULL, buf, VZCTL_CONF_SKIP_GLOBAL, &ret);
-	if (ret)
+	if (h == NULL)
 		return -1;
 
 	/* get ctid from UUID */
