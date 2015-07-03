@@ -834,7 +834,7 @@ char *subst_VEID(const ctid_t ctid, const char *src)
 	sp = str;
 	se = str + sizeof(str);
 	len = srcp - src; /* Length of src before $VEID */
-	if (len > sizeof(str))
+	if (len >= sizeof(str))
 		return NULL;
 	memcpy(str, src, len);
 	sp += len;
