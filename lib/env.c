@@ -494,7 +494,6 @@ static int replace_reach_runlevel_mark(void)
 		if (wfd == -1) {
 			fprintf(stderr, "Unable to create " EVENTS_FILE " %s\n",
 					strerror(errno));
-			close(wfd);
 			return -1;
 		}
 		if (write(wfd, EVENTS_SCRIPT, sizeof(EVENTS_SCRIPT) - 1) == -1) {
