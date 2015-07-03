@@ -841,6 +841,9 @@ static int configure_sysfsperm(struct vzctl_env_handle *h, const char *devname)
 	int ret;
 	const char *dev = get_devname(devname);
 
+	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", "block rx"))
+		return VZCTL_E_DISK_CONFIGURE;
+
 	snprintf(buf, sizeof(buf), "devices/virtual/block rx");
 	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
 		return VZCTL_E_DISK_CONFIGURE;
