@@ -181,11 +181,13 @@ static const char *get_static_dev_dir(void)
 int create_static_dev(const char *name, const char *alias, mode_t mode, dev_t dev)
 {
 	char buf[128];
-	const char *device = get_devname(name);
+	const char *device;
 	const char *dir;
 
 	if (name == NULL)
 		return 0;
+
+	device = get_devname(name);
 
 	snprintf(buf, sizeof(buf), "/dev/%s", device);
 	unlink(buf);
