@@ -550,7 +550,7 @@ int vzctl2_env_layout_version(const char *path)
 	if (!S_ISLNK(st.st_mode))
 		return 0;
 	id = readlink(buf, ver, sizeof(ver));
-	if (id < 0)
+	if (id < 0 || id >= sizeof(ver))
 		return vzctl_err(-1, errno, "Error reading Ct layout version from %s",
 				buf);
 	ver[id] = 0;
