@@ -350,7 +350,7 @@ int vzctl_store_snapshot_tree(const char *fname, struct vzctl_snapshot_tree *tre
 		vzctl_err(-1, 0, "Error at ParallelsSavedStates");
 		goto err;
 	}
-	xmlTextWriterWriteAttribute(writer, BAD_CAST "guid", BAD_CAST "");
+	rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "guid", BAD_CAST "");
 	if (rc < 0) {
 		vzctl_err(-1, 0, "Error at WriteAttribute");
 		goto err;
