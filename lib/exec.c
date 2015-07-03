@@ -329,7 +329,7 @@ int env_wait(int pid, int timeout, int *retcode)
 
 void set_timeout_handler(pid_t pid, int timeout)
 {
-	struct sigaction act;
+	struct sigaction act = {};
 
 	s_timeout_pid = pid;
 
@@ -343,7 +343,7 @@ void set_timeout_handler(pid_t pid, int timeout)
 
 static int real_env_exec_init(struct exec_param *param)
 {
-	struct sigaction act;
+	struct sigaction act = {};
 
 	if (pipe(param->status_p) < 0 || pipe(param->in_p) < 0 )
 		return vzctl_err(VZCTL_E_PIPE, errno, "Unable to create pipe");
@@ -763,7 +763,7 @@ static int env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
 	int out[2] = {-1, -1};
 	int st[2] = {-1, -1};
 	int info[2] = {-1, -1};
-	struct sigaction act;
+	struct sigaction act = {};
 	int i, lfd;
 	int fd_flags[2];
 
