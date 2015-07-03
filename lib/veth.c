@@ -1255,7 +1255,7 @@ int parse_netif(struct vzctl_env_handle *h, list_head_t *head, const char *val)
 	char *token, *p;
 	struct vzctl_veth_dev *dev;
 	char *tmp = NULL;
-	char *savedptr = NULL;
+	char *savedptr;
 
 	ret = xstrdup(&tmp, val);
 	if (ret)
@@ -1383,7 +1383,7 @@ int parse_netif_cmd(struct vzctl_env_handle *h, list_head_t *head, const char *v
 	char *token;
 	struct vzctl_veth_dev *dev;
 	char *tmp;
-	char *savedptr = NULL;
+	char *savedptr;
 
 	tmp = strdup(val);
 	if ((token = strtok_r(tmp, " ", &savedptr)) == NULL) {

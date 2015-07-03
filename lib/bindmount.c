@@ -243,7 +243,7 @@ int parse_bindmount(struct vzctl_bindmount_param *mnt, const char *str, int add)
 {
 	int ret = 0;
 	char *token, *tmp = NULL;
-	char *savedptr = NULL;
+	char *savedptr;
 
 	ret = xstrdup(&tmp, str);
 	if (ret)
