@@ -1391,8 +1391,11 @@ int parse_netif_cmd(struct vzctl_env_handle *h, list_head_t *head, const char *v
 		return 0;
 	}
 	do {
-		if ((dev = alloc_veth_dev()) == NULL)
-			return VZCTL_E_NOMEM;
+		if ((dev = alloc_veth_dev()) == NULL) {
+			ret =  VZCTL_E_NOMEM;
+			break;
+		}
+
 		if ((ret = parse_netif_str_cmd(h, token, dev)) == 0) {
 			if (find_veth_by_ifname_ve(head,
 						dev->dev_name_ve) == NULL)
