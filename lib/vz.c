@@ -798,9 +798,9 @@ int vzctl2_destroy_net_stat(struct vzctl_env_handle *h, int flags)
 	return 0;
 }
 
-static int cmp_stat(struct stat a, struct stat b)
+static int cmp_stat(struct stat *a, struct stat *b)
 {
-	return !(a.st_dev == b.st_dev && a.st_ino == b.st_ino);
+	return !(a->st_dev == b->st_dev && a->st_ino == b->st_ino);
 }
 
 static int validate_eid(const char *veconf, ctid_t ctid, ctid_t eid_old)
@@ -837,7 +837,7 @@ static int validate_eid(const char *veconf, ctid_t ctid, ctid_t eid_old)
 		return vzctl_err(-1, errno, "Failed to stat %s", veconf);
 
 	/* /etc/vz/conf/ctid.conf already exists */
-	if (cmp_stat(st1, st2) != 0 )
+	if (cmp_stat(&st1, &st2) != 0 )
 		return vzctl_err(-1, 0, "Error: Container ID %s is used", ctid);
 	return 0;
 }
@@ -1024,7 +1024,7 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 	{
 		snprintf(buf, sizeof(buf), ENV_NAME_DIR "%s", name);
 		if (stat(buf, &st2) ||
-				(stat(veconf, &st) == 0 && cmp_stat(st, st2) == 0))
+				(stat(veconf, &st) == 0 && cmp_stat(&st, &st2) == 0))
 		{
 			logger(1, 0, "Assing the name: %s", name);
 			unlink(buf);
