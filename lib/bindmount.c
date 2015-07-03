@@ -94,7 +94,7 @@ static int add_bindmount(struct vzctl_bindmount_param *mnt,
 	struct vzctl_bindmount *p;
 
 	p = calloc(1, sizeof(struct vzctl_bindmount));
-	if (mnt == NULL)
+	if (p == NULL)
 		return vzctl_err(VZCTL_E_NOMEM, ENOMEM, "add_bindmount");
 
 	ret = xstrdup(&p->src, data->src);
