@@ -596,10 +596,6 @@ int pre_setup_env(struct start_param *param)
 	/* Clear supplementary group IDs */
 	setgroups(0, NULL);
 
-	errcode = env_set_cap(env->cap);
-	if (errcode)
-		return errcode;
-
 	errcode = set_personality32();
 	if (errcode)
 		return errcode;
@@ -639,6 +635,10 @@ int pre_setup_env(struct start_param *param)
 		return VZCTL_E_WAIT;
 
 	configure_sysctl("/proc/sys/net/ipv6/conf/all/forwarding", "0");
+
+	errcode = env_set_cap(env->cap);
+	if (errcode)
+		return errcode;
 
 	logger(10, 0, "* Report env_created");
 	/* report that environment is created. */
