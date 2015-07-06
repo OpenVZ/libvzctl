@@ -494,7 +494,7 @@ static int init_env_cgroup(struct vzctl_env_handle *h)
 		"c 5:1 rmw",		/* console */
 		"c 5:2 rmw",		/* ptmx */
 		"c 4:* rmw",		/* tty{N} devices (virtual terminals} */
-		"c 1:8 rm",		/* random */
+		"c 1:8 rmw",		/* random */
 		"c 1:9 rmw",		/* urandom */
 		"c 1:11 mw",		/* kmsg */
 	};
