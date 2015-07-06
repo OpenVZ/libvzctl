@@ -403,17 +403,13 @@ err:
 
 int vzctl2_lock(const char *lockfile, int mode, unsigned int timeout)
 {
-	int ret, fd;
+	int fd;
 
 	if ((fd = _open_lock_file(lockfile)) == -1)
 		return -1;
 
-	if (is_nfs(lockfile))
-		ret = _lock_fcntl(fd, mode, timeout);
-	else
-		ret = _lock_flock(fd, mode, timeout);
-
-	return ret;
+	return is_nfs(lockfile) ? _lock_fcntl(fd, mode, timeout) :
+				_lock_flock(fd, mode, timeout);
 }
 
 void vzctl2_unlock(int fd, const char *lockfile)
@@ -457,7 +453,6 @@ void vzctl2_release_enter_lock(int lockfd)
 
 int vzctl_env_conf_lock(struct vzctl_env_handle *h, int mode)
 {
-	int lckfd = -1;
 	int fd;
 	char lockfile[PATH_MAX];
 
@@ -465,9 +460,7 @@ int vzctl_env_conf_lock(struct vzctl_env_handle *h, int mode)
 	if ((fd = _open_lock_file(lockfile)) == -1)
 		return -1;
 
-	lckfd = _lock_flock(fd, mode, 0);
-
-	return lckfd;
+	return _lock_flock(fd, mode, 0);
 }
 
 void vzctl_env_conf_unlock(int lckfd)
