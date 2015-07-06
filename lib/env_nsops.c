@@ -497,6 +497,7 @@ static int init_env_cgroup(struct vzctl_env_handle *h)
 		"c 1:8 rmw",		/* random */
 		"c 1:9 rmw",		/* urandom */
 		"c 1:11 mw",		/* kmsg */
+		"c 10:200 rmw",		/* tun */
 	};
 	char *cpu[] = {
 		"cpuset.cpus",
