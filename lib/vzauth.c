@@ -20,20 +20,22 @@
  * Schaffhausen, Switzerland.
  *
  */
+#define _GNU_SOURCE
+#include <features.h>
+#include <crypt.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <pwd.h>
-#include <crypt.h>
 #include <sys/vfs.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <ctype.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
-
-#define _XOPEN_SOURCE
+#include <fcntl.h>
 #include <unistd.h>
 
 #include "fs.h"
@@ -41,7 +43,6 @@
 #include "vzerror.h"
 #include "logger.h"
 #include "util.h"
-
 
 static int check_link(const char *file, int fd)
 {
@@ -191,33 +192,60 @@ error:
 	return pw;
 }
 
-static int userauth(const char *user, const char *passwd, int gid)
+static int get_user_hash(const char *user, int gid, char **hash)
 {
 	FILE *fp;
 	char str[64];
-	char *pw, *pw_enc;
+	char *pw;
 	int ret;
 	struct stat st;
 
 	ret = VZCTL_E_AUTH;
-	pw = NULL;
 	snprintf(str, sizeof(str), "/etc/shadow");
 	if (stat(str, &st) < 0)
 		snprintf(str, sizeof(str), "/etc/passwd");
 	if ((fp = openfile(str)) == NULL)
 		return VZCTl_E_FOPEN;
-	if ((pw = get_user_pw(fp, user)) != NULL) {
-		if ((pw_enc = crypt(passwd, pw)) != NULL) {
-			if (!strcmp(pw_enc, pw)) {
-				ret = 0;
-				if (gid != -1)
-					ret = check_gid(user, gid);
-			}
-		}
+	pw = get_user_pw(fp, user);
+	if (pw) {
+		ret = 0;
+		*hash = pw;
 	}
 	fclose(fp);
-	free(pw);
 
+	return ret;
+}
+
+static int escape_chroot(int rootfd)
+{
+	int ret = fchdir(rootfd);
+	if (ret == -1)
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "fchdir('/') failed");
+	ret = chroot(".");
+	if (ret == -1)
+		logger(VZCTL_E_SYSTEM, errno, "chroot('/') failed");
+	return ret;
+}
+
+static int userauth(const char *user, const char *password, int gid, int rootfd)
+{
+	int ret;
+	char *pw, *pw_enc;
+
+	if (gid != -1 && (ret = check_gid(user, gid)) != 0)
+		return ret;
+	ret = get_user_hash(user, gid, &pw);
+	if (ret != 0)
+		return ret;
+	ret = escape_chroot(rootfd);
+	if (ret == 0) {
+		struct crypt_data data = {};
+		ret = VZCTL_E_AUTH;
+		pw_enc = crypt_r(password, pw, &data);
+		if (pw_enc && !strcmp(pw_enc, pw))
+			ret = 0;
+	}
+	free(pw);
 	return ret;
 }
 
@@ -274,12 +302,21 @@ int vzctl2_env_auth(struct vzctl_env_handle *h, const char *user, const char *pa
 	}
 
 	if (!(pid = fork())) {
+		int rootfd = -1;
+		if (type == 0) {
+			rootfd = open("/", O_RDONLY);
+			if (rootfd == -1)
+				_exit(vzctl_err(VZCTL_E_SYSTEM, errno,
+					"failed to open '/' "));
+		}
 		if ((ret = vzctl_chroot(env->fs->ve_root)) == 0) {
 			if (type == 0)
-				ret = userauth(user, passwd, gid);
+				ret = userauth(user, passwd, gid, rootfd);
 			else
 				ret = pleskauth(user, passwd);
 		}
+		if (rootfd != -1)
+			close(rootfd);
 		_exit(ret);
 	}
 	ret = env_wait(pid, 0, NULL);
