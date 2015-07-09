@@ -312,8 +312,6 @@ static int setup_env_quota(struct quota_param *param)
 	if (stat("/", &st))
 		return vzctl_err(-1, errno, "Failed to stat /");
 
-	create_root_dev(NULL);
-
 	if (param->ve_layout < VZCTL_LAYOUT_5) {
 		return mk_vzquota_link(st.st_dev);
 	} else if (param->turnon) {
