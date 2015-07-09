@@ -61,7 +61,7 @@ char *pci2str(struct vzctl_dev_param *old, struct vzctl_dev_param *new);
 int parse_pcidev(list_head_t *dev, const char *val, int validate, int replace);
 void free_dev_param(struct vzctl_dev_param *dev);
 int env_set_devperm(struct vzctl_env_handle *h, struct vzctl_dev_perm *perm);
-int create_static_dev(const char *name, const char *alias, mode_t mode, dev_t dev);
+int create_static_dev(const char *name, mode_t mode, dev_t dev);
 void clean_static_dev(const char *filter);
 int create_root_dev(void *data);
 

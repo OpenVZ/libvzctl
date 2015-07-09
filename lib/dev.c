@@ -147,15 +147,14 @@ cleanup1:
 	return ret;
 }
 
-static int create_tmpfiles(const char *name, const char *alias,
-		mode_t mode, dev_t dev)
+static int create_tmpfiles(const char *name, mode_t mode, dev_t dev)
 {
 	FILE *fp;
 	char *p;
 	char buf[STR_SIZE];
 		
 	snprintf(buf, sizeof(buf), "/etc/tmpfiles.d/device-%s.conf",
-			alias != NULL ? alias : get_devname(name));
+			get_devname(name));
 	logger(0, 0, "Create %s", buf);
 	fp = fopen(buf, "w");
 	if (fp == NULL)
@@ -188,8 +187,7 @@ static const char *get_static_dev_dir(void)
 	return NULL;
 }
 
-int create_static_dev(const char *name, const char *alias, mode_t mode,
-		dev_t dev)
+int create_static_dev(const char *name, mode_t mode, dev_t dev)
 {
 	const char *dir;
 	char buf[STR_SIZE];
@@ -211,7 +209,7 @@ int create_static_dev(const char *name, const char *alias, mode_t mode,
 	dir = get_static_dev_dir();
 	if (dir != NULL) {
 		if (strcmp(dir, "/etc/tmpfiles.d") == 0) {
-			create_tmpfiles(device, alias, mode, dev);
+			create_tmpfiles(device, mode, dev);
 		} else {
 			snprintf(buf, sizeof(buf), "%s/%s", dir,
 					get_devname(device));
@@ -257,7 +255,7 @@ static int create_devs(struct vzctl_dev_param *devs)
 		if (it->name[0] == '\0')
 			continue;
 
-		create_static_dev(it->name, NULL,
+		create_static_dev(it->name,
 				(it->type & (S_IFBLK | S_IFCHR)) | S_IRUSR | S_IWUSR,
 				it->dev);
 	}
@@ -695,6 +693,6 @@ int create_root_dev(void *data)
 	if (stat(root, &st))
 		return vzctl_err(-1, errno, "Failed to stat /");
 
-	return create_static_dev(device, NULL, S_IFBLK | S_IRUSR | S_IWUSR, st.st_dev);
+	return create_static_dev(device, S_IFBLK | S_IRUSR | S_IWUSR, st.st_dev);
 }
 

@@ -283,7 +283,7 @@ static int env_configure_disk(struct exec_disk_param *param)
 
 	get_partition_dev_name(param->dev, device, sizeof(device));
 
-	if (create_static_dev(device, NULL, S_IFBLK | S_IRUSR | S_IWUSR,
+	if (create_static_dev(device, S_IFBLK | S_IRUSR | S_IWUSR,
 				param->dev))
 		return -1;
 
