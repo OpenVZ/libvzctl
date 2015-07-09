@@ -419,6 +419,8 @@ static int is_existing_ploop(struct vzctl_env_disk *env_disk, const char *dentry
 	char unit[PATH_MAX];
 
 	list_for_each(disk, &env_disk->disks, list) {
+		if (disk->mnt == NULL)
+			continue;
 		get_systemd_mount_unit_name(disk->mnt, unit);
 		if (!strcmp(unit, dentry))
 			return 1;
