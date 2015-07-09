@@ -457,8 +457,10 @@ int env_fin_configure_systemd_unit(struct vzctl_env_disk *env_disk)
 			break;
 		}
 
-		if (result == NULL)
+		if (result == NULL) {
+			err = 0;
 			break;
+		}
 
 		/* Is file? */
 		snprintf(path, PATH_MAX, SYSTEMD_DIR "/%s", de->d_name);
