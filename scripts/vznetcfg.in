@@ -36,11 +36,14 @@ addif()
 	fi 
 
 	bound_iface=`echo "$bound_iface" | awk '/Bound To:/{print $3}'`
-
-	br=`brctl show | awk '/'$bound_iface'$/{print $1}'`
-	if [ -z "$br" ]; then
-		echo "Unable to find bridge by bounded iface $bound_iface"
-		exit 1
+	if [ -n "$bound_iface" ]; then
+		br=`brctl show | awk '/'$bound_iface'$/{print $1}'`
+		if [ -z "$br" ]; then
+			echo "Unable to find bridge by bounded iface $bound_iface"
+			exit 1
+		fi
+	else
+		br="$2"
 	fi
 
 	brctl addif $br $iface
