@@ -674,8 +674,6 @@ int create_root_dev(void *data)
 	char device[STR_SIZE];
 	const char *root = "/";
 
-	clean_static_dev("ploop");
-
 	if (get_root_device(root, device, sizeof(device)))
 		return vzctl_err(-1, 0, "Unable to get the root device name");
 
