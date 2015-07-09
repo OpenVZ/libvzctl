@@ -335,7 +335,7 @@ static struct vzctl_disk *find_disk_by_fsuuid(struct vzctl_env_disk *env_disk, c
 	return NULL;
 }
 
-int env_fin_configure_fstab(struct vzctl_env_disk *env_disk)
+static int env_fin_configure_fstab(struct vzctl_env_disk *env_disk)
 {
 	FILE *rfp = NULL, *wfp;
 	struct stat st;
@@ -429,7 +429,7 @@ static int is_existing_ploop(struct vzctl_env_disk *env_disk, const char *dentry
 	return 0;
 }
 
-int env_fin_configure_systemd_unit(struct vzctl_env_disk *env_disk)
+static int env_fin_configure_systemd_unit(struct vzctl_env_disk *env_disk)
 {
 	int err = -1;
 	DIR *dir;
@@ -496,15 +496,24 @@ int env_fin_configure_systemd_unit(struct vzctl_env_disk *env_disk)
 	return err;
 }
 
-int fin_configure_fstab(struct vzctl_env_handle *h, struct vzctl_env_disk *env_disk)
+int env_fin_configure_disk(struct vzctl_env_disk *disk)
 {
-	if (vzctl2_env_exec_fn2(h, (execFn) env_fin_configure_fstab, env_disk,
-				VZCTL_SCRIPT_EXEC_TIMEOUT, 0))
-		return vzctl_err(VZCTL_E_DISK_CONFIGURE, 0, "Failed to configure fstab");
+	int ret = 0;
 
-	if (vzctl2_env_exec_fn2(h, (execFn) env_fin_configure_systemd_unit, env_disk,
-				VZCTL_SCRIPT_EXEC_TIMEOUT, 0))
-		return vzctl_err(VZCTL_E_DISK_CONFIGURE, 0, "Failed to configure systemd mount unit");
+	if (env_fin_configure_fstab(disk))
+		ret = VZCTL_E_DISK_CONFIGURE;
 
+	if (env_fin_configure_systemd_unit(disk))
+		ret = VZCTL_E_DISK_CONFIGURE;
+
+	return ret;
+}
+
+int fin_configure_disk(struct vzctl_env_handle *h, struct vzctl_env_disk *disk)
+{
+	if (vzctl2_env_exec_fn2(h, (execFn) env_fin_configure_disk, disk,
+				VZCTL_SCRIPT_EXEC_TIMEOUT, 0))
+		return vzctl_err(VZCTL_E_DISK_CONFIGURE, 0,
+				"Failed to finalize disk configure");
 	return 0;
 }

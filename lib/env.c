@@ -625,9 +625,9 @@ int pre_setup_env(struct start_param *param)
 		restore_mtab();
 
 	if (env->fs->layout == VZCTL_LAYOUT_5 && env->disk != NULL &&
-			!is_secondary_disk_present(env->disk)) {
-		env_fin_configure_fstab(env->disk);
-		env_fin_configure_systemd_unit(env->disk);
+			!is_secondary_disk_present(env->disk))
+	{
+		env_fin_configure_disk(env->disk);
 	}
 
 	if (env->opts->wait == VZCTL_PARAM_ON &&

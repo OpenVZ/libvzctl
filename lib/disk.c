@@ -1250,7 +1250,7 @@ int vzctl_setup_disk(struct vzctl_env_handle *h, struct vzctl_env_disk *env_disk
 	}
 
 	if (!(flags & VZCTL_RESTORE) && configured)
-		fin_configure_fstab(h, env_disk);
+		fin_configure_disk(h, env_disk);
 
 	return 0;
 }

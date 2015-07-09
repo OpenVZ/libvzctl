@@ -78,10 +78,9 @@ int vzctl2_resize_disk(struct vzctl_env_handle *h, const char *guid,
 		unsigned long size, int offline);
 int vzctl_setup_disk(struct vzctl_env_handle *h, struct vzctl_env_disk *env_disk, int flags);
 int get_fs_uuid(const char *device, char *uuid);
-int fin_configure_fstab(struct vzctl_env_handle *h, struct vzctl_env_disk *env_disk);
-int env_fin_configure_fstab(struct vzctl_env_disk *env_disk);
+int env_fin_configure_disk(struct vzctl_env_disk *disk);
+int fin_configure_disk(struct vzctl_env_handle *h, struct vzctl_env_disk *disk);
 void get_partition_dev_name(dev_t dev, char *out, int len);
 int is_external_disk(const char *path);
 int check_external_disk(struct vzctl_env_disk *env_disk);
-int env_fin_configure_systemd_unit(struct vzctl_env_disk *env_disk);
 #endif
