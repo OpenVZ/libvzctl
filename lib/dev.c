@@ -147,18 +147,28 @@ cleanup1:
 	return ret;
 }
 
-static int create_tmpfiles(const char *name, const char *alias, mode_t mode, dev_t dev)
+static int create_tmpfiles(const char *name, const char *alias,
+		mode_t mode, dev_t dev)
 {
 	FILE *fp;
-	char buf[128];
-
+	char *p;
+	char buf[STR_SIZE];
+		
 	snprintf(buf, sizeof(buf), "/etc/tmpfiles.d/device-%s.conf",
-			alias != NULL ? alias : name);
+			alias != NULL ? alias : get_devname(name));
 	logger(0, 0, "Create %s", buf);
 	fp = fopen(buf, "w");
 	if (fp == NULL)
 		return vzctl_err(-1, errno, "Failed to create %s", buf);
-	fprintf(fp, "%c /dev/%s 0700 root root - %d:%d\n",
+
+	snprintf(buf, sizeof(buf), "%s", name);
+	p = strrchr(buf, '/');
+	if (p != NULL) {
+		*p = '\0';
+		if (strcmp(buf, "/dev"))
+			fprintf(fp, "d %s 0755 root root\n", buf);
+	}
+	fprintf(fp, "%c %s 0700 root root - %d:%d\n",
 			S_ISBLK(mode) ? 'b' : 'c',
 			name, gnu_dev_major(dev), gnu_dev_minor(dev));
 	fclose(fp);
@@ -178,21 +188,24 @@ static const char *get_static_dev_dir(void)
 	return NULL;
 }
 
-int create_static_dev(const char *name, const char *alias, mode_t mode, dev_t dev)
+int create_static_dev(const char *name, const char *alias, mode_t mode,
+		dev_t dev)
 {
-	char buf[128];
-	const char *device;
 	const char *dir;
-
+	char buf[STR_SIZE];
+	char device[STR_SIZE];
+	
 	if (name == NULL)
 		return 0;
 
-	device = get_devname(name);
+	if (name[0] != '/')
+		snprintf(device, sizeof(device), "/dev/%s", name);
+	else
+		snprintf(device, sizeof(device), "%s", name);
 
-	snprintf(buf, sizeof(buf), "/dev/%s", device);
-	unlink(buf);
-	if (mknod(buf, mode, dev))
-		logger(-1, errno, "Failed to mknod %s", buf);
+	unlink(device);
+	if (mknod(device, mode, dev))
+		logger(-1, errno, "Failed to mknod %s", device);
 
 	/* Additionally create static entry  */
 	dir = get_static_dev_dir();
@@ -200,7 +213,8 @@ int create_static_dev(const char *name, const char *alias, mode_t mode, dev_t de
 		if (strcmp(dir, "/etc/tmpfiles.d") == 0) {
 			create_tmpfiles(device, alias, mode, dev);
 		} else {
-			snprintf(buf, sizeof(buf), "%s/%s", dir, device);
+			snprintf(buf, sizeof(buf), "%s/%s", dir,
+					get_devname(device));
 			unlink(buf);
 			if (mknod(buf, mode, dev))
 				logger(-1, errno, "Failed to mknod %s", buf);
