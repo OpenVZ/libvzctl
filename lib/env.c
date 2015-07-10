@@ -746,6 +746,15 @@ static int read_p(int fd)
 	return 0;
 }
 
+static int drop_dump_state(struct vzctl_env_handle *h)
+{
+	char fname[PATH_MAX];
+
+	vzctl2_get_dump_file(h,	fname, sizeof(fname));
+
+	return destroydir(fname);
+}
+
 /** Start and configure Container. */
 int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 {
@@ -872,6 +881,7 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 		logger(0, 0, "Container start in progress...");
 
 	vzctl2_register_running_state(h->env_param->fs->ve_private);
+	drop_dump_state(h);
 
 err:
 	if (ret) {
@@ -916,6 +926,7 @@ int vzctl2_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 	if (!is_env_run(h))
 		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
 
+	logger(0, 0, "Setting up checkpoint...");
 	if (cmd == VZCTL_CMD_KILL || cmd == VZCTL_CMD_RESUME)
 		return vzctl2_cpt_cmd(h, VZCTL_CMD_CHKPNT, cmd, param, flags);
 
@@ -929,9 +940,15 @@ int vzctl2_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 	wait_env_state(h, VZCTL_ENV_STOPPED, 5);
 
 	ret = do_env_post_stop(h, &ips, flags);
+
 end:
 
 	free_ip(&ips);
+
+	if (ret)
+		logger(-1, 0, "Checkpointing failed");
+	else
+		logger(0, 0, "Checkpointing completed successfully");
 
 	return ret;
 }
@@ -1070,14 +1087,10 @@ int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param
 	close(err_p[0]); err_p[0] = -1;
 
 	if (param->cmd == VZCTL_CMD_RESTORE) {
-		char fname[PATH_MAX];
-
 		ret = vzctl2_cpt_cmd(h, VZCTL_CMD_RESTORE, VZCTL_CMD_RESUME, param, flags);
 		if (ret)
 			goto err;
-		/* remove dump file */
-		vzctl2_get_dump_file(h,	fname, sizeof(fname));
-		destroydir(fname);
+		drop_dump_state(h);
 	}
 	announce_ips(h);
 	ret = 0;
