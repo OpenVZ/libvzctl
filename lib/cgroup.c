@@ -146,7 +146,7 @@ static int cg_get_ctl(const char *subsys, struct cg_ctl **ctl)
 	if (ret)
 		goto out;
 
-	logger(10, 0, "cgroup %s mount point: %s ", subsys, mount_path);
+	debug(DBG_CG, "cgroup %s mount point: %s ", subsys, mount_path);
 out:
 	pthread_mutex_unlock(&cg_ctl_map_mtx);
 

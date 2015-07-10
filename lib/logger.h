@@ -28,6 +28,7 @@
 #define VZCTL_LOG_FILE	"/var/log/vzctl.log"
 #define	DBG_CFG		0x10000
 #define	DBG_RES		0x10001
+#define	DBG_CG		0x10002
 
 #define debug(level, fmt, args...)	logger(level, 0, fmt, ##args)
 
