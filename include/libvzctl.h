@@ -329,6 +329,12 @@ struct vzctl_disk_param {
 	int dummy[32];
 };
 
+struct vzctl_disk_stats {
+	char device[64];
+	unsigned long long total; // in kilobytes
+	unsigned long long free; // in kilobytes
+};
+
 struct vzctl_meminfo {
 	unsigned long long total;
 	unsigned long long free;
@@ -928,6 +934,8 @@ int vzctl2_env_attach_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *
 int vzctl2_env_del_disk(struct vzctl_env_handle *h, const char *uuid, int flags);
 int vzctl2_env_detach_disk(struct vzctl_env_handle *h, const char *guid);
 int vzctl2_env_set_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param);
+int vzctl2_env_get_disk_stats(struct vzctl_env_handle *h, const char *uuid,
+	struct vzctl_disk_stats *stats, int size);
 
 int vzctl2_get_ploop_dev(const char *path, char *dev, int len);
 int vzctl2_get_ploop_dev_by_mnt(const char *mnt, char *out, int len);
