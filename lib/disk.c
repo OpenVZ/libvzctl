@@ -937,6 +937,11 @@ static int enable_disk(struct vzctl_env_handle *h, struct vzctl_disk *d)
 	return do_setup_disk(h, d, 0, 1);
 }
 
+static void get_dd_path(const struct vzctl_disk *disk, char *buf, size_t size)
+{
+	snprintf(buf, size, "%s/" DISKDESCRIPTOR_XML, disk->path);
+}
+
 int vzctl2_add_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param,
 		int flags)
 {
@@ -980,7 +985,7 @@ int vzctl2_add_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param,
 		char fname[PATH_MAX];
 		struct ploop_disk_images_data *di;
 
-		snprintf(fname, sizeof(fname), "%s/" DISKDESCRIPTOR_XML, d->path);
+		get_dd_path(d, fname, sizeof(fname));
 		rc = stat_file(fname);
 		if (rc == -1) {
 			goto err;
@@ -1271,4 +1276,51 @@ int check_external_disk(struct vzctl_env_disk *env_disk)
 	}
 
 	return 0;
+}
+
+static int get_ploop_disk_stats(const struct vzctl_disk *disk, struct vzctl_disk_stats *stats)
+{
+	int ret;
+	char dev[64];
+	char buf[PATH_MAX];
+	struct ploop_info info;
+
+	ret = vzctl2_get_ploop_dev(disk->path, dev, sizeof(dev));
+	if (ret == 0) {
+		ret = ploop_get_mnt_by_dev(dev, buf, sizeof(buf));
+		if (ret == 0) {
+			strncpy(stats->device, dev, sizeof(stats->device) - 1);
+			stats->device[sizeof(stats->device) - 1] = '\0';
+		}
+	}
+	if (ret != 0 && ret != 1)
+		return VZCTL_E_SYSTEM;
+	get_dd_path(disk, buf, sizeof(buf));
+	ret = ploop_get_info_by_descr(buf, &info);
+	if (ret == 0) {
+		stats->total = info.fs_bsize * info.fs_blocks / 1024;
+		stats->free = info.fs_bsize * info.fs_bfree / 1024;
+	}
+	return (ret == 0 || ret == 1) ? 0 : VZCTL_E_SYSTEM;
+}
+
+int vzctl2_env_get_disk_stats(struct vzctl_env_handle *h, const char *uuid,
+	struct vzctl_disk_stats *stats, int size)
+{
+	int ret = 0;
+	struct vzctl_disk_stats st = {};
+	struct vzctl_disk *d;
+
+	if (h->env_param->fs->layout != VZCTL_LAYOUT_5)
+		return vzctl_err(VZCTL_E_INVAL, 0,
+			"Unable to get disk statistics: Unsupported CT layout %d",
+			h->env_param->fs->layout);
+	d = find_disk(h->env_param->disk, uuid);
+	if (d == NULL)
+		return vzctl_err(VZCTL_E_INVAL, 0, "Unable to get disk "
+			"statistics: disk %s is not found", uuid);
+	ret = get_ploop_disk_stats(d, &st);
+	if (ret == 0)
+		memcpy(stats, &st, size);
+	return ret;
 }
