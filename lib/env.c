@@ -250,6 +250,7 @@ int vzctl2_env_stop(struct vzctl_env_handle *h, stop_mode_e stop_mode, int flags
                 return vzctl_err(0, 0,
                                 "Container is not running");
 
+	logger(0, 0, "Stopping the Container ...");
 	if (env_status.mask & (ENV_STATUS_CPT_SUSPENDED | ENV_STATUS_CPT_UNDUMPED)) {
 		struct vzctl_cpt_param cpt_param = {};
 		logger(0, 0, "The Container is in the %s state",
