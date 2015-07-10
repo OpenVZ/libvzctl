@@ -156,6 +156,16 @@ static const char *get_ub_name(int res_id)
         return NULL;
 }
 
+const char *get_ub_param_name(int id)
+{
+	int i;
+
+	for (i = 0; ubname2id[i].name != NULL; i++)
+		if (ubname2id[i].paramid == id)
+			return ubname2id[i].name;
+	return "";
+}
+
 const struct vzctl_2UL_res *vzctl_get_ub_res(struct vzctl_ub_param *ub, int id)
 {
 #define GET_UB_RES(name, res_id)	if (res_id == id) return ub->name;

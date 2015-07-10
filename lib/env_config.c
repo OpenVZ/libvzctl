@@ -223,20 +223,6 @@ static int parse_str(char **dst, const char *src, int replace)
 	return xstrdup(dst, src);
 }
 
-static const char *get_param_name(int id)
-{
-	switch(id) {
-	case VZCTL_PARAM_OOMGUARPAGES:
-		return "oomguarpages";
-	case VZCTL_PARAM_KMEMSIZE:
-		return "kmemsize";
-	case VZCTL_PARAM_DCACHESIZE:
-		return "dcachesize";
-	}
-
-	return "";
-}
-
 static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 		struct vzctl_data_param *data, int flags)
 {
@@ -360,7 +346,7 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 	case VZCTL_PARAM_DCACHESIZE:
 		if (!(flags & VZCTL_CONF_PARAM))
 			logger(0, 0, "Warning: %s parameter is deprecated",
-					get_param_name(param_id));
+					get_ub_param_name(param_id));
 		break;
 	case VZCTL_PARAM_VM_OVERCOMMIT:
 	{
