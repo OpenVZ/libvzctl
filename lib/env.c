@@ -1069,13 +1069,6 @@ int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param
 	}
 	close(err_p[0]); err_p[0] = -1;
 
-	/* CT is in undumped state, perform configuration inside CT */
-	if (param->cmd == VZCTL_CMD_RESTORE || param->cmd == VZCTL_CMD_UNDUMP) {
-		ret = apply_quota_param(h, h->env_param, flags);
-		if (ret)
-			goto err;
-	}
-
 	if (param->cmd == VZCTL_CMD_RESTORE) {
 		char fname[PATH_MAX];
 
