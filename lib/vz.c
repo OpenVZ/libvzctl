@@ -806,17 +806,22 @@ static int cmp_stat(struct stat *a, struct stat *b)
 	return !(a->st_dev == b->st_dev && a->st_ino == b->st_ino);
 }
 
-static int validate_eid(const char *veconf, ctid_t ctid, ctid_t eid_old)
+static int validate_eid(struct vzctl_env_handle *h, ctid_t ctid)
 {
 	char conf[PATH_MAX];
 	struct stat st1, st2;
+	ctid_t ctid_conf;
+	const char *data;
+
+	if (vzctl2_env_get_param(h, "VEID", &data) == 0 && data != NULL)
+		vzctl2_parse_ctid(data, ctid_conf);
 
 	/* /etc/vz/conf/eid_old.conf -> VE_PRIVATE/ve.conf */
-	if (!EMPTY_CTID(eid_old)) {
-		vzctl2_get_env_conf_path(eid_old, conf, sizeof(conf));
+	if (!EMPTY_CTID(ctid_conf)) {
+		vzctl2_get_env_conf_path(ctid_conf, conf, sizeof(conf));
 		if (stat(conf, &st1) == 0)
 			return vzctl_err(-1, 0, "Container is already registered"
-					" with id %s", eid_old);
+					" with id %s", ctid_conf);
 		else if (errno != ENOENT)
 			return vzctl_err(-1, errno, "Failed to stat %s", conf);
 	}
@@ -830,18 +835,16 @@ static int validate_eid(const char *veconf, ctid_t ctid, ctid_t eid_old)
 		return vzctl_err(-1, 0, "Container configuration file %s"
 				" is not a link", conf);
 
-	if (stat(conf, &st1)) {
+	if (stat(conf, &st2)) {
 		if (errno == ENOENT)
 			return 0;
 		return vzctl_err(-1, errno, "Failed to stat %s", conf);
 	}
 
-	if (stat(veconf, &st2))
-		return vzctl_err(-1, errno, "Failed to stat %s", veconf);
-
 	/* /etc/vz/conf/ctid.conf already exists */
 	if (cmp_stat(&st1, &st2) != 0 )
 		return vzctl_err(-1, 0, "Error: Container ID %s is used", ctid);
+
 	return 0;
 }
 
@@ -889,7 +892,6 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 	int ha_enable = 0;
 	const char *data, *name;
 	ctid_t ctid = {};
-	ctid_t eid_old = {};
 	ctid_t uuid = {};
 
 	/* preserve compatibility
@@ -964,7 +966,7 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 			goto err;
 		}
 
-		if (validate_eid(veconf, ctid, eid_old))
+		if (validate_eid(h, ctid))
 			goto err;
 	} else if ((owner_check_res == VZCTL_E_ENV_MANAGE_DISABLED) && on_shared) {
 		if (on_pcs && !(flags & VZ_REG_SKIP_CLUSTER)) {
