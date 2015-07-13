@@ -202,6 +202,7 @@ int create_static_dev(const char *name, mode_t mode, dev_t dev)
 	else
 		snprintf(device, sizeof(device), "%s", name);
 
+	make_dir(device, 0);
 	unlink(device);
 	if (mknod(device, mode, dev))
 		logger(-1, errno, "Failed to mknod %s", device);
