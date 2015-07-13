@@ -2388,9 +2388,11 @@ int configure_sysctl(const char *var, const char *val)
 	return ret == len ? 0 : -1;
 }
 
+static __thread pid_t vzpopen_pid;
+
 FILE *vzctl_popen(char *argv[], char *env[], int quiet)
 {
-	int pid, fd, i, j;
+	int fd, i, j;
 	char *cmd = NULL;
 	char *envp[ENV_SIZE];
 	int out[2];
@@ -2417,7 +2419,7 @@ FILE *vzctl_popen(char *argv[], char *env[], int quiet)
 	for (j = 0; i < ENV_SIZE - 1 && envp_bash[j] != NULL; i++, j++)
 		envp[i] = envp_bash[j];
 	envp[i] = NULL;
-	if ((pid = fork()) == 0) {
+	if ((vzpopen_pid = fork()) == 0) {
 		fd = open("/dev/null", O_WRONLY);
 		if (fd != -1) { 
 			dup2(fd, STDIN_FILENO);
@@ -2438,7 +2440,7 @@ FILE *vzctl_popen(char *argv[], char *env[], int quiet)
 		execve(argv[0], argv, envp);
 		logger(-1, errno, "Failed to exec %s", cmd);
 		_exit(1);
-	} else if (pid == -1) {
+	} else if (vzpopen_pid == -1) {
 		logger(-1, errno, "Unable to fork");
 		goto err;
 	}
@@ -2458,7 +2460,7 @@ int vzctl_pclose(FILE *fp)
 {
 	int status, ret;
 
-	while ((ret = waitpid(0, &status, 0)) == -1)
+	while ((ret = waitpid(vzpopen_pid, &status, 0)) == -1)
 		if (errno != EINTR)
 			break;
 	if (ret == -1) {
