@@ -173,7 +173,7 @@ static int create_tmpfiles(const char *name, mode_t mode, dev_t dev)
 			name, gnu_dev_major(dev), gnu_dev_minor(dev));
 	fclose(fp);
 
-	return remove_tmpfiles_caps();
+	return 0;
 }
 
 static const char *get_static_dev_dir(void)
@@ -694,6 +694,8 @@ int create_root_dev(void *data)
 	logger(10, 0, "Root device: %s", device);
 	if (stat(root, &st))
 		return vzctl_err(-1, errno, "Failed to stat /");
+
+	remove_tmpfiles_caps();
 
 	return create_static_dev(device, S_IFBLK | S_IRUSR | S_IWUSR, st.st_dev);
 }
