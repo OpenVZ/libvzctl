@@ -77,71 +77,72 @@ int setup_vzlink_dev(struct vzctl_env_handle *h, int flags)
 
 #define CAP_SYS_MODULE_STR "ConditionCapability=CAP_SYS_MODULE"
 #define SYSTEMD_TMPFILES_SERVICE_CAP "/lib/systemd/system/systemd-tmpfiles-setup-dev.service"
-#define SYSTEMD_TMPFILES_SERVICE_CAP_TMP SYSTEMD_TMPFILES_SERVICE_CAP "_tmp"
 
 static int remove_tmpfiles_caps(void)
 {
 	FILE *fp_src, *fp_dst;
-	char tmpfiles_unit[] = SYSTEMD_TMPFILES_SERVICE_CAP;
-	char tmpfiles_unit_t[] = SYSTEMD_TMPFILES_SERVICE_CAP_TMP;
-	char string_buf[STR_MAX];
+	char unit[] = SYSTEMD_TMPFILES_SERVICE_CAP;
+	char unit_t[] = SYSTEMD_TMPFILES_SERVICE_CAP".tmp";
+	char buf[STR_MAX];
 	struct stat st;
 	int substituted = 0;
 	int ret = -1;
 	int len;
 
-	if (stat(tmpfiles_unit, &st)) {
+	if (stat(unit, &st)) {
 		if (errno == ENOENT)
 			return 0;
-		return vzctl_err(-1, errno, "Failed to stat %s", tmpfiles_unit);
+		return vzctl_err(-1, errno, "Failed to stat %s", unit);
 	}
 
-	if ((fp_src = fopen(tmpfiles_unit, "r")) == NULL)
-		return vzctl_err(-1, errno, "Failed to open %s for read", tmpfiles_unit);
+	if ((fp_src = fopen(unit, "r")) == NULL)
+		return vzctl_err(-1, errno, "Failed to open %s for read",
+			unit);
 
-	if ((fp_dst = fopen(tmpfiles_unit_t, "w")) == NULL) {
-		logger(-1, errno, "Failed to open %s for write", tmpfiles_unit_t);
-		goto cleanup1;
+	if ((fp_dst = fopen(unit_t, "w")) == NULL) {
+		fclose(fp_src);
+		return vzctl_err(-1, errno, "Failed to open %s for write",
+				unit_t);
 	}
 
-	while (fgets(string_buf, sizeof(string_buf), fp_src)) {
-		if (strstr(string_buf, CAP_SYS_MODULE_STR)) {
-			string_buf[0] = '\n';
-			string_buf[1] = 0;
+	while (fgets(buf, sizeof(buf), fp_src)) {
+		if (strstr(buf, CAP_SYS_MODULE_STR)) {
+			buf[0] = '\n';
+			buf[1] = 0;
 			substituted = 1;
 		}
 
-		len = strlen(string_buf);
+		len = strlen(buf);
 
-		if (fwrite(string_buf, 1, len, fp_dst) < len) {
-			logger(-1, errno, "Failed to write %s", tmpfiles_unit_t);
-			goto cleanup2;
+		if (fwrite(buf, 1, len, fp_dst) < len) {
+			logger(-1, errno, "Failed to write %s", unit_t);
+			goto err;
 		}
 	}
 
 	if (ferror(fp_src) || !feof(fp_src)) {
-		logger(-1, errno, "fgets() from %s error", tmpfiles_unit);
-		goto cleanup2;
+		logger(-1, errno, "fgets() from %s error", unit);
+		goto err;
 	}
 
 	if (substituted) {
-		if (rename(tmpfiles_unit_t, tmpfiles_unit)) {
-			logger(-1, errno, "Failed to move %s to %s", tmpfiles_unit_t, tmpfiles_unit);
-			goto cleanup2;
+		if (rename(unit_t, unit)) {
+			logger(-1, errno, "Failed to move %s to %s",
+					unit_t, unit);
+			goto err;
 		}
-		if (lchown(tmpfiles_unit, st.st_uid, st.st_gid))
-			logger(-1, errno, "Can set owner for %s", tmpfiles_unit);
-		if (chmod(tmpfiles_unit, st.st_mode & 07777))
-			logger(-1, errno, "Can set mode for %s", tmpfiles_unit);
+		if (fchown(fileno(fp_dst), st.st_uid, st.st_gid))
+			logger(-1, errno, "Can set owner for %s", unit);
+		if (fchmod(fileno(fp_dst), st.st_mode & 07777))
+			logger(-1, errno, "Can set mode for %s", unit);
 	} else {
-		unlink(tmpfiles_unit_t);
+		unlink(unit_t);
 	}
 
 	ret = 0;
 
-cleanup2:
+err:
 	fclose(fp_dst);
-cleanup1:
 	fclose(fp_src);
 
 	return ret;
