@@ -108,8 +108,6 @@ int make_dir(const char *path, int full);
 int destroydir(const char *dir);
 int set_not_blk(int fd);
 int reset_std(void);
-int stdredir(int rdfd, int wrfd, int log);
-
 int yesno2id(const char *str);
 const char *id2yesno(int id);
 int get_netaddr(const char *ip_str, unsigned int *addr);

@@ -354,7 +354,7 @@ void test_config_IO(vzctl_env_handle_ptr h)
 	int err, i;
 	vzctl_env_handle_ptr h_res = NULL;
 	vzctl_env_param_ptr new_param;
-	int res;
+	unsigned int res;
 
 	TEST()
 	CHECK_PTR(new_param, vzctl2_alloc_env_param())
@@ -407,9 +407,10 @@ void test_config_IO(vzctl_env_handle_ptr h)
 	CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
 
 	for (i = 0; i < 2; i++) {
-		CHECK_RET(vzctl2_env_get_ioprio(new_param, &res))
-		if (ul != res) {
-			printf("\t(err) %lu != %d\n", ul, res);
+		int i;
+		CHECK_RET(vzctl2_env_get_ioprio(new_param, &i))
+		if (ul != i) {
+			printf("\t(err) %lu != %d\n", ul, i);
 			TEST_ERR("vzctl2_env_get_ioprio")
 		}
 

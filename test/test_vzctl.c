@@ -148,6 +148,50 @@ void test_env_register()
 	vzctl2_env_unregister(NULL, ctid, 0);
 }
 
+static int stdredir(int rdfd, int wrfd)
+{
+	int lenr, lenw, lentotal, lenremain, n;
+	char buf[10240];
+	char *p;
+	fd_set wr_set;
+
+	lenr = read(rdfd, buf, sizeof(buf)-1);
+	if (lenr > 0) {
+		lentotal = 0;
+		lenremain = lenr;
+		p = buf;
+		while (lentotal < lenr) {
+			while ((lenw = write(wrfd, p, lenremain)) < 0) {
+				switch (errno) {
+				case EINTR:
+					continue;
+				case EAGAIN:
+					FD_ZERO(&wr_set);
+					FD_SET(wrfd, &wr_set);
+					n = select(FD_SETSIZE, NULL, &wr_set,
+								NULL, NULL);
+					if (n < 1)
+						return -1;
+					break;
+				default:
+					return -1;
+				}
+			}
+			lentotal += lenw;
+			lenremain -= lenw;
+			p += lenw;
+		}
+	} else if (lenr == 0) {
+		return -1;
+	} else {
+		if (errno == EAGAIN)
+			return 1;
+		else if (errno != EINTR)
+			return -1;
+	}
+	return 0;
+}
+
 static int process_std(int stdoutfd[2], int stderrfd[2])
 {
 	int n, maxfd;
@@ -177,13 +221,13 @@ static int process_std(int stdoutfd[2], int stderrfd[2])
 		n = select(maxfd, &rd_set, NULL, NULL, &tv);
 		if (n > 0) {
 			if (stdoutfd[0] != -1 && FD_ISSET(stdoutfd[0], &rd_set)) {
-				if (vzctl2_stdredir(stdoutfd[0], 1) < 0) {
+				if (stdredir(stdoutfd[0], STDOUT_FILENO) < 0) {
 					close(stdoutfd[0]);
 					stdoutfd[0] = -1;
 				}
 			}
 			if (stderrfd[0] != -1 && FD_ISSET(stderrfd[0], &rd_set)) {
-				if (vzctl2_stdredir(stderrfd[0], 1) < 0) {
+				if (stdredir(stderrfd[0], STDOUT_FILENO) < 0) {
 					close(stderrfd[0]);
 					stderrfd[0] = -1;
 				}

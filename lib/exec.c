@@ -236,7 +236,7 @@ void writeoutput(int level)
 		log_quiet(level, 0, "%s", buf);
 }
 
-int stdredir(int rdfd, int wrfd, int log)
+static int stdredir(int rdfd, int wrfd, int log)
 {
 	int lenr, lenw, lentotal, lenremain, n;
 	char buf[10240];
