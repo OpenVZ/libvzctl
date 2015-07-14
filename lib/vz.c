@@ -806,43 +806,47 @@ static int cmp_stat(struct stat *a, struct stat *b)
 	return !(a->st_dev == b->st_dev && a->st_ino == b->st_ino);
 }
 
-static int validate_eid(struct vzctl_env_handle *h, ctid_t ctid)
+static int validate_eid(struct vzctl_env_handle *h, struct stat *veconf,
+		ctid_t ctid)
 {
 	char conf[PATH_MAX];
-	struct stat st1, st2;
+	struct stat st;
 	ctid_t ctid_conf;
 	const char *data;
 
 	if (vzctl2_env_get_param(h, "VEID", &data) == 0 && data != NULL)
 		vzctl2_parse_ctid(data, ctid_conf);
-
-	/* /etc/vz/conf/eid_old.conf -> VE_PRIVATE/ve.conf */
+	/* Check if VE_PRIVATE/ve.conf already registered
+	 * /etc/vz/conf/ctid_conf.conf -> VE_PRIVATE/ve.conf
+	 */
 	if (!EMPTY_CTID(ctid_conf)) {
 		vzctl2_get_env_conf_path(ctid_conf, conf, sizeof(conf));
-		if (stat(conf, &st1) == 0)
-			return vzctl_err(-1, 0, "Container is already registered"
-					" with id %s", ctid_conf);
-		else if (errno != ENOENT)
+		if (stat(conf, &st) == 0) {
+			if (cmp_stat(veconf, &st) == 0)
+				return vzctl_err(-1, 0, "Container is already"
+					" registered with id %s", ctid_conf);
+		} else if (errno != ENOENT)
 			return vzctl_err(-1, errno, "Failed to stat %s", conf);
 	}
 
+	/* Check if ctid alredy used */
 	vzctl2_get_env_conf_path(ctid, conf, sizeof(conf));
-	if (lstat(conf, &st1)) {
+	if (lstat(conf, &st)) {
 		if (errno == ENOENT)
 			return 0;
 		return vzctl_err(-1, errno, "Failed lstat %s", conf);
-	} else if (!S_ISLNK(st1.st_mode))
+	} else if (!S_ISLNK(st.st_mode))
 		return vzctl_err(-1, 0, "Container configuration file %s"
 				" is not a link", conf);
 
-	if (stat(conf, &st2)) {
+	if (stat(conf, &st)) {
 		if (errno == ENOENT)
 			return 0;
 		return vzctl_err(-1, errno, "Failed to stat %s", conf);
 	}
 
 	/* /etc/vz/conf/ctid.conf already exists */
-	if (cmp_stat(&st1, &st2) != 0 )
+	if (cmp_stat(veconf, &st) != 0 )
 		return vzctl_err(-1, 0, "Error: Container ID %s is used", ctid);
 
 	return 0;
@@ -966,7 +970,7 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 			goto err;
 		}
 
-		if (validate_eid(h, ctid))
+		if (validate_eid(h, &st, ctid))
 			goto err;
 	} else if ((owner_check_res == VZCTL_E_ENV_MANAGE_DISABLED) && on_shared) {
 		if (on_pcs && !(flags & VZ_REG_SKIP_CLUSTER)) {
