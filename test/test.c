@@ -28,6 +28,7 @@
 
 static int _nfailed;
 static int _ntest;
+ctid_t ctid = {"0ef21de0-2f96-4bd4-ae9c-5e423cfb78dd"};
 
 void inc_failed()
 {
@@ -64,6 +65,7 @@ int main(int argc, char **argv)
 			usage();
 	}
 
+	cleanup();
 	if (mode & 0x1)
 		test_vzctl();
 	if (mode & 0x2)

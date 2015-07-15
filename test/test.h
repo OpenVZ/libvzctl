@@ -67,5 +67,6 @@ void test_vzctl();
 void test_config();
 void inc_failed();
 void inc_test();
+int cleanup(void);
 
 #endif

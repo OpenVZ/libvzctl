@@ -44,7 +44,7 @@
 
 static const char *id = "100";
 static unsigned veid = 100;
-static ctid_t ctid = {"0ef21de0-2f96-4bd4-ae9c-5e423cfb78dd"};
+extern ctid_t ctid;
 
 void test_misc()
 {
@@ -113,7 +113,8 @@ void test_set_userpasswd()
 	int ret, err;
 	struct vzctl_env_handle *h;
 
-	printf("\n(info) %s\n", __func__);
+	TEST()
+
 	CHECK_PTR(h, vzctl2_env_open(ctid, 0, &err))
 	CHECK_RET(vzctl2_env_set_userpasswd(h, "root", "1", 0))
 	CHECK_RET(vzctl2_env_auth(h, "root", "1", -1, 0))
@@ -131,21 +132,23 @@ void test_set_userpasswd()
 
 void test_env_register()
 {
-	char *path = "/vz/private/101";
+	int err;
+	const char *path;
+	struct vzctl_env_handle *h;
 	struct vzctl_reg_param p = {};
 
+	SET_CTID(p.ctid, ctid);
+
 	TEST()
-	printf("\n(info) %s\n", __func__);
+
+	CHECK_PTR(h, vzctl2_env_open(ctid, 0, &err))
+	vzctl2_env_get_ve_private_path(vzctl2_get_env_param(h), &path);
 
 	vzctl2_env_unregister(NULL, ctid, 0);
 	printf("register at %s\n", path);
 	CHECK_RET(vzctl2_env_register(path, &p, 0))
-	vzctl2_env_unregister(NULL, ctid, 0);
 
-	printf("register with free id\n");
-	CHECK_RET(vzctl2_env_register(path, &p, 0))
-
-	vzctl2_env_unregister(NULL, ctid, 0);
+	vzctl2_env_close(h);
 }
 
 static int stdredir(int rdfd, int wrfd)
@@ -265,6 +268,7 @@ int test_env_exec_async(char **argv, char **envp, int stdfd)
 			stdfd ? fds : NULL, &ret);
 	if (pid == -1) {
 		ret = err;
+		printf("vzctl2_env_exec_async: pid=-1\n");
 		goto err;
 	}
 
@@ -272,6 +276,9 @@ int test_env_exec_async(char **argv, char **envp, int stdfd)
 		process_std(stdoutfd, stderrfd);
 
 	err = vzctl2_env_exec_wait(pid, &ret);
+	if (ret)
+		printf("vzctl2_env_exec_async: %s ret=%d\n",
+				vzctl2_get_last_error(), ret);
 
 	close(stdoutfd[0]);
 	close(stderrfd[0]);
@@ -343,6 +350,7 @@ void test_exec()
 {
 	int ret, i;
 
+	TEST()
 	test_env_exec_fn(exec_fn, "/test.XXX");
 
 	for (i = 0; i < 2; i++) {
@@ -354,7 +362,7 @@ void test_exec()
 
 		{
 			char *argv[] = {"xx", NULL};
-			CHECK_RET( test_env_exec_async(argv, NULL, i))
+			CHECK_RET(!test_env_exec_async(argv, NULL, i))
 
 		}
 
@@ -396,11 +404,13 @@ void test_env_stop()
 	vzctl_env_handle_ptr h;
 	int modes[] = {M_HALT, M_REBOOT, M_KILL};
 
+	TEST()
 	CHECK_PTR(h, vzctl2_env_open(ctid, 0, &err))
 	for (i = 0; i < sizeof(modes)/sizeof(modes[0]); i++) {
-		ret = vzctl2_env_start(h, 0);
-		if (ret != VZCTL_E_ENV_RUN)
-			TEST_ERR("vzctl2_env_start")
+		ret = vzctl2_env_start(h, VZCTL_WAIT);
+		if (ret && ret != VZCTL_E_ENV_RUN)
+			TEST_VZERR("vzctl2_env_start ret")
+
 		printf("Stop CT mode=%d\n", modes[i]);
 		CHECK_RET(vzctl2_env_stop(h, modes[i], 0))
 	}
@@ -417,6 +427,8 @@ void test_mount()
 {
 	int err;
 	vzctl_env_handle_ptr h;
+
+	TEST()
 
 	CHECK_PTR(h, vzctl2_env_open(ctid, 0, &err))
 	CHECK_RET(vzctl2_env_mount(h, 0))
@@ -485,6 +497,8 @@ void test_disk()
 	vzctl_env_handle_ptr h;
 	char path[4096];
 	struct vzctl_disk_param param = {};
+
+	TEST()
 
 	CHECK_PTR(h, vzctl2_env_open(ctid, 0, &err))
 
@@ -591,6 +605,7 @@ void test_create()
 	struct vzctl_env_create_param param = {};
 	struct vzctl_env_param *env = vzctl2_alloc_env_param();
 
+	TEST()
 	bzero(param.ctid, sizeof(ctid_t));
 	do_env_create(env, &param);
 
@@ -605,7 +620,7 @@ void test_create()
 	param.config = "vswap.512MB";
 	do_env_create(env, &param);
 
-	vzctl2_env_add_ipaddress(env, "1.1.1.1.100");
+	vzctl2_env_add_ipaddress(env, "1.1.1.100");
 	vzctl2_env_add_nameserver(env, "1.1.1.1");
 	vzctl2_env_add_nameserver(env, "1.1.1.2");
 	vzctl2_env_add_searchdomain(env, "resr.ru");
@@ -632,7 +647,7 @@ void test_create()
 	vzctl2_free_env_param(env);
 }
 
-int cleanup()
+int cleanup(void)
 {
 	vzctl_env_handle_ptr h;
 	vzctl_env_status_t status;
@@ -744,7 +759,7 @@ void test_vzctl()
 	/* CREATE TEST CT */
 	CHECK_RET(vzctl2_env_create(env, &param, 0));
 
-	test_create();
+//	test_create();
 	test_get_total_meminfo();
 	test_lock();
 	test_vzlimits();

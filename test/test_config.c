@@ -35,9 +35,11 @@
 #include "test.h"
 #include "cap.h"
 
+
+extern ctid_t ctid;
+
 struct vzctl_cpulimit_param cpulimit;
 struct vzctl_2UL_res ul_res;
-ctid_t ctid = {"7f8df7ac-7277-4be1-9a92-1622ba4e2168"};
 unsigned long ul;
 
 unsigned long rand_ul()
