@@ -380,7 +380,7 @@ int parse_ub(struct vzctl_ub_param *ub, const char *val, int id,
 	if (divisor)
 		ret = parse_twoul_sfx(val, &res, divisor, def_divisor);
 	else
-		ret = parse_twoul(val, &res);
+		ret = parse_twoul_sfx(val, &res, 1, 1);
 	if (ret && ret != VZCTL_E_LONG_TRUNC)
 		return ret;
 	ret = vzctl_add_ub_param(ub, id, &res);

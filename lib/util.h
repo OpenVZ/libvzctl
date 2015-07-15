@@ -173,7 +173,6 @@ const char *get_state(struct vzctl_env_handle *h);
 void get_action_script_path(struct vzctl_env_handle *h, const char *name,
 		char *out, int len);
 int get_num_cpu(void);
-int parse_twoul(const char *str, struct vzctl_2UL_res *res);
 int parse_twoul_sfx(const char *str, struct vzctl_2UL_res *res,
 		int divisor, int def_divisor);
 int get_pagesize();

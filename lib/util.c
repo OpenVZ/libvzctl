@@ -480,8 +480,9 @@ static const char *parse_ul_sfx(const char *str, unsigned long long *val,
 		*val = (unsigned long long) v;
 	}
 	if (*tail != ':' && *tail != '\0') {
-		if (!divisor)
+		if (!divisor || divisor == 1)
 			return NULL;
+			
 		if (get_mul(*tail, &n))
 			return NULL;
 		v = v * n / divisor;
@@ -529,46 +530,6 @@ int parse_twoul_sfx(const char *str, struct vzctl_2UL_res *res,
 
 err:
 	return vzctl_err(VZCTL_E_INVAL, 0, "An incorrect value: %s", str);;
-}
-
-/* This function parse string in form xxx:yyy
- * If :yyy is omitted, it is set to xxx.
- */
-int parse_twoul(const char *str, struct vzctl_2UL_res *res)
-{
-	unsigned long long tmp;
-	char *tail;
-	int ret;
-
-	assert(res);
-	assert(str);
-
-	ret = errno = 0;
-	tmp = strtoull(str, &tail, 10);
-	if (errno == ERANGE)
-		return VZCTL_E_INVAL;
-	if (tmp > LONG_MAX) {
-		tmp = LONG_MAX;
-		ret = VZCTL_E_LONG_TRUNC;
-	}
-	res->b = tmp;
-	if (*tail == ':') {
-		tail++;
-		errno = 0;
-		tmp = strtoull(tail, &tail, 10);
-		if ((*tail != '\0') || (errno == ERANGE))
-			return 1;
-		if (tmp > LONG_MAX) {
-			tmp = LONG_MAX;
-			ret = VZCTL_E_LONG_TRUNC;
-		}
-		res->l = tmp;
-	} else if (*tail == 0) {
-		res->l = res->b;
-	} else {
-		return VZCTL_E_INVAL;
-	}
-	return ret;
 }
 
 int parse_int(const char *str, int *val)
