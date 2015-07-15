@@ -1302,11 +1302,6 @@ static int veth_ctl(struct vzctl_env_handle *h, int op,
 
 	if (dev->mac) {
 		snprintf(buf, sizeof(buf), "HMAC=%s", dev->mac);
-		/* To avoid assign veth mac to bridge set it max by
-		 * change first byte to 'fe'
-		 */
-		buf[5] =  'f';
-		buf[6] =  'e';
 		envp[i++] = strdup(buf);
 	}
 

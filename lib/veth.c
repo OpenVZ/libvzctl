@@ -186,7 +186,7 @@ static void generate_veth_name(ctid_t ctid, const char *dev_name_ve,
 	snprintf(dev_name, len, "veth%s.%d", id, n);
 }
 
-static void generate_mac(char **mac)
+static void generate_mac(char **mac, int fix)
 {
 	unsigned int hash;
 	char hwaddr[ETH_ALEN];
@@ -201,13 +201,18 @@ static void generate_mac(char **mac)
 	hash += hash >> 17;
 	hash ^= hash << 25;
 	hash += hash >> 6;
+
 	hwaddr[0] = (char) (SW_OUI >> 0xf);
 	hwaddr[1] = (char) (SW_OUI >> 0x8);
 	hwaddr[2] = (char) SW_OUI;
 	hwaddr[3] = (char) hash;
 	hwaddr[4] = (char) (hash >> 0x8);
 	hwaddr[5] = (char) (hash >> 0xf);
-
+	/* To avoid assign veth mac to bridge.
+	 * Set it max by change first byte to 'fe'
+	 */
+	if (fix)
+		hwaddr[0] = 0xfe;
 	*mac = hwaddr2str(hwaddr);
 }
 
@@ -216,9 +221,9 @@ static void fill_empty_veth_dev_param(ctid_t ctid, struct vzctl_veth_dev *dev)
 	if (dev->dev_name[0] == '\0')
 		generate_veth_name(ctid, dev->dev_name_ve, dev->dev_name, IFNAMSIZE);
 	if (dev->mac == NULL)
-		generate_mac(&dev->mac);
+		generate_mac(&dev->mac, 1);
 	if (dev->mac_ve == NULL)
-		generate_mac(&dev->mac_ve);
+		generate_mac(&dev->mac_ve, 0);
 	if (dev->mac_filter == 0)
 		dev->mac_filter = VZCTL_PARAM_ON;
 }
@@ -796,7 +801,7 @@ char *veth2str(struct vzctl_env_param *env, struct vzctl_veth_param *new)
 			continue;
 		}
 		if (it->mac_ve == NULL)
-			generate_mac(&it->mac_ve);
+			generate_mac(&it->mac_ve, 0);
 		if (it->mac_ve != NULL) {
 			sp += snprintf(sp, ep - sp, "mac=%s,",
 				it->mac_ve);
@@ -810,7 +815,7 @@ char *veth2str(struct vzctl_env_param *env, struct vzctl_veth_param *new)
 				break;
 		}
 		if (it->mac == NULL)
-			generate_mac(&it->mac);
+			generate_mac(&it->mac, 1);
 
 		if (it->mac != NULL) {
 			sp += snprintf(sp, ep - sp, "host_mac=%s,",
@@ -1317,8 +1322,8 @@ static int parse_netif_str_cmd(struct vzctl_env_handle *h, const char *str,
 		if (h)
 			generate_veth_name(EID(h), dev->dev_name_ve, dev->dev_name,
 				sizeof(dev->dev_name));
-		generate_mac(&dev->mac);
-		generate_mac(&dev->mac_ve);
+		generate_mac(&dev->mac, 1);
+		generate_mac(&dev->mac_ve, 0);
 		return 0;
 	}
 	/* Parsing veth MAC address in Container */
