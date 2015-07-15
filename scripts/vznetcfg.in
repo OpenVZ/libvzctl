@@ -28,21 +28,14 @@ addif()
 {
 	local iface=$1
 	local br
-	local bound_iface
 
-	bound_iface=`prlsrvctl net info $2`
+	br=`prlsrvctl net info $2`
 	if [ $? -ne 0 ]; then
 		exit 1
 	fi 
 
-	bound_iface=`echo "$bound_iface" | awk '/Bound To:/{print $3}'`
-	if [ -n "$bound_iface" ]; then
-		br=`brctl show | awk '/'$bound_iface'$/{print $1}'`
-		if [ -z "$br" ]; then
-			echo "Unable to find bridge by bounded iface $bound_iface"
-			exit 1
-		fi
-	else
+	br=`echo "$br" | awk '/Bridge:/{print $2}'`
+	if [ -z "$br" ]; then
 		br="$2"
 	fi
 
