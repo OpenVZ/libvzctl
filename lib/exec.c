@@ -67,6 +67,11 @@ static char *envp_bash[] = {"HOME=/", "TERM=linux",
 	"SHELL=/bin/bash",
 	NULL};
 
+static void exec_handler(int sig)
+{
+	child_exited = 1;
+}
+
 int execvep(const char *path, char *const argv[], char *const envp[])
 {
 	if (!strchr(path, '/')) {
@@ -341,7 +346,7 @@ void set_timeout_handler(pid_t pid, int timeout)
 	alarm(timeout);
 }
 
-static int real_env_exec_init(struct exec_param *param)
+int real_env_exec_init(struct exec_param *param)
 {
 	struct sigaction act = {};
 
@@ -356,9 +361,15 @@ static int real_env_exec_init(struct exec_param *param)
 		set_not_blk(param->err_p[0]);
 	}
 
+	sigemptyset(&act.sa_mask);
 	act.sa_handler = SIG_IGN;
 	act.sa_flags = 0;
 	sigaction(SIGPIPE, &act, NULL);
+
+	child_exited = 0;
+	act.sa_flags = SA_NOCLDSTOP;
+	act.sa_handler = exec_handler;
+	sigaction(SIGCHLD, &act, NULL);
 
 	return 0;
 }
@@ -492,10 +503,10 @@ int real_env_exec_waiter(struct exec_param *param, int pid, int timeout, int fla
 	}
 
 	initoutput();
-	while (1) {
+	while (!child_exited) {
 		int n;
 		fd_set rd_set;
-
+	
 		if (param->out_p[0] == -1 && param->err_p[0] == -1) {
 			/* all fd are closed */
 			close(param->in_p[1]);
@@ -509,6 +520,7 @@ int real_env_exec_waiter(struct exec_param *param, int pid, int timeout, int fla
 			FD_SET(param->out_p[0], &rd_set);
 		if (param->err_p[0] != -1)
 			FD_SET(param->err_p[0], &rd_set);
+
 		n = select(FD_SETSIZE, &rd_set, NULL, NULL, NULL);
 		if (n > 0) {
 			if (param->out_p[0] != -1 && FD_ISSET(param->out_p[0], &rd_set))
@@ -543,9 +555,7 @@ int real_env_exec_waiter(struct exec_param *param, int pid, int timeout, int fla
 	writeoutput(0);
 out:
 
-	ret = env_wait(pid, timeout, NULL);
-
-	return ret;
+	return env_wait(pid, timeout, NULL);
 }
 
 static int do_env_exec(struct vzctl_env_handle *h, exec_mode_e exec_mode,
@@ -576,22 +586,13 @@ static int do_env_exec(struct vzctl_env_handle *h, exec_mode_e exec_mode,
 	if (lfd < 0)
 		return VZCTL_E_LOCK;
 
-	ret = real_env_exec_init(&param);
-	if (ret)
-		goto err;
-
 	ret = get_env_ops()->env_exec(h, &param, flags, &pid);
 	if (ret)
 		goto err;
 
 	hook = register_cleanup_hook(cleanup_kill_process, (void *) &pid);
-	ret = real_env_exec_waiter(&param, pid, timeout, flags);
+	ret = env_wait(pid, timeout, NULL);
 	unregister_cleanup_hook(hook);
-	if (timeout) {
-		alarm(0);
-		s_timeout_pid = -1;
-	}
-
 err:
 	real_env_exec_close(&param);
 	vzctl2_release_enter_lock(lfd);

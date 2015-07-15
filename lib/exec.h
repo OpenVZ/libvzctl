@@ -58,6 +58,9 @@ int real_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 int real_env_exec(struct vzctl_env_handle *h, struct exec_param *param, int flags);
 
 void set_timeout_handler(pid_t pid, int timeout);
+int real_env_exec_init(struct exec_param *param);
+int real_env_exec_waiter(struct exec_param *param, int pid, int timeout, int flags);
+
 
 /** Execute function inside VE.
  * All file descriptors are closed.
