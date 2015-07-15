@@ -471,7 +471,8 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 		return vzctl_err(ret, 0, "Can't check the CT %s status", ctid);
 
 	if (status.mask & ENV_STATUS_EXISTS)
-		return vzctl_err(VZCTL_E_FS_PRVT_AREA_EXIST, 0, "Container already exists");
+		return vzctl_err(VZCTL_E_FS_PRVT_AREA_EXIST, 0,
+				"Container %s already exists", ctid);
 
 	vzctl2_get_env_conf_path(ctid, conf, sizeof(conf));
 
