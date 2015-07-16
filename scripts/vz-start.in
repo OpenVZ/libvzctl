@@ -19,11 +19,13 @@
 # Our contact details: Parallels IP Holdings GmbH, Vordergasse 59, 8200
 # Schaffhausen, Switzerland.
 #
-# This script setup traffic accounting rules for given VPS.
+# This script is run in host context right before container start.
+# Currently it loads kernel modules that might be needed for a CT.
 #
 # Parameters are passed in environment variables.
 # Required parameters:
-#   VEID          - VPS id
+#   VEID          - container id
+
 . @SCRIPTDIR@/vz-functions
 
 vzcheckvar VEID
@@ -56,4 +58,3 @@ load_modules
 
 exit 0
 # end of script
-
