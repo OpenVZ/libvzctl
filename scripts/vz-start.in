@@ -47,6 +47,11 @@ load_modules()
 		modules="$modules ppp_generic"
 	fi
 
+	# process bridge
+	if echo $features | grep -Fwq 'bridge:on'; then
+		modules="$modules veth bridge"
+	fi
+
 	for mod in ${modules}; do
 		if /sbin/lsmod | grep -qw $mod; then
 			continue
