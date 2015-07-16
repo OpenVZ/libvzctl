@@ -32,10 +32,10 @@ vzcheckvar VEID
 
 load_modules()
 {
-	local f mod msg modules devnodes
+	local f mod msg modules devnodes features
 
 	eval $(. /etc/vz/conf/${VEID}.conf && \
-		echo devnodes=\"$DEVNODES\")
+		echo devnodes=\"$DEVNODES\" features=\"$FEATURES\")
 
 	# process tun/tap
 	if echo $devnodes | grep -Fq 'net/tun:'; then
@@ -43,7 +43,7 @@ load_modules()
 	fi
 
 	# process pptp
-	if echo $devnodes | grep -Fq 'ppp:'; then
+	if echo $features | grep -Fwq 'ppp:on'; then
 		modules="$modules ppp_generic"
 	fi
 
