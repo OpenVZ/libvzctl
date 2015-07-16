@@ -52,6 +52,13 @@ load_modules()
 		modules="$modules veth bridge"
 	fi
 
+	# process nfs and nfsd
+	for mod in nfs nfsd; do
+		if echo $features | grep -Fwq "${mod}:on"; then
+			modules="$modules $mod"
+		fi
+	done
+
 	for mod in ${modules}; do
 		if /sbin/lsmod | grep -qw $mod; then
 			continue
