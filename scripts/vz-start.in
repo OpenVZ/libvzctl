@@ -19,36 +19,52 @@
 # Our contact details: Parallels IP Holdings GmbH, Vordergasse 59, 8200
 # Schaffhausen, Switzerland.
 #
-# This script setup traffic accounting rules for given VPS.
+# This script is run in host context right before container start.
+# Currently it loads kernel modules that might be needed for a CT.
 #
 # Parameters are passed in environment variables.
 # Required parameters:
-#   VEID          - VPS id
+#   VEID          - container id
+
 . @SCRIPTDIR@/vz-functions
 
 vzcheckvar VEID
 
 load_modules()
 {
-	local ve_conf=/etc/vz/conf/$VEID.conf
-	local f mod msg
+	local mod msg modules devnodes features
+
+	eval $(. /etc/vz/conf/${VEID}.conf && \
+		echo devnodes=\"$DEVNODES\" features=\"$FEATURES\")
 
 	# process tun/tap
-	if grep -qe '^DEVNODES=.*net/tun:' $ve_conf; then
-		modules="$moduels tun"
+	if echo $devnodes | grep -Fq 'net/tun:'; then
+		modules="$modules tun"
 	fi
 
 	# process pptp
-	if grep -e '^DEVNODES=.*ppp:' $ve_conf; then
-		modules="$moduels ppp_generic"
+	if echo $features | grep -Fwq 'ppp:on'; then
+		modules="$modules ppp_generic"
 	fi
+
+	# process bridge
+	if echo $features | grep -Fwq 'bridge:on'; then
+		modules="$modules veth bridge"
+	fi
+
+	# process nfs and nfsd
+	for mod in nfs nfsd; do
+		if echo $features | grep -Fwq "${mod}:on"; then
+			modules="$modules $mod"
+		fi
+	done
 
 	for mod in ${modules}; do
 		if /sbin/lsmod | grep -qw $mod; then
 			continue
 		fi
 		msg=`/sbin/modprobe $mod >/dev/null 2>&1`
-		[ $? -ne 0 ] && echo "Warning: failed to load $mod: $msg"
+		[ $? -ne 0 ] && echo "Warning: failed to load $mod: $msg" 1>&2
 	done
 }
 
@@ -56,4 +72,3 @@ load_modules
 
 exit 0
 # end of script
-
