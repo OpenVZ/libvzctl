@@ -32,7 +32,7 @@ vzcheckvar VEID
 
 load_modules()
 {
-	local f mod msg modules devnodes features
+	local mod msg modules devnodes features
 
 	eval $(. /etc/vz/conf/${VEID}.conf && \
 		echo devnodes=\"$DEVNODES\" features=\"$FEATURES\")
