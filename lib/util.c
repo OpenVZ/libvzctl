@@ -480,7 +480,7 @@ static const char *parse_ul_sfx(const char *str, unsigned long long *val,
 		*val = (unsigned long long) v;
 	}
 	if (*tail != ':' && *tail != '\0') {
-		if (!divisor || divisor == 1)
+		if (!divisor)
 			return NULL;
 			
 		if (get_mul(*tail, &n))
@@ -491,8 +491,8 @@ static const char *parse_ul_sfx(const char *str, unsigned long long *val,
 		else
 			*val = (unsigned long long) v;
 		++tail;
-	} else if (def_divisor)
-		*val /= def_divisor;
+	} else
+		*val /= def_divisor ?: 1;
 
 	return tail;
 }
