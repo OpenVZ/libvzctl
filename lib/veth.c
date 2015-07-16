@@ -113,10 +113,11 @@ struct vzctl_veth_param *alloc_veth_param(void)
 static int fill_veth_dev(struct vzctl_veth_dev *dst,
 		struct vzctl_veth_dev *src)
 {
-	if (src->dev_name[0] != 0)
+	if (src->dev_name[0] != 0) {
 		strcpy(dst->dev_name, src->dev_name);
-	//      if (src->custom_dev_name)
-	//              dst->custom_dev_name = src->custom_dev_name;
+		if (src->flags & VETH_CUSTOM_DEV_NAME)
+			dst->flags |= VETH_CUSTOM_DEV_NAME;
+	}
 	if (src->mac != NULL) {
 		set_hwaddr(src->mac, &dst->mac);
 	}
@@ -152,7 +153,6 @@ static int fill_veth_dev(struct vzctl_veth_dev *dst,
 	if (!list_empty(&src->ip_del_list))
 		copy_ip_param(&dst->ip_del_list, &src->ip_del_list);
 	dst->ip_delall = src->ip_delall;
-	dst->flags = src->flags;
 
 	return 0;
 }
@@ -806,7 +806,7 @@ char *veth2str(struct vzctl_env_param *env, struct vzctl_veth_param *new)
 			if (sp >= ep)
 				break;
 		}
-		if (it->dev_name[0] != 0) {
+		if (it->dev_name[0] != 0 && it->flags & VETH_CUSTOM_DEV_NAME) {
 			sp += snprintf(sp, ep - sp, "host_ifname=%s,",
 				it->dev_name);
 			if (sp >= ep)
@@ -1175,6 +1175,7 @@ int parse_netif_ifname(struct vzctl_veth_param *veth, const char *str, int op)
 		if (len > IFNAMSIZE)
 			return VZCTL_E_INVAL;
 		strcpy(dev->dev_name, str);
+		dev->flags |= VETH_CUSTOM_DEV_NAME;
 		break;
 	case VZCTL_PARAM_NETIF_HOST_MAC:
 		if (set_hwaddr(str, &dev->mac))
@@ -1359,6 +1360,7 @@ static int parse_netif_str_cmd(struct vzctl_env_handle *h, const char *str,
 	if (len > IFNAMSIZE)
 		return VZCTL_E_INVAL;
 	snprintf(dev->dev_name, len + 1, "%s", tmp);
+	dev->flags |= VETH_CUSTOM_DEV_NAME;
 	if (ch == ep) {
 		if (dev->mac_ve != NULL)
 			set_hwaddr(dev->mac_ve, &dev->mac);
