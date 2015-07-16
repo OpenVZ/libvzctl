@@ -64,7 +64,7 @@ load_modules()
 			continue
 		fi
 		msg=`/sbin/modprobe $mod >/dev/null 2>&1`
-		[ $? -ne 0 ] && echo "Warning: failed to load $mod: $msg"
+		[ $? -ne 0 ] && echo "Warning: failed to load $mod: $msg" 1>&2
 	done
 }
 
