@@ -175,15 +175,14 @@ int add_veth_param(list_head_t *head, struct vzctl_veth_dev *dev)
 	return 0;
 }
 
-static void generate_veth_name(ctid_t ctid, const char *dev_name_ve,
-	char *dev_name, int len)
+static void generate_veth_name(ctid_t ctid, struct vzctl_veth_dev *dev)
 {
 	int n = 0;
 	char id[9];
 
-	sscanf(dev_name_ve, "%*[^0-9]%d", &n);
+	sscanf(dev->dev_name_ve, "%*[^0-9]%d", &n);
 	snprintf(id, sizeof(id), "%s", ctid);
-	snprintf(dev_name, len, "veth%s.%d", id, n);
+	snprintf(dev->dev_name, sizeof(dev->dev_name), "veth%s.%d", id, n);
 }
 
 static void generate_mac(char **mac, int fix)
@@ -219,7 +218,7 @@ static void generate_mac(char **mac, int fix)
 static void fill_empty_veth_dev_param(ctid_t ctid, struct vzctl_veth_dev *dev)
 {
 	if (dev->dev_name[0] == '\0')
-		generate_veth_name(ctid, dev->dev_name_ve, dev->dev_name, IFNAMSIZE);
+		generate_veth_name(ctid, dev);
 	if (dev->mac == NULL)
 		generate_mac(&dev->mac, 1);
 	if (dev->mac_ve == NULL)
@@ -362,8 +361,7 @@ static void fill_veth_dev_name(struct vzctl_env_handle *h,
 	if (d != NULL)
 		strncpy(dev->dev_name, d->dev_name, sizeof(dev->dev_name));
 	else
-		generate_veth_name(EID(h), dev->dev_name_ve, dev->dev_name,
-				sizeof(dev->dev_name));
+		generate_veth_name(EID(h), dev);
 }
 
 static int veth_ctl(struct vzctl_env_handle *h, int op, list_head_t *head,
@@ -1320,8 +1318,7 @@ static int parse_netif_str_cmd(struct vzctl_env_handle *h, const char *str,
 	tmp = ch;
 	if (ch == ep) {
 		if (h)
-			generate_veth_name(EID(h), dev->dev_name_ve, dev->dev_name,
-				sizeof(dev->dev_name));
+			generate_veth_name(EID(h), dev);
 		generate_mac(&dev->mac, 1);
 		generate_mac(&dev->mac_ve, 0);
 		return 0;
@@ -1346,8 +1343,7 @@ static int parse_netif_str_cmd(struct vzctl_env_handle *h, const char *str,
 	tmp = ch;
 	if (ch == ep) {
 		if (h)
-			generate_veth_name(EID(h), dev->dev_name_ve, dev->dev_name,
-				sizeof(dev->dev_name));
+			generate_veth_name(EID(h), dev);
 		if (dev->mac_ve != NULL)
 			set_hwaddr(dev->mac_ve, &dev->mac);
 		return 0;
