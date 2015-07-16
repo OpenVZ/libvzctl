@@ -877,7 +877,7 @@ static int ns_env_stop(struct vzctl_env_handle *h, int stop_mode)
 	int ret;
 	pid_t pid, init_pid;
 
-	if (stop_mode == M_KILL_FORCE) {
+	if (stop_mode == M_KILL_FORCE || stop_mode == M_KILL) {
 		ret = -1;
 		goto force;
 	}
