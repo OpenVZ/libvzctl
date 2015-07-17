@@ -905,14 +905,8 @@ err:
 		env_wait(param.pid, 0, NULL);
 
 err_pipe:
-	if (wait_p[0] != -1)
-		close(wait_p[0]);
-	if (wait_p[1] != -1)
-		close(wait_p[1]);
-	if (err_p[0] != -1)
-		close(err_p[0]);
-	if (err_p[1] != -1)
-		close(err_p[1]);
+	p_close(wait_p);
+	p_close(err_p);
 
 	return ret;
 }
@@ -1119,14 +1113,8 @@ err:
 		env_wait(start_param.pid, 0, NULL);
 
 err_pipe:
-	if (wait_p[0] != -1)
-		close(wait_p[0]);
-	if (wait_p[1] != -1)
-		close(wait_p[1]);
-	if (err_p[0] != -1)
-		close(err_p[0]);
-	if (err_p[1] != -1)
-		close(err_p[1]);
+	p_close(wait_p);
+	p_close(err_p);
 
 	return ret;
 }
@@ -1325,7 +1313,7 @@ static int env_set_userpasswd(struct vzctl_env_handle *h, const char *user,
 out:
 	if (!running) {
 		/* Destroy env */
-		close(wait_p[1]);
+		close(wait_p[1]); wait_p[1] = -1;
 		for (i = 0; i < 100; i++) {
 			if (!is_env_run(h))
 				break;
@@ -1335,9 +1323,8 @@ out:
 		if (was_mounted)
 			vzctl2_env_umount(h, 0);
 
-		close(wait_p[0]);
-		close(err_p[0]);
-		close(err_p[1]);
+		p_close(wait_p);
+		p_close(err_p);
 	}
 
 	return ret;

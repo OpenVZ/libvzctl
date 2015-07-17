@@ -215,6 +215,7 @@ int get_eid(const char *uuid, ctid_t out);
 void generate_eid(ctid_t ctid);
 const char *get_devname(const char *device);
 int get_dir_list(list_head_t *head, const char *root, int level);
+void p_close(int p[2]);
 #ifdef __cplusplus
 }
 #endif

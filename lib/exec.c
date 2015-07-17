@@ -376,22 +376,10 @@ int real_env_exec_init(struct exec_param *param)
 
 void real_env_exec_close(struct exec_param *param)
 {
-	if (param->status_p[0] != -1)
-		close(param->status_p[0]);
-	if (param->status_p[1] != -1)
-		close(param->status_p[1]);
-	if (param->out_p[0] != -1)
-		close(param->out_p[0]);
-	if (param->out_p[1] != -1)
-		close(param->out_p[1]);
-	if (param->err_p[0] != -1)
-		close(param->err_p[0]);
-	if (param->err_p[1] != -1)
-		close(param->err_p[1]);
-	if (param->in_p[0] != -1)
-		close(param->in_p[0]);
-	if (param->in_p[1] != -1)
-		close(param->in_p[1]);
+	p_close(param->status_p);
+	p_close(param->out_p);
+	p_close(param->err_p);
+	p_close(param->in_p);
 }
 
 int real_env_exec(struct vzctl_env_handle *h, struct exec_param *param, int flags)
@@ -881,7 +869,10 @@ err:
 			logger(-1, errno, "Failed write(st[1]");
 		_exit(ret);
 	}
-	close(in[0]); close(out[1]); close(st[1]); close(info[0]);
+	close(in[0]); in[0] = -1;
+	close(out[1]); out[1] = -1;
+	close(st[1]); st[1] = -1;
+	close(info[0]); info[0] = -1;
 	raw_flag = 0;
 	/* wait for pts allocation */
 	ret = read(st[0], &status, sizeof(status));
@@ -905,10 +896,10 @@ out:
 	for (i = 0; i < 2; i++)
 		fcntl(i, F_SETFL, fd_flags[i]);
 
-	close(in[1]); close(in[0]);
-	close(out[1]); close(out[0]);
-	close(st[1]); close(st[0]);
-	close(info[1]); close(info[0]);
+	p_close(in);
+	p_close(out);
+	p_close(st);
+	p_close(info);
 
 	return ret;
 }

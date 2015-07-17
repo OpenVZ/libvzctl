@@ -1567,9 +1567,8 @@ int vzctl2_exec_script(char *const argv[], char *const env[], int flags)
 	ret = env_wait(child, 0, &retcode);
 	unregister_cleanup_hook(h);
 err:
-	close(out[0]);
-	if (out[1] != -1)
-		close(out[1]);
+	p_close(out);
+
 	return ret ? ret : retcode;
 }
 
@@ -2515,4 +2514,12 @@ const char *get_devname(const char *device)
 	char *p = strrchr(device, '/');
 
 	return p == NULL ? device : ++p;
+}
+
+void p_close(int p[2])
+{
+	if (p[0] != -1)
+		close(p[0]);
+	if (p[1] != -1)
+		close(p[1]);
 }
