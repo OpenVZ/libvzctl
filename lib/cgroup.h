@@ -31,6 +31,7 @@
 #define CG_VE		"ve"
 #define CG_UB		"beancounter"
 #define CG_BLKIO	"blkio"
+#define CG_FREEZER	"freezer"
 
 #define CG_MEM_LIMIT	"memory.limit_in_bytes"
 #define CG_SWAP_LIMIT	"memory.memsw.limit_in_bytes"
