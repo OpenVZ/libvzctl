@@ -437,7 +437,7 @@ static int cg_env_set_mask(const char *ctid, const char *name,  unsigned long *c
 	}
 
 	/* Autocorrect mask */
-	bitmap_and(mask, mask, mask, size);
+	bitmap_and(mask, cpumask, mask, size);
 	bitmap_snprintf(buf, sizeof(buf), mask, size);
 	free(mask);
 	snprintf(cg_name, sizeof(cg_name), "cpuset.%s", name);
