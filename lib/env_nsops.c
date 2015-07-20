@@ -1321,9 +1321,6 @@ static int veth_ctl(struct vzctl_env_handle *h, int op,
 	char script[PATH_MAX];
 	int i = 0;
 
-	if (flags & VZCTL_RESTORE)
-		return 0;
-
 	snprintf(buf, sizeof(buf), "VEID=%s", EID(h));
 	envp[i++] = strdup(buf);
 
