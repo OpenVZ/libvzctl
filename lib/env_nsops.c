@@ -872,10 +872,45 @@ err:
 	return 0;
 }
 
+static int ns_env_stop_force(struct vzctl_env_handle *h)
+{
+	int ret;
+	struct vzctl_str_param *it;
+	LIST_HEAD(pids);
+
+	logger(0, 0, "Forcibly stop the Container...");
+
+	ret = vzctl2_cpt_cmd(h, -1, VZCTL_CMD_SUSPEND, NULL, 0);
+	if (ret)
+		return ret;
+
+	ret = cg_env_get_pids(EID(h), &pids);
+	if (ret)
+		return ret;
+
+	list_for_each(it, &pids, list) {
+		unsigned long pid;
+
+		if (parse_ul(it->str, &pid))
+			continue;
+
+		if (kill(pid, SIGKILL))
+			vzctl_err(-1, errno, "Failed to kill CT pid=%lu", pid);
+	}
+
+	free_str(&pids);
+
+	ret = vzctl2_cpt_cmd(h, -1, VZCTL_CMD_RESUME, NULL, 0);
+	if (ret)
+		return ret;
+
+	return wait_env_state(h, VZCTL_ENV_STOPPED, MAX_SHTD_TM);
+}
+
 static int ns_env_stop(struct vzctl_env_handle *h, int stop_mode)
 {
 	int ret;
-	pid_t pid, init_pid;
+	pid_t pid;
 
 	if (stop_mode == M_KILL_FORCE || stop_mode == M_KILL) {
 		ret = -1;
@@ -915,23 +950,9 @@ static int ns_env_stop(struct vzctl_env_handle *h, int stop_mode)
 
 force:
 	if (ret) {
-		ret = cg_env_get_first_pid(h->ctid, &init_pid);
+		ret = ns_env_stop_force(h);
 		if (ret)
 			goto out;
-
-		if (init_pid) {
-			vzctl2_set_iolimit(h, 0);
-			vzctl2_set_iopslimit(h, 0);
-
-			logger(0, 0, "Forcibly stop the Container...");
-			if (kill(init_pid, SIGKILL)) {
-				ret = vzctl_err(-1, errno, "Unable to kill CT init pid=%d",
-						init_pid);
-				goto out;
-			}
-
-			ret = wait_env_state(h, VZCTL_ENV_STOPPED, MAX_SHTD_TM);
-		}
 	}
 
 	if (ret == 0) {
@@ -1166,10 +1187,7 @@ int ns_env_restore(struct vzctl_env_handle *h, struct start_param *start_param,
 static int ns_env_cpt_cmd(struct vzctl_env_handle *h, int action, int cmd,
                 struct vzctl_cpt_param *param, int flags)
 {
-	if (cmd == VZCTL_CMD_RESUME)
-		return cg_set_param(EID(h), CG_FREEZER, "freezer.state", "THAWED");
-
-	return 0;
+	return cg_freezer_cmd(EID(h), cmd);
 }
 
 static int ns_env_get_cpt_state(struct vzctl_env_handle *h, int *state)

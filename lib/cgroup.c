@@ -565,6 +565,42 @@ int cg_env_get_first_pid(const char *ctid, pid_t *pid)
 	return 0;
 }
 
+int cg_env_get_pids(const char *ctid, list_head_t *list)
+
+{
+	FILE *fp;
+	char path[PATH_MAX];
+	char str[64];
+	char *p;
+	int ret = 0;
+
+	ret = cg_get_path(ctid, CG_MEMORY, "cgroup.procs", path, sizeof(path));
+	if (ret)
+		return ret;
+
+	if ((fp = fopen(path, "r")) == NULL)
+		return vzctl_err(-1, errno, "Unable to open %s", path);
+
+	while (!feof(fp)) {
+		if (fgets(str, sizeof(str), fp) == NULL)
+			break;
+
+		p = strrchr(str, '\n');
+		if (p != NULL)
+			*p = '\0';
+
+		if (add_str_param(list, str) == NULL) {
+			free_str(list);
+			ret = -1;
+			break;
+		}
+	}
+
+	fclose(fp);
+
+	return ret;
+}
+
 int cg_get_legacy_veid(const char *ctid, unsigned long *value)
 {
 	return cg_get_ul(ctid, CG_VE, "ve.legacy_veid", value);
@@ -815,4 +851,44 @@ int cg_set_veid(const char *ctid, int veid)
 
 	sprintf(id, "%d", veid);
 	return write_data(path, id);
+}
+
+static int cg_set_freezer_state(const char *ctid, const char *state)
+{
+
+	return  cg_set_param(ctid, CG_FREEZER, "freezer.state", state);
+#if 0
+	int ret;
+	char buf[STR_SIZE];
+	int len;
+
+	ret = cg_set_param(ctid, CG_FREEZER, "freezer.state", state);
+	if (ret)
+		return ret;
+
+	len = strlen(state);
+	while (1) {
+		ret = cg_get_param(ctid, CG_FREEZER, "freezer.state",
+				buf, sizeof(buf));
+		if (ret)
+			return ret;
+
+		if (strncmp(buf, state, len) == 0)
+			break;
+
+		sleep(1);
+	}
+
+	return 0;
+#endif
+}
+
+int cg_freezer_cmd(const char *ctid, int cmd)
+{
+	if (cmd == VZCTL_CMD_RESUME)
+		return cg_set_freezer_state(ctid, "THAWED");
+	else if (cmd == VZCTL_CMD_SUSPEND)
+		return cg_set_freezer_state(ctid, "FROZEN");
+
+	return vzctl_err(-1, 0, "Unsupported freezer command %d", cmd);
 }
