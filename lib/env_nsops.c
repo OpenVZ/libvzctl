@@ -1166,11 +1166,24 @@ int ns_env_restore(struct vzctl_env_handle *h, struct start_param *start_param,
 static int ns_env_cpt_cmd(struct vzctl_env_handle *h, int action, int cmd,
                 struct vzctl_cpt_param *param, int flags)
 {
+	if (cmd == VZCTL_CMD_RESUME)
+		return cg_set_param(EID(h), CG_FREEZER, "freezer.state", "THAWED");
+
 	return 0;
 }
 
 static int ns_env_get_cpt_state(struct vzctl_env_handle *h, int *state)
 {
+	char buf[STR_SIZE];
+	int ret;
+
+	ret = cg_get_param(EID(h), CG_FREEZER, "freezer.state", buf, sizeof(buf));
+	if (ret)
+		return ret;
+
+	if (strcmp(buf, "FROZEN") == 0)
+		*state |= ENV_STATUS_CPT_SUSPENDED;
+
 	return 0;
 }
 
