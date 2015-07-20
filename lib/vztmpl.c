@@ -37,15 +37,18 @@ static void trim_n(char *buf)
 		*p = '\0';
 }
 
-static int process_cmd_status(char **arg, int status)
+static int process_cmd_status(char **arg, int status, int quiet)
 {
 	int ret;
 
 	if (WIFEXITED(status)) {
 		ret = WEXITSTATUS(status);
-		if (ret)
-			return vzctl_err(ret, 0, "command %s exited with error %d",
-					arg[0], ret);
+		if (ret) {
+			if (!quiet)
+				logger(-1, 0, "command %s exited with error %d",
+						arg[0], ret);
+			return ret;
+		}
 	} else if (WIFSIGNALED(status))
 		return vzctl_err(-1, 0, "command %s got signal %d",
 				arg[0], WTERMSIG(status));
@@ -66,7 +69,7 @@ static int get_last_line(char **arg, char *buf, int len)
 
 	while (fgets(buf, len, fp) != NULL);
 
-	ret = process_cmd_status(arg, vzctl_pclose(fp));
+	ret = process_cmd_status(arg, vzctl_pclose(fp) , 0);
 	if (ret == 0)
 		trim_n(buf);
 
@@ -279,14 +282,13 @@ static int vztmpl_get_appcache_tarball(const char *cache_config, const char *ost
 			goto err;
 	}
 
-	ret = process_cmd_status(arg, vzctl_pclose(fp));
+	ret = process_cmd_status(arg, vzctl_pclose(fp), 1);
 	if (ret)
 		goto err;
 
 	return 0;
 err:
-	return vzctl_err(ret, 0, "Unable to get appcache tarball name for %s with "
-			"ostemplate %s", cache_config, ostmpl);
+	return ret;
 }
 
 #ifndef VZT_TMPL_NOT_CACHED
@@ -308,9 +310,12 @@ int vztmpl_get_cache_tarball(const char *config, char **ostmpl,
 	if (ret == 0)
 		return 0;
 
-	if (ret != VZT_TMPL_NOT_CACHED)
+	if (ret != VZT_TMPL_NOT_CACHED) {
 		/* Other vztt errors are fatal, stop here */
+		logger(-1, 0, "Unable to get appcache tarball name for %s with "
+			"ostemplate %s", config_name, *ostmpl);
 		goto err;
+	}
 
 	/* Handle reinstall/recover logic
 	 * if App cache tarball does not exists use ostemplate
@@ -319,8 +324,11 @@ int vztmpl_get_cache_tarball(const char *config, char **ostmpl,
 		config_name = NULL;
 		ret = vztmpl_get_appcache_tarball(config_name, *ostmpl,
 				fstype, &unsupported_applist, tarball, len);
-		if (ret != 0 && ret != VZT_TMPL_NOT_CACHED)
+		if (ret != 0 && ret != VZT_TMPL_NOT_CACHED) {
+			logger(-1, 0, "Unable to get appcache tarball name for %s with "
+				"ostemplate %s", config_name, *ostmpl);
 			goto err;
+		}
 	}
 
 	if (tarball[0] == '\0') {
@@ -349,7 +357,11 @@ int vztmpl_get_cache_tarball(const char *config, char **ostmpl,
 
 	if (vztmpl_get_appcache_tarball(config_name, full_ostmpl, fstype,
 				&unsupported_applist, tarball, len))
+	{
+		logger(-1, 0, "Unable to get appcache tarball name for %s with "
+			"ostemplate %s", config_name, full_ostmpl);
 		goto err;
+	}
 
 	return 0;
 
