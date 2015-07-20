@@ -306,12 +306,28 @@ static int update_vswap_param(struct vzctl_env_handle *h, struct vzctl_env_param
 			fill_vswap_param(h, vswap_param, ram, swap, 1.0);
 		break;
 	default:
-		logger(3, 0, "Warning: VSwap_ub compatiblity mode");
-		if (vswap_param->privvmpages != NULL) {
-			ram[0] =  ub->privvmpages->b;
-			ram[1] =  ub->privvmpages->l;
-			ADD_VSWAP_PARAM2(VZCTL_PARAM_PHYSPAGES, ram)
+		if (ub->physpages == NULL || ub->swappages == NULL)
+			get_ub_resources(EID(h), ram, swap);
+
+		if (ub->physpages != NULL && !is_ub_unlimited(ub->physpages)) {
+			ram[0] = ub->physpages->b;
+			ram[1] = ub->physpages->l;
+			changed = 1;
+		} else if (ub->privvmpages != NULL) {
+			ram[0] = ub->privvmpages->b;
+			ram[1] = ub->privvmpages->l;
+			changed = 1;
 		}
+
+		if (ub->swappages != NULL) {
+			swap[0] = ub->swappages->b;
+			swap[1] = ub->swappages->l;
+			changed = 1;
+		}
+
+		if (changed)
+			fill_vswap_param(h, vswap_param, ram, swap, 1.0);
+
 		break;
 	}
 
