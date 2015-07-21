@@ -946,6 +946,7 @@ static struct vzctl_env_ops env_vzops = {
 	.env_ip_ctl = vz_ip_ctl,
 	.env_get_veip = get_env_ip_proc,
 	.env_veth_ctl = vz_veth_ctl,
+	.env_netdev_ctl = vz_netdev_ctl,
 	.env_exec = vz_env_exec,
 	.env_exec_fn = vz_env_exec_fn,
 	.close = vzctl_close,

@@ -640,48 +640,50 @@ void free_netdev_param(struct vzctl_netdev_param *param)
 	free(param);
 }
 
-static int _netdev_ctl(unsigned veid, int op, char *name)
+int vz_netdev_ctl(struct vzctl_env_handle *h, int add, const char *dev)
 {
-	struct vzctl_ve_netdev ve_netdev;
+	struct vzctl_ve_netdev netdev = {
+		.veid = h->veid,
+		.op = add ? VE_NETDEV_ADD : VE_NETDEV_DEL,
+		.dev_name = (char *)dev
+	};
 
-	ve_netdev.veid = veid;
-	ve_netdev.op = op;
-	ve_netdev.dev_name = name;
-	if (ioctl(get_vzctlfd(), VZCTL_VE_NETDEV, &ve_netdev) < 0)
-		return VZCTL_E_NETDEV;
+	if (ioctl(get_vzctlfd(), VZCTL_VE_NETDEV, &netdev))
+		return vzctl_err(VZCTL_E_NETDEV, errno,	"Unable to %s netdev %s",
+				add ? "add": "del", dev);
+
 	return 0;
 }
 
-static int netdev_ctl(unsigned veid, list_head_t *netdev, int op)
+static int netdev_ctl(struct vzctl_env_handle *h, int add, list_head_t *netdev)
 {
+	int ret;
 	struct vzctl_str_param *it;
-	int ret = 0;
 
-	if (list_empty(netdev))
-		return 0;
 	list_for_each(it, netdev, list) {
-		if ((ret = _netdev_ctl(veid, op, it->str))) {
-			logger(-1, errno, "Unable to %s netdev %s",
-				(op == VE_NETDEV_ADD) ? "add": "del", it->str);
-			break;
-		}
+		logger(0, 0, "%s the network device: %s",
+				add ? "Add": "Del", it->str);
+		ret = get_env_ops()->env_netdev_ctl(h, add, it->str);
+		if (ret)
+			return ret;
 	}
-	return ret;
+
+	return 0;
 }
 
-int apply_netdev_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags)
+int apply_netdev_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
+		int flags)
 {
 	int ret;
 
-	if (!is_env_run(h)){
-		logger(-1, 0, "Unable to setup network devices: "
-			"Container is not running");
-		return VZCTL_E_ENV_NOT_RUN;
-	}
+	if (!is_env_run(h))
+		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Unable to setup"
+				" network devices: Container is not running");
 
-	ret = netdev_ctl(h->veid, &env->netdev->dev_del, VE_NETDEV_DEL);
+	ret = netdev_ctl(h, 0, &env->netdev->dev_del);
 	if (ret == 0)
-		ret = netdev_ctl(h->veid, &env->netdev->dev, VE_NETDEV_ADD);
+		ret = netdev_ctl(h, 1, &env->netdev->dev);
+
 	return ret;
 }
 

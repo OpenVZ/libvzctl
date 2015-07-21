@@ -1041,6 +1041,9 @@ static int ns_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param
 		ret = apply_veth_param(h, env, flags);
 		if (ret)
 			return ret;
+		ret = apply_netdev_param(h, env, flags);
+		if (ret)
+			return ret;
 		if ((ret = vzctl_apply_tc_param(h, env, flags)))
 			return ret;
 		ret = apply_quota_param(h, env, flags);
@@ -1369,6 +1372,26 @@ static int ns_veth_ctl(struct vzctl_env_handle *h, int op,
 	return ret;
 }
 
+static int ns_netdev_ctl(struct vzctl_env_handle *h, int add, const char *dev)
+{
+	char script[PATH_MAX];
+	char id_s[STR_SIZE];
+	char vname_s[STR_SIZE];
+	char hname_s[STR_SIZE];
+	char *arg[] = {script, NULL};
+	char *envp[] = {id_s, vname_s, hname_s, NULL};
+
+	snprintf(id_s, sizeof(id_s), "VEID=%s", EID(h));
+	snprintf(vname_s, sizeof(vname_s), "VNAME=%s", dev);
+	snprintf(hname_s, sizeof(hname_s), "HNAME=%s", dev);
+	get_script_path(add ? VZCTL_NETNS_DEV_ADD : VZCTL_NETNS_DEV_DEL,
+			script, sizeof(script));
+	if (vzctl2_wrap_exec_script(arg, envp, 0))
+		return VZCTL_E_NETDEV;
+
+	return 0;
+}
+
 static int ns_set_iolimit(struct vzctl_env_handle *h, unsigned int speed)
 {
 	logger(0, 0, "Set up iolimit: %u", speed);
@@ -1451,6 +1474,7 @@ static struct vzctl_env_ops env_nsops = {
 	.env_ip_ctl = ns_ip_ctl,
 	.env_get_veip = ns_get_veip,
 	.env_veth_ctl = ns_veth_ctl,
+	.env_netdev_ctl = ns_netdev_ctl,
 	.env_exec = ns_env_exec,
 	.env_exec_fn = ns_env_exec_fn,
 	.close = ns_close,
