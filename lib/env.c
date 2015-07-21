@@ -802,13 +802,16 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
         if (ret)
 		goto err_pipe;
 
-	/* If Container mounted umount first to cleanup mount state */
-	if (vzctl2_env_is_mounted(h) &&	(ret = vzctl2_env_umount(h, flags)))
-		goto err_pipe;
+	if (!(flags & VZCTL_SKIP_MOUNT)) {
+		/* If Container mounted umount first to cleanup mount state */
+		if (vzctl2_env_is_mounted(h) &&
+				(ret = vzctl2_env_umount(h, flags)))
+			goto err_pipe;
 
-	/* increase quota to perform initial setup */
-	if ((ret = vzctl2_env_mount(h, flags)))
-		goto err_pipe;
+		/* increase quota to perform initial setup */
+		if ((ret = vzctl2_env_mount(h, flags)))
+			goto err_pipe;
+	}
 
 	fix_numiptent(env->res->ub);
 	fix_cpu_param(env->cpu);
