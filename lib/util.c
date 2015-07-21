@@ -406,6 +406,9 @@ int make_dir(const char *path, int full)
 	if (path == NULL)
 		return 0;
 
+	if (access(path, F_OK) == 0)
+		return 0;
+
 	ps = path + 1;
 	while ((p = strchr(ps, '/'))) {
 		len = p - path + 1;
