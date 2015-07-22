@@ -924,7 +924,8 @@ int vzctl2_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
 
 	logger(0, 0, "Setting up checkpoint...");
-	if (cmd == VZCTL_CMD_KILL || cmd == VZCTL_CMD_RESUME)
+	if (cmd == VZCTL_CMD_KILL || cmd == VZCTL_CMD_RESUME ||
+			cmd == VZCTL_CMD_SUSPEND)
 		return vzctl2_cpt_cmd(h, VZCTL_CMD_CHKPNT, cmd, param, flags);
 
 	get_env_ops()->env_get_veip(h, &ips);
