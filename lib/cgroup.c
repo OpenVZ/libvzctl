@@ -855,9 +855,6 @@ int cg_set_veid(const char *ctid, int veid)
 
 static int cg_set_freezer_state(const char *ctid, const char *state)
 {
-
-	return  cg_set_param(ctid, CG_FREEZER, "freezer.state", state);
-#if 0
 	int ret;
 	char buf[STR_SIZE];
 	int len;
@@ -880,7 +877,6 @@ static int cg_set_freezer_state(const char *ctid, const char *state)
 	}
 
 	return 0;
-#endif
 }
 
 int cg_freezer_cmd(const char *ctid, int cmd)
