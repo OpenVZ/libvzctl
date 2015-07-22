@@ -37,6 +37,7 @@ done
 action_script=@SCRIPTDIR@/vz-rst-action
 
 export VE_PIDFILE=$VE_DUMP_DIR/init.pid
+rm -f $VE_PIDFILE
 
 criu restore	--file-locks								\
 		--tcp-established							\
