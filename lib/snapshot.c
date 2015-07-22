@@ -477,7 +477,7 @@ int vzctl2_env_switch_snapshot(struct vzctl_env_handle *h,
 	const char *guid_tmp = NULL;
 	struct vzctl_env_handle *h_env_snap = NULL;
 	char *ve_private = h->env_param->fs->ve_private;
-	struct vzctl_cpt_param cpt_param = {};
+	struct vzctl_cpt_param cpt = {};
 	struct vzctl_env_disk *env_disk = h->env_param->disk;
 	const char *guid = param->guid;
 
@@ -531,11 +531,11 @@ int vzctl2_env_switch_snapshot(struct vzctl_env_handle *h,
 	snprintf(ve_conf_tmp, sizeof(ve_conf_tmp), "%s/%s.tmp",
 			ve_private, VZCTL_VE_CONF);
 	if (restore_env_config(h, guid, ve_conf_tmp, &h_env_snap))
-		goto err;
+		goto err1;
 
 	/* freeze */
 	if (run) {
-		ret = vzctl2_env_chkpnt(h, VZCTL_CMD_SUSPEND, &cpt_param, 0);
+		ret = vzctl2_env_chkpnt(h, VZCTL_CMD_SUSPEND, &cpt, 0);
 		if (ret)
 			goto err1;
 	} else if (vzctl2_env_is_mounted(h)) {
@@ -550,7 +550,7 @@ int vzctl2_env_switch_snapshot(struct vzctl_env_handle *h,
 
 	/* stop Ct */
 	if (run) {
-		ret = vzctl2_cpt_cmd(h, VZCTL_CMD_CHKPNT, VZCTL_CMD_KILL, &cpt_param, 0);
+		ret = vzctl2_cpt_cmd(h, VZCTL_CMD_CHKPNT, VZCTL_CMD_KILL, &cpt, 0);
 		if (ret)
 			goto err3;
 		if (vzctl2_env_umount(h, 0))
@@ -596,14 +596,13 @@ err3:
 	}
 
 err2:
-	if (run && vzctl2_cpt_cmd(h, VZCTL_CMD_CHKPNT, VZCTL_CMD_RESUME, &cpt_param, 0))
+	if (run && vzctl2_cpt_cmd(h, VZCTL_CMD_CHKPNT, VZCTL_CMD_RESUME, &cpt, 0))
 		logger(-1, 0, "Failed to resume Container on error");
-	unlink(ve_conf_tmp);
 
 err1:
-
 	vzctl2_env_close(h_env_snap);
 	unlink(snap_xml_tmp);
+	unlink(ve_conf_tmp);
 
 err:
 	logger(-1, 0, "Failed to switch to snapshot %s", guid);
