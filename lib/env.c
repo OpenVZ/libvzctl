@@ -1083,12 +1083,9 @@ int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param
 	}
 	close(err_p[0]); err_p[0] = -1;
 
-	if (param->cmd == VZCTL_CMD_RESTORE) {
-		ret = vzctl2_cpt_cmd(h, VZCTL_CMD_RESTORE, VZCTL_CMD_RESUME, param, flags);
-		if (ret)
-			goto err;
+	if (param->cmd == VZCTL_CMD_RESTORE && param->dumpfile == NULL)
 		drop_dump_state(h);
-	}
+
 	announce_ips(h);
 	ret = 0;
 
@@ -1354,8 +1351,10 @@ struct vzctl_env_handle *vzctl2_alloc_env_handle()
 {
 	struct vzctl_env_handle *h;
 
-	if ((h = calloc(1, sizeof(struct vzctl_env_handle))) == NULL)
+	if ((h = calloc(1, sizeof(struct vzctl_env_handle))) == NULL) {
+		vzctl_err(VZCTL_E_NOMEM, ENOMEM, "vzctl2_alloc_env_handle");
 		return NULL;
+	}
 	if ((h->env_param = vzctl2_alloc_env_param()) == NULL)
 		goto err;
 	if ((h->conf = alloc_conf()) == NULL)
