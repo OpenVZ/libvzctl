@@ -1201,6 +1201,9 @@ int ns_env_restore(struct vzctl_env_handle *h, struct start_param *start_param,
 static int ns_env_cpt_cmd(struct vzctl_env_handle *h, int action, int cmd,
                 struct vzctl_cpt_param *param, int flags)
 {
+	if (cmd == VZCTL_CMD_KILL)
+		return ns_env_stop_force(h);
+
 	return cg_freezer_cmd(EID(h), cmd);
 }
 
