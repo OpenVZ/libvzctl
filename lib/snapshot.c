@@ -426,42 +426,35 @@ static int restore_env_config(struct vzctl_env_handle *h, const char *guid,
 	/* Parse CT snapshot configuration file */
 	vzctl_get_snapshot_ve_conf(h->env_param->fs->ve_private, guid,
 			fname, sizeof(fname));
-	if (stat_file(fname) != 1) {
-		logger(-1, 0, "Container configuration file %s is not found",
+	if (stat_file(fname) != 1)
+		return vzctl_err(-1, 0, "Container configuration file %s is not found",
 				fname);
-		goto err;
-	}
 
 	if (cp_file(fname, ve_conf_tmp))
-		goto err;
+		return -1;
 
 	*h_snap = vzctl2_alloc_env_handle();
 	if (*h_snap == NULL)
-		goto err;
+		return -1;
 
 	/* Preserve private data */
-	vzctl2_env_set_param(*h_snap, "UUID", EID(h));
+	vzctl2_env_set_param(*h_snap, "VEID", EID(h));
 
 	if (merge_env_param(*h_snap, h->env_param, private_param_filter))
-		goto err;
+		return -1;
 
 	if (vzctl2_env_save_conf(*h_snap, ve_conf_tmp))
-		goto err;
+		return -1;
 
 	vzctl2_env_close(*h_snap);
 
 	*h_snap = vzctl2_env_open_conf(EID(h), ve_conf_tmp,
 			VZCTL_CONF_SKIP_GLOBAL, &err);
-	if (*h_snap == NULL) {
-		logger(-1, 0, "Failed to parse Container configuration file %s",
+	if (*h_snap == NULL)
+		return vzctl_err(-1, 0, "Failed to parse Container configuration file %s",
 				fname);
-		goto err;
-	}
 
 	return 0;
-err:
-
-	return -1;
 }
 
 int vzctl2_env_switch_snapshot(struct vzctl_env_handle *h,
