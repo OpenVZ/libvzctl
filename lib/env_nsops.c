@@ -1093,6 +1093,9 @@ int ns_env_chkpnt(struct vzctl_env_handle *h, int cmd, struct vzctl_cpt_param *p
 	int ret, i = 0;
 	pid_t pid;
 
+	if (cmd == VZCTL_CMD_SUSPEND)
+		return vzctl2_cpt_cmd(h, -1, cmd, param, flags);
+
 	ret = cg_env_get_first_pid(h->ctid, &pid);
 	if (ret)
 		return ret;
