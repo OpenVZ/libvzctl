@@ -883,7 +883,7 @@ int cg_freezer_cmd(const char *ctid, int cmd)
 {
 	if (cmd == VZCTL_CMD_RESUME)
 		return cg_set_freezer_state(ctid, "THAWED");
-	else if (cmd == VZCTL_CMD_SUSPEND)
+	else if (cmd == VZCTL_CMD_FREEZE)
 		return cg_set_freezer_state(ctid, "FROZEN");
 
 	return vzctl_err(-1, 0, "Unsupported freezer command %d", cmd);

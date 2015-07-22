@@ -205,13 +205,13 @@ static int real_chkpnt(struct vzctl_env_handle *h, int cpt_fd, int cmd,
 		return vzctl_err(VZCTL_E_CHKPNT,  errno, "Can't set errorfd");
 
 	close(err_p[1]);
-	if (cmd == VZCTL_CMD_CHKPNT || cmd == VZCTL_CMD_SUSPEND) {
+	if (cmd == VZCTL_CMD_CHKPNT || cmd == VZCTL_CMD_FREEZE) {
 		logger(0, 0, "\tsuspend...");
 		if (ioctl(cpt_fd, CPT_SUSPEND, 0) < 0) {
 			logger(-1, errno, "Cannot suspend the Container");
 			goto err_out;
 		}
-		if (cmd == VZCTL_CMD_SUSPEND && (param->flags & VZCTL_CPT_STOP_TRACKER)) {
+		if (cmd == VZCTL_CMD_FREEZE && (param->flags & VZCTL_CPT_STOP_TRACKER)) {
 			logger(0, 0, "\tstop tracker...");
 			if (ioctl(cpt_fd, CPT_STOP_TRACKER, 0) < 0) {
 				logger(-1, errno, "CPT_STOP_TRACKER");
@@ -243,7 +243,7 @@ static int real_chkpnt(struct vzctl_env_handle *h, int cpt_fd, int cmd,
 			goto err_out;
 		}
 	}
-	if (cmd == VZCTL_CMD_SUSPEND && !param->ctx) {
+	if (cmd == VZCTL_CMD_FREEZE && !param->ctx) {
 		logger(0, 0, "\tget context...");
 		if (ioctl(cpt_fd, CPT_GET_CONTEXT, veid) < 0) {
 			logger(-1, errno, "Cannot get context");
@@ -260,7 +260,7 @@ err_out:
 	}
 	close(err_p[0]);
 
-	if (cmd == VZCTL_CMD_SUSPEND && param->ctx) {
+	if (cmd == VZCTL_CMD_FREEZE && param->ctx) {
 		/* destroy context */
 		if (ioctl(cpt_fd, CPT_PUT_CONTEXT, veid) < 0)
 			logger(-1, errno, "Cannot put the context");
@@ -349,13 +349,13 @@ int vz_env_chkpnt(struct vzctl_env_handle *h, int cmd, struct vzctl_cpt_param *p
 			}
 		}
 	}
-	if (cmd == VZCTL_CMD_CHKPNT || cmd == VZCTL_CMD_SUSPEND) {
+	if (cmd == VZCTL_CMD_CHKPNT || cmd == VZCTL_CMD_FREEZE) {
 		/* Deny to enter on SUSPEND stage */
 		lfd = vzctl2_get_enter_lock(h, VZCTL_LOCK_EX);
 		if (lfd < 0)
 			goto err;
 	}
-	if (param->ctx || cmd > VZCTL_CMD_SUSPEND) {
+	if (param->ctx || cmd > VZCTL_CMD_FREEZE) {
 		logger(0, 0, "\tjoin context..");
 		if (ioctl(cpt_fd, CPT_JOIN_CONTEXT, param->ctx ? : veid) < 0) {
 			logger(-1, errno, "Can not join the cpt context");

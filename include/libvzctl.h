@@ -405,6 +405,7 @@ struct vzctl_snapshot_tree {
 
 #define VZCTL_CMD_CHKPNT              1
 #define VZCTL_CMD_SUSPEND             2
+#define VZCTL_CMD_FREEZE              VZCTL_CMD_SUSPEND
 #define VZCTL_CMD_DUMP                3
 #define VZCTL_CMD_RESTORE             4
 #define VZCTL_CMD_UNDUMP              5

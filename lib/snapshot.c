@@ -352,7 +352,7 @@ int vzctl2_env_create_snapshot(struct vzctl_env_handle *h, struct vzctl_snapshot
 	if (run) {
 		/* TODO: implement stages for in criu */
 		int cmd = param->flags & VZCTL_SNAPSHOT_SKIP_DUMP ?
-				VZCTL_CMD_SUSPEND : VZCTL_CMD_CHKPNT;
+				VZCTL_CMD_FREEZE : VZCTL_CMD_CHKPNT;
 		vzctl_get_snapshot_dumpfile(ve_private, guid, fname,
 				sizeof(fname));
 		cpt.dumpfile = fname;
@@ -535,7 +535,7 @@ int vzctl2_env_switch_snapshot(struct vzctl_env_handle *h,
 
 	/* freeze */
 	if (run) {
-		ret = vzctl2_env_chkpnt(h, VZCTL_CMD_SUSPEND, &cpt, 0);
+		ret = vzctl2_env_chkpnt(h, VZCTL_CMD_FREEZE, &cpt, 0);
 		if (ret)
 			goto err1;
 	} else if (vzctl2_env_is_mounted(h)) {
