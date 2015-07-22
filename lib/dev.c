@@ -254,7 +254,7 @@ static int create_devs(struct vzctl_dev_param *devs)
 	list_head_t *head = &devs->dev;
 
 	list_for_each(it, head, list) {
-		if (it->name[0] == '\0')
+		if (it->name[0] == '\0' || it->mask == 0)
 			continue;
 
 		create_static_dev(it->name,
@@ -329,9 +329,28 @@ struct vzctl_dev_param *alloc_dev_param()
 	return dev;
 }
 
+static int set_dev_perm(list_head_t *head, struct vzctl_dev_perm *perm)
+{
+	struct vzctl_dev_perm *it;
+
+	if (perm == NULL || perm->name[0] == '\0')
+		return 1; // not found, nothing changed
+
+	list_for_each(it, head, list) {
+		if (!strcmp(it->name, perm->name)) {
+			it->mask = perm->mask;
+			return 0;
+		}
+	}
+	return 1;
+}
+
 int add_dev_param(list_head_t *head, struct vzctl_dev_perm *perm)
 {
 	struct vzctl_dev_perm *new;
+
+	if(!set_dev_perm(head, perm))
+		return 0;
 
 	new = malloc(sizeof(struct vzctl_dev_perm));
 	if (new == NULL)
@@ -554,7 +573,7 @@ char *devices2str(struct vzctl_dev_param *dev)
 	return strdup(buf);
 }
 
-char *devnodes2str(struct vzctl_dev_param *dev)
+char *devnodes2str(struct vzctl_dev_param *dev, int ignore_none_perm)
 {
 	char mask[3];
 	int r;
@@ -568,7 +587,7 @@ char *devnodes2str(struct vzctl_dev_param *dev)
 	sp = buf;
 	ep = buf + sizeof(buf) - 1;
 	list_for_each(it, head, list) {
-		if (it->name[0] == '\0' || it->mask == 0)
+		if (it->name[0] == '\0' || (ignore_none_perm && it->mask == 0))
 			continue;
 		r = snprintf(sp, ep - sp,"%s:%s ",
 				it->name, devperm2str(it->mask, mask));
