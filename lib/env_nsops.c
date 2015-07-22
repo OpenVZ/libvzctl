@@ -1099,6 +1099,7 @@ int ns_env_chkpnt(struct vzctl_env_handle *h, int cmd, struct vzctl_cpt_param *p
 	env[i++] = strdup(buf);
 	env[i] = NULL;
 
+	logger(2, 0, "Store dump at %s", dumpfile);
 	ret = vzctl2_wrap_exec_script(arg, env, 0);
 	free_ar_str(env);
 	if (ret)
