@@ -1051,7 +1051,7 @@ static char *env_param2str(struct vzctl_env_handle *h,
 	case VZCTL_PARAM_DEVICES:
 		return devices2str(env->dev);
 	case VZCTL_PARAM_DEVNODES:
-		return devnodes2str(env->dev);
+		return devnodes2str(env->dev, 0);
 	case VZCTL_PARAM_IPTABLES:
 		if (env->features->ipt_mask) {
 			iptables_mask2str(env->features->ipt_mask, buf, sizeof(buf));
@@ -1258,6 +1258,12 @@ int merge_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 			data.data = str;
 
 			add_env_param(h, h->env_param, &data, VZCTL_CONF_PARAM);
+
+			/* compatibility bugfix #PSBM-33885 */
+			if (data.id == VZCTL_PARAM_DEVNODES) {
+				free(str);
+				str = devnodes2str(h->env_param->dev, 1);
+			}
 
 			ret = add_conf_data(h->conf, param->name, str, CONF_DATA_UPDATED);
 			free(str);

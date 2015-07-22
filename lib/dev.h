@@ -56,7 +56,7 @@ int apply_dev_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int
 int parse_devices(struct vzctl_dev_param *dev, const char *val);
 int parse_devnodes(struct vzctl_dev_param *dev, const char *val);
 char *devices2str(struct vzctl_dev_param *dev);
-char *devnodes2str(struct vzctl_dev_param *dev);
+char *devnodes2str(struct vzctl_dev_param *dev, int ignore_none_perm);
 char *pci2str(struct vzctl_dev_param *old, struct vzctl_dev_param *new);
 int parse_pcidev(list_head_t *dev, const char *val, int validate, int replace);
 void free_dev_param(struct vzctl_dev_param *dev);
