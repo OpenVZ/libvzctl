@@ -966,10 +966,12 @@ out:
 
 static int ns_set_devperm(struct vzctl_env_handle *h, struct vzctl_dev_perm *dev)
 {
+	char dev_str_part[STR_SIZE];
 	char dev_str[STR_SIZE];
 	char perms[4];
 	int i = 0;
 	int deny = 0;
+	int ret;
 
 	if (dev->mask & S_IXGRP)
 		return 0;
@@ -986,17 +988,21 @@ static int ns_set_devperm(struct vzctl_env_handle *h, struct vzctl_dev_perm *dev
 	perms[i++] = '\0';
 
 	if (dev->use_major)
-		snprintf(dev_str, sizeof(dev_str), "%c %d:* %s",
+		snprintf(dev_str_part, sizeof(dev_str_part), "%c %d:*",
 			S_ISBLK(dev->type) ? 'b' : 'c',
-			major(dev->dev),
-			deny ? "rwm" : perms);
+			major(dev->dev));
 	else
-		snprintf(dev_str, sizeof(dev_str), "%c %d:%d %s",
+		snprintf(dev_str_part, sizeof(dev_str_part), "%c %d:%d",
 			S_ISBLK(dev->type) ? 'b' : 'c',
-			major(dev->dev), minor(dev->dev),
-			deny ? "rwm" : perms);
+			major(dev->dev), minor(dev->dev));
 
-	return cg_env_set_devices(h->ctid, deny ? "devices.deny" : "devices.allow", dev_str);
+	snprintf(dev_str, sizeof(dev_str), "%s rwm", dev_str_part);
+	ret = cg_env_set_devices(h->ctid, "devices.deny", dev_str);
+	if (ret || deny)
+		return ret;
+
+	snprintf(dev_str, sizeof(dev_str), "%s %s", dev_str_part, perms);
+	return cg_env_set_devices(h->ctid, "devices.allow", dev_str);
 }
 
 static int ns_set_cpumask(struct vzctl_env_handle *h, struct vzctl_cpumask *cpumask)
