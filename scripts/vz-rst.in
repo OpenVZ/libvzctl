@@ -58,7 +58,6 @@ criu restore	--file-locks								\
 
 if [ $? -eq 0 ]; then
 	echo Ok
-	rm -rf $VE_DUMP_DIR
 else
 	echo The restore log was saved in $VE_DUMP_DIR/restore.log
 	exit 1
