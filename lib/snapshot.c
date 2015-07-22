@@ -298,11 +298,11 @@ int vzctl2_env_create_snapshot(struct vzctl_env_handle *h, struct vzctl_snapshot
 	int ret, run = 0;
 	char guid[39];
 	char fname[MAXPATHLEN];
-	char tmp[MAXPATHLEN];
-	char snap_ve_conf[MAXPATHLEN];
+	char tmp[MAXPATHLEN] = "";
+	char snap_ve_conf[MAXPATHLEN] = "";
 	struct vzctl_snapshot_tree *tree = NULL;
 	char *ve_private = h->env_param->fs->ve_private;
-	struct vzctl_cpt_param cpt_param = {};
+	struct vzctl_cpt_param cpt = {};
 
 	if (!is_snapshot_supported(ve_private))
 		return VZCTL_E_CREATE_SNAPSHOT;
@@ -350,7 +350,13 @@ int vzctl2_env_create_snapshot(struct vzctl_env_handle *h, struct vzctl_snapshot
 
 	/* 1 freeze */
 	if (run) {
-		ret = vzctl2_env_chkpnt(h, VZCTL_CMD_SUSPEND, &cpt_param, 0);
+		/* TODO: implement stages for in criu */
+		int cmd = param->flags & VZCTL_SNAPSHOT_SKIP_DUMP ?
+				VZCTL_CMD_SUSPEND : VZCTL_CMD_CHKPNT;
+		vzctl_get_snapshot_dumpfile(ve_private, guid, fname,
+				sizeof(fname));
+		cpt.dumpfile = fname;
+		ret = vzctl2_env_chkpnt(h, cmd, &cpt, 0);
 		if (ret)
 			goto err1;
 	}
@@ -361,31 +367,32 @@ int vzctl2_env_create_snapshot(struct vzctl_env_handle *h, struct vzctl_snapshot
 
 	/* 3 store dump & continue */
 	if (run) {
-		if (!(param->flags & VZCTL_SNAPSHOT_SKIP_DUMP)) {
-			vzctl_get_snapshot_dumpfile(ve_private, guid, fname, sizeof(fname));
-			cpt_param.dumpfile = fname;
-			ret = vzctl2_env_chkpnt(h, VZCTL_CMD_DUMP, &cpt_param, 0);
-			if (ret)
-				goto err2;
-		}
-
-		if (vzctl2_cpt_cmd(h, VZCTL_CMD_CHKPNT, VZCTL_CMD_RESUME, &cpt_param, 0))
+		cpt.cmd = param->flags & VZCTL_SNAPSHOT_SKIP_DUMP ?
+				VZCTL_CMD_RESUME : VZCTL_CMD_RESTORE;
+		if (vzctl2_env_restore(h, &cpt, 0))
 			logger(-1, 0, "Failed to resume Container");
 	}
 	// move snapshot.xml to its place
 	GET_SNAPSHOT_XML(fname, ve_private);
 	if (rename(tmp, fname))
 		logger(-1, errno, "Failed to rename %s -> %s", tmp, fname);
+
 	logger(0, 0, "Snapshot %s has been successfully created",
 			guid);
 	return 0;
+
+#if 0
 err2:
 	// merge top_delta
 	vzctl2_delete_snapshot(h, guid);
-err1:
-	if (run)
-		vzctl2_cpt_cmd(h, VZCTL_CMD_CHKPNT, VZCTL_CMD_RESUME, &cpt_param, 0);
+	if (run) {
+		cpt.cmd = param->flags & VZCTL_SNAPSHOT_SKIP_DUMP ?
+				VZCTL_CMD_RESUME : VZCTL_CMD_RESTORE;
+		vzctl2_env_restore(h, &cpt, 0);
+	}
+#endif
 
+err1:
 	unlink(tmp);
 	unlink(snap_ve_conf);
 
