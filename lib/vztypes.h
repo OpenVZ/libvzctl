@@ -50,7 +50,7 @@
 #define VZCTL_VE_ROOTHDD_DIR	"root.hdd"
 #define VZCTL_VE_CLUSTER_SERVICE_NAME	".cluster_service_name"
 
-#define VZCTL_SCRIPT_D_DIR	"/etc/vz/script.d/"
+#define VZCTL_SCRIPT_D_DIR	SCRIPTDDIR"/"
 #define VZCTL_START		"vz-start"
 #define VZCTL_STOP		"vz-stop"
 #define VZCTL_NET_ADD		"vz-net_add"

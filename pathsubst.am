@@ -23,6 +23,7 @@ pathsubst_RULES = \
 	s!@'VPSCONFDIR'@!$(vpsconfdir)!g; \
 	s!@'PKGDATADIR'@!$(pkgdatadir)!g; \
 	s!@'SCRIPTDIR'@!$(scriptdir)!g; \
+	s!@'SCRIPTDDIR'@!$(scriptddir)!g; \
 	s!@'VEIPDUMPDIR'@!$(veipdumpdir)!g; \
 	s!@'VZREBOOTDIR'@!$(vzrebootdir)!g; \
 	s!@'VZDIR'@!$(vzdir)!g;

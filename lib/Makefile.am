@@ -8,6 +8,7 @@ AM_CPPFLAGS = -I. -I./include -I../include \
 	      -DPKGCONFDIR=\"$(pkgconfdir)\" \
 	      -DPKGLIBDIR=\"$(pkglibdir)\" \
 	      -DSCRIPTDIR=\"$(scriptdir)\" \
+	      -DSCRIPTDDIR=\"$(scriptddir)\" \
 	      -DDISTCONFDIR=\"$(distconfdir)\" \
 	      $(XML_CPPFLAGS)
 
