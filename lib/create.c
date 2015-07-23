@@ -670,21 +670,16 @@ int check_reinstall_scripts(list_head_t *ve0_list, list_head_t *ve_list,
 }
 
 static int custom_reinstall(struct vzctl_env_handle *h, char *script_nm,
-		 char *ve_private, char *ve_private_tmp)
+		char *ve_private, char *ve_private_tmp)
 {
-	char buf[12];
-	char *arg[8];
 	int ret;
-
-	arg[0] = script_nm;
-	arg[1] = "--veid";
-	snprintf(buf, sizeof(buf), "%s", EID(h));
-	arg[2] = buf;
-	arg[3] = "--ve_private";
-	arg[4] = ve_private;
-	arg[5] = "--ve_private_tmp";
-	arg[6] = ve_private_tmp;
-	arg[7] = NULL;
+	char *const arg[] = {
+		script_nm,
+		"--veid", EID(h),
+		"--ve_private", ve_private,
+		"--ve_private_tmp", ve_private_tmp,
+		NULL,
+	};
 
 	logger(0, 0, "Running custom reinstall script...");
 	ret = vzctl2_wrap_exec_script(arg, NULL, 0);
