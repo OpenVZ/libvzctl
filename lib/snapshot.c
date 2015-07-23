@@ -77,6 +77,9 @@ static void vzctl_free_snapshot_tree(struct vzctl_snapshot_tree *tree)
 {
 	int i;
 
+	if (tree == NULL)
+		return;
+
 	for (i = 0; i < tree->nsnapshots; i++)
 		free_snapshot_data(tree->snapshots[i]);
 	free(tree->snapshots);
@@ -379,6 +382,8 @@ int vzctl2_env_create_snapshot(struct vzctl_env_handle *h, struct vzctl_snapshot
 
 	logger(0, 0, "Snapshot %s has been successfully created",
 			guid);
+
+	vzctl_free_snapshot_tree(tree);
 	return 0;
 
 #if 0
@@ -398,8 +403,7 @@ err1:
 
 err:
 	logger(-1, 0, "Failed to create snapshot");
-	if (tree != NULL)
-		vzctl_free_snapshot_tree(tree);
+	vzctl_free_snapshot_tree(tree);
 
 	return VZCTL_E_CREATE_SNAPSHOT;
 }
@@ -583,6 +587,8 @@ int vzctl2_env_switch_snapshot(struct vzctl_env_handle *h,
 	vzctl2_env_close(h_env_snap);
 	logger(0, 0, "Container has been successfully switched "
 			"to %s snapshot", guid);
+
+	vzctl_free_snapshot_tree(tree);
 	return 0;
 
 err3:
@@ -606,8 +612,7 @@ err1:
 
 err:
 	logger(-1, 0, "Failed to switch to snapshot %s", guid);
-	if (tree != NULL)
-		vzctl_free_snapshot_tree(tree);
+	vzctl_free_snapshot_tree(tree);
 
 	return VZCTL_E_SWITCH_SNAPSHOT;
 }
