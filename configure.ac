@@ -65,7 +65,7 @@ AC_CHECK_LIB(util, openpty,
 AC_SUBST(UTIL_LIBS)
 
 # Check for vz linux kernel headers
-AC_CHECK_HEADERS([linux/vzcalluser.h linux/vzlist.h linux/vzctl_venet.h linux/vzctl_netstat.h], ,
+AC_CHECK_HEADERS([linux/vzcalluser.h linux/vzlist.h linux/vzctl_venet.h linux/vzctl_netstat.h linux/beancounter.h], ,
 	AC_MSG_ERROR([Please install vzkernel-headers package]))
 
 # Checks for libvzevent
