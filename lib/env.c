@@ -579,7 +579,7 @@ static void restore_mtab(void)
 	struct stat st;
 
 	if (stat("/etc/mtab", &st) == 0 && S_ISREG(st.st_mode)) {
-		logger(0, 0, "restore /etc/mtab");
+		logger(3, 0, "restore /etc/mtab");
 		if (unlink("/etc/mtab"))
 			logger(-1, errno, "failed to unlink /etc/mtab");
 		if (symlink("/proc/mounts", "/etc/mtab"))
