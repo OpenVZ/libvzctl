@@ -844,13 +844,18 @@ static int configure_sysfsperm(struct vzctl_env_handle *h, const char *devname)
 	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", "block rx"))
 		return VZCTL_E_DISK_CONFIGURE;
 
-	snprintf(buf, sizeof(buf), "devices/virtual/block rx");
-	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
+	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions",
+				"devices/virtual/block rx"))
 		return VZCTL_E_DISK_CONFIGURE;
 
 	snprintf(buf, sizeof(buf), "devices/virtual/block/%s rx", dev);
 	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
 		return VZCTL_E_DISK_CONFIGURE;
+
+	snprintf(buf, sizeof(buf), "devices/virtual/block/%s", dev);
+	ret = add_sysfs_entry(h, buf);
+	if (ret)
+		return ret;
 
 	snprintf(buf, sizeof(buf), "devices/virtual/block/%s/%sp1", dev, dev);
 	ret = add_sysfs_entry(h, buf);
