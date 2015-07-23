@@ -1102,7 +1102,7 @@ int vzctl2_env_reinstall(struct vzctl_env_handle *h,
 	char c_configure_script[PATH_MAX];
 	int c_configure = 0, flags;
 	struct vzctl_env_param *env = h->env_param;
-	const char *ve_private = env->fs->ve_private;
+	char *ve_private = env->fs->ve_private;
 	struct vzctl_disk *root_disk;
 	LIST_HEAD(app_list);
 	LIST_HEAD(reinstall_scripts_list);
@@ -1154,13 +1154,15 @@ int vzctl2_env_reinstall(struct vzctl_env_handle *h,
 	/* Custom reinstall */
 	get_script_path(VZCTL_REINSTALL_SCRIPT, buf, sizeof(buf));
 	if (stat_file(buf)) {
-		ret = custom_reinstall(h, buf, old_disk, new_prvt);
+		snprintf(new_prvt, sizeof(new_prvt), "%s.reinstall", ve_private);
+		ret = custom_reinstall(h, buf, ve_private, new_prvt);
 		if (ret == 0) {
 			if (stat_file(new_prvt) == 0) {
 				logger(-1, 0, "Unable to continue reinstallation;"
 						" the private area is not created");
 				return VZCTL_E_CUSTOM_REINSTALL;
 			}
+
 			get_script_path(VZCTL_CONFIGURE_SCRIPT, c_configure_script,
 					sizeof(c_configure_script));
 			c_configure = stat_file(c_configure_script) == 1;
@@ -1169,6 +1171,7 @@ int vzctl2_env_reinstall(struct vzctl_env_handle *h,
 			logger(-1, 0, "The %s failed", VZCTL_REINSTALL_SCRIPT);
 			return VZCTL_E_CUSTOM_REINSTALL;
 		}
+
 	}
 
 	// Create new Container
