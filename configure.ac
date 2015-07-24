@@ -59,26 +59,36 @@ AC_PROG_INSTALL
 AC_PROG_LN_S
 
 # Checks for libraries.
-AC_CHECK_LIB(dl, dlopen,
-	DL_LIBS="-ldl", AC_MSG_ERROR([libdl not found]),)
-
-AC_SUBST(DL_LIBS)
-
 AC_CHECK_LIB(util, openpty,
 	UTIL_LIBS="-lutil", AC_MSG_ERROR([libutil not found]),)
 
 AC_SUBST(UTIL_LIBS)
 
-# Checks for header files.
+# Check for vz linux kernel headers
+AC_CHECK_HEADERS([linux/vzcalluser.h linux/vzlist.h linux/vzctl_venet.h linux/vzctl_netstat.h linux/beancounter.h], ,
+	AC_MSG_ERROR([Please install vzkernel-headers package]))
+
+# Checks for libvzevent
+AC_CHECK_HEADER([vz/vzevent.h], ,
+	AC_MSG_ERROR([Please install libvzevent devel package]))
+AC_CHECK_LIB([vzevent], [vzevt_register], ,
+	AC_MSG_ERROR([Please install libvzevent devel package]))
+
+# Checks for ploop lib
+AC_CHECK_HEADER([ploop/libploop.h], ,
+	AC_MSG_ERROR([Please install ploop devel package]))
+AC_CHECK_LIB([ploop], [ploop_replace_image], PLOOP_LIBS="-lploop",
+	AC_MSG_ERROR([Please install ploop package]))
+AC_SUBST(PLOOP_LIBS)
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_C_INLINE
 
-# Checks for library functions.
-PKG_CHECK_MODULES([XML2], [libxml-2.0])
-XML_CPPFLAGS=`xml2-config --cflags`
-XML_LIBS=`xml2-config --libs`
+PKG_CHECK_MODULES([XML], [libxml-2.0 > 2.6.16], ,
+	AC_MSG_ERROR([Please install libxml2 devel package]))
+PKG_CHECK_MODULES([UUID], [uuid], ,
+	AC_MSG_ERROR([Please install libuuid devel package]))
 
 # Compiler settings
 #CFLAGS="${CFLAGS} -Wall -Wpointer-arith -Wcast-qual -Winline -Wextra"
@@ -86,8 +96,6 @@ CFLAGS="${CFLAGS} -Wall -Werror -Wpointer-arith -Winline"
 CFLAGS="${CFLAGS} -Wcast-align -Wno-unused-parameter"
 CFLAGS="${CFLAGS} -Wno-missing-field-initializers"
 CFLAGS="${CFLAGS} -D_FILE_OFFSET_BITS=64"
-CFLAGS="$CFLAGS $XML_CPPFLAGS"
-LIBS="$XML_LIBS $LIBS"
 
 if test x$build_cpu = xppc64 -o x$build_cpu = xpowerpc64; then
 	CFLAGS="${CFLAGS} -m64"
@@ -109,7 +117,6 @@ AC_CONFIG_COMMANDS_PRE([SUMMARY="$PACKAGE_STRING configured successfully:
      prefix: $prefix
  sysconfdir: $sysconfdir
      libdir: $libdir
-   features: $enable_bashcomp $enable_cron $enable_logrotate $enable_udev
 "])
 
 # Output

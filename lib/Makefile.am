@@ -10,7 +10,7 @@ AM_CPPFLAGS = -I. -I./include -I../include \
 	      -DSCRIPTDIR=\"$(scriptdir)\" \
 	      -DSCRIPTDDIR=\"$(scriptddir)\" \
 	      -DDISTCONFDIR=\"$(distconfdir)\" \
-	      $(XML_CPPFLAGS)
+	      $(XML_CFLAGS)
 
 lib_LTLIBRARIES = libvzctl2.la
 pkginclude_HEADERS = vzctl_param.h vzerror.h list.h
@@ -72,5 +72,5 @@ libvzctl2_la_SOURCES =  bitmap.c \
 # 5. If any interfaces have been added since the last public release, then increment age.
 # 6. If any interfaces have been removed since the last public release, then set age to 0. 
 libvzctl2_la_LDFLAGS = -version-info 2:1:0 -Wl,--version-script=version.map
-libvzctl2_la_LIBADD = $(XML_LIBS) -lvzevent -lutil -lploop -lcrypt -luuid
+libvzctl2_la_LIBADD = $(XML_LIBS) $(UTIL_LIBS) $(PLOOP_LIBS) -lcrypt $(UUID_LIBS)
 

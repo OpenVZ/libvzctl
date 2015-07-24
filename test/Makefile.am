@@ -15,4 +15,4 @@ VZCTL_LIBS = $(top_builddir)/lib/libvzctl2.la -lpthread
 
 
 test_SOURCES = test.c test_config.c test_vzctl.c
-test_LDADD = $(VZCTL_LIBS) $(DL_LIBS) $(UTIL_LIBS)
+test_LDADD = $(VZCTL_LIBS) $(UTIL_LIBS)

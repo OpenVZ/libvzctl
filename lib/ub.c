@@ -29,9 +29,9 @@
 #include <string.h>
 #include <limits.h>
 #include <linux/vzcalluser.h>
+#include <linux/beancounter.h>
 
 #include "vzctl.h"
-#include "ub/beancounter.h"
 #include "ub.h"
 #include "vzctl_param.h"
 #include "vzerror.h"
