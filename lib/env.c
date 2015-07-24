@@ -587,13 +587,90 @@ static void restore_mtab(void)
 	}
 }
 
+static struct devnode {
+	int major;
+	int minor;
+	const char *name;
+	mode_t mode;
+} _g_devs[] = {
+	{2, 0x0, "/dev/ptyp0", S_IFCHR | 0620},
+	{2, 0x1, "/dev/ptyp1", S_IFCHR|0620},
+	{2, 0x2, "/dev/ptyp2", S_IFCHR|0620},
+	{2, 0x3, "/dev/ptyp3", S_IFCHR|0620},
+	{2, 0x4, "/dev/ptyp4", S_IFCHR|0620},
+	{2, 0x5, "/dev/ptyp5", S_IFCHR|0620},
+	{2, 0x6, "/dev/ptyp6", S_IFCHR|0620},
+	{2, 0x7, "/dev/ptyp7", S_IFCHR|0620},
+	{2, 0x8, "/dev/ptyp8", S_IFCHR|0620},
+	{2, 0x9, "/dev/ptyp9", S_IFCHR|0620},
+	{2, 0xa, "/dev/ptypa", S_IFCHR|0620},
+	{2, 0xb, "/dev/ptypb", S_IFCHR|0620},
+	{3, 0x0, "/dev/ttyp0", S_IFCHR|0620},
+	{3, 0x1, "/dev/ttyp1", S_IFCHR|0620},
+	{3, 0x2, "/dev/ttyp2", S_IFCHR|0620},
+	{3, 0x3, "/dev/ttyp3", S_IFCHR|0620},
+	{3, 0x4, "/dev/ttyp4", S_IFCHR|0620},
+	{3, 0x5, "/dev/ttyp5", S_IFCHR|0620},
+	{3, 0x6, "/dev/ttyp6", S_IFCHR|0620},
+	{3, 0x7, "/dev/ttyp7", S_IFCHR|0620},
+	{3, 0x8, "/dev/ttyp8", S_IFCHR|0620},
+	{3, 0x9, "/dev/ttyp9", S_IFCHR|0620},
+	{3, 0xa, "/dev/ttypa", S_IFCHR|0620},
+	{3, 0xb, "/dev/ttypb", S_IFCHR|0620},
+	{5, 0x2, "/dev/ptmx", S_IFCHR|0666},
+	{5, 0x0, "/dev/tty", S_IFCHR|0666},
+	{5, 0x1, "/dev/console", S_IFCHR|0620},
+	{4, 0x0, "/dev/tty0", S_IFCHR|0620},
+	{4, 0x1, "/dev/tty1", S_IFCHR|0620},
+	{4, 0x2, "/dev/tty2", S_IFCHR|0620},
+	{4, 0x3, "/dev/tty3", S_IFCHR|0620},
+	{4, 0x4, "/dev/tty4", S_IFCHR|0620},
+	{4, 0x5, "/dev/tty5", S_IFCHR|0620},
+	{4, 0x6, "/dev/tty6", S_IFCHR|0620},
+	{4, 0x7, "/dev/tty7", S_IFCHR|0620},
+	{4, 0x8, "/dev/tty8", S_IFCHR|0620},
+	{4, 0x9, "/dev/tty9", S_IFCHR|0620},
+	{4, 0xa, "/dev/tty10", S_IFCHR|0620},
+	{4, 0xb, "/dev/tty11", S_IFCHR|0620},
+	{1, 0x3, "/dev/null", S_IFCHR|0666},
+	{1, 0x5, "/dev/zero", S_IFCHR|0666},
+	{1, 0x7, "/dev/full", S_IFCHR|0666},
+	{1, 0x8, "/dev/random", S_IFCHR|0666},
+	{1, 0x9, "/dev/urandom", S_IFCHR|0666},
+};
+
+static int setup_devtmpfs()
+{
+	int i, ret = 0;
+
+	logger(10, 0, "Setup devtmpfs");
+
+	if (mount("none", "/dev", "devtmpfs", 0, NULL))
+		return vzctl_err(-1, errno, "Failed to mount devtmpfs");
+ 
+	for (i = 0; i < sizeof(_g_devs)/sizeof(_g_devs[0]); i++) {
+		dev_t dev = makedev(_g_devs[i].major, _g_devs[i].minor);
+		if (mknod(_g_devs[i].name, _g_devs[0].mode, dev) &&
+				errno != EEXIST)
+		{
+			ret = vzctl_err(-1, errno, "Failed to creaet %s",
+					_g_devs[i].name);
+			break;
+		}
+	}
+
+	if (umount("/dev"))
+		logger(-1, errno, "Failed to umount devtmpfs");
+
+	return ret;
+}
+
 int pre_setup_env(struct start_param *param)
 {
 	struct vzctl_env_param *env = param->h->env_param;
 	int fd;
 	int errcode = 0;
 
-	logger(1, 0, "Setup enviroment");
 	/* Clear supplementary group IDs */
 	setgroups(0, NULL);
 
@@ -608,6 +685,9 @@ int pre_setup_env(struct start_param *param)
 
 	if (access("/proc", F_OK) == 0 && mount("proc", "/proc", "proc", 0, 0))
 		return vzctl_err(VZCTL_E_SYSTEM, errno, "Failed to mount /proc");
+
+	if (setup_devtmpfs())
+		return VZCTL_E_SYSTEM;
 
 	if (stat_file("/sys"))
 		mount("sysfs", "/sys", "sysfs", 0, 0);
