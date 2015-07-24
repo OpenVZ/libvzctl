@@ -130,13 +130,6 @@ suse:
 	$(INSTALL_DATA) $(srcdir)/sles.conf \
 		$(DESTDIR)$(distconfdir)/sles.conf
 ubuntu:
-	for ver in $(DEBIAN_VER); do \
-		$(INSTALL_DATA) $(srcdir)/debian.conf \
-		    $(DESTDIR)$(distconfdir)/debian-$$ver.conf; \
-	done
-	$(INSTALL_DATA) $(srcdir)/debian.conf \
-		$(DESTDIR)$(distconfdir)/debian.conf
-ubuntu:
 	for ver in $(UBUNTU_VER); do \
 		$(INSTALL_DATA) $(srcdir)/debian.conf \
 		    $(DESTDIR)$(distconfdir)/ubuntu-$$ver.conf; \
