@@ -487,39 +487,61 @@ int vzctl2_get_env_status(const ctid_t ctid, vzctl_env_status_t *status, int mas
 /** Get id by name and check VEID.conf consistensy with name
  *
  * @param name		Container name in UTF8 encoding.
- * @param ctid		return VEID.
- * @param encoding	name encoding, in case NULL taken from current console.
+ * @param ctid		return CTID.
  * @return		-1 if no name or conflict.
  */
 int vzctl2_get_envid_by_name(const char *name, ctid_t ctid)
 {
-	char buf[STR_SIZE];
-	int ret;
+	char buf[PATH_MAX];
+	int rc;
+	int id_by_ctid = 0;
+	const char *id = NULL;
 	struct vzctl_env_handle *h;
 
-	bzero(ctid, sizeof(ctid_t));
-	snprintf(buf, sizeof(buf), ENV_NAME_DIR "%s", name);
-	if (stat_file(buf) != 1)
-		return -1;
+	/* 1. /etc/vz/conf/CTID.conf */
+	if (vzctl2_parse_ctid(name, ctid) == 0) {
+		vzctl2_get_env_conf_path(ctid, buf, sizeof(buf));
+		rc = stat_file(buf);
+		if (rc == -1)
+			return -1;
+		else if (rc == 1)
+			id_by_ctid = 1;
+	}
 
-	h = vzctl2_env_open_conf(NULL, buf, VZCTL_CONF_SKIP_GLOBAL, &ret);
+	/* 2. /etc/vz/name/name */
+	snprintf(buf, sizeof(buf), ENV_NAME_DIR "%s", name);
+	rc = stat_file(buf);
+	if (rc == -1)
+		return -1;
+	else if (rc == 0) 
+		return id_by_ctid ? 0 : -1;
+
+	h = vzctl2_env_open_conf(NULL, buf, VZCTL_CONF_SKIP_GLOBAL, &rc);
 	if (h == NULL)
 		return -1;
 
-	/* get ctid from UUID */
-	ret = -1;
-	if (h->env_param->name->name != NULL &&
-			strcmp(h->env_param->name->name, name) == 0)
-	{
-		const char *id = NULL;
+	/* get CTID from VEID variable */
+	rc = -1;
+	if (h->env_param->name->name == NULL ||
+			strcmp(h->env_param->name->name, name))
+		goto err;
 
-		vzctl2_env_get_param(h, "VEID", &id);
-		ret = vzctl2_parse_ctid(id, ctid);
-	}
+	vzctl2_env_get_param(h, "VEID", &id);
+	if (vzctl2_parse_ctid(id, ctid)) {
+		logger(-1, 0, "Unable to get ctid by name %s: "
+				"invalid VEID=%s", name, id);
+		goto err;
+	} 
 
+	/* Return ctid by name unconditionally
+	 * Ignore id_by_ctid result
+	 */
+	rc = 0;
+
+err:
 	vzctl2_env_close(h);
 
-	return ret;
+	return rc;
 }
 
 int vzctl2_env_layout_version(const char *path)
