@@ -339,7 +339,11 @@ int vzctl2_env_is_mounted(struct vzctl_env_handle *h)
 	if (ve_private != NULL &&
 			vzctl2_env_layout_version(ve_private) == VZCTL_LAYOUT_5)
 	{
-		return vzctl2_is_image_mounted(get_root_disk(h));
+		struct vzctl_disk *d = find_root_disk(h->env_param->disk);
+
+		if (d != NULL && !d->use_device)
+			return vzctl2_is_image_mounted(d->path);
+
 	}
 
 	return fs_is_mounted_check_by_dev(target);
