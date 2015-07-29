@@ -41,6 +41,7 @@
 . @PKGCONFDIR@/vz.conf
 
 MAX_CLASSES=16
+VZ_CONFIGURED_DEV=
 
 TC_CMD=tc
 VZ_TC_CLASSES="/var/run/vz_tc_classes"
@@ -314,6 +315,19 @@ vzfill_RATEMPU()
 	fi
 }
 
+fill_configured_dev()
+{
+	local dev
+
+	# Get devices mentioned in BANDWIDTH
+	vzmk_list1 "${BANDWIDTH}"
+	VZ_CONFIGURED_DEV=$RET_LIST
+	for dev in ${VZ_CONFIGURED_DEV}; do
+		[ -e "/sys/class/net/$dev" ] || \
+			vzerror "Wrong BANDWIDTH value (no such device ${dev} on the node) or device is down." ${VZ_SET_RATE}
+	done
+}
+
 # Checks BANDWIDTH, TOTALRATE and RATEMPU
 # for consistance
 # Parameters:
@@ -326,11 +340,8 @@ vzcheck_TOTALRATE()
 
 	vzcheckvar BANDWIDTH TOTALRATE
 
-	[ -z "${NETDEVICES}" ] && vzgetnetdev
-	expand_DEV ${BANDWIDTH}
-	BANDWIDTH=$RES_EXPAND_DEV
-	# NB:  call after expand_DEV ${BANDWIDTH}
-	set_configured_tc_dev "${BANDWIDTH}"
+	fill_configured_dev
+
 	expand_DEV ${TOTALRATE}
 	TOTALRATE=$RES_EXPAND_DEV
 	vzfill_RATEMPU
@@ -338,15 +349,6 @@ vzcheck_TOTALRATE()
 	RATEMPU=$RES_EXPAND_DEV
 
 	[ -z "${CLASSES_LIST}" ] && vzget_classes_list
-
-	[ -z "${NETDEVICES}" ] && vzgetnetdev
-	# Get devices mentioned in ${BANDWIDTH}
-	vzmk_list1 "${BANDWIDTH}"
-	TOTAL_DEV_LIST="${RET_LIST}"
-	# devices from BANDWIDTH are in RET_LIST now.
-	mes=`vzis_list_in_list "${TOTAL_DEV_LIST}" "${NETDEVICES}"`
-	[ $? -eq 0 ] && \
-		vzerror "Wrong BANDWIDTH value (no such device ${mes} on the node) or device is down." ${VZ_SET_RATE}
 
 	# Get devices mentioned in ${TOTALRATE}
 	vzmk_list1 "${TOTALRATE}"
@@ -476,12 +478,7 @@ expand_default_DEV()
 
 	RET_LIST=
 	for i in ${@}; do
-		for j in ${NETDEVICES}; do
-			# Do not expand not configured devices
-			if [ -n "${VZ_CONFIGURED_TC_DEVICES}" ]; then
-				mes=$(vzis_list_in_list "${j}" "${VZ_CONFIGURED_TC_DEVICES}")
-				[ $? -eq 0 ] && continue
-			fi
+		for j in $VZ_CONFIGURED_DEV; do
 			if ! echo "${RET_LIST}" | grep -q "${j}:${i#*:}"; then
 				RET_LIST="${RET_LIST} ${j}:${i#*:}"
 			fi
@@ -489,9 +486,8 @@ expand_default_DEV()
 	done
 }
 
-# Replace '*' in the TOTALRATE | RATE | BANDWIDTH | RATEMPU with the real device name
-# HINT: '*' in BANDWIDTH is invalid.
-function expand_DEV()
+# Replace '*' in the TOTALRATE | RATE | RATEMPU with the real device name
+expand_DEV()
 {
 	local rate dev tmp class i j rest_rate
 
@@ -529,7 +525,6 @@ vzcheck_RATE()
 {
 	local TOTAL_DEV_LIST;
 	local RATE_DEV_LIST;
-	local BAND_DEV_LIST;
 	local RATEMPU_DEV_LIST;
 	local TOTAL_CLASS_LIST;
 	local RATE_CLASS_LIST;
@@ -540,11 +535,8 @@ vzcheck_RATE()
 
 	vzcheckvar BANDWIDTH TOTALRATE RATE
 
-	[ -z "${NETDEVICES}" ] && vzgetnetdev
-	expand_DEV ${BANDWIDTH}
-	BANDWIDTH=$RES_EXPAND_DEV
-	#NB:  call after expand_DEV ${BANDWIDTH}
-	set_configured_tc_dev "${BANDWIDTH}"
+	fill_configured_dev
+
 	expand_DEV ${TOTALRATE}
 	TOTALRATE=$RES_EXPAND_DEV
 	expand_DEV ${RATE}
@@ -560,31 +552,20 @@ vzcheck_RATE()
 	# Get devices mentioned in ${RATE}
 	vzmk_list1 "${RATE}"
 	RATE_DEV_LIST="${RET_LIST}"
-	# Get devices mentioned in ${BANDWIDTH}
-	vzmk_list1 "${BANDWIDTH}"
-	BAND_DEV_LIST=$RET_LIST
 	# Get devices mentioned in ${RATEMPU}
 	vzmk_list1 "${RATEMPU}"
 	RATEMPU_DEV_LIST=$RET_LIST
 
-	mes=`vzis_list_in_list "${BAND_DEV_LIST}" "${NETDEVICES}"`
-	[ $? -eq 0 ] && \
-		vzerror "Wrong BANDWIDTH value (no such device ${mes} on the node) or device is down." ${VZ_SET_RATE}
-	mes=`vzis_list_in_list "${TOTAL_DEV_LIST}" "${NETDEVICES}"`
-	[ $? -eq 0 ] && \
-		vzerror "Wrong TOTALRATE value (no such device ${mes} on the node)." ${VZ_SET_RATE}
-	mes=`vzis_list_in_list "${TOTAL_DEV_LIST}" "${BAND_DEV_LIST}"`
+	mes=`vzis_list_in_list "${TOTAL_DEV_LIST}" "${VZ_CONFIGURED_DEV}"`
 	[ $? -eq 0 ] && \
 		vzerror "Wrong TOTALRATE value (no such device ${mes} in  the BANDWIDTH)." ${VZ_SET_RATE}
+
 	mes=`vzis_list_in_list "${RATE_DEV_LIST}" "${TOTAL_DEV_LIST}"`
 	if [ $? -eq 0 ]; then
 		vzwarning "Autocorrect wrong RATE value (no such device ${mes} in the TOTALRATE)"
 		expand_default_DEV ${RATE}
 		RATE=$RET_LIST
 	fi
-	mes=`vzis_list_in_list "${RATEMPU_DEV_LIST}" "${NETDEVICES}"`
-	[ $? -eq 0 ] && \
-		vzerror "Wrong RATEMPU value (no such device ${mes} on the node)." ${VZ_SET_RATE}
 	mes=`vzis_list_in_list "${RATEMPU_DEV_LIST}" "${TOTAL_DEV_LIST}"`
 	[ $? -eq 0 ] && \
 		vzerror "Wrong RATEMPU value (no such device ${mes} in TOTALRATE)." ${VZ_SET_RATE}
@@ -710,8 +691,7 @@ vzcreate_filter()
 # NO
 vzcreate_qdisc()
 {
-	local DEV;
-	local i;
+	local dev;
 	local DEV1;
 	local BAND1;
 	local j;
@@ -725,10 +705,8 @@ vzcreate_qdisc()
 	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return;
 
 	vzcheck_TOTALRATE
-	for i in ${BANDWIDTH} ; do
-		DEV=${i%%:*}
-		[ -z ${DEV} ] && \
-			vzerror "Wrong BANDWIDTH value." ${VZ_SET_RATE};
+	
+	for dev in ${VZ_CONFIGURED_DEV} ; do
 		let found=0;
 		for j in ${TOTALRATE} ; do
 			DEV1=${j%%:*}
@@ -768,14 +746,13 @@ vzdel_ve_sh_classes()
 
 	[ -z "${1}" ] && vzerror "VEID is not specified." ${VZ_SET_RATE};
 
-	[ -z "${NETDEVICES}" ] && vzgetnetdev
-
 	vzread_tc_class "${1}"
 	[ -z ${vzread_tc_class_RET} ] && return
 
 	TC_CLASS_HEX=${vzread_tc_class_RET}
+	fill_configured_dev
 
-	for DEV in ${NETDEVICES} ; do
+	for DEV in ${VZ_CONFIGURED_DEV} ; do
 		CLASSES_LIST=`${TC_CMD} class show dev ${DEV} 2> /dev/null | cut -f 3 -d ' ' | grep -v "^1:" | cut -f1 -d ':' | sort | uniq`
 
 		for CLASS in ${CLASSES_LIST} ; do
@@ -898,23 +875,18 @@ vzclear_qdisc_all()
 vzclear_qdisc()
 {
 	local DEV;
-	local i;
 
 	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return;
 
 	vzcheckvar BANDWIDTH
 	if [ "X${1}" != "Xkeepdb" ]; then
 		lockfile ${VZ_TC_CLASSES_LOCK}
-		rm -f ${VZ_TC_CLASSES} >/dev/null 2>&1
-		rm -f ${VZ_TC_CLASSES_LOCK} >/dev/null 2>&1
+		rm -f ${VZ_TC_CLASSES}
+		rm -f ${VZ_TC_CLASSES_LOCK}
 	fi
 
-	for i in ${BANDWIDTH} ; do
-		DEV=${i%%:*}
-		if [ -z ${DEV} ]; then
-			vzwarning "Wrong BANDWIDTH value." ${VZ_SET_RATE};
-			continue
-		fi
+	fill_configured_dev
+	for DEV in ${VZ_CONFIGURED_DEV} ; do
 		vzrun_tc $TC_CMD qdisc del dev ${DEV} root
 	done
 }
