@@ -862,11 +862,6 @@ static int configure_sysfsperm(struct vzctl_env_handle *h, const char *devname)
 	if (ret)
 		return ret;
 
-	snprintf(buf, sizeof(buf), "class/block/%sp1", dev);
-	ret = add_sysfs_entry(h, buf);
-	if (ret)
-		return ret;
-
 	return 0;
 }
 
