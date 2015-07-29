@@ -835,11 +835,25 @@ static int add_sysfs_entry(struct vzctl_env_handle *h, const char *sysfs)
 	return ret;
 }
 
-static int configure_sysfsperm(struct vzctl_env_handle *h, const char *devname)
+static int configure_sysfsperm(struct vzctl_env_handle *h, const char *devname,
+		int del)
 {
 	char buf[STR_SIZE];
 	int ret;
 	const char *dev = get_devname(devname);
+
+	if (del) {
+		snprintf(buf, sizeof(buf), "devices/virtual/block/%s -", dev);
+		if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
+			return VZCTL_E_DISK_CONFIGURE;
+
+		snprintf(buf, sizeof(buf), "devices/virtual/block/%s/%sp1 -",
+				dev, dev);
+		if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
+			return VZCTL_E_DISK_CONFIGURE;
+
+		return 0;
+	}
 
 	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", "block rx"))
 		return VZCTL_E_DISK_CONFIGURE;
@@ -907,7 +921,7 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	if (ret)
 		return ret;
 
-	ret = configure_sysfsperm(h, devname);
+	ret = configure_sysfsperm(h, devname, 0);
 	if (ret)
 		return ret;
 
@@ -1116,8 +1130,13 @@ int vzctl2_del_disk(struct vzctl_env_handle *h, const char *guid, int flags)
 					return vzctl_err(VZCTL_E_DISK_CONFIGURE, errno, "Unable to stat %s",
 							dev);
 
+
 				if (is_env_run(h)) {
 					ret = configure_devperm(h, d, st.st_rdev + 1, 1);
+					if (ret)
+						return ret;
+
+					ret = configure_sysfsperm(h, dev, 1);
 					if (ret)
 						return ret;
 				}
