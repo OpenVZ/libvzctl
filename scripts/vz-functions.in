@@ -54,7 +54,6 @@ ARPING_CMD="/sbin/arping"
 ARPING_ARGS="-c 1 -w 1 -q"
 NDSEND_CMD="/usr/sbin/ndsend"
 OVSCTL_CMD="/usr/bin/ovs-vsctl"
-VZ_CONFIGURED_TC_DEVICES=
 
 [ -z "${VZDEV}" ] && VZDEV="venet0"
 
@@ -489,16 +488,6 @@ function vzmk_list2()
 	for i in ${1} ; do
 		TMP=${i#*:}
 		RET_LIST="${RET_LIST} ${TMP%%:*}"
-	done
-}
-
-function set_configured_tc_dev()
-{
-:	local dev
-
-	VZ_CONFIGURED_TC_DEVICES=
-	for dev in ${@}; do
-		VZ_CONFIGURED_TC_DEVICES="${VZ_CONFIGURED_TC_DEVICES} ${dev%%:*}"
 	done
 }
 
