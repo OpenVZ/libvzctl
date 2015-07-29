@@ -1094,11 +1094,59 @@ static void remove_empty_bundle(struct vzctl_env_handle *h, const char *path)
 	}
 }
 
+static int env_umount(void *data)
+{
+	return umount((const char *)data);
+}
+
+static int del_disk(struct vzctl_env_handle *h, struct vzctl_disk *d)
+{
+	char dev[STR_SIZE];
+	struct stat st;
+	int ret;
+
+	if (d->use_device) {
+		snprintf(dev, sizeof(dev), "%s", d->path);
+	} else {
+		ret = vzctl2_get_ploop_dev(d->path, dev, sizeof(dev));
+		if (ret == -1)
+			return vzctl_err(VZCTL_E_DEL_IMAGE, 0,
+				"Unable to get ploop image %s mounted state",
+				d->path);
+		else if (ret == 1)
+			return 0;
+	}
+
+	if (stat(dev, &st))
+		return vzctl_err(VZCTL_E_SYSTEM, errno,	"Unable to stat %s",
+				dev);
+
+	if (is_env_run(h) && d->mnt != NULL)
+		vzctl2_env_exec_fn2(h, env_umount, d->mnt, 0, 0);
+
+	if (d->umount != NULL) {
+		ret = d->umount(d);
+		if (ret)
+			return ret;
+	}
+
+	if (is_env_run(h)) {
+		ret = configure_devperm(h, d, st.st_rdev + 1, 1);
+		if (ret)
+			return ret;
+
+		ret = configure_sysfsperm(h, dev, 1);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 int vzctl2_del_disk(struct vzctl_env_handle *h, const char *guid, int flags)
 {
 	int ret;
 	struct vzctl_disk *d;
-	char dev[64];
 	struct vzctl_env_disk *env_disk = h->env_param->disk;
 
 	d = find_disk(env_disk, guid);
@@ -1114,39 +1162,9 @@ int vzctl2_del_disk(struct vzctl_env_handle *h, const char *guid, int flags)
 		return VZCTL_E_SYSTEM;
 	else if (ret == 1) {
 		if (!(flags & VZCTL_DISK_SKIP_CONFIGURE)) {
-			ret = 0;
-			if (d->use_device)
-				snprintf(dev, sizeof(dev), "%s", d->path);
-			else
-				ret = vzctl2_get_ploop_dev(d->path, dev, sizeof(dev));
-			if (ret == -1)
-				return vzctl_err(VZCTL_E_DEL_IMAGE, 0,
-						"Unable to get ploop image %s mounted state",
-						d->path);
-			else if (ret == 0) {
-				struct stat st;
-
-				if (stat(dev, &st))
-					return vzctl_err(VZCTL_E_DISK_CONFIGURE, errno, "Unable to stat %s",
-							dev);
-
-
-				if (is_env_run(h)) {
-					ret = configure_devperm(h, d, st.st_rdev + 1, 1);
-					if (ret)
-						return ret;
-
-					ret = configure_sysfsperm(h, dev, 1);
-					if (ret)
-						return ret;
-				}
-
-				if (d->umount != NULL) {
-					ret = d->umount(d);
-					if (ret)
-						return ret;
-				}
-			}
+			ret = del_disk(h, d);
+			if (ret)
+				return ret;
 		}
 
 		if (!d->use_device && !(flags & VZCTL_DISK_DETACH)) {
