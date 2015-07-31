@@ -55,8 +55,6 @@ ARPING_ARGS="-c 1 -w 1 -q"
 NDSEND_CMD="/usr/sbin/ndsend"
 OVSCTL_CMD="/usr/bin/ovs-vsctl"
 
-[ -z "${VZDEV}" ] && VZDEV="venet0"
-
 # interfaces parameters
 ALLOT="allot 3028"
 CELL="cell 8"
@@ -384,16 +382,6 @@ function vzaddrouting()
 	local device=
 	local cmd=
 
-	# add route for VM
-	if [ "${VZDEV}" != "venet0" ]; then
-		if ! ${IP_CMD} route list table all $1 | grep "$1 dev ${VZDEV}" > /dev/null 2>&1; then
-			cmd="${IP_CMD} route add $1 dev ${VZDEV}"
-			#for ipv6 default metric 0 is 1024 - set manual
-			[ "${1#*:}" != "${1}" ] && cmd="$cmd metric 1"
-			${cmd} || vzerror "Unable to set route: ${cmd}" $VZ_CANT_ADDIP
-		fi
-	fi
-
 	if ! ${IP_CMD} route list table all $1 | grep "$1 dev venet0" > /dev/null 2>&1;
 	then
 		if [ -n "${VE_ROUTE_SRC_DEV}" -a "${1#*:}" = "${1}" ]; then
@@ -421,7 +409,7 @@ function vzdelrouting()
 		if [ "${1%%:*}" != "${1}" ]; then
 			${IP_CMD} -6 route flush $1 || vzerror "Unable to remove route" 0
 		else
-			${IP_CMD} route del $1 || vzerror "Unable to remove route: ${IP_CMD} route del $1 dev ${VZDEV}" 0
+			${IP_CMD} route del $1 || vzerror "Unable to remove route: ${IP_CMD} route del $1" 0
 		fi
 	done
 }
