@@ -395,7 +395,7 @@ function vzaddrouting()
 			fi
 			src_addr="src ${src_addr}"
 		fi
-		cmd="${IP_CMD} route add $1 dev venet0 ${src_addr} metric 1000"
+		cmd="${IP_CMD} route add $1 dev venet0 ${src_addr}"
 		${cmd} || vzerror "Unable to set route: ${cmd}" $VZ_CANT_ADDIP
 	fi
 }
