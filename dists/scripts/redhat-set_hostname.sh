@@ -38,6 +38,7 @@ function set_hostname()
 	local val=$3
 
 	put_param "${cfg}" "${var}" "${val}"
+	echo "${val}" > /etc/hostname
 
 	hostname "${val}"
 }
