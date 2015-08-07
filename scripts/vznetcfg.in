@@ -5,7 +5,7 @@
 # redistribute it and/or modify it under the terms of the GNU Lesser General
 # Public License as published by the Free Software Foundation; either version 2
 # of the License, or (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful, but
 # WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
@@ -28,22 +28,40 @@ addif()
 {
 	local iface=$1
 	local br
+	local bound_iface
+	local iface_params
 
 	br=`prlsrvctl net info $2`
 	if [ $? -ne 0 ]; then
 		exit 1
-	fi 
+	fi
 
+	bound_iface=`echo "$br" | awk '/Bound To:/{print $3}'`
 	br=`echo "$br" | awk '/Bridge:/{print $2}'`
 	if [ -z "$br" ]; then
 		br="$2"
+	fi
+
+	# propagate params
+	if [ -n "$bound_iface" ]; then
+		iface_params=$(ethtool -k $bound_iface | awk '
+			/rx-checksumming:/{print "rx", $2};
+			/tx-checksumming:/{print "tx", $2};
+			/scatter-gather:/{print "sg", $2};
+			/tcp-segmentation-offload:/{print "tso", $2};
+			/generic-segmentation-offload:/{print "gso", $2}')
+		if [ -z "$iface_params" ]; then
+			echo "Unable to get bound_iface ethtool params"
+		else
+			ethtool -K $iface $iface_params
+		fi
 	fi
 
 	brctl addif $br $iface
 	if [ $? -ne 0 ]; then
 		echo "Unable to attach $iface to bridge $br/$2"
 		exit 1
-	fi 
+	fi
 }
 
 delif()
