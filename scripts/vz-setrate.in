@@ -27,15 +27,15 @@
 #   BANDWIDTH - Bandwidth  of  network interfaces: "<dev>[:<bandwidth>] ..."
 #   TOTALRATE - maximum VE output speed over specified net­
 #               work interface: "<dev|*>:<class>:<bandwidth> ..."
+# Optional parameters:
+#   RATE      -  maximum VE output speed over specified net­
+#                work  interface  for  specified  traffic class:
+#                "<dev|*>:<class>:<bandwidth> ..."
 #   RATEMPU  -  MPU value for packet rate limitation on specified
 #               network interface for specified traffic class:
 #               "<dev|*>:<class>[:<mpu>] ..."
 #               Packets smaller than MPU bytes will consume MPU HTB tokens.
 #               If MPU is omitted then VZ_TC_DEFAULT_MPU is used.
-# Optional parameters:
-#   RATE      -  maximum VE output speed over specified net­
-#                work  interface  for  specified  traffic class:
-#                "<dev|*>:<class>:<bandwidth> ..."
 
 . @SCRIPTDIR@/vz-functions
 . @PKGCONFDIR@/vz.conf
@@ -298,23 +298,6 @@ vzget_classes_list()
 	[ ! $? -eq 1 ] &&  vzerror "Wrong class value in ${VZ_IP_CLASSES}." ${VZ_SET_ACCOUNT}
 }
 
-# If RATEMPU is undeclared, fill it from TOTALRATE.
-vzfill_RATEMPU()
-{
-	local dev class tmp;
-	if [ -z ${RATEMPU+x} ]; then
-		# RATEMPU variable is unset.
-		# Fill with TOTALRATE dev:class.
-		RATEMPU=
-		for i in ${TOTALRATE}; do
-			dev=${i%%:*}
-			tmp=${i#*:}
-			class=${tmp%%:*}
-			RATEMPU="${RATEMPU} ${dev}:${class}"
-		done
-	fi
-}
-
 fill_configured_dev()
 {
 	local dev
@@ -344,7 +327,6 @@ vzcheck_TOTALRATE()
 
 	expand_DEV ${TOTALRATE}
 	TOTALRATE=$RES_EXPAND_DEV
-	vzfill_RATEMPU
 	expand_DEV ${RATEMPU}
 	RATEMPU=$RES_EXPAND_DEV
 
@@ -541,7 +523,6 @@ vzcheck_RATE()
 	TOTALRATE=$RES_EXPAND_DEV
 	expand_DEV ${RATE}
 	RATE=$RES_EXPAND_DEV
-	vzfill_RATEMPU
 	expand_DEV ${RATEMPU}
 	RATEMPU=$RES_EXPAND_DEV
 	[ -z "${CLASSES_LIST}" ] && vzget_classes_list
@@ -705,7 +686,7 @@ vzcreate_qdisc()
 	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return;
 
 	vzcheck_TOTALRATE
-	
+
 	for dev in ${VZ_CONFIGURED_DEV} ; do
 		let found=0;
 		for j in ${TOTALRATE} ; do
