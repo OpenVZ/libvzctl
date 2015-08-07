@@ -27,15 +27,15 @@
 #   BANDWIDTH - Bandwidth  of  network interfaces: "<dev>[:<bandwidth>] ..."
 #   TOTALRATE - maximum VE output speed over specified net­
 #               work interface: "<dev|*>:<class>:<bandwidth> ..."
+# Optional parameters:
+#   RATE      -  maximum VE output speed over specified net­
+#                work  interface  for  specified  traffic class:
+#                "<dev|*>:<class>:<bandwidth> ..."
 #   RATEMPU  -  MPU value for packet rate limitation on specified
 #               network interface for specified traffic class:
 #               "<dev|*>:<class>[:<mpu>] ..."
 #               Packets smaller than MPU bytes will consume MPU HTB tokens.
 #               If MPU is omitted then VZ_TC_DEFAULT_MPU is used.
-# Optional parameters:
-#   RATE      -  maximum VE output speed over specified net­
-#                work  interface  for  specified  traffic class:
-#                "<dev|*>:<class>:<bandwidth> ..."
 
 . @SCRIPTDIR@/vz-functions
 . @PKGCONFDIR@/vz.conf
