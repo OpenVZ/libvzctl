@@ -24,7 +24,7 @@
 # Required parameters:
 #   VE_ROOT       - container root directory
 #   VE_DUMP_DIR   - directory for saving dump files
-#   VE_STATE_FILE - file to write CT init PID to
+#   VE_PIDFILE - file to write CT init PID to
 # Optional parameters:
 #   VE_VETH_DEVS  - pair of veth names (CT=HW\n)
 exec 1>&2
@@ -36,7 +36,6 @@ done
 
 action_script=@SCRIPTDIR@/vz-rst-action
 
-export VE_PIDFILE=$VE_DUMP_DIR/init.pid
 rm -f $VE_PIDFILE
 
 criu restore	--file-locks								\

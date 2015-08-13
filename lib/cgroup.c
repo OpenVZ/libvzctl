@@ -528,6 +528,50 @@ int cg_env_set_net_classid(const char *ctid, unsigned int classid)
 	return cg_set_ul(ctid, CG_NET_CLS, CG_NET_CLASSID, classid);
 }
 
+static int cg_env_check_init_pid(const char *ctid, pid_t pid)
+{
+	int ret;
+	pid_t task_pid;
+	LIST_HEAD(pids);
+	struct vzctl_str_param *it;
+
+	if ((ret = cg_env_get_pids(ctid, &pids)))
+		return ret;
+
+	ret = 1;
+	list_for_each(it, &pids, list) {
+		if (parse_int(it->str, &task_pid))
+			continue;
+
+		if (task_pid == pid) {
+			ret = 0;
+			break;
+		}
+	}
+
+	free_str(&pids);
+
+	if (ret)
+		logger(-1, 0, "Init pid is invalid: no such task");
+
+	return ret;
+}
+
+int cg_env_get_init_pid(const char *ctid, pid_t *pid)
+{
+	int ret;
+
+	if ((ret = read_init_pid(ctid, pid)))
+		return ret;
+
+	if ((ret = cg_env_check_init_pid(ctid, *pid))) {
+		*pid = 0;
+		return ret;
+	}
+
+	return 0;
+}
+
 int cg_env_get_first_pid(const char *ctid, pid_t *pid)
 {
 	int ret;
@@ -566,7 +610,6 @@ int cg_env_get_first_pid(const char *ctid, pid_t *pid)
 }
 
 int cg_env_get_pids(const char *ctid, list_head_t *list)
-
 {
 	FILE *fp;
 	char path[PATH_MAX];
