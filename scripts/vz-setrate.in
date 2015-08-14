@@ -38,7 +38,6 @@
 #               If MPU is omitted then VZ_TC_DEFAULT_MPU is used.
 
 . @SCRIPTDIR@/vz-functions
-. @PKGCONFDIR@/vz.conf
 
 MAX_CLASSES=16
 VZ_CONFIGURED_DEV=
