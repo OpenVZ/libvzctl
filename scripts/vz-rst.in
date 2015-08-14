@@ -39,6 +39,18 @@ action_script=@SCRIPTDIR@/vz-rst-action
 export VE_PIDFILE=$VE_DUMP_DIR/init.pid
 rm -f $VE_PIDFILE
 
+# Extract additional arguments from special file (needed for live migration)
+extra_args_path="$VE_DUMP_DIR/restore-extra-args"
+[ -f "$extra_args_path" ] && eval $(. ${extra_args_path} && echo \
+	VE_WORK_DIR="${VE_WORK_DIR}" \
+	VE_RESTORE_LOG_PATH="${VE_RESTORE_LOG_PATH}")
+
+# Setup default work directory if not explicitly specified
+[ -z "$VE_WORK_DIR" ] && VE_WORK_DIR="$VE_DUMP_DIR"
+
+# Setup default log name if not explicitly specified
+[ -z "$VE_RESTORE_LOG_PATH" ] && VE_RESTORE_LOG_PATH="restore.log"
+
 criu restore	--file-locks								\
 		--tcp-established							\
 		--evasive-devices							\
@@ -51,7 +63,8 @@ criu restore	--file-locks								\
 		--restore-detached							\
 		--action-script $action_script						\
 		-D $VE_DUMP_DIR								\
-		-o restore.log								\
+		-W $VE_WORK_DIR								\
+		-o $VE_RESTORE_LOG_PATH							\
 		-vvvv									\
 		--pidfile $VE_PIDFILE							\
 		$veth_args
