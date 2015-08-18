@@ -2526,3 +2526,62 @@ void p_close(int p[2])
 	if (p[1] != -1)
 		close(p[1]);
 }
+
+void get_init_pid_path(const ctid_t ctid, char *path)
+{
+	sprintf(path, VZCTL_VE_RUN_DIR "/%s" VZCTL_VE_INIT_PID_FILE_EXT, ctid);
+}
+
+int write_init_pid(const ctid_t ctid, pid_t pid)
+{
+	int ret = 0;
+	char path[PATH_MAX];
+	FILE *fp;
+
+	get_init_pid_path(ctid, path);
+
+	if ((ret = make_dir(path, 0)))
+		return ret;
+
+	if ((fp = fopen(path, "w")) == NULL)
+		return vzctl_err(-1, 0, "Failed to write Container init pid");
+
+	if ((fprintf(fp, "%d", pid)) < 0)
+		ret = vzctl_err(-1, 0, "Failed to write Container init pid");
+
+	fclose(fp);
+	return ret;
+}
+
+int read_init_pid(const ctid_t ctid, pid_t *pid)
+{
+	int ret = 0;
+	char path[PATH_MAX];
+	FILE *fp;
+
+	*pid = 0;
+
+	get_init_pid_path(ctid, path);
+
+	if ((fp = fopen(path, "r")) == NULL)
+		return vzctl_err(-1, 0, "Unable to read Container init pid");
+
+	if (fscanf(fp, "%d", pid) < 1)
+		ret = vzctl_err(-1, 0, "Unable to read Container init pid");
+
+	fclose(fp);
+	return ret;
+}
+
+int clear_init_pid(const ctid_t ctid)
+{
+	int ret;
+	char path[PATH_MAX];
+
+	get_init_pid_path(ctid, path);
+
+	if ((ret = remove(path)) < 0 && errno != ENOENT)
+		return vzctl_err(-1, 0, "Unable to clear Container init pid file: %s", path);
+
+	return 0;
+}

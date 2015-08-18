@@ -573,7 +573,7 @@ static int destroy_cgroup(struct vzctl_env_handle *h)
 	if (unlink(nspath) && errno != ENOENT)
 		logger(-1, errno, "Failed to unlink %s", nspath);
 
-	if (cg_env_get_first_pid(h->ctid, &pid) == 0 && pid != 0) {
+	if (cg_env_get_init_pid(h->ctid, &pid) == 0 && pid != 0) {
 		logger(10, 0, "* Kill pid=%d", pid);
 		kill(pid, SIGKILL);
 	}
@@ -650,6 +650,10 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 				clone_flags|SIGCHLD , (void *) param);
 		if (pid < 0)
 			return vzctl_err(VZCTL_E_RESOURCE, errno, "Unable to clone");
+		if ((ret = write_init_pid(h->ctid, pid))) {
+			kill(pid, SIGKILL);
+			return ret;
+		}
 
 		char nspath[STR_SIZE];
 		char pidpath[STR_SIZE];
@@ -741,7 +745,7 @@ int enter_net_ns(struct vzctl_env_handle *h, pid_t *ct_pid)
 	int i;
 	const char *ns[] = {"net", "uts", "ipc", "pid"};
 
-	if (cg_env_get_first_pid(h->ctid, &pid))
+	if (cg_env_get_init_pid(h->ctid, &pid))
 		return -1;
 
 	for (i = 0; i < sizeof(ns) / sizeof(ns[0]); ++i)
@@ -762,7 +766,7 @@ static int ns_env_enter(struct vzctl_env_handle *h, int flags)
 	char path[PATH_MAX];
 	int ret;
 
-	ret = cg_env_get_first_pid(h->ctid, &pid);
+	ret = cg_env_get_init_pid(h->ctid, &pid);
 	if (ret)
 		return ret;
 
@@ -981,6 +985,7 @@ force:
 		if (is_managed_by_vcmmd())
 			vcmmd_unregister(h);
 		destroy_cgroup(h);
+		clear_init_pid(h->ctid);
 	}
 out:
 	return ret ? VZCTL_E_ENV_STOP : 0;
@@ -1114,7 +1119,7 @@ int ns_env_chkpnt(struct vzctl_env_handle *h, int cmd, struct vzctl_cpt_param *p
 	if (cmd == VZCTL_CMD_FREEZE)
 		return vzctl2_cpt_cmd(h, -1, cmd, param, flags);
 
-	ret = cg_env_get_first_pid(h->ctid, &pid);
+	ret = cg_env_get_init_pid(h->ctid, &pid);
 	if (ret)
 		return ret;
 
@@ -1146,6 +1151,7 @@ static int restore_FN(struct vzctl_env_handle *h, struct start_param *start_para
 	char script[PATH_MAX];
 	char buf[PATH_MAX];
 	char dumpfile[PATH_LEN];
+	char pidfile[PATH_MAX];
 	char *arg[2];
 	char *env[9];
 	struct vzctl_veth_dev *veth;
@@ -1159,6 +1165,7 @@ static int restore_FN(struct vzctl_env_handle *h, struct start_param *start_para
 		return vzctl_err(VZCTL_E_RESTORE, 0,
 				"Unimplemented restorec ommand %d", param->cmd);
 	}
+	get_init_pid_path(h->ctid, pidfile);
 
 	arg[0] = get_script_path("vz-rst", script, sizeof(script));
 	arg[1] = NULL;
@@ -1167,7 +1174,7 @@ static int restore_FN(struct vzctl_env_handle *h, struct start_param *start_para
 	env[i++] = strdup(buf);
 	snprintf(buf, sizeof(buf), "VE_DUMP_DIR=%s", dumpfile);
 	env[i++] = strdup(buf);
-	snprintf(buf, sizeof(buf), "VE_STATE_FILE=");
+	snprintf(buf, sizeof(buf), "VE_PIDFILE=%s", pidfile);
 	env[i++] = strdup(buf);
 	snprintf(buf, sizeof(buf), "VZCTL_PID=%d", getpid());
 	env[i++] = strdup(buf);
