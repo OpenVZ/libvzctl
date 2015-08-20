@@ -151,6 +151,10 @@ static int env_configure_systemd_unit(const char *uuid, const char *mnt, const c
 	if (check_systemd() == 0)
 		return 0;
 
+	// Check that systemd started: exit if so, see #PSBM-33596
+	if (access("/run/systemd", F_OK) == 0)
+		return 0;
+
 	logger(1, 0, "Configure systemd mount unit uuid=%s %s", uuid, mnt);
 
 	// systemd requires that unit name equals mountpoint
