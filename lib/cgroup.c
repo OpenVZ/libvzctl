@@ -56,6 +56,7 @@ static struct cg_ctl cg_ctl_map[] = {
 	{CG_FREEZER, 1},
 	{CG_UB, 1},
 	{CG_VE, 1},
+	{CG_SYSTEMD},
 };
 
 static pthread_mutex_t cg_ctl_map_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -90,7 +91,12 @@ static int get_mount_path(const char *subsys, char *out, int size)
 		/* cgroup /sys/fs/cgroup/devices cgroup rw,nosuid,nodev,noexec,relatime,devices */
 		n = sscanf(buf, "%*s %4095s cgroup %4095s",
 				target, ops);
-		if (n == 2 && has_substr(ops, subsys)) {
+		if (n != 2)
+			continue;
+
+		if (has_substr(ops,
+				strcmp(subsys, CG_SYSTEMD) ? subsys : "name=systemd"))
+		{
 			strncpy(out, target, size -1);
 			out[size-1] = '\0';
 			ret = 0;
@@ -386,7 +392,14 @@ int cg_attach_task(const char *ctid, pid_t pid)
 	int ret, i;
 
 	for (i = 0; i < sizeof(cg_ctl_map)/sizeof(cg_ctl_map[0]); i++) {
-		ret = cg_set_ul(ctid, cg_ctl_map[i].subsys, "tasks", pid);
+		if (strcmp(cg_ctl_map[i].subsys, CG_SYSTEMD) == 0) {
+			char buf[STR_SIZE];
+
+			snprintf(buf, sizeof(buf), SYSTEMD_CTID_FMT".slice", ctid);
+			ret = cg_set_ul(buf, cg_ctl_map[i].subsys, "tasks", pid);
+		} else		
+			ret = cg_set_ul(ctid, cg_ctl_map[i].subsys, "tasks", pid);
+
 		if (ret == -1)
 			break;
 		/* Skip non exists */
