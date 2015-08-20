@@ -136,10 +136,6 @@ static int setup_rootfs(struct vzctl_env_handle *h)
 
 	logger(10, 0, "* setup rootfs %s", root);
 
-	/*
-	 * Root should be slave at first so we would see
-	 * bindmounts inside the container.
-	 */
 	if (mount("", root, NULL, MS_SLAVE|MS_REC, NULL) < 0)
 		return vzctl_err(-1, errno, "Can't make slave %s", root);
 
@@ -150,14 +146,6 @@ static int setup_rootfs(struct vzctl_env_handle *h)
 	ret = bindmount_env_cgroup(h);
 	if (ret)
 		return ret;
-
-	/*
-	 * Then is should become a private on toplevel
-	 * so for CRIU it won't be pointing into some
-	 * node's share.
-	 */
-	if (mount("", root, NULL, MS_PRIVATE, NULL) < 0)
-		return vzctl_err(-1, errno, "Can't make private %s", root);
 
 	if (chdir(root))
 		return vzctl_err(-1, 0, "Unable to chdir %s", root);
