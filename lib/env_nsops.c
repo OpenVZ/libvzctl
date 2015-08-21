@@ -765,7 +765,11 @@ static int ns_env_enter(struct vzctl_env_handle *h, int flags)
 	if (dp == NULL)
 		return vzctl_err(-1, errno, "Unable to open dir %s", path);
 
-	ret = cg_attach_task(h->ctid, getpid());
+	ret = cg_attach_task(EID(h), getpid());
+	if (ret)
+		goto err;
+
+	ret = cg_attach_to_systemd(EID(h), getpid());
 	if (ret)
 		goto err;
 

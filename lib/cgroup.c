@@ -62,6 +62,17 @@ static struct cg_ctl cg_ctl_map[] = {
 static pthread_mutex_t cg_ctl_map_mtx = PTHREAD_MUTEX_INITIALIZER;
 typedef int (*cgroup_filter_f)(const char *subsys);
 
+static const char *cg_get_systemd_name(const char *ctid, char *buf, int size)
+{
+	snprintf(buf, size, SYSTEMD_CTID_FMT".slice", ctid);
+	return buf;
+}
+
+static int cg_is_systemd(const char *subsys)
+{
+	return strcmp(subsys, CG_SYSTEMD) == 0;
+}
+
 static int has_substr(char *buf, const char *str)
 {
 	char *token;
@@ -94,8 +105,8 @@ static int get_mount_path(const char *subsys, char *out, int size)
 		if (n != 2)
 			continue;
 
-		if (has_substr(ops,
-				strcmp(subsys, CG_SYSTEMD) ? subsys : "name=systemd"))
+		if (has_substr(ops, !cg_is_systemd(subsys) ?
+					subsys : "name=systemd"))
 		{
 			strncpy(out, target, size -1);
 			out[size-1] = '\0';
@@ -321,6 +332,7 @@ static int cg_create(const char *ctid, struct cg_ctl *ctl)
 static int cg_destroy(const char *ctid, struct cg_ctl *ctl)
 {
 	char path[PATH_MAX];
+	char b[STR_SIZE];
 	struct stat st;
 	struct vzctl_str_param *it;
 	LIST_HEAD(dirs);
@@ -329,7 +341,11 @@ static int cg_destroy(const char *ctid, struct cg_ctl *ctl)
 	if (ctl->mount_path == NULL)
 		return 0;
 
-	snprintf(path, sizeof(path), "%s/%s", ctl->mount_path, ctid);
+	if (cg_is_systemd(ctl->subsys))
+		snprintf(path, sizeof(path), "%s/%s", ctl->mount_path,
+				cg_get_systemd_name(ctid, b, sizeof(b)));
+	else
+		snprintf(path, sizeof(path), "%s/%s", ctl->mount_path, ctid);
 	if (stat(path, &st) && errno == ENOENT)
 		return 0;
 
@@ -392,14 +408,7 @@ int cg_attach_task(const char *ctid, pid_t pid)
 	int ret, i;
 
 	for (i = 0; i < sizeof(cg_ctl_map)/sizeof(cg_ctl_map[0]); i++) {
-		if (strcmp(cg_ctl_map[i].subsys, CG_SYSTEMD) == 0) {
-			char buf[STR_SIZE];
-
-			snprintf(buf, sizeof(buf), SYSTEMD_CTID_FMT".slice", ctid);
-			ret = cg_set_ul(buf, cg_ctl_map[i].subsys, "tasks", pid);
-		} else		
-			ret = cg_set_ul(ctid, cg_ctl_map[i].subsys, "tasks", pid);
-
+		ret = cg_set_ul(ctid, cg_ctl_map[i].subsys, "tasks", pid);
 		if (ret == -1)
 			break;
 		/* Skip non exists */
@@ -410,6 +419,14 @@ int cg_attach_task(const char *ctid, pid_t pid)
 	}
 
 	return ret;
+}
+
+int cg_attach_to_systemd(const char *ctid, pid_t pid)
+{
+	char b[STR_SIZE];
+
+	return cg_set_ul(cg_get_systemd_name(ctid, b, sizeof(b)), CG_SYSTEMD,
+			"tasks", getpid());
 }
 
 /**************************************************************************/
