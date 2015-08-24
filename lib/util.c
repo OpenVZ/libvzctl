@@ -2564,8 +2564,12 @@ int read_init_pid(const ctid_t ctid, pid_t *pid)
 
 	get_init_pid_path(ctid, path);
 
-	if ((fp = fopen(path, "r")) == NULL)
-		return vzctl_err(-1, 0, "Unable to read Container init pid");
+	if ((fp = fopen(path, "r")) == NULL) {
+		if (errno != ENOENT)
+			vzctl_err(-1, errno, "Unable to open %s", path);
+
+		return -1;
+	}
 
 	if (fscanf(fp, "%d", pid) < 1)
 		ret = vzctl_err(-1, 0, "Unable to read Container init pid");
