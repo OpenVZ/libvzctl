@@ -2540,11 +2540,12 @@ int write_init_pid(const ctid_t ctid, pid_t pid)
 
 	get_init_pid_path(ctid, path);
 
+	logger(10, 0, "Write init pid=%d %s", pid, path);
 	if ((ret = make_dir(path, 0)))
 		return ret;
 
 	if ((fp = fopen(path, "w")) == NULL)
-		return vzctl_err(-1, 0, "Failed to write Container init pid");
+		return vzctl_err(-1, errno, "Failed to create %s", path);
 
 	if ((fprintf(fp, "%d", pid)) < 0)
 		ret = vzctl_err(-1, 0, "Failed to write Container init pid");
