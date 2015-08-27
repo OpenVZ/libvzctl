@@ -655,14 +655,12 @@ vzcreate_filter()
 			parent ${class_hex}:0 ${PRIO} handle ${mark_val} fw \
 			classid ${class_hex}:${tc_class_hex}
 
-		if [ "${IPV6}" = "yes" ]; then
-			vzrun_tc ${TC_CMD} filter add dev ${dev} protocol ipv6 \
-				parent 1:0 ${PRIOV6} handle ${mark_val} fw \
-				classid 1:${class_hex}
-			vzrun_tc ${TC_CMD} filter add dev ${dev} protocol ipv6 \
-				parent ${class_hex}:0 ${PRIOV6} handle ${mark_val} fw \
-				classid ${class_hex}:${tc_class_hex}
-		fi
+		vzrun_tc ${TC_CMD} filter add dev ${dev} protocol ipv6 \
+			parent 1:0 ${PRIOV6} handle ${mark_val} fw \
+			classid 1:${class_hex}
+		vzrun_tc ${TC_CMD} filter add dev ${dev} protocol ipv6 \
+			parent ${class_hex}:0 ${PRIOV6} handle ${mark_val} fw \
+			classid ${class_hex}:${tc_class_hex}
 	fi
 }
 
