@@ -53,7 +53,7 @@ static struct cg_ctl cg_ctl_map[] = {
 	{CG_MEMORY},
 	{CG_DEVICES},
 	{CG_BLKIO},
-	{CG_FREEZER, 1},
+	{CG_FREEZER},
 	{CG_UB, 1},
 	{CG_VE, 1},
 	{CG_SYSTEMD},
