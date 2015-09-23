@@ -62,12 +62,6 @@ static struct cg_ctl cg_ctl_map[] = {
 static pthread_mutex_t cg_ctl_map_mtx = PTHREAD_MUTEX_INITIALIZER;
 typedef int (*cgroup_filter_f)(const char *subsys);
 
-static const char *cg_get_systemd_name(const char *ctid, char *buf, int size)
-{
-	snprintf(buf, size, SYSTEMD_CTID_FMT".slice", ctid);
-	return buf;
-}
-
 static int cg_is_systemd(const char *subsys)
 {
 	return strcmp(subsys, CG_SYSTEMD) == 0;
@@ -222,11 +216,23 @@ static int cg_read(const char *path, char *out, int size)
 	return 0;
 }
 
+static void get_cgroup_name(const char *ctid, struct cg_ctl *ctl,
+		char *out, int size)
+{
+
+	if (cg_is_systemd(ctl->subsys))
+		snprintf(out, size, "%s/" SYSTEMD_CTID_FMT".slice",
+				ctl->mount_path, ctid);
+	else
+		snprintf(out, size, "%s/%s", ctl->mount_path, ctid);
+}
+
 static int cg_get_path(const char *ctid, const char *subsys, const char *name,
 		char *out, int size)
 {
 	int ret;
 	struct cg_ctl *ctl;
+	char path[PATH_MAX];
 
 	ret = cg_get_ctl(subsys, &ctl);
 	if (ret)
@@ -234,8 +240,10 @@ static int cg_get_path(const char *ctid, const char *subsys, const char *name,
 
 	if (ctid == NULL || EMPTY_CTID(ctid))
 		snprintf(out, size, "%s/%s", ctl->mount_path, name);
-	else
-		snprintf(out, size, "%s/%s/%s", ctl->mount_path, ctid, name);
+	else {
+		get_cgroup_name(ctid, ctl, path, sizeof(path));
+		snprintf(out, size, "%s/%s", path, name);
+	}
 
 	return 0;
 }
@@ -316,11 +324,13 @@ int cg_get_ull(const char *ctid, const char *subsys, const char *name,
 	return 0;
 }
 
+
+
 static int cg_create(const char *ctid, struct cg_ctl *ctl)
 {
 	char path[PATH_MAX];
 
-	snprintf(path, sizeof(path), "%s/%s", ctl->mount_path, ctid);
+	get_cgroup_name(ctid, ctl, path, sizeof(path));
 
 	logger(3, 0, "Create cgroup %s", path);
 	if (mkdir(path, 0755) && errno != EEXIST)
@@ -332,7 +342,6 @@ static int cg_create(const char *ctid, struct cg_ctl *ctl)
 static int cg_destroy(const char *ctid, struct cg_ctl *ctl)
 {
 	char path[PATH_MAX];
-	char b[STR_SIZE];
 	struct stat st;
 	struct vzctl_str_param *it;
 	LIST_HEAD(dirs);
@@ -341,11 +350,8 @@ static int cg_destroy(const char *ctid, struct cg_ctl *ctl)
 	if (ctl->mount_path == NULL)
 		return 0;
 
-	if (cg_is_systemd(ctl->subsys))
-		snprintf(path, sizeof(path), "%s/%s", ctl->mount_path,
-				cg_get_systemd_name(ctid, b, sizeof(b)));
-	else
-		snprintf(path, sizeof(path), "%s/%s", ctl->mount_path, ctid);
+	get_cgroup_name(ctid, ctl, path, sizeof(path));
+
 	if (stat(path, &st) && errno == ENOENT)
 		return 0;
 
@@ -419,14 +425,6 @@ int cg_attach_task(const char *ctid, pid_t pid)
 	}
 
 	return ret;
-}
-
-int cg_attach_to_systemd(const char *ctid, pid_t pid)
-{
-	char b[STR_SIZE];
-
-	return cg_set_ul(cg_get_systemd_name(ctid, b, sizeof(b)), CG_SYSTEMD,
-			"tasks", getpid());
 }
 
 /**************************************************************************/
