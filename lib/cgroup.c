@@ -339,6 +339,30 @@ static int cg_create(const char *ctid, struct cg_ctl *ctl)
 	return 0;
 }
 
+
+static int do_rmdir(const char *dir)
+{
+	useconds_t total = 0;
+	useconds_t wait = 10000;
+	const useconds_t maxwait = 500000;
+	const useconds_t timeout = 30 * 1000000;
+
+	do {
+		if (rmdir(dir) == 0)
+			return 0;
+		if (errno != EBUSY)
+			break;
+
+		usleep(wait);
+		total += wait;
+		wait *= 2;
+		if (wait > maxwait)
+			wait = maxwait;
+	} while (total < timeout);
+
+	return vzctl_err(-1, errno, "Cannot remove dir %s", dir);
+}
+
 static int cg_destroy(const char *ctid, struct cg_ctl *ctl)
 {
 	char path[PATH_MAX];
@@ -360,12 +384,10 @@ static int cg_destroy(const char *ctid, struct cg_ctl *ctl)
 		return -1;
 
 	list_for_each_prev(it, &dirs, list) {
-		if (rmdir(it->str))
-			ret = vzctl_err(-1, errno, "Cannot rmdir %s", it->str);
+		do_rmdir(it->str);
 	}
 
 	free_str(&dirs);
-
 	return ret;
 }
 
