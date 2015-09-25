@@ -153,10 +153,18 @@ function vzcheckvar()
 # with no visible action.
 vzcreatepair()
 {
-	${IP_CMD} link show | grep -w -F $HNAME >/dev/null 2>&1 && return
+	${IP_CMD} link show | grep -w -F $HNAME >/dev/null 2>&1
+	if [ $? -eq 0 ]; then
+		${IP_CMD} netns exec $VEID ${IP_CMD} link show | grep -w -F $VNAME >/dev/null 2>&1 && return 0
+		# Due to races, interfaces may exist some time after VE stop. Try to remove.
+		echo Only host part $HNAME of veth pair exists
+		${IP_CMD} link delete $HNAME || echo "Unable to delete veth interface $HNAME"
+	fi
 
-	${IP_CMD} netns exec $VEID ${IP_CMD} link add name $HNAME type veth peer name $VNAME
-	${IP_CMD} netns exec $VEID ${IP_CMD} link set $HNAME netns $$
+	${IP_CMD} netns exec $VEID ${IP_CMD} link add name $HNAME type veth peer name $VNAME || \
+		vzerror "Unable to create veth pair ($HNAME, $VNAME)" -1
+	${IP_CMD} netns exec $VEID ${IP_CMD} link set $HNAME netns $$ || \
+		vzerror "Unable to move veth interface $HNAME to host ns" -1
 	${IP_CMD} netns exec $VEID ${IP_CMD} link set dev $VNAME up
 	${IP_CMD} link set $HNAME up
 }
