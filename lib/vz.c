@@ -1045,7 +1045,7 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 	/* Update UUID */
 	vzctl2_env_set_param(h, "UUID", uuid);
 
-	ret = renew_VE_PRIVATE(h, path_r, ctid);
+	ret = renew_VE_PRIVATE(h, path, ctid);
 	if (ret)
 		goto err;
 
