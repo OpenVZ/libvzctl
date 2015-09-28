@@ -855,6 +855,63 @@ static int do_bindmount(const char *src, const char *dst, int mnt_flags)
 	return 0;
 }
 
+/* For multiple cg mountedlike 'cpu,cpuacct' create per ctl symlink PSBM-38634
+ *
+ * cd /sys/fs/cgroup
+ * ln -s cpu,cpuacct /sys/fs/cgroup/cpuacct
+ * ln -s cpu,cpuacct /sys/fs/cgroup/cpu
+ *
+ */
+static int create_perctl_symlink(const char *root, const char *path)
+{
+	int ret = 0;
+	char buf[STR_SIZE];
+	char d[PATH_MAX];
+	char cwd[PATH_MAX];
+	char *p, *name;
+	int last = 0;
+
+	p = strrchr(path, '/');
+	if (p == NULL)
+		return 0;
+
+	snprintf(buf, sizeof(buf), "%s", p + 1);
+	p = strchr(buf, ',');
+	if (p == NULL)
+		return 0;
+
+	getcwd(cwd, sizeof(cwd));
+
+	snprintf(d, sizeof(d), "%s/%s/..", root, path);
+	if (chdir(d))
+		return vzctl_err(-1, errno, "Cannot chdir %s", d);
+
+	name = buf;
+	*p = '\0'; p++;
+	while (1) {
+		logger(10, 0, "Create symlink %s -> %s", path, name);
+		if (symlink(path, name) && errno != EEXIST) {
+			ret = vzctl_err(-1, errno,
+					"Cant create symlink %s -> %s",
+					path, name);
+			break;
+		}
+		if (last)
+			break;
+
+		name = p;
+		p = strchr(p, ',');
+		if (p != NULL) {
+			*p = '\0'; p++;
+		} else
+			last = 1;
+	}
+
+	chdir(cwd);
+
+	return ret;
+}
+
 static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t * head)
 {
 	int ret;
@@ -884,6 +941,12 @@ static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t * head)
 		ret = do_bindmount(s, d, MS_BIND|MS_PRIVATE);
 		if (ret)
 			goto err;
+
+
+		ret = create_perctl_symlink(ve_root, it->str);
+		if (ret)
+			goto err;
+		
 	}
 
 	snprintf(s, sizeof(s), "/sys/fs/cgroup/systemd/"SYSTEMD_CTID_FMT".slice",
