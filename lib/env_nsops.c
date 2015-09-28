@@ -179,6 +179,10 @@ static int setup_rootfs(struct vzctl_env_handle *h)
 	if (rmdir(oldroot))
 		logger(-1, errno, "Can't rmdir %s", oldroot);
 
+	if (mount(NULL, "/", NULL, MS_SHARED, NULL) < 0)
+		return vzctl_err(-1, errno, "Can't remount root as a shared %s",
+				root);
+
 	return 0;
 }
 
