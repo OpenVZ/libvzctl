@@ -208,9 +208,19 @@ static int real_ns_env_create(void *arg)
 	int ret;
 	struct start_param *param = (struct start_param *) arg;
 
+	close(param->init_p[1]);
 	fcntl(param->status_p[1], F_SETFD, FD_CLOEXEC);
 	fcntl(param->err_p[1], F_SETFD, FD_CLOEXEC);
 	fcntl(param->wait_p[0], F_SETFD, FD_CLOEXEC);
+
+	/* Wait while user id mappings have been configuraed */
+	if (read(param->init_p[0], &ret, sizeof(ret)))
+		return VZCTL_E_SYSTEM;
+
+	if (setuid(0) || setgid(0) || setgroups(0, NULL)) {
+		ret = vzctl_err(VZCTL_E_RESOURCE, errno, "Unable to set uid or gid");
+		goto err;
+	}
 
 	ret = start_container(param->h);
 	if (ret)
@@ -605,6 +615,31 @@ static int wait_on_pipe(int status_p)
 	return errcode;
 }
 
+static int write_id_maps(int pid)
+{
+	int fd, i;
+	char path[PATH_MAX];
+	const char *id = "0 0 4294967295";
+
+	logger(10, 0, "Setup ugid mappings: %s", id);
+	for (i = 0; i < 2; i++) {
+		if (i == 0)
+			snprintf(path, sizeof(path), "/proc/%d/gid_map", pid);
+		else
+			snprintf(path, sizeof(path), "/proc/%d/uid_map", pid);
+
+		fd = open(path, O_WRONLY);
+		if (write(fd, id, sizeof(id)) != sizeof(id)) {
+			int saved_errno = errno;
+			close(fd);
+			return vzctl_err(VZCTL_E_RESOURCE, saved_errno, "Unable to write id mappings");
+		}
+		close(fd);
+	}
+
+	return 0;
+}
+
 static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 {
 	char child_stack[4096 * 10];
@@ -631,14 +666,26 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 		if (ret)
 			return ret;
 	} else {
+		int init_p[2];
+
+		if (pipe(init_p))
+			return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
+		param->init_p = init_p;
+
 		clone_flags |= CLONE_NEWUTS|CLONE_NEWPID|CLONE_NEWIPC|
-			CLONE_NEWNET|CLONE_NEWNS;
+			CLONE_NEWNET|CLONE_NEWNS|CLONE_NEWUSER;
 		pid = clone(real_ns_env_create,
 				child_stack + sizeof(child_stack),
 				clone_flags|SIGCHLD , (void *) param);
 		if (pid < 0)
 			return vzctl_err(VZCTL_E_RESOURCE, errno, "Unable to clone");
-		if ((ret = write_init_pid(h->ctid, pid))) {
+
+		ret = write_init_pid(h->ctid, pid);
+		if (ret == 0) {
+			ret = write_id_maps(pid);
+			close(param->init_p[1]);
+		}
+		if (ret) {
 			kill(pid, SIGKILL);
 			return ret;
 		}

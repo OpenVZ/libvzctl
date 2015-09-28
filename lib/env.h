@@ -140,6 +140,7 @@ struct vzctl_env_handle {
 struct start_param {
 	struct vzctl_env_handle *h;
 	int *err_p;
+	int *init_p;
 	int *wait_p;
 	int *status_p;
 	pid_t pid;
