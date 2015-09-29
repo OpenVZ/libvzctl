@@ -880,7 +880,8 @@ static int create_perctl_symlink(const char *root, const char *path)
 	if (p == NULL)
 		return 0;
 
-	getcwd(cwd, sizeof(cwd));
+	if (getcwd(cwd, sizeof(cwd)))
+		return vzctl_err(-1, errno, "Cannot getcwd");
 
 	snprintf(d, sizeof(d), "%s/%s/..", root, path);
 	if (chdir(d))
@@ -907,7 +908,8 @@ static int create_perctl_symlink(const char *root, const char *path)
 			last = 1;
 	}
 
-	chdir(cwd);
+	if (chdir(cwd))
+		logger(-1, errno, "Cannot cndir %s", cwd);
 
 	return ret;
 }
