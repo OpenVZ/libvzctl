@@ -876,7 +876,13 @@ static int ns_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
 			ret = vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
 			goto err;		
 		} else if (pid2 == 0) {
+			if (setsid() == -1) {
+				ret = vzctl_err(VZCTL_E_RESOURCE, errno, "setsid");
+				_exit(ret);
+			}
+				
 			ret = real_env_exec(h, param, flags);
+
 			_exit(ret);
 		}
 
