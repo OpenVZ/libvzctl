@@ -625,7 +625,7 @@ static int write_id_maps(int pid)
 {
 	int fd, i;
 	char path[PATH_MAX];
-	const char *id = "0 0 4294967295";
+	const char id[] = "0 0 4294967295";
 
 	logger(10, 0, "Setup ugid mappings: %s", id);
 	for (i = 0; i < 2; i++) {
