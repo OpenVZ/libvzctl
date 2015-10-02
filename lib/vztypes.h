@@ -108,6 +108,7 @@
 
 #define STR_UNLIMITED	"unlimited"
 #define SYSTEMD_CTID_FMT	"ve-%s"
+#define SYSTEMD_CTID_SCOPE_FMT	SYSTEMD_CTID_FMT".scope"
 
 /* VE states */
 enum {

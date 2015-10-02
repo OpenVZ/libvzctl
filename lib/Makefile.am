@@ -10,7 +10,7 @@ AM_CPPFLAGS = -I. -I./include -I../include \
 	      -DSCRIPTDIR=\"$(scriptdir)\" \
 	      -DSCRIPTDDIR=\"$(scriptddir)\" \
 	      -DDISTCONFDIR=\"$(distconfdir)\" \
-	      $(XML_CFLAGS)
+	      $(XML_CFLAGS) $(DBUS_CFLAGS)
 
 lib_LTLIBRARIES = libvzctl2.la
 pkginclude_HEADERS = vzctl_param.h vzerror.h list.h
@@ -63,7 +63,8 @@ libvzctl2_la_SOURCES =  bitmap.c \
 			cluster.c \
 			vzenv.c \
 			slm.c \
-			tc.c
+			tc.c \
+			systemd.c
 
 # 1. Start with version information of `0:0:0' for each libtool library.
 # 2. Update the version information only immediately before a public release of your software. More frequent updates are unnecessary, and only guarantee that the current interface number gets larger faster.
@@ -72,5 +73,5 @@ libvzctl2_la_SOURCES =  bitmap.c \
 # 5. If any interfaces have been added since the last public release, then increment age.
 # 6. If any interfaces have been removed since the last public release, then set age to 0. 
 libvzctl2_la_LDFLAGS = -version-info 2:1:0 -Wl,--version-script=version.map
-libvzctl2_la_LIBADD = $(XML_LIBS) $(UTIL_LIBS) $(PLOOP_LIBS) -lcrypt $(UUID_LIBS)
+libvzctl2_la_LIBADD = $(XML_LIBS) $(UTIL_LIBS) $(PLOOP_LIBS) -lcrypt $(UUID_LIBS) $(DBUS_LIBS)
 

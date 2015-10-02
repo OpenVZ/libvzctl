@@ -59,6 +59,8 @@
 
 #define NETNS_RUN_DIR	"/var/run/netns"
 
+int systemd_start_ve_scope(struct vzctl_env_handle *h, pid_t pid);
+
 #ifndef HAVE_SETNS
 
 #ifndef __NR_setns
@@ -662,6 +664,10 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 		return ret;
 
 	ret = cg_attach_task(h->ctid, getpid());
+	if (ret)
+		return ret;
+
+	ret = systemd_start_ve_scope(h, getpid());
 	if (ret)
 		return ret;
 

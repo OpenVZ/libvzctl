@@ -56,7 +56,6 @@ static struct cg_ctl cg_ctl_map[] = {
 	{CG_FREEZER},
 	{CG_UB, 1},
 	{CG_VE, 1},
-	{CG_SYSTEMD},
 };
 
 static pthread_mutex_t cg_ctl_map_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -64,7 +63,7 @@ typedef int (*cgroup_filter_f)(const char *subsys);
 
 static int cg_is_systemd(const char *subsys)
 {
-	return strcmp(subsys, CG_SYSTEMD) == 0;
+	return strcmp(subsys, "systemd") == 0;
 }
 
 static int has_substr(char *buf, const char *str)
@@ -220,11 +219,7 @@ static void get_cgroup_name(const char *ctid, struct cg_ctl *ctl,
 		char *out, int size)
 {
 
-	if (cg_is_systemd(ctl->subsys))
-		snprintf(out, size, "%s/" SYSTEMD_CTID_FMT".slice",
-				ctl->mount_path, ctid);
-	else
-		snprintf(out, size, "%s/%s", ctl->mount_path, ctid);
+	snprintf(out, size, "%s/%s", ctl->mount_path, ctid);
 }
 
 static int cg_get_path(const char *ctid, const char *subsys, const char *name,
@@ -951,8 +946,7 @@ static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t * head)
 		
 	}
 
-	snprintf(s, sizeof(s), "/sys/fs/cgroup/systemd/"SYSTEMD_CTID_FMT".slice",
-			EID(h));
+	snprintf(s, sizeof(s), "/sys/fs/cgroup/systemd/"SYSTEMD_CTID_SCOPE_FMT, EID(h));
 	snprintf(d, sizeof(d), "%s/sys/fs/cgroup/systemd", ve_root);
 	ret = do_bindmount(s, d, MS_BIND);
 
