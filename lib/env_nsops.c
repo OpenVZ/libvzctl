@@ -1192,6 +1192,10 @@ int ns_env_chkpnt(struct vzctl_env_handle *h, int cmd, struct vzctl_cpt_param *p
 	if (ret)
 		return VZCTL_E_CHKPNT;
 
+
+	get_init_pid_path(EID(h), buf);
+	unlink(buf);
+
 	return 0;
 }
 
