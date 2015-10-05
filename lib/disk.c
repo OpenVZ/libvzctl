@@ -1212,6 +1212,14 @@ int vzctl2_resize_disk(struct vzctl_env_handle *h, const char *guid,
 	ret = vzctl2_resize_disk_image(d->path, size, offline);
 	if (ret)
 		return ret;
+
+	if (is_root_disk(d)) {
+		char s[64];
+
+		snprintf(s, sizeof(s), "%lu:%lu", size, size);
+		vzctl2_env_set_param(h, "DISKSPACE", s);
+	}
+
 	d->size = size;
 
 	return 0;
