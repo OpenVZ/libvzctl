@@ -36,6 +36,9 @@ done
 
 action_script=@SCRIPTDIR@/vz-rst-action
 
+d=$(dirname $VE_PIDFILE)
+[ ! -d "$d" ] && mkdir -p "$d"
+
 rm -f $VE_PIDFILE
 
 # Extract additional arguments from special file (needed for live migration)
