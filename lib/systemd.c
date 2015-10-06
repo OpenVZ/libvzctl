@@ -103,7 +103,6 @@ static void set_pid(DBusMessageIter *props, pid_t pid)
 int systemd_start_ve_scope(struct vzctl_env_handle *h, pid_t pid)
 {
 	static const char *mode = "fail";
-	char *slice = "";
 	char unit_name[PATH_MAX], *name = unit_name;
 	char desc[1024], *pdesc = desc;
 	dbus_bool_t yes = true;
@@ -130,7 +129,6 @@ int systemd_start_ve_scope(struct vzctl_env_handle *h, pid_t pid)
 
 	dbus_message_iter_open_container(&args, 'a', "(sv)", &props);
 	set_property(&props, "Description", 's', &pdesc);
-	set_property(&props, "Slice", 's', &slice);
 
 	set_property(&props, "MemoryAccounting", 'b', &yes);
 	set_property(&props, "CPUAccounting", 'b', &yes);
