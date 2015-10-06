@@ -667,9 +667,11 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 	if (ret)
 		return ret;
 
+#if 0
 	ret = systemd_start_ve_scope(h, getpid());
 	if (ret)
 		return ret;
+#endif
 
 	if (param->fn != NULL) {
 		ret = param->fn(h, param);
