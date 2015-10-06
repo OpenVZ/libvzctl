@@ -850,19 +850,18 @@ static int do_bindmount(const char *src, const char *dst, int mnt_flags)
 	return 0;
 }
 
-/* For multiple cg mountedlike 'cpu,cpuacct' create per ctl symlink PSBM-38634
+/* For multiple cg mounted like 'cpu,cpuacct' create per ctl symlink PSBM-38634
  *
- * cd /sys/fs/cgroup
- * ln -s cpu,cpuacct /sys/fs/cgroup/cpuacct
  * ln -s cpu,cpuacct /sys/fs/cgroup/cpu
+ * ln -s cpu,cpuacct /sys/fs/cgroup/cpuacct
  *
  */
 static int create_perctl_symlink(const char *root, const char *path)
 {
 	int ret = 0;
+	char newpath[PATH_MAX];
 	char buf[STR_SIZE];
-	char d[PATH_MAX];
-	char cwd[PATH_MAX];
+	char oldpath[STR_SIZE];
 	char *p, *name;
 	int last = 0;
 
@@ -871,22 +870,19 @@ static int create_perctl_symlink(const char *root, const char *path)
 		return 0;
 
 	snprintf(buf, sizeof(buf), "%s", p + 1);
+	snprintf(oldpath, sizeof(oldpath), "%s", p + 1);
 	p = strchr(buf, ',');
 	if (p == NULL)
 		return 0;
 
-	if (getcwd(cwd, sizeof(cwd)) == NULL)
-		return vzctl_err(-1, errno, "Cannot getcwd");
-
-	snprintf(d, sizeof(d), "%s/%s/..", root, path);
-	if (chdir(d))
-		return vzctl_err(-1, errno, "Cannot chdir %s", d);
-
 	name = buf;
 	*p = '\0'; p++;
 	while (1) {
-		logger(10, 0, "Create symlink %s -> %s", path, name);
-		if (symlink(path, name) && errno != EEXIST) {
+		snprintf(newpath, sizeof(newpath), "%s/%s/../%s",
+			root, path, name);
+		logger(10, 0, "Create symlink %s -> %s", oldpath, name);
+		unlink(newpath);
+		if (symlink(oldpath, newpath) && errno != EEXIST) {
 			ret = vzctl_err(-1, errno,
 					"Cant create symlink %s -> %s",
 					path, name);
@@ -902,9 +898,6 @@ static int create_perctl_symlink(const char *root, const char *path)
 		} else
 			last = 1;
 	}
-
-	if (chdir(cwd))
-		logger(-1, errno, "Cannot cndir %s", cwd);
 
 	return ret;
 }
