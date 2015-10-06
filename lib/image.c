@@ -56,7 +56,7 @@ int read_dd(const char *path, struct ploop_disk_images_data **di)
 	char fname[PATH_MAX];
 
 	snprintf(fname, sizeof(fname), "%s/" DISKDESCRIPTOR_XML, path);
-	if (ploop_read_disk_descr(di, fname))
+	if (ploop_open_dd(di, fname))
 		return vzctl_err(VZCTL_E_PARSE_DD, 0, "Failed to read %s: %s",
 				fname, ploop_get_last_error());
 	return 0;
@@ -99,7 +99,7 @@ int vzctl2_is_image_mounted(const char *path)
 		return -1;
 
 	ret = ploop_is_mounted(di);
-	ploop_free_diskdescriptor(di);
+	ploop_close_dd(di);
 
 	return ret;
 }
@@ -135,7 +135,7 @@ int vzctl2_mount_disk_image(const char *path, struct vzctl_mount_param *param)
 		ploop_set_component_name(di, param->component_name);
 
 	ret = ploop_mount_image(di, &mount_param);
-	ploop_free_diskdescriptor(di);
+	ploop_close_dd(di);
 	if (ret)
 		return vzctl_err(VZCTL_E_MOUNT_IMAGE, 0,
 				"Failed to mount image: %s [%d]",
@@ -177,7 +177,7 @@ int vzctl2_umount_disk_image(const char *path)
 		return ret;
 
 	ret = ploop_umount_image(di);
-	ploop_free_diskdescriptor(di);
+	ploop_close_dd(di);
 	if (ret && ret != SYSEXIT_DEV_NOT_MOUNTED)
 		return vzctl_err(VZCTL_E_UMOUNT_IMAGE, 0,
 				"Failed to umount image: %s [%d]",
@@ -252,7 +252,7 @@ int vzctl2_convert_image(const char *ve_private, int mode)
 		return ret;
 
 	ret = ploop_convert_image(di, mode, 0);
-	ploop_free_diskdescriptor(di);
+	ploop_close_dd(di);
 	if (ret)
 		return vzctl_err(VZCTL_E_CONVERT_IMAGE, 0,
 				"Failed to convert image: %s [%d]",
@@ -302,7 +302,7 @@ int vzctl2_resize_disk_image(const char *path, unsigned long long newsize, int o
 				"Failed to resize image: %s [%d]",
 				ploop_get_last_error(), ret);
 err:
-	ploop_free_diskdescriptor(di);
+	ploop_close_dd(di);
 	return ret;
 }
 
@@ -344,7 +344,7 @@ int vzctl2_get_ploop_dev(const char *path, char *dev, int len)
 		vzctl_err(-1, 0, "ploop_get_dev path=%s: %s",
 				path, ploop_get_last_error());
 
-	ploop_free_diskdescriptor(di);
+	ploop_close_dd(di);
 
 	return ret;
 }
@@ -367,7 +367,7 @@ int vzctl2_get_ploop_devs(const char *path, char **out[])
 		ret = vzctl_err(VZCTL_E_SYSTEM, 0, "ploop_get_dev path=%s: %s",
 				path, ploop_get_last_error());
 
-	ploop_free_diskdescriptor(di);
+	ploop_close_dd(di);
 
 	return ret;
 }
@@ -390,7 +390,7 @@ int vzctl2_get_top_image_fname(char *ve_private, char *out, int len)
 		ret = vzctl_err(VZCTL_E_SYSTEM, 0, "ploop_get_top_delta_fname path=%s: %s",
 				ve_private, ploop_get_last_error());
 
-	ploop_free_diskdescriptor(di);
+	ploop_close_dd(di);
 
 	return ret;
 }
@@ -413,7 +413,7 @@ int vzctl2_delete_disk_snapshot(const char *path, const char *guid)
 	if (ret == SYSEXIT_NOSNAP)
 		ret = 0;
 
-	ploop_free_diskdescriptor(di);
+	ploop_close_dd(di);
 	if (ret)
 		return vzctl_err(VZCTL_E_DELETE_SNAPSHOT, 0,
 				"Failed to delete snapshot: %s [%d]",
@@ -457,7 +457,7 @@ int vzctl2_merge_disk_snapshot(const char *path, const char *guid)
 	param.guid = guid;
 
 	ret = ploop_merge_snapshot(di, &param);
-	ploop_free_diskdescriptor(di);
+	ploop_close_dd(di);
 	if (ret)
 		return vzctl_err(VZCTL_E_MERGE_SNAPSHOT, 0,
 				"Failed to merge snapshot %s: %s [%d]",
@@ -548,7 +548,7 @@ static int create_disk_snapshot(const char *path, const char *guid,
 		ret = ploop_create_snapshot(di, &snap);
 	}
 
-	ploop_free_diskdescriptor(di);
+	ploop_close_dd(di);
 	if (ret)
 		return vzctl_err(VZCTL_E_CREATE_SNAPSHOT, 0,
 				"Failed to create image %s snapshot: %s [%d]",
@@ -643,7 +643,7 @@ int vzctl2_switch_disk_snapshot(const char *path, const char *guid, const char *
 	param.flags = flags;
 
 	ret = ploop_switch_snapshot_ex(di, &param);
-	ploop_free_diskdescriptor(di);
+	ploop_close_dd(di);
 	if (ret)
 		return vzctl_err(VZCTL_E_SWITCH_SNAPSHOT, 0,
 				"Failed to switch to snapshot %s image %s: %s [%d]",
@@ -793,7 +793,7 @@ int vzctl2_umount_disk_snapshot(const char *path, const char *guid, const char *
 		ploop_set_component_name(di, component_name);
 
 	ret = ploop_umount_image(di);
-	ploop_free_diskdescriptor(di);
+	ploop_close_dd(di);
 	if (ret && ret != SYSEXIT_DEV_NOT_MOUNTED)
 		return vzctl_err(VZCTL_E_UMOUNT_SNAPSHOT, 0,
 				"Failed to umount snapshot %s: %s [%d]",

@@ -1014,7 +1014,7 @@ int vzctl2_add_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param,
 		if (read_dd(d->path, &di))
 			goto err;
 		d->size = (unsigned long)di->size >> 1; /* sectors -> 1K */
-		ploop_free_diskdescriptor(di);
+		ploop_close_dd(di);
 	} else {
 		if (flags & VZCTL_DISK_SKIP_CREATE)
 			goto out;
