@@ -826,18 +826,9 @@ static int ns_env_enter(struct vzctl_env_handle *h, int flags)
 	if (ret)
 		goto err;
 
-#if 0
-	userns is not implemented yest
-	ret = set_ns(pid, "user", CLONE_NEWUSER);
-	if (ret)
-		goto err;
-#endif
 	while ((ep = readdir (dp))) {
 		if (!strcmp(ep->d_name, ".") ||
 		    !strcmp(ep->d_name, ".."))
-			continue;
-
-		if (!strcmp(ep->d_name, "user"))
 			continue;
 
 		ret = set_ns(pid, ep->d_name, 0);
