@@ -717,10 +717,6 @@ int pre_setup_env(struct start_param *param)
 
 	configure_sysctl("/proc/sys/net/ipv6/conf/all/forwarding", "0");
 
-	errcode = env_set_cap(env->cap);
-	if (errcode)
-		return errcode;
-
 	logger(10, 0, "* Report env_created");
 	/* report that environment is created. */
 	if (write(param->status_p[1], &errcode, sizeof(errcode)) == -1)

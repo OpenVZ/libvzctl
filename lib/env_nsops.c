@@ -840,11 +840,6 @@ static int ns_env_enter(struct vzctl_env_handle *h, int flags)
 
 	/* Clear supplementary group IDs */
 	setgroups(getuid(), NULL);
-
-	ret = env_set_cap(h->env_param->cap);
-	if (ret)
-		goto err;
-
 	ret = set_personality32();
 
 err:
