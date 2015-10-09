@@ -948,7 +948,11 @@ static int enable_disk(struct vzctl_env_handle *h, struct vzctl_disk *d)
 			return ret;
 	}
 
-	return do_setup_disk(h, d, 0, 1);
+	ret = do_setup_disk(h, d, 0, 1);
+	if (ret && !d->use_device)
+		vzctl2_umount_disk_image(d->path);
+
+	return ret;
 }
 
 static void get_dd_path(const struct vzctl_disk *disk, char *buf, size_t size)
