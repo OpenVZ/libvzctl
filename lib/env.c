@@ -2044,8 +2044,10 @@ int vzctl2_env_set_veth_param(struct vzctl_veth_dev *dev, struct vzctl_veth_dev_
 	}
 	dev->mac_filter = tmp.allow_mac_spoof ? VZCTL_PARAM_OFF : VZCTL_PARAM_ON;
 	dev->ip_filter = tmp.allow_ip_spoof ? VZCTL_PARAM_OFF : VZCTL_PARAM_ON;
-	if (tmp.dev_name != NULL)
+	if (tmp.dev_name != NULL) {
 		strncpy(dev->dev_name, tmp.dev_name, IFNAMSIZE);
+		dev->flags |= VETH_CUSTOM_DEV_NAME;
+	}
 	if (tmp.network != NULL) {
 		free(dev->network);
 		dev->network = strdup(tmp.network);
