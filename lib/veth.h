@@ -37,7 +37,6 @@
 #define SW_OUI		0x001851
 
 #define VETH_ACTIVE		0x0001
-#define VETH_CUSTOM_DEV_NAME	0x0002
 
 /** Data structure for devices.
  */
