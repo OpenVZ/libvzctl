@@ -298,7 +298,6 @@ int set_disk_param(struct vzctl_env_param *env, int flags)
 		if (ret)
 			goto err;
 
-		root->user_quota = get_user_quota_mode(env->dq);
 		ret = xstrdup(&root->mnt_opts, env->fs->mount_opts);
 		if (ret)
 			goto err;
@@ -306,12 +305,16 @@ int set_disk_param(struct vzctl_env_param *env, int flags)
 		if (env->fs->noatime == VZCTL_PARAM_ON)
 			root->mnt_flags = MS_NOATIME;
 
-		/* add to the head */
-		list_add(&root->list, &env->disk->disks);
-			
 		root->mount = mount_disk_image;
 		root->umount = umount_disk_image;
+			
+		/* add to the head */
+		list_add(&root->list, &env->disk->disks);
 	}
+
+	root = find_root_disk(env->disk);
+	if (root != NULL)
+		root->user_quota = get_user_quota_mode(env->dq);
 
 	if (!(flags & VZCTL_CONF_USE_RELATIVE_PATH)) {
 		list_for_each(disk, &env->disk->disks, list) {
