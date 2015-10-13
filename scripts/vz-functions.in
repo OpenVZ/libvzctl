@@ -303,7 +303,7 @@ function parallel_execution()
 		pids=""
 		while ((${fork_counter} > 0 && ${counter} < ${#args[@]})); do
 			cmd="${ex} ${args[${counter}]}"
-			(${cmd};) &
+			(eval ${cmd};) &
 			command_list[$!]="${cmd}"
 			pids="${pids} $!"
 			counter=$((${counter}+1))
@@ -345,7 +345,7 @@ function vzarpipdetect()
 			fi
 		done
 	done
-	parallel_execution "${ARPING_CMD} ${ARPING_ARGS} -D -I" ipv4_pairs[@]
+	parallel_execution "! ${ARPING_CMD} ${ARPING_ARGS} -I" ipv4_pairs[@]
 }
 
 # Send ARP request to update neighbour ARP caches
