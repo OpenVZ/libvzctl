@@ -1042,6 +1042,12 @@ static int ns_set_devperm(struct vzctl_env_handle *h, struct vzctl_dev_perm *dev
 	if (dev->mask & S_IXGRP)
 		return 0;
 
+	if (dev->mask & S_IXUSR) {
+		ret = vz_env_set_devperm(h, dev);
+		if (ret)
+			return ret;
+	}
+
 	if (dev->mask & S_IROTH)
 		perms[i++] = 'r';
 	if (dev->mask & S_IWOTH)

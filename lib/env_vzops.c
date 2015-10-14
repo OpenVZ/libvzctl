@@ -890,7 +890,7 @@ err:
 	return 0;
 }
 
-static int vz_env_set_devperm(struct vzctl_env_handle *h, struct vzctl_dev_perm *perm)
+int vz_env_set_devperm(struct vzctl_env_handle *h, struct vzctl_dev_perm *perm)
 {
         struct vzctl_setdevperms devperms;
 

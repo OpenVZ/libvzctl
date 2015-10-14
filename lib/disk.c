@@ -785,7 +785,7 @@ static int configure_devperm(struct vzctl_env_handle *h, struct vzctl_disk *disk
 {
 	struct vzctl_dev_perm devperms = {
 		.dev = dev,
-		.mask = S_IROTH | S_IWOTH, /* set S_IWOTH as workaround for #PSBM-34497 */
+		.mask = S_IROTH | S_IXUSR,
 		.type = S_IFBLK | VE_USE_MINOR,
 	};
 

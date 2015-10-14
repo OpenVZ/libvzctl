@@ -47,6 +47,7 @@ struct vzctl_dev_param {
 	list_head_t pci_del;
 };
 
+int vz_env_set_devperm(struct vzctl_env_handle *h, struct vzctl_dev_perm *perm);
 int parse_devnodes_str(struct vzctl_dev_perm *perm, const char *str);
 int parse_devices_str(struct vzctl_dev_perm *perm, const char *str);
 int add_dev_param(list_head_t *head, struct vzctl_dev_perm *perm);
