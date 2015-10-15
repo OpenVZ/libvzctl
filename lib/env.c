@@ -75,6 +75,8 @@
 
 #define ENVRETRY	3
 
+int create_venet_link(void);
+
 int set_personality(unsigned long mask)
 {
 	unsigned long per;
@@ -685,6 +687,8 @@ int pre_setup_env(struct start_param *param)
 
 	if (access("/proc", F_OK) == 0 && mount("proc", "/proc", "proc", 0, 0))
 		return vzctl_err(VZCTL_E_SYSTEM, errno, "Failed to mount /proc");
+	if (create_venet_link())
+		return vzctl_err(VZCTL_E_SYSTEM, 0, "Unable to create venet iface");
 
 	if (setup_devtmpfs())
 		return VZCTL_E_SYSTEM;
