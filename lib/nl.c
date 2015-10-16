@@ -30,8 +30,11 @@
 #include <linux/rtnetlink.h>
 #include <sys/socket.h>
 #include <errno.h>
+#include <net/if.h>
+#include <sys/ioctl.h>
 
 #include "logger.h"
+#include "vzerror.h"
 
 #define NLMSG_TAIL(nmsg) \
         ((struct rtattr *) (((char *) (nmsg)) + NLMSG_ALIGN((nmsg)->nlmsg_len)))
@@ -62,6 +65,37 @@ static int addattr_l(struct nlmsghdr *n, int maxlen, int type, const void *data,
 	return 0;
 }
 
+static int ifup(const char *dev)
+{
+	struct ifreq ifr;
+	int fd, ret = -1;
+
+	fd = socket(PF_INET, SOCK_DGRAM, 0);
+	if (fd < 0)
+		return vzctl_err(-1, errno, "Cannot create socket");
+
+	strncpy(ifr.ifr_name, dev, IFNAMSIZ);
+	if (ioctl(fd, SIOCGIFFLAGS, &ifr)) {
+		vzctl_err(-1, 0, "Cannot get %s flags", dev);
+		goto err;
+	}
+
+	if (!(ifr.ifr_flags & IFF_UP)) {
+		ifr.ifr_flags |= IFF_UP;
+
+		logger(5, 0, "Bringing up %s", dev);
+		if (ioctl(fd, SIOCSIFFLAGS, &ifr)) {
+			vzctl_err(-1, 0, "Cannot bring up %s", dev);
+			goto err;
+		}
+	}
+	ret = 0;
+err:
+	close(fd);
+
+	return ret;
+}
+
 int create_venet_link(void)
 {
 	int nl;
@@ -79,7 +113,6 @@ int create_venet_link(void)
 	if (access("/proc/sys/net/ipv4/conf/venet0", F_OK) == 0)
 		return 0;
 
-	logger(5, 0, "Create venet0 link");
 	nl = socket(PF_NETLINK, SOCK_RAW, NETLINK_ROUTE);  
 	if (nl < 0)
 		return vzctl_err(-1, errno, "Cannot open socket");
@@ -112,6 +145,21 @@ int create_venet_link(void)
 	}
 
 	close(nl);
+
+	return 0;
+}
+
+int setup_venet(void)
+{
+	if (access("/sys/class/net/venet0", F_OK) == 0)
+		return 0;
+
+	logger(0, 0, "Create venet0 link");
+	if (create_venet_link())
+		return vzctl_err(VZCTL_E_SYSTEM, 0, "Cannot create venet link");
+
+	if (ifup("venet0"))
+		return VZCTL_E_SYSTEM;
 
 	return 0;
 }

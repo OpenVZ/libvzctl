@@ -60,6 +60,7 @@
 #define NETNS_RUN_DIR	"/var/run/netns"
 
 int systemd_start_ve_scope(struct vzctl_env_handle *h, pid_t pid);
+int setup_venet(void);
 
 #ifndef HAVE_SETNS
 
@@ -1093,6 +1094,10 @@ static int ns_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param
 
 	if (ns_is_env_run(h)) {
 		if (h->state == VZCTL_STATE_STARTING) {
+			ret = setup_venet();
+			if (ret)
+				return ret;
+
 			ret = set_net_classid(h);
 			if (ret)
 				return ret;
@@ -1305,7 +1310,6 @@ static int ns_env_get_cpt_state(struct vzctl_env_handle *h, int *state)
 
 static int ns_ip_ctl(struct vzctl_env_handle *h, int op, const char *ip, int flags)
 {
-
 	if (!is_vz_kernel())
 		return vzctl_err(0, 0, "Warning: venet support is not emplemented");
 
