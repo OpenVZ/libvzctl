@@ -647,6 +647,31 @@ static int write_id_maps(int pid)
 	return 0;
 }
 
+static int reset_loginuid()
+{
+	int fd;
+	static const char luid[] = "4294967295";
+
+	logger(10, 0, "Reset loginuid");
+	fd = open("/proc/self/loginuid", O_RDWR);
+	if (fd == -1) {
+		if (errno == ENOENT)
+			return 0;
+		return vzctl_err(-1, errno, "Cannot open /proc/self/loginuid");
+	}
+
+	if (write(fd, luid, sizeof(luid) -1) == -1) {
+		vzctl_err(-1, errno, "Cannot reset loginuid");
+		close(fd);
+
+		return -1;
+	}
+
+	close(fd);
+
+	return 0;
+}
+
 static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 {
 	char child_stack[4096 * 10];
@@ -680,6 +705,9 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 			return ret;
 	} else {
 		int init_p[2];
+
+		if (reset_loginuid())
+			return VZCTL_E_SYSTEM;
 
 		if (pipe(init_p))
 			return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
