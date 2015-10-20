@@ -704,19 +704,19 @@ int vzctl2_env_delete_tsnapshot(struct vzctl_env_handle *h, const char *guid,
 	return 0;
 }
 
-int vzctl2_env_mount_snapshot(struct vzctl_env_handle *h, const char *mnt, const char *guid)
+int vzctl2_env_mount_snapshot(struct vzctl_env_handle *h, const char *mnt,
+		const char *guid)
 {
-	int ret;
 	char fname[MAXPATHLEN];
 	struct vzctl_snapshot_tree *tree = NULL;
 	char *ve_private = h->env_param->fs->ve_private;
 
 	if (guid == NULL)
 		return vzctl_err(VZCTL_E_NOT_ENOUGH_PARAMS, 0,
-				"Failed to mount snapshot: snapshot uuid is not specified");
+			"Failed to mount snapshot: snapshot uuid is not specified");
 	if (ve_private == NULL)
 		return vzctl_err(VZCTL_E_NOT_ENOUGH_PARAMS, 0,
-				"Failed to mount snapshot:  CT private is not specified");
+			"Failed to mount snapshot:  CT private is not specified");
 
 	if (!is_snapshot_supported(ve_private))
 		return VZCTL_E_MOUNT_SNAPSHOT;
@@ -724,25 +724,24 @@ int vzctl2_env_mount_snapshot(struct vzctl_env_handle *h, const char *mnt, const
 	GET_SNAPSHOT_XML(fname, ve_private)
 	if (stat_file(fname) != 1)
 		return vzctl_err(VZCTL_E_MOUNT_SNAPSHOT, 0,
-				"Unable to find snapshot by uuid %s: no such file %s",
-				guid, fname);
+			"Unable to find snapshot by uuid %s: no such file %s",
+			guid, fname);
 	tree = vzctl_alloc_snapshot_tree();
 	if (tree == NULL)
 		return VZCTL_E_NOMEM;
 
-	ret = vzctl_read_snapshot_tree(fname, tree);
-	if (ret) {
+	if (vzctl_read_snapshot_tree(fname, tree)) {
 		logger(-1, 0, "Failed to read %s", fname);
 		goto err;
 	}
+
 	if (vzctl2_find_snapshot_by_guid(tree, guid) == -1) {
 		logger(-1, 0, "Unable to find snapshot by uuid %s", guid);
 		goto err;
 	}
 	logger(0, 0, "Mount snapshot %s", guid);
 
-	ret = vzctl2_mount_snap(h, mnt, guid, NULL);
-	if (ret)
+	if (vzctl2_mount_snap(h, mnt, guid, NULL))
 		goto err;
 
 	vzctl_free_snapshot_tree(tree);
@@ -758,10 +757,10 @@ int vzctl2_env_umount_snapshot(struct vzctl_env_handle *h, const char *guid)
 
 	if (guid == NULL)
 		return vzctl_err(VZCTL_E_NOT_ENOUGH_PARAMS, 0,
-				"Failed to umount snapshot: snapshot uuid is not specified");
+			"Failed to umount snapshot: snapshot uuid is not specified");
 	if (ve_private == NULL)
 		return vzctl_err(VZCTL_E_NOT_ENOUGH_PARAMS, 0,
-				"Failed to umount snapshot:  CT private is not specified");
+			"Failed to umount snapshot:  CT private is not specified");
 
 	if (!is_snapshot_supported(ve_private))
 		return VZCTL_E_UMOUNT_SNAPSHOT;
