@@ -829,7 +829,7 @@ int vzctl2_umount_snapshot(struct vzctl_env_handle *h, const char *guid, const c
 	else
 		snprintf(cn, sizeof(cn), "%s", component_name);
 
-	list_for_each(disk, &h->env_param->disk->disks, list) {
+	list_for_each_prev(disk, &h->env_param->disk->disks, list) {
 		ret = vzctl2_umount_disk_snapshot(disk->path, guid, cn);
 		if (ret)
 			return ret;
