@@ -377,7 +377,11 @@ function vzarpipset()
 		done
 	done
 
-	parallel_execution "${ARPING_CMD} ${ARPING_ARGS} -D -A -I" ipv4_pairs[@]
+	# ip_nonlocal_bind option allows host to announce arbitrary IP address
+	# so we enable it globally to prevent arping error
+	# (bind: cannot assign requested address)
+	echo "1" > /proc/sys/net/ipv4/ip_nonlocal_bind
+	parallel_execution "${ARPING_CMD} ${ARPING_ARGS} -A -I" ipv4_pairs[@]
 	parallel_execution "${NDSEND_CMD}" ipv6_pairs[@]
 }
 
