@@ -103,7 +103,7 @@ static void add_disk(struct vzctl_env_disk *env_disk, struct vzctl_disk *disk)
 	list_add_tail(&disk->list, &env_disk->disks);
 }
 
-static int is_root_disk(struct vzctl_disk *disk)
+int is_root_disk(struct vzctl_disk *disk)
 {
 	return (disk->mnt != NULL && strcmp(disk->mnt, "/") == 0);
 }

@@ -136,7 +136,7 @@ int vzctl2_mount_disk_image(const char *path, struct vzctl_mount_param *param)
 
 	ret = ploop_mount_image(di, &mount_param);
 	ploop_close_dd(di);
-	if (ret)
+	if (ret && ret != SYSEXIT_NOSNAP)
 		return vzctl_err(VZCTL_E_MOUNT_IMAGE, 0,
 				"Failed to mount image: %s [%d]",
 				ploop_get_last_error(), ret);
@@ -701,6 +701,23 @@ int vzctl2_mount_disk_snapshot(const char *path, struct vzctl_mount_param *param
 	return vzctl2_mount_disk_image(path, param);
 }
 
+static const char *get_snap_target(struct vzctl_disk *disk, const char *target,
+		char *out, int size)
+{
+	if (target == NULL)
+		return NULL;
+			
+	if (is_root_disk(disk))
+		return target;
+
+	if (disk->mnt == NULL)
+		return NULL;
+
+	snprintf(out, size, "%s/%s", target, disk->mnt);
+
+	return out;
+}
+
 int vzctl2_mount_snap(struct vzctl_env_handle *h, const char *mnt, const char *guid,
 		const char *component_name)
 {
@@ -708,11 +725,11 @@ int vzctl2_mount_snap(struct vzctl_env_handle *h, const char *mnt, const char *g
 	struct vzctl_disk *disk, *entry;
 	struct vzctl_env_disk *env_disk = h->env_param->disk;
 	char mnt_opts[PATH_MAX] = "";
+	char target[PATH_MAX];
 	char cn[1024];
 	struct vzctl_mount_param param = {
 		.ro = 1,
 		.guid = (char*)guid,
-		.target = (char*)mnt,
 		.mount_data = mnt_opts,
 		.fsck = VZCTL_PARAM_OFF,
 	};
@@ -729,7 +746,7 @@ int vzctl2_mount_snap(struct vzctl_env_handle *h, const char *mnt, const char *g
 	param.component_name = (char*)component_name;
 
 	list_for_each(disk, &env_disk->disks, list) {
-		param.target = NULL;
+		param.target = (char *)get_snap_target(disk, mnt, target, sizeof(target));
 		vzctl2_get_mount_opts(disk->mnt_opts, disk->user_quota,
 				mnt_opts, sizeof(mnt_opts));
 		ret = vzctl2_mount_disk_snapshot(disk->path, &param);

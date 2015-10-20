@@ -55,6 +55,7 @@ struct vzctl_env_disk {
 	int root;		/* is root disk configured */
 };
 
+int is_root_disk(struct vzctl_disk *disk);
 int configure_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk, dev_t dev,
 		int flags, int automount);
 
