@@ -39,6 +39,7 @@
 #include "image.h"
 #include "disk.h"
 #include "env.h"
+#include "env_ops.h"
 
 #ifndef MNT_DETACH
 #define MNT_DETACH      0x00000002
@@ -250,6 +251,8 @@ int vzctl2_env_umount(struct vzctl_env_handle *h, int flags)
 	ret = do_env_umount(h);
 	if (ret)
 		return ret;
+
+	get_env_ops()->env_cleanup(h);
 
 	logger(0, 0, "Container is unmounted");
 

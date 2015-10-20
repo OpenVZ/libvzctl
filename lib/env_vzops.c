@@ -922,6 +922,11 @@ static int get_feature(void)
         return (F_SETLUID);
 }
 
+static int vz_dummy(struct vzctl_env_handle *h)
+{
+	return 0;
+}
+
 static struct vzctl_env_ops env_vzops = {
 	.get_feature = get_feature,
 	.open = vzctl_open,
@@ -949,6 +954,7 @@ static struct vzctl_env_ops env_vzops = {
 	.env_netdev_ctl = vz_netdev_ctl,
 	.env_exec = vz_env_exec,
 	.env_exec_fn = vz_env_exec_fn,
+	.env_cleanup = vz_dummy,
 	.close = vzctl_close,
 };
 
