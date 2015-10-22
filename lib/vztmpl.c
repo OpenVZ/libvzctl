@@ -196,6 +196,10 @@ int vztmpl_install_app(ctid_t ctid, const char *apps, int force)
 	int total = 255;
 	int ret, i = 0;
 
+	token = strtok_r(str, LIST_DELIMITERS, &savedptr);
+	if (token == NULL)
+		return 0;
+
 	arg = calloc(total + 1, sizeof(char *));
 	if (arg == NULL)
 		return VZCTL_E_NOMEM;
@@ -212,7 +216,6 @@ int vztmpl_install_app(ctid_t ctid, const char *apps, int force)
 	if (force)
 		arg[i++] = strdup("--force");
 	arg[i++] = strdup(ctid);
-	token = strtok_r(str, LIST_DELIMITERS, &savedptr);
 	do {
 		if (i == total) {
 			char **tmp;

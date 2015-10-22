@@ -178,6 +178,9 @@ static int inst_app(struct vzctl_env_handle *h, const char *apps, int force)
 {
 	int ret, run;
 
+	if (apps[0] == '\0')
+		return 0;
+
 	run = is_env_run(h);
 	if (!run) {
 		h->env_param->opts->wait = VZCTL_PARAM_ON;
