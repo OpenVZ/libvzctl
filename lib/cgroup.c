@@ -426,6 +426,19 @@ int cg_destroy_cgroup(const char *ctid)
 	return ret;
 }
 
+static int cg_attach_to_systemd(const char *ctid, pid_t pid)
+{
+	char s[512];
+	char data[12];
+
+	snprintf(s, sizeof(s), "/sys/fs/cgroup/systemd/"
+			SYSTEMD_CTID_SCOPE_FMT "/tasks",
+			ctid);
+	snprintf(data, sizeof(data), "%d", pid);
+
+	return write_data(s, data);
+}
+
 int cg_attach_task(const char *ctid, pid_t pid)
 {
 	int ret, i;
@@ -433,7 +446,7 @@ int cg_attach_task(const char *ctid, pid_t pid)
 	for (i = 0; i < sizeof(cg_ctl_map)/sizeof(cg_ctl_map[0]); i++) {
 		ret = cg_set_ul(ctid, cg_ctl_map[i].subsys, "tasks", pid);
 		if (ret == -1)
-			break;
+			return -1;
 		/* Skip non exists */
 		if (ret) {
 			ret = 0;
@@ -441,7 +454,7 @@ int cg_attach_task(const char *ctid, pid_t pid)
 		}
 	}
 
-	return ret;
+	return cg_attach_to_systemd(ctid, pid);
 }
 
 /**************************************************************************/
