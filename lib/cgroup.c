@@ -56,6 +56,7 @@ static struct cg_ctl cg_ctl_map[] = {
 	{CG_FREEZER},
 	{CG_UB, 1},
 	{CG_VE, 1},
+	{"systemd"},
 };
 
 static pthread_mutex_t cg_ctl_map_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -218,8 +219,11 @@ static int cg_read(const char *path, char *out, int size)
 static void get_cgroup_name(const char *ctid, struct cg_ctl *ctl,
 		char *out, int size)
 {
-
-	snprintf(out, size, "%s/%s", ctl->mount_path, ctid);
+	if (cg_is_systemd(ctl->subsys))
+		snprintf(out, size, "%s/"SYSTEMD_CTID_SCOPE_FMT,
+				ctl->mount_path, ctid);
+	else
+		snprintf(out, size, "%s/%s", ctl->mount_path, ctid);
 }
 
 static int cg_get_path(const char *ctid, const char *subsys, const char *name,
@@ -426,19 +430,6 @@ int cg_destroy_cgroup(const char *ctid)
 	return ret;
 }
 
-static int cg_attach_to_systemd(const char *ctid, pid_t pid)
-{
-	char s[512];
-	char data[12];
-
-	snprintf(s, sizeof(s), "/sys/fs/cgroup/systemd/"
-			SYSTEMD_CTID_SCOPE_FMT "/tasks",
-			ctid);
-	snprintf(data, sizeof(data), "%d", pid);
-
-	return write_data(s, data);
-}
-
 int cg_attach_task(const char *ctid, pid_t pid)
 {
 	int ret, i;
@@ -454,7 +445,7 @@ int cg_attach_task(const char *ctid, pid_t pid)
 		}
 	}
 
-	return cg_attach_to_systemd(ctid, pid);
+	return 0;
 }
 
 /**************************************************************************/
