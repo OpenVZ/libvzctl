@@ -196,10 +196,6 @@ int vztmpl_install_app(ctid_t ctid, const char *apps, int force)
 	int total = 255;
 	int ret, i = 0;
 
-	token = strtok_r(str, LIST_DELIMITERS, &savedptr);
-	if (token == NULL)
-		return 0;
-
 	arg = calloc(total + 1, sizeof(char *));
 	if (arg == NULL)
 		return VZCTL_E_NOMEM;
@@ -209,6 +205,12 @@ int vztmpl_install_app(ctid_t ctid, const char *apps, int force)
 		goto err;
 
 	logger(0, 0, "Installing applications: %s", str);
+	token = strtok_r(str, LIST_DELIMITERS, &savedptr);
+	if (token == NULL) {
+		ret = 0;
+		goto err;
+	}
+
 	arg[i++] = strdup(VZPKG);
 	arg[i++] = strdup("install");
 	arg[i++] = strdup("--skiplock");
