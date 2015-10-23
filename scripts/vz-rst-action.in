@@ -37,6 +37,18 @@ set -e
 pid=$(cat $VE_PIDFILE)
 ln -s /proc/$pid/ns/net $VE_NETNS_FILE
 
+#
+# Create venet device for the root task, note we don't
+# exit with error if failed for backward compatibility,
+# since on old kernels venet is automatically created
+# by the kernel. So if we're failing here and running
+# on new kernel the CRIU will report error anyway, just
+# a bit later.
+nsenter --net=/proc/$pid/ns/net ip link add name venet0 type venet
+if [ $? -ne 0 ]; then
+	echo "Can't create venet device"
+fi
+
 if [ -n "$VEID" ]; then
 	cgset -r ve.state="START $pid" $VEID || exit
 fi
