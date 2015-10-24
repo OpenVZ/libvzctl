@@ -53,22 +53,22 @@ extra_args_path="$VE_DUMP_DIR/restore-extra-args"
 # Setup default log name if not explicitly specified
 [ -z "$VE_RESTORE_LOG_PATH" ] && VE_RESTORE_LOG_PATH="restore.log"
 
-criu restore	--file-locks								\
-		--tcp-established							\
-		--evasive-devices							\
-		--manage-cgroups							\
-		--link-remap								\
-		--root $VE_ROOT								\
-		--ext-mount-map auto							\
-		--enable-external-sharing						\
-		--enable-external-masters						\
-		--restore-detached							\
-		--action-script $action_script						\
-		-D $VE_DUMP_DIR								\
-		-W $VE_WORK_DIR								\
-		-o $VE_RESTORE_LOG_PATH							\
-		-vvvv									\
-		--pidfile $VE_PIDFILE							\
+criu restore	--file-locks				\
+		--tcp-established			\
+		--evasive-devices			\
+		--manage-cgroups			\
+		--link-remap				\
+		--root $VE_ROOT				\
+		--ext-mount-map auto			\
+		--enable-external-sharing		\
+		--enable-external-masters		\
+		--restore-detached			\
+		--action-script $action_script		\
+		-D $VE_DUMP_DIR				\
+		-W $VE_WORK_DIR				\
+		-o $VE_RESTORE_LOG_PATH			\
+		-vvvv					\
+		--pidfile $VE_PIDFILE			\
 		$veth_args
 
 if [ $? -eq 0 ]; then
