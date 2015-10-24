@@ -58,7 +58,6 @@
 #include "vzfeatures.h"
 
 int systemd_start_ve_scope(struct vzctl_env_handle *h, pid_t pid);
-int setup_venet(void);
 
 #ifndef HAVE_SETNS
 
@@ -1118,10 +1117,6 @@ static int ns_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param
 
 	if (ns_is_env_run(h)) {
 		if (h->state == VZCTL_STATE_STARTING) {
-			ret = setup_venet();
-			if (ret)
-				return ret;
-
 			ret = set_net_classid(h);
 			if (ret)
 				return ret;
