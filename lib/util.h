@@ -220,6 +220,7 @@ void get_init_pid_path(const ctid_t ctid, char *path);
 int write_init_pid(const ctid_t ctid, pid_t pid);
 int read_init_pid(const ctid_t ctid, pid_t *pid);
 int clear_init_pid(const ctid_t ctid);
+char *get_netns_path(struct vzctl_env_handle *h, char *buf, int size);
 #ifdef __cplusplus
 }
 #endif

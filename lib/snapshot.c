@@ -296,7 +296,8 @@ static int copy_snapshot_config(struct vzctl_env_handle *h, const char *from, co
 	return res;
 }
 
-int vzctl2_env_create_snapshot(struct vzctl_env_handle *h, struct vzctl_snapshot_param *param)
+int vzctl2_env_create_snapshot(struct vzctl_env_handle *h,
+		struct vzctl_snapshot_param *param)
 {
 	int ret, run = 0;
 	char guid[39];
@@ -343,7 +344,8 @@ int vzctl2_env_create_snapshot(struct vzctl_env_handle *h, struct vzctl_snapshot
 	// Store ve.conf
 	snprintf(fname, sizeof(fname), "%s/"VZCTL_VE_CONF, ve_private);
 	vzctl_get_snapshot_ve_conf(ve_private, guid, snap_ve_conf, sizeof(snap_ve_conf));
-	make_dir(snap_ve_conf, 0);
+	if (make_dir(snap_ve_conf, 0))
+		goto err1;
 	if (copy_snapshot_config(h, fname, snap_ve_conf))
 		goto err1;
 
@@ -353,27 +355,31 @@ int vzctl2_env_create_snapshot(struct vzctl_env_handle *h, struct vzctl_snapshot
 
 	/* 1 freeze */
 	if (run) {
-		/* TODO: implement stages for in criu */
-		int cmd = param->flags & VZCTL_SNAPSHOT_SKIP_DUMP ?
-				VZCTL_CMD_FREEZE : VZCTL_CMD_CHKPNT;
-		vzctl_get_snapshot_dumpfile(ve_private, guid, fname,
-				sizeof(fname));
-		cpt.dumpfile = fname;
-		ret = vzctl2_env_chkpnt(h, cmd, &cpt, 0);
+		ret = vzctl2_env_chkpnt(h, VZCTL_CMD_FREEZE, &cpt, 0);
 		if (ret)
 			goto err1;
 	}
 	/* 2 create snapshot with specified guid */
 	ret = vzctl2_env_create_disk_snapshot(h, guid);
 	if (ret)
-		goto err1;
+		goto err2;
 
 	/* 3 store dump & continue */
 	if (run) {
-		cpt.cmd = param->flags & VZCTL_SNAPSHOT_SKIP_DUMP ?
-				VZCTL_CMD_RESUME : VZCTL_CMD_RESTORE;
-		if (vzctl2_env_restore(h, &cpt, 0))
-			logger(-1, 0, "Failed to resume Container");
+		if (!(param->flags & VZCTL_SNAPSHOT_SKIP_DUMP)) {
+			vzctl_get_snapshot_dumpfile(ve_private, guid, fname,
+					sizeof(fname));
+			cpt.dumpfile = fname;
+
+			if (vzctl2_env_chkpnt(h, VZCTL_CMD_DUMP, &cpt, 0)) {
+				logger(-1, 0, "Failed to dump Container");
+				goto err2;
+			}
+		}
+		/* report error if resume failed */
+		if (vzctl2_env_chkpnt(h, VZCTL_CMD_RESUME, &cpt, 0))
+			ret = vzctl_err(VZCTL_E_CREATE_SNAPSHOT, 0,
+					"Failed to resume Container");
 	}
 	// move snapshot.xml to its place
 	GET_SNAPSHOT_XML(fname, ve_private);
@@ -384,18 +390,15 @@ int vzctl2_env_create_snapshot(struct vzctl_env_handle *h, struct vzctl_snapshot
 			guid);
 
 	vzctl_free_snapshot_tree(tree);
-	return 0;
+	return ret;
 
-#if 0
 err2:
 	// merge top_delta
 	vzctl2_delete_snapshot(h, guid);
 	if (run) {
-		cpt.cmd = param->flags & VZCTL_SNAPSHOT_SKIP_DUMP ?
-				VZCTL_CMD_RESUME : VZCTL_CMD_RESTORE;
-		vzctl2_env_restore(h, &cpt, 0);
+		if (vzctl2_env_chkpnt(h, VZCTL_CMD_RESUME, &cpt, 0))
+			vzctl_err(-1, 0, "Failed to resume Container");
 	}
-#endif
 
 err1:
 	unlink(tmp);
@@ -566,7 +569,7 @@ int vzctl2_env_switch_snapshot(struct vzctl_env_handle *h,
 		logger(-1, errno, "Failed to rename %s -> %s",
 					ve_conf_tmp, fname);
 
-	/* resume CT in case dump file exists (no rollback, ignore error) */
+	/* resume CT in case dump file exists (no rollback) */
 	vzctl_get_snapshot_dumpfile(ve_private, guid, dumpfile, sizeof(dumpfile));
 	if (!(param->flags & VZCTL_SNAPSHOT_SKIP_RESUME) && stat_file(dumpfile)) {
 		struct vzctl_cpt_param rst = {
@@ -574,7 +577,8 @@ int vzctl2_env_switch_snapshot(struct vzctl_env_handle *h,
 			.cmd = VZCTL_CMD_RESTORE,
 		};
 		if (vzctl2_env_restore(h_env_snap, &rst, 0))
-			logger(-1, 0, "Failed to resume Container");
+			ret = vzctl_err(VZCTL_E_SWITCH_SNAPSHOT, 0,
+					"Failed to resume Container");
 	}
 	GET_SNAPSHOT_XML(fname, ve_private);
 	if (rename(snap_xml_tmp, fname))
@@ -589,7 +593,7 @@ int vzctl2_env_switch_snapshot(struct vzctl_env_handle *h,
 			"to %s snapshot", guid);
 
 	vzctl_free_snapshot_tree(tree);
-	return 0;
+	return ret;
 
 err3:
 	/* rollback snapshot switch */
@@ -664,7 +668,7 @@ int vzctl2_env_delete_snapshot(struct vzctl_env_handle *h, const char *guid)
 	vzctl_get_snapshot_dumpfile(ve_private, guid, fname, sizeof(fname));
 	if (stat_file(fname)) {
 		logger(1, 0, "Deleting CT dump %s", fname);
-		if (unlink(fname))
+		if (destroydir(fname))
 			logger(-1, errno, "Failed to delete dump %s",
 					fname);
 	}

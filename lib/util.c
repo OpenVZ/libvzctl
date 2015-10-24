@@ -2590,3 +2590,10 @@ int clear_init_pid(const ctid_t ctid)
 
 	return 0;
 }
+
+char *get_netns_path(struct vzctl_env_handle *h, char *buf, int size)
+{
+	snprintf(buf, size, NETNS_RUN_DIR"/%s", h->ctid);
+
+	return buf;
+}

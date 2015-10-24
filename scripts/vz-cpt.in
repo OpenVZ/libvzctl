@@ -28,19 +28,21 @@
 exec 1>&2
 
 mkdir -p $VE_DUMP_DIR &&
-criu dump	--file-locks				\
+criu dump -vvvv -o dump.log				\
+		--file-locks				\
 		--tcp-established			\
 		--evasive-devices			\
 		--manage-cgroups			\
 		--link-remap				\
-		--root $VE_ROOT				\
 		--ext-mount-map auto			\
 		--enable-external-shari			\
 		--enable-external-maste			\
+		--root $VE_ROOT				\
+		--freeze-cgroup $VE_FREEZE_CG		\
 		-t $VE_PID				\
 		-D $VE_DUMP_DIR				\
-		-o dump.log				\
-		-vvvv
+		$CRIU_EXTRA_ARGS
+
 if [ $? -ne 0 ]; then
         [ -d $VE_DUMP_DIR.fail ] && rm -rf $VE_DUMP_DIR.fail
         mv -f $VE_DUMP_DIR $VE_DUMP_DIR.fail

@@ -44,7 +44,8 @@ int vzctl2_cpt_cmd(struct vzctl_env_handle *h, int action, int cmd,
                 struct vzctl_cpt_param *param, int flags);
 void get_dumpfile(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 		char *dumpfile, int size);
-
+int criu_cmd(struct vzctl_env_handle *h, int cmd,
+		struct vzctl_cpt_param *param, struct start_param *data);
 #ifdef __cplusplus
 }
 #endif

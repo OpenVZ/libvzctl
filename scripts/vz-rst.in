@@ -53,7 +53,8 @@ extra_args_path="$VE_DUMP_DIR/restore-extra-args"
 # Setup default log name if not explicitly specified
 [ -z "$VE_RESTORE_LOG_PATH" ] && VE_RESTORE_LOG_PATH="restore.log"
 
-criu restore	--file-locks				\
+criu restore -vvvv					\
+		--file-locks				\
 		--tcp-established			\
 		--evasive-devices			\
 		--manage-cgroups			\
@@ -67,7 +68,6 @@ criu restore	--file-locks				\
 		-D $VE_DUMP_DIR				\
 		-W $VE_WORK_DIR				\
 		-o $VE_RESTORE_LOG_PATH			\
-		-vvvv					\
 		--pidfile $VE_PIDFILE			\
 		$veth_args
 

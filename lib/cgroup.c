@@ -226,7 +226,7 @@ static void get_cgroup_name(const char *ctid, struct cg_ctl *ctl,
 		snprintf(out, size, "%s/%s", ctl->mount_path, ctid);
 }
 
-static int cg_get_path(const char *ctid, const char *subsys, const char *name,
+int cg_get_path(const char *ctid, const char *subsys, const char *name,
 		char *out, int size)
 {
 	int ret;
@@ -1030,10 +1030,12 @@ static int cg_set_freezer_state(const char *ctid, const char *state)
 
 int cg_freezer_cmd(const char *ctid, int cmd)
 {
-	if (cmd == VZCTL_CMD_RESUME)
+	if (cmd == VZCTL_CMD_RESUME) {
+		logger(0, 0, "\tresume");
 		return cg_set_freezer_state(ctid, "THAWED");
-	else if (cmd == VZCTL_CMD_FREEZE)
+	} else if (cmd == VZCTL_CMD_SUSPEND) {
+		logger(0, 0, "\tsuspend");
 		return cg_set_freezer_state(ctid, "FROZEN");
-
+	}
 	return vzctl_err(-1, 0, "Unsupported freezer command %d", cmd);
 }

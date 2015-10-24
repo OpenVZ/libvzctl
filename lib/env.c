@@ -1003,11 +1003,10 @@ int vzctl2_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 	if (!is_env_run(h))
 		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
 
-	logger(0, 0, "Setting up checkpoint...");
-	if (cmd == VZCTL_CMD_KILL || cmd == VZCTL_CMD_RESUME ||
-			cmd == VZCTL_CMD_SUSPEND)
+	if (cmd != VZCTL_CMD_CHKPNT) 
 		return vzctl2_cpt_cmd(h, VZCTL_CMD_CHKPNT, cmd, param, flags);
 
+	logger(0, 0, "Setting up checkpoint...");
 	get_env_ops()->env_get_veip(h, &ips);
 
 	if ((ret = get_env_ops()->env_chkpnt(h, cmd, param, flags)))
@@ -1075,7 +1074,7 @@ int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param
 		.wait_p = wait_p,
 	};
 
-	if (param->cmd == VZCTL_CMD_KILL || param->cmd == VZCTL_CMD_RESUME)
+	if (param->cmd != VZCTL_CMD_RESTORE)
 		return vzctl2_cpt_cmd(h, VZCTL_CMD_RESTORE, param->cmd, param, flags);
 
 	flags |= VZCTL_SKIP_CONFIGURE | VZCTL_RESTORE;

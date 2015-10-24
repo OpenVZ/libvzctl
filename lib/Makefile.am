@@ -21,6 +21,7 @@ libvzctl2_la_SOURCES =  bitmap.c \
 			cleanup.c \
 			config.c \
 			cpt.c \
+			cr_criu.c \
 			cpu.c \
 			create.c \
 			destroy.c \

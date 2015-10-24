@@ -110,6 +110,8 @@
 #define SYSTEMD_CTID_FMT	"ve-%s"
 #define SYSTEMD_CTID_SCOPE_FMT	SYSTEMD_CTID_FMT".scope"
 
+#define NETNS_RUN_DIR   "/var/run/netns"
+
 /* VE states */
 enum {
 	VZCTL_STATE_STARTING = 1,

@@ -57,8 +57,6 @@
 #include "iptables.h"
 #include "vzfeatures.h"
 
-#define NETNS_RUN_DIR	"/var/run/netns"
-
 int systemd_start_ve_scope(struct vzctl_env_handle *h, pid_t pid);
 int setup_venet(void);
 
@@ -81,13 +79,6 @@ static int sys_setns(int fd, int nstype)
 	return syscall(__NR_setns, fd, nstype);
 }
 #define setns sys_setns
-
-static char *get_netns_path(struct vzctl_env_handle *h, char *buf, int size)
-{
-	snprintf(buf, size, NETNS_RUN_DIR"/%s", h->ctid);
-
-	return buf;
-}
 
 int ns_open(void)
 {
@@ -1189,116 +1180,26 @@ static int get_feature(void)
 	return 0;
 }
 
-int ns_env_chkpnt(struct vzctl_env_handle *h, int cmd, struct vzctl_cpt_param *param, int flags)
+static int ns_env_chkpnt(struct vzctl_env_handle *h, int cmd,
+		struct vzctl_cpt_param *param, int flags)
 {
-	char script[PATH_MAX];
-	char dumpfile[PATH_MAX];
-	char buf[PATH_MAX];
-	char *arg[2];
-	char *env[4] = {};
-	int ret, i = 0;
-	pid_t pid;
-
-	if (cmd == VZCTL_CMD_FREEZE)
-		return vzctl2_cpt_cmd(h, -1, cmd, param, flags);
-
-	ret = cg_env_get_init_pid(h->ctid, &pid);
-	if (ret)
-		return ret;
-
-	arg[0] = get_script_path("vz-cpt", script, sizeof(script));
-	arg[1] = NULL;
-
-	snprintf(buf, sizeof(buf), "VE_ROOT=%s", h->env_param->fs->ve_root);
-	env[i++] = strdup(buf);
-	snprintf(buf, sizeof(buf), "VE_PID=%d", pid);
-	env[i++] = strdup(buf);
-	get_dumpfile(h, param, dumpfile, sizeof(dumpfile));
-	snprintf(buf, sizeof(buf), "VE_DUMP_DIR=%s", dumpfile);
-	env[i++] = strdup(buf);
-	env[i] = NULL;
-
-	logger(2, 0, "Store dump at %s", dumpfile);
-	ret = vzctl2_wrap_exec_script(arg, env, 0);
-	free_ar_str(env);
-	if (ret)
-		return VZCTL_E_CHKPNT;
-
-
-	get_init_pid_path(EID(h), buf);
-	unlink(buf);
-
-	return 0;
+	switch(cmd) {
+	case VZCTL_CMD_SUSPEND:
+	case VZCTL_CMD_RESUME:
+		return cg_freezer_cmd(EID(h), cmd);
+	default:
+		return criu_cmd(h, cmd, param, NULL);
+	}
 }
 
-static int restore_FN(struct vzctl_env_handle *h, struct start_param *start_param)
+static int restore_FN(struct vzctl_env_handle *h, struct start_param *data)
 {
-	struct vzctl_cpt_param *param = (struct vzctl_cpt_param *) start_param->data;
-	char nspath[STR_SIZE];
-	char script[PATH_MAX];
-	char buf[PATH_MAX];
-	char dumpfile[PATH_LEN];
-	char pidfile[PATH_MAX];
-	char *arg[2];
-	char *env[9];
-	struct vzctl_veth_dev *veth;
-	int ret, i = 0;
-	char *pbuf, *ep;
+	int ret;
+	struct vzctl_cpt_param *cpt = (struct vzctl_cpt_param *)data->data;
 
-	if (param->cmd == VZCTL_CMD_RESTORE || param->cmd == VZCTL_CMD_UNDUMP) {
-		get_dumpfile(h, param, dumpfile, sizeof(dumpfile));
-		logger(3, 0, "Open the dump file %s", dumpfile);
-	} else {
-		return vzctl_err(VZCTL_E_RESTORE, 0,
-				"Unimplemented restorec ommand %d", param->cmd);
-	}
-	get_init_pid_path(h->ctid, pidfile);
+	ret = criu_cmd(h, VZCTL_CMD_RESTORE, cpt, data);
 
-	arg[0] = get_script_path("vz-rst", script, sizeof(script));
-	arg[1] = NULL;
-
-	snprintf(buf, sizeof(buf), "VE_ROOT=%s", h->env_param->fs->ve_root);
-	env[i++] = strdup(buf);
-	snprintf(buf, sizeof(buf), "VE_DUMP_DIR=%s", dumpfile);
-	env[i++] = strdup(buf);
-	snprintf(buf, sizeof(buf), "VE_PIDFILE=%s", pidfile);
-	env[i++] = strdup(buf);
-	snprintf(buf, sizeof(buf), "VZCTL_PID=%d", getpid());
-	env[i++] = strdup(buf);
-	snprintf(buf, sizeof(buf), "STATUSFD=%d", start_param->status_p[1]);
-	env[i++] = strdup(buf);
-	snprintf(buf, sizeof(buf), "WAITFD=%d", start_param->wait_p[0]);
-	env[i++] = strdup(buf);
-	get_netns_path(h, nspath, sizeof(nspath));
-	snprintf(buf, sizeof(buf), "VE_NETNS_FILE=%s", nspath);
-	env[i++] = strdup(buf);
-
-	if (is_vz_kernel()) {
-		snprintf(buf, sizeof(buf), "VEID=%s", h->ctid);
-		env[i++] = strdup(buf);
-	}
-
-	pbuf = buf;
-	ep = buf + sizeof(buf);
-	pbuf += snprintf(buf, sizeof(buf), "VE_VETH_DEVS=");
-	list_for_each(veth, &h->env_param->veth->dev_list, list) {
-		pbuf += snprintf(pbuf, ep - pbuf,
-				"%s=%s\n", veth->dev_name_ve, veth->dev_name);
-		if (pbuf > ep) {
-			env[i] = NULL;
-			free_ar_str(env);
-			return vzctl_err(VZCTL_E_INVAL, 0, "restore_FN: buffer overflow");
-		}
-	}
-	env[i++] = strdup(buf);
-	env[i] = NULL;
-
-	ret = vzctl2_wrap_exec_script(arg, env, 0);
-	free_ar_str(env);
-	if (ret)
-		ret = VZCTL_E_RESTORE;
-
-	if (write(start_param->err_p[1], &ret, sizeof(ret)) == -1)
+	if (write(data->err_p[1], &ret, sizeof(ret)) == -1)
 		vzctl_err(-1, errno, "Failed to write to the error pipe");
 
 	return ret;
@@ -1316,10 +1217,12 @@ int ns_env_restore(struct vzctl_env_handle *h, struct start_param *start_param,
 static int ns_env_cpt_cmd(struct vzctl_env_handle *h, int action, int cmd,
                 struct vzctl_cpt_param *param, int flags)
 {
-	if (cmd == VZCTL_CMD_KILL)
+	switch (cmd) {
+	case VZCTL_CMD_KILL:
 		return ns_env_stop_force(h);
-
-	return cg_freezer_cmd(EID(h), cmd);
+	default:
+		return ns_env_chkpnt(h, cmd, param, flags);
+	}
 }
 
 static int ns_env_get_cpt_state(struct vzctl_env_handle *h, int *state)
