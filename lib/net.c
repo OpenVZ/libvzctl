@@ -499,10 +499,8 @@ static int add_ip(struct vzctl_env_handle *h, struct vzctl_env_param *env, int f
 		goto err_hn;
 
 	/* Setup inside Container */
-	if (!(flags & VZCTL_SKIP_CONFIGURE)) {
-		if ((ret = env_ip_configure(h, VZCTL_IP_ADD_CMD, &ipadd, delall, flags)))
-			goto err_hn;
-	}
+	if ((ret = env_ip_configure(h, VZCTL_IP_ADD_CMD, &ipadd, delall, flags)))
+		goto err_hn;
 
 out:
 	free_ip(&ipadd);

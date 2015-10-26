@@ -436,7 +436,7 @@ int env_ip_configure(struct vzctl_env_handle *h, int cmd,
 	int ret, i = 0;
 	char state_str[32];
 
-	if (flags & VZCTL_SKIP_CONFIGURE)
+	if (flags & (VZCTL_SKIP_CONFIGURE | VZCTL_RESTORE))
 		return 0;
 
 	if (list_empty(ip) && !delall)
