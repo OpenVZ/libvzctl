@@ -492,6 +492,9 @@ char *disk2str(struct vzctl_env_handle *h, struct vzctl_env_disk *env_disk)
 	ep = sp + sizeof(buf) -1;
 
 	list_for_each(it, &env_disk->disks, list) {
+		if (strcmp(it->uuid, DISK_ROOT_UUID) == 0)
+			continue;
+
 		assert(it->uuid[0]);
 		sp += snprintf(sp, ep - sp, "uuid=%s,", it->uuid);
 		if (sp >= ep)
