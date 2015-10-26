@@ -1388,6 +1388,9 @@ static int ns_veth_ctl(struct vzctl_env_handle *h, int op,
 {
 	int ret;
 
+	if (flags & VZCTL_RESTORE)
+		return 0;
+
 	ret = veth_ctl(h, op, dev, flags);
 	if (ret)
 		return ret;
