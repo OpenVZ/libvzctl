@@ -1210,20 +1210,27 @@ int vzctl2_del_disk(struct vzctl_env_handle *h, const char *guid, int flags)
 int vzctl2_resize_disk(struct vzctl_env_handle *h, const char *guid,
 		unsigned long size, int offline)
 {
-	int ret;
+	int ret, root;
 	struct vzctl_disk *d;
+	pid_t pid;
 
 	d = find_disk(h->env_param->disk, guid);
 	if (d == NULL)
 		return vzctl_err(VZCTL_E_INVAL, 0,
 				"Unable to configure the disk with uuid %s: no such disk",
 				guid);
+	root = is_root_disk(d);
+	if (!root && is_env_run(h)) {
+		ret = cg_env_get_init_pid(EID(h), &pid);
+		if (ret)
+			return ret;
+	}
 
-	ret = vzctl2_resize_disk_image(d->path, size, offline);
+	ret = resize_disk_image(d->path, size, offline, pid);
 	if (ret)
 		return ret;
 
-	if (is_root_disk(d)) {
+	if (root) {
 		char s[64];
 
 		snprintf(s, sizeof(s), "%lu:%lu", size, size);

@@ -260,13 +260,15 @@ int vzctl2_convert_image(const char *ve_private, int mode)
 	return 0;
 }
 
-int vzctl2_resize_disk_image(const char *path, unsigned long long newsize, int offline)
+int resize_disk_image(const char *path, unsigned long long newsize, 
+		int offline, pid_t mntns_pid)
 {
 	int ret;
 	char dev[64];
 	struct ploop_disk_images_data *di;
 	struct ploop_resize_param param = {
 		.offline_resize = offline,
+		.mntns_pid = mntns_pid,
 	};
 
 	if (path == NULL)
@@ -304,6 +306,12 @@ int vzctl2_resize_disk_image(const char *path, unsigned long long newsize, int o
 err:
 	ploop_close_dd(di);
 	return ret;
+}
+
+int vzctl2_resize_disk_image(const char *path, unsigned long long newsize,
+		int offline)
+{
+	return resize_disk_image(path, newsize, offline, 0);
 }
 
 int vzctl2_resize_image(const char *ve_private, unsigned long long newsize, int offline)
