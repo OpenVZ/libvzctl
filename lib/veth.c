@@ -575,7 +575,7 @@ static int env_veth_configure(struct vzctl_env_handle *h, int add,
 	const char *script;
 	int ipv6 = 0;
 
-	if (flags & VZCTL_SKIP_CONFIGURE)
+	if (flags & (VZCTL_SKIP_CONFIGURE | VZCTL_RESTORE))
 		return 0;
 
 	if ((ret = read_dist_actions(h)))
