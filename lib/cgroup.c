@@ -1031,10 +1031,10 @@ static int cg_set_freezer_state(const char *ctid, const char *state)
 int cg_freezer_cmd(const char *ctid, int cmd)
 {
 	if (cmd == VZCTL_CMD_RESUME) {
-		logger(0, 0, "\tresume");
+		logger(0, 0, "\tunfreeze");
 		return cg_set_freezer_state(ctid, "THAWED");
 	} else if (cmd == VZCTL_CMD_SUSPEND) {
-		logger(0, 0, "\tsuspend");
+		logger(0, 0, "\tfreeze");
 		return cg_set_freezer_state(ctid, "FROZEN");
 	}
 	return vzctl_err(-1, 0, "Unsupported freezer command %d", cmd);
