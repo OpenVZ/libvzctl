@@ -30,19 +30,21 @@ if [ -z "$CRTOOLS_SCRIPT_ACTION" ]; then
 	exit 1
 fi
 
-[ "$CRTOOLS_SCRIPT_ACTION" = "setup-namespaces" ] || exit 0
-
 set -e
+case "$CRTOOLS_SCRIPT_ACTION" in
+"setup-namespaces")
+	pid=$(cat $VE_PIDFILE)
+	ln -s /proc/$pid/ns/net $VE_NETNS_FILE
 
-pid=$(cat $VE_PIDFILE)
-ln -s /proc/$pid/ns/net $VE_NETNS_FILE
+	if [ -n "$VEID" ]; then
+		cgset -r ve.state="START $pid" $VEID || exit
+	fi
+	;;
+"network-unlock")
+	ret=0
+	[ -n "$STATUSFD" ] && printf '\0\0\0\0' >&${STATUSFD}
+	[ -n "$WAITFD" ] && ret=$(cat <&$WAITFD | hexdump -e '"%d"' -n 4)
 
-if [ -n "$VEID" ]; then
-	cgset -r ve.state="START $pid" $VEID || exit
-fi
-
-ret=0
-[ -n "$STATUSFD" ] && printf '\0\0\0\0' >&${STATUSFD}
-[ -n "$WAITFD" ] && ret=$(cat <&$WAITFD | hexdump -e '"%d"' -n 4)
-
-[ "$ret" -eq "0" ]
+	[ "$ret" -eq "0" ]
+	;;
+esac
