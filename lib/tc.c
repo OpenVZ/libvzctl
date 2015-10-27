@@ -192,7 +192,8 @@ int tc_get_base(struct vzctl_env_handle *h, int *tc_base)
 	return 0;
 }
 
-static int vzctl_set_tc_param(struct vzctl_env_handle *h, struct vzctl_tc_param *tc, int flags)
+int vzctl2_set_tc_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
+		int flags)
 {
 	char buf[STR_MAX];
 	char *argv[3];
@@ -204,12 +205,10 @@ static int vzctl_set_tc_param(struct vzctl_env_handle *h, struct vzctl_tc_param 
 	const char *totalrate = NULL;
 	const char *ratempu = NULL;
 	int ratebound;
+	struct vzctl_tc_param *tc = env->vz->tc;
 	list_head_t *rate = !list_empty(&tc->rate_list) ? &tc->rate_list :
 		&h->env_param->vz->tc->rate_list;
 
-	if (!is_env_run(h))
-		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0,
-			"Unable to setup traffic shaping, Container is not running");
 	vzctl2_env_get_param(h, "BANDWIDTH", &bandwidth);
 	if (bandwidth == NULL)
 		return vzctl_err(VZCTL_E_SET_RATE, 0, "BANDWIDTH is not set");
@@ -271,5 +270,9 @@ int vzctl_apply_tc_param(struct vzctl_env_handle *h,
 	if (!tc->ratebound && list_empty(&tc->rate_list))
 		return 0;
 
-	return vzctl_set_tc_param(h, tc, flags);
+	if (!is_env_run(h))
+		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0,
+			"Unable to setup traffic shaping, Container is not running");
+
+	return vzctl2_set_tc_param(h, env, flags);
 }
