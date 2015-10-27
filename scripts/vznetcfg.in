@@ -62,6 +62,8 @@ addif()
 		echo "Unable to attach $iface to bridge $br/$2"
 		exit 1
 	fi
+
+	ip l s dev $iface up
 }
 
 delif()
