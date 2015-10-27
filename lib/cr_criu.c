@@ -178,7 +178,6 @@ int criu_cmd(struct vzctl_env_handle *h, int cmd,
 	switch (cmd) {
 	/* cpt */
 	case VZCTL_CMD_CHKPNT:
-	        logger(0, 0, "Setting up checkpoint...");
 		return chkpnt(h, cmd, param);
 	case VZCTL_CMD_DUMP:
 		logger(0, 0, "\tdump");
