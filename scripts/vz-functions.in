@@ -51,9 +51,10 @@ TC_CMD=tc
 IP_CMD=ip
 MAX_FORKS=100
 ARPING_CMD="/sbin/arping"
-ARPING_ARGS="-c 1 -w 1 -q"
+ARPING_ARGS="-c 1 -q"
 NDSEND_CMD="/usr/sbin/ndsend"
 OVSCTL_CMD="/usr/bin/ovs-vsctl"
+VZ_ARP_ANNOUNCE_LOCK="/var/lock/vz_tc_classes.lock"
 
 # interfaces parameters
 ALLOT="allot 3028"
@@ -345,7 +346,7 @@ function vzarpipdetect()
 			fi
 		done
 	done
-	parallel_execution "! ${ARPING_CMD} ${ARPING_ARGS} -I" ipv4_pairs[@]
+	parallel_execution "! ${ARPING_CMD} ${ARPING_ARGS} -w 1 -I" ipv4_pairs[@]
 }
 
 # Send ARP request to update neighbour ARP caches
@@ -380,8 +381,12 @@ function vzarpipset()
 	# ip_nonlocal_bind option allows host to announce arbitrary IP address
 	# so we enable it globally to prevent arping error
 	# (bind: cannot assign requested address)
+	lockfile ${VZ_ARP_ANNOUNCE_LOCK}
+	nonlocal_bind_prev=$(cat /proc/sys/net/ipv4/ip_nonlocal_bind)
 	echo "1" > /proc/sys/net/ipv4/ip_nonlocal_bind
 	parallel_execution "${ARPING_CMD} ${ARPING_ARGS} -A -I" ipv4_pairs[@]
+	echo "${nonlocal_bind_prev}" > /proc/sys/net/ipv4/ip_nonlocal_bind
+	rm -rf ${VZ_ARP_ANNOUNCE_LOCK} > /dev/null 2>&1
 	parallel_execution "${NDSEND_CMD}" ipv6_pairs[@]
 }
 
