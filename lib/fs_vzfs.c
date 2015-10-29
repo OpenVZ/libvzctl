@@ -43,12 +43,6 @@
 
 const char *vz_fs_get_name(const char *mnt)
 {
-	struct statfs fs;
-
-	if (statfs(mnt, &fs))
-		return NULL;
-	if (fs.f_type == VZFS_SUPER_MAGIC)
-		return "vzfs";
 	return "simfs";
 }
 
@@ -64,29 +58,23 @@ int real_mount(const struct vzctl_fs_param *fs, const char *dst, int remount)
 		mntopt |= MS_REMOUNT;
 
 	fstype = vzctl2_veformat2fs(vzctl2_get_veformat(fs->ve_private));
-	if (!strcmp(fstype, "vzfs"))
-		snprintf(buf, sizeof(buf), "%s:%s", fs->tmpl, fs->ve_private_fs);
-	else
-		snprintf(buf, sizeof(buf), "%s/root", fs->ve_private_fs);
+	if (fstype == NULL)
+		return vzctl_err(VZCTL_E_MOUNT, 0, "Unable to mount Container:"
+			" unsupported file system");
 
-	logger(2, 0,  "Mounting root: %s %s", buf, dst);
-	if (mount(buf, dst, fstype, mntopt, remount ? "" : buf)) {
-		if (errno == ENODEV)
-			return vzctl_err(VZCTL_E_MOUNT, errno,
-				"Kernel lacks vzfs support. Please "
-				"compile it in, or load vzfs module.");
+	snprintf(buf, sizeof(buf), "%s/root", fs->ve_private_fs);
+
+	logger(2, 0,  "Mounting root: %s %s %s", buf, dst, fstype);
+	if (mount(buf, dst, fstype, mntopt, buf))
 		return vzctl_err(VZCTL_E_MOUNT, errno,
-			"Cannot mount: %s %s", buf, dst);
-	}
+				"Cannot mount: %s %s", buf, dst);
+
 	return 0;
 }
 
 const char *vzctl2_veformat2fs(int format)
 {
-	if (format == VZ_T_SIMFS)
-		return "simfs";
-	else
-		return "vzfs";
+	return format == VZ_T_SIMFS ? "simfs" : NULL;
 }
 
 #define VZFS_VER	"VERSION"
@@ -124,7 +112,7 @@ int vzctl2_get_vzfs_ver(const char *ve_private)
 	case 3:
 		return VZ_T_VZFS3;
 	case 0:
-		return VZ_T_VZFS0;
+		return VZ_T_SIMFS;
 	}
 	return -1;
 }
@@ -135,10 +123,6 @@ int vzctl2_get_veformat(const char *ve_private)
 	char fs[4096];
 
 	ver = vzctl2_env_layout_version(ve_private);
-
-	if (ver == VZCTL_LAYOUT_5)
-		return VZ_T_SIMFS;
-
 	snprintf(fs, sizeof(fs), "%s%s", ve_private,
 			ver >= VZCTL_LAYOUT_4 ? VZCTL_VE_FS_DIR : "");
 
