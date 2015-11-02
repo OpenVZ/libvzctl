@@ -988,7 +988,10 @@ static int ns_env_stop_force(struct vzctl_env_handle *h)
 	if (ret || rc)
 		return ret ?: rc;
 
-	return wait_env_state(h, VZCTL_ENV_STOPPED, MAX_SHTD_TM);
+	if (wait_env_state(h, VZCTL_ENV_STOPPED, MAX_SHTD_TM))
+		return vzctl_err(-1, 0, "Failed to stop Container:"
+				" operation timed out");
+	return 0;
 }
 
 static int ns_env_cleanup(struct vzctl_env_handle *h)
