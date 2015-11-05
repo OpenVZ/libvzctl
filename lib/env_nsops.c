@@ -453,11 +453,11 @@ static int set_features(struct vzctl_env_handle *h,
 	known |= t;
 	if (known) {
 		unsigned long long m;
-	
+
 		ret = cg_get_ull(EID(h), CG_VE, "ve.features", &m);
 		if (ret)
 			return ret;
-		m &= ~known; 
+		m &= ~known;
 		m |= (known & mask);
 		logger(3, 0, "Set features mask: %LX", m);
 		ret = cg_set_ull(EID(h), CG_VE, "ve.features", m);
@@ -887,13 +887,13 @@ static int ns_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
 		pid2 = fork();
 		if (pid2 < 0) {
 			ret = vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
-			goto err;		
+			goto err;
 		} else if (pid2 == 0) {
 			if (setsid() == -1) {
 				ret = vzctl_err(VZCTL_E_RESOURCE, errno, "setsid");
 				_exit(ret);
 			}
-				
+
 			ret = real_env_exec(h, param, flags);
 
 			_exit(ret);
@@ -988,7 +988,10 @@ static int ns_env_stop_force(struct vzctl_env_handle *h)
 	if (ret || rc)
 		return ret ?: rc;
 
-	return wait_env_state(h, VZCTL_ENV_STOPPED, MAX_SHTD_TM);
+	if (wait_env_state(h, VZCTL_ENV_STOPPED, MAX_SHTD_TM))
+		return vzctl_err(-1, 0, "Failed to stop Container:"
+				" operation timed out");
+	return 0;
 }
 
 static int ns_env_cleanup(struct vzctl_env_handle *h)
@@ -1154,7 +1157,7 @@ static int ns_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param
 		ret = vzctl_env_configure(h, env, flags);
 		if (ret)
 			return ret;
-	
+
 		if (h->state == VZCTL_STATE_STARTING) {
 			ret = env_console_configure(h, flags);
 			if (ret)
@@ -1248,7 +1251,7 @@ static int ns_ip_ctl(struct vzctl_env_handle *h, int op, const char *ip, int fla
 	case VE_IP_ADD:
 		return cg_add_veip(EID(h), ip);
 	case VE_IP_DEL:
-		return cg_del_veip(EID(h), ip);	
+		return cg_del_veip(EID(h), ip);
 	default:
 		return vz_ip_ctl(h, op, ip, flags);
 	}
@@ -1324,7 +1327,7 @@ static int veth_configure(struct vzctl_env_handle *h,
 	}
 
 	if (veth->mac_filter && set_mac_filter(h, veth))
-		goto err;	
+		goto err;
 
 	ret = 0;
 

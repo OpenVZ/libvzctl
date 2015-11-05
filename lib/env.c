@@ -802,6 +802,8 @@ int exec_init(struct start_param *param)
 	if (env == NULL)
 		return VZCTL_E_NOMEM;
 
+	setsid();
+
 	execve("/sbin/init", argv, env);
 	execve("/etc/init", argv, env);
 	execve("/bin/init", argv, env);
