@@ -197,7 +197,9 @@ int wait_env_state(struct vzctl_env_handle *h, int state, unsigned int timeout)
 		}
 		usleep(500000);
 	}
-	return -1;
+
+	return vzctl_err(-1, 0, "Wait CT state %s timed out",
+			state == VZCTL_ENV_STARTED ? "started" : "stopped");
 }
 
 static int do_env_stop(struct vzctl_env_handle *h, int stop_mode)
