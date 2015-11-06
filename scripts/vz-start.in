@@ -65,7 +65,7 @@ load_modules()
 		if /sbin/lsmod | grep -qw $mod; then
 			continue
 		fi
-		msg=`/sbin/modprobe $mod >/dev/null 2>&1`
+		msg=`/sbin/modprobe $mod 2>&1 >/dev/null`
 		[ $? -ne 0 ] && echo "Warning: failed to load $mod: $msg" 1>&2
 	done
 }
