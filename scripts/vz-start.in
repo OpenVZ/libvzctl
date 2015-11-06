@@ -35,7 +35,7 @@ load_modules()
 	local mod msg modules devnodes features
 
 	eval $(. /etc/vz/conf/${VEID}.conf && \
-		echo devnodes=\"$DEVNODES\" features=\"$FEATURES\")
+		echo devnodes=\"$DEVNODES\" features=\"$FEATURES\" veth==\"NETIF\")
 
 	# process tun/tap
 	if echo $devnodes | grep -Fq 'net/tun:'; then
@@ -47,9 +47,11 @@ load_modules()
 		modules="$modules ppp_generic"
 	fi
 
-	# process bridge
+	# process veth, bridge
 	if echo $features | grep -Fwq 'bridge:on'; then
 		modules="$modules veth bridge"
+	elif [ -n "$veth" ]; then
+		modules="$modules veth"
 	fi
 
 	# process nfs and nfsd
