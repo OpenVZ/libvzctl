@@ -621,41 +621,22 @@ int cg_env_get_init_pid(const char *ctid, pid_t *pid)
 	return 0;
 }
 
-int cg_env_get_first_pid(const char *ctid, pid_t *pid)
+int cg_env_get_ve_state(const char *ctid)
 {
 	int ret;
-	char buf[4096];
+	char buf[64] = "";
 	char path[PATH_MAX];
-	unsigned long value;
-	char *p;
 
-	ret = cg_get_path(ctid, CG_VE, "tasks", path, sizeof(path));
+	ret = cg_get_path(ctid, CG_VE, "ve.state", path, sizeof(path));
 	if (ret)
 		return ret;
 
-	if (stat_file(path) == 0) {
-		*pid = 0;
+	if (access(path, F_OK))
 		return 0;
-	}
 
-	ret = cg_read(path, buf, sizeof(buf));
-	if (ret)
-		return ret;
+	cg_read(path, buf, sizeof(buf));
 
-	p = strchr(buf, '\n');
-	if (p != NULL)
-		*p = '\0';
-
-	if (*buf == '\0') {
-		value = 0;
-	} else {
-		ret = parse_ul(buf, &value);
-		if (ret)
-			return vzctl_err(-1, 0, "Unable to parse pid <%s>", buf);
-	}
-	*pid = (pid_t)value;
-
-	return 0;
+	return strcmp(buf, "STOPPED") != 0;
 }
 
 int cg_env_get_pids(const char *ctid, list_head_t *list)

@@ -560,8 +560,6 @@ int vzctl2_env_switch_snapshot(struct vzctl_env_handle *h,
 		ret = vzctl2_cpt_cmd(h, VZCTL_CMD_CHKPNT, VZCTL_CMD_KILL, &cpt, 0);
 		if (ret)
 			goto err3;
-		/* workaround for #PSBM-40986 */
-		wait_env_state(h, VZCTL_ENV_STOPPED, MAX_SHTD_TM);
 		if (vzctl2_env_umount(h, 0))
 			goto err3;
 	}

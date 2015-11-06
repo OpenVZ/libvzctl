@@ -72,7 +72,7 @@ int cg_env_set_iopslimit(const char *ctid, unsigned int speed,
 		unsigned int burst, unsigned int latency);
 int cg_env_set_net_classid(const char *ctid, unsigned int classid);
 int cg_env_get_init_pid(const char *ctid, pid_t *pid);
-int cg_env_get_first_pid(const char *ctid, pid_t *pid);
+int cg_env_get_ve_state(const char *ctid);
 int cg_env_get_pids(const char *ctid, list_head_t *list);
 int cg_get_legacy_veid(const char *ctid, unsigned long *value);
 int cg_add_veip(const char *ctid, const char *ip);

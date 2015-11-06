@@ -777,14 +777,7 @@ err:
 
 static int ns_is_env_run(struct vzctl_env_handle *h)
 {
-	int ret;
-	pid_t pid;
-
-	ret = cg_env_get_first_pid(h->ctid, &pid);
-	if (ret)
-		return ret;
-
-	return pid != 0 ? 1 : 0;
+	return cg_env_get_ve_state(EID(h));
 }
 
 int set_ns(pid_t pid, const char *name, int flags)
