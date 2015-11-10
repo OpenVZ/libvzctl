@@ -897,6 +897,11 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 			goto err_pipe;
 	}
 
+	if (!(flags & VZCTL_SKIP_SETUP)) {
+		if ((ret = run_start_script(h)))
+			goto err_pipe;
+	}
+
 	fix_numiptent(env->res->ub);
 	fix_cpu_param(env->cpu);
 
@@ -909,9 +914,6 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 	close(err_p[1]); err_p[1] = -1;
 
 	if (!(flags & VZCTL_SKIP_SETUP)) {
-		if ((ret = run_start_script(h)))
-			goto err;
-
 		ret = vzctl2_apply_param(h, env, flags);
 		if (ret)
 			goto err;
@@ -1115,6 +1117,11 @@ int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param
 			goto err_pipe;
 	}
 
+	if (!(flags & VZCTL_SKIP_SETUP)) {
+		if ((ret = run_start_script(h)))
+			goto err_pipe;
+	}
+
 	fix_numiptent(env->res->ub);
 	fix_cpu_param(env->cpu);
 
@@ -1127,9 +1134,6 @@ int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param
 	close(err_p[1]); err_p[1] = -1;
 
 	if (!(flags & VZCTL_SKIP_SETUP)) {
-		if ((ret = run_start_script(h)))
-			goto err;
-
 		ret = vzctl2_apply_param(h, env, flags);
 		if (ret)
 			goto err;
