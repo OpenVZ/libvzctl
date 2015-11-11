@@ -246,11 +246,22 @@ err:
 	return ret ? VZCTL_E_INSTALL_APPS : 0;
 }
 
+static const char *get_full_ostmpl(const char *ostmpl, char *out, int size)
+{
+	if (strstr(ostmpl, "-x86") == NULL)
+		snprintf(out, size, "%s-x86_64", ostmpl);
+	else
+		snprintf(out, size, "%s", ostmpl);
+
+	return out;
+}
+
 static int vztmpl_get_appcache_tarball(const char *cache_config, const char *ostmpl,
 		const char *fstype, list_head_t *applist, char *tarball, int len)
 {
 	FILE *fp;
 	char buf[4096];
+	char f_ostmpl[STR_SIZE];
 	char *arg[10];
 	int ret = 0, i = 0;
 
@@ -263,7 +274,7 @@ static int vztmpl_get_appcache_tarball(const char *cache_config, const char *ost
 		arg[i++] = (char *)cache_config;
 	}
 	arg[i++] = "--ostemplate";
-	arg[i++] = (char *)ostmpl;
+	arg[i++] = (char *)get_full_ostmpl(ostmpl, f_ostmpl, sizeof(f_ostmpl));
 	if (fstype != NULL) {
 		arg[i++] = "--vefstype";
 		arg[i++] = (char *)fstype;
