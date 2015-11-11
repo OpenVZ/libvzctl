@@ -486,7 +486,9 @@ static int setup_env_cgroup(struct vzctl_env_handle *h, struct vzctl_env_param *
 static int init_env_cgroup(struct vzctl_env_handle *h)
 {
 	int ret, i;
+	struct stat st;
 	char buf[4096];
+	char root_dev_perm[STR_SIZE];
 	const char *devices[] = {
 		"c *:* m",		/* anyone can mknod for char devices */
 		"b *:* m",		/* same for block devices */
@@ -505,6 +507,7 @@ static int init_env_cgroup(struct vzctl_env_handle *h)
 		"c 1:9 rmw",		/* urandom */
 		"c 1:11 mw",		/* kmsg */
 		"c 10:200 rmw",		/* tun */
+		root_dev_perm,
 	};
 	char *cpu[] = {
 		"cpuset.cpus",
@@ -516,6 +519,13 @@ static int init_env_cgroup(struct vzctl_env_handle *h)
 	};
 
 	logger(10, 0, "* init Container cgroup");
+
+	if (stat(h->env_param->fs->ve_root, &st))
+		return vzctl_err(-1, errno, "SDabbot stat %s",
+				h->env_param->fs->ve_root);
+
+	snprintf(root_dev_perm, sizeof(root_dev_perm), "b %d:%d rm",
+			gnu_dev_major(st.st_dev), gnu_dev_minor(st.st_dev));
 
 	if (cg_set_veid(EID(h), h->veid) == -1)
 		return vzctl_err(VZCTL_E_RESOURCE, 0,
@@ -554,6 +564,7 @@ static int init_env_cgroup(struct vzctl_env_handle *h)
 		if (ret)
 			return vzctl_err(-1, 0, "Failed to set %s", devices[i]);
 	}
+
 
 	return setup_env_cgroup(h, h->env_param);
 }
