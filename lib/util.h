@@ -38,6 +38,11 @@
 #include "list.h"
 #include "logger.h"
 
+enum {
+	CLOSE_STDOUT    = 0x1,
+	CLOSE_STDERR    = 0x2,
+};
+
 struct vzctl_idstr_pair {
 	int id;
 	char *str;

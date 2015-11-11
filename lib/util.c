@@ -2353,7 +2353,7 @@ int configure_sysctl(const char *var, const char *val)
 
 static __thread pid_t vzpopen_pid;
 
-FILE *vzctl_popen(char *argv[], char *env[], int quiet)
+FILE *vzctl_popen(char *argv[], char *env[], int close_std)
 {
 	int fd, i, j;
 	char *cmd = NULL;
@@ -2384,20 +2384,22 @@ FILE *vzctl_popen(char *argv[], char *env[], int quiet)
 	envp[i] = NULL;
 	if ((vzpopen_pid = fork()) == 0) {
 		fd = open("/dev/null", O_WRONLY);
-		if (fd != -1) { 
-			dup2(fd, STDIN_FILENO);
-			if (quiet) {
-				dup2(fd, STDOUT_FILENO);
-				dup2(fd, STDERR_FILENO);
-			}
-			close(fd);
+		if (fd == -1) {
+			vzctl_err(-1, errno, "Failed to open /dev/null");
+			_exit(1);
 		}
-
-		if (!quiet) {
+		dup2(fd, STDIN_FILENO);
+		if (close_std & CLOSE_STDOUT)
+			dup2(fd, STDOUT_FILENO);
+		else
 			dup2(out[1], STDOUT_FILENO);
-			dup2(out[1], STDERR_FILENO);
-		}
 
+		if (close_std & CLOSE_STDERR)
+			dup2(fd, STDERR_FILENO);
+		else
+			dup2(out[1], STDERR_FILENO);
+
+		close(fd);
 		close(out[0]);
 		close(out[1]);
 		execve(argv[0], argv, envp);
