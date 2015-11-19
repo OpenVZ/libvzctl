@@ -1385,7 +1385,7 @@ int vzctl2_env_get_disk_stats(struct vzctl_env_handle *h, const char *uuid,
 	if (ret)
 		return ret;
 
-	memcpy(stats, &st, size);
+	memcpy(stats, &st, sizeof(st));
 
 	mnt_len = size - sizeof(struct vzctl_disk_stats);
 	if (stats->device[0] != '\0' && mnt_len > 1)
