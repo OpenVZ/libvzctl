@@ -200,16 +200,13 @@ static int parse_conf_data(struct vzctl_config *conf, const char *fname, int fla
 	char ltoken[4096];
 	char buf[4096 * 10];
 
-	if (!stat_file(fname)) {
-		if (flags & VZCTL_CONF_SKIP_NON_EXISTS)
+	if ((fp = fopen(fname, "r")) == NULL) {
+		if (errno == ENOENT && (flags & VZCTL_CONF_SKIP_NON_EXISTS))
 			return 0;
-		return vzctl_err(VZCTL_E_CONFIG, 0,
-			"Container configuration file '%s' does not exist",
-					fname);
+
+		return vzctl_err(VZCTL_E_CONFIG, errno, "Unable to open %s",
+				fname);
 	}
-	if ((fp = fopen(fname, "r")) == NULL)
-		return vzctl_err(VZCTL_E_CONFIG, errno,
-			"Unable to open %s", fname);
 	debug(DBG_CFG, "parse_conf_data: %s", fname);
 	while (fgets(buf, sizeof(buf), fp) != NULL) {
 		line++;

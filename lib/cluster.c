@@ -160,7 +160,8 @@ int is_shared_fs(const char *path)
 	struct statfs st;
 
 	if (statfs(path, &st)) {
-		logger(-1, errno, "statfs '%s'", path);
+		if (errno != ENOENT)
+			logger(-1, errno, "statfs '%s'", path);
 		return -1;
 	}
 	return (st.f_type == GFS2_MAGIC ||

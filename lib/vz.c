@@ -419,13 +419,10 @@ int vzctl2_get_env_status_info(struct vzctl_env_handle *h,
 
 	vzctl2_get_env_conf_path(EID(h), path, sizeof(path));
 	if (stat_file(path) == 1) {
-		/* get exists state */
-		if (stat_file(ve_private) == 1) {
-			if (mask & ENV_SKIP_OWNER)
-				exists = 1;
-			else if (vzctl2_check_owner(ve_private) == 0)
-				exists = 1;
-		}
+		if (mask & ENV_SKIP_OWNER)
+			exists = 1;
+		else if (vzctl2_check_owner(ve_private) == 0)
+			exists = 1;
 	}
 
 	if ((mask & ENV_STATUS_EXISTS) && exists)
@@ -548,19 +545,15 @@ int vzctl2_env_layout_version(const char *path)
 	if (path == NULL)
 		return 0;
 
-	if (stat(path, &st) != 0) {
-		if (errno != ENOENT)
-			return vzctl_err(-1, errno, "Unable to stat %s", path);
-		return 0;
-	}
-	if (!S_ISDIR(st.st_mode))
-		return vzctl_err(-1, 0, "Unable to get the Container layout: %s is not a"
-				" directory", path);
 	snprintf(buf, sizeof(buf), "%s/" VZCTL_VE_LAYOUT, path);
 	if (lstat(buf, &st) == -1) {
 		if (errno != ENOENT)
-			logger(-1, errno, "Unable to get the Container layout:"
-					" failed to stat %s", buf);
+			return vzctl_err(-1, errno, "Unable to get the"
+				" Container layout: failed to stat %s", buf);
+
+		if (stat(path, &st) && errno != ENOENT)
+			return vzctl_err(-1, errno, "Unable to stat %s", path);
+
 		return 0;
 	}
 	if (!S_ISLNK(st.st_mode))
@@ -750,16 +743,12 @@ static int vzctl_check_owner_quiet(
 	FILE *fp;
 	int ret;
 
-	ret = stat_file(ve_private);
-	if (ret == -1)
-		return VZCTL_E_SYSTEM;
-	else if (ret == 0)
-		return 0;
-
 	ret = is_shared_fs(ve_private);
-	if (ret == -1)
+	if (ret == -1) {
+		if (errno != ENOENT)
+			return 0;
 		return VZCTL_E_SYSTEM;
-	else if (ret == 0)
+	} else if (ret == 0)
 		return 0;
 
 	ret = vzctl2_env_layout_version(ve_private);
