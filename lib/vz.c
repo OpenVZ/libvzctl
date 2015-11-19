@@ -323,18 +323,8 @@ static int fs_is_mounted_check_by_dev(const char *target)
 
 int vzctl2_env_is_mounted(struct vzctl_env_handle *h)
 {
-	int ret;
-	struct statfs stfs;
 	const char *ve_private = h->env_param->fs->ve_private;
 	const char *target = h->env_param->fs->ve_root;
-
-	if (target != NULL) {
-		ret = statfs(target, &stfs);
-		if (ret == 0 && stfs.f_type == VZFS_SUPER_MAGIC)
-			return 1;
-		else if (ret < 0 && errno != ENOENT)
-			return vzctl_err(-1, errno, "statfs(%s)", target);
-	}
 
 	if (ve_private != NULL &&
 			vzctl2_env_layout_version(ve_private) == VZCTL_LAYOUT_5)
