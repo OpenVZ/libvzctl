@@ -446,7 +446,7 @@ int vzctl2_get_env_status_info(struct vzctl_env_handle *h,
 		if ((ret = check_var(ve_root, "VE_ROOT not set")))
 			return ret;
 
-		if (vzctl2_env_is_mounted(h) == 1)
+		if (fs_is_mounted_check_by_dev(ve_root) == 1)
 			status->mask |= ENV_STATUS_MOUNTED;
 	}
 	/* get suspended state */
