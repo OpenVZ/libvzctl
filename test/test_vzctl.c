@@ -745,20 +745,6 @@ void test_ctid()
 	}
 }
 
-void test_disk_stat()
-{
-	int err;
-	struct vzctl_disk_stats s1;
-	struct vzctl_disk_stats s2[256] = {};
-	vzctl_env_handle_ptr h;
-
-	CHECK_PTR(h, vzctl2_env_open(ctid, 0, &err))
-	CHECK_RET(vzctl2_env_get_disk_stats(h, DISK_ROOT_UUID, &s1, sizeof(s1)));
-	CHECK_RET(vzctl2_env_get_disk_stats(h, DISK_ROOT_UUID, s2, sizeof(s2)));
-
-	vzctl2_env_close(h);
-}
-
 void test_vzctl()
 {
         int err;
@@ -796,5 +782,4 @@ void test_vzctl()
 	test_env_stop();
 	test_env_register();
 //	test_reinstall();
-	test_disk_stat();
 }

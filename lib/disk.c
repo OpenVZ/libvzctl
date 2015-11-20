@@ -1369,7 +1369,7 @@ static int get_ploop_disk_stats(const struct vzctl_disk *disk, struct vzctl_disk
 int vzctl2_env_get_disk_stats(struct vzctl_env_handle *h, const char *uuid,
 	struct vzctl_disk_stats *stats, int size)
 {
-	int ret = 0, mnt_len;
+	int ret = 0;
 	struct vzctl_disk_stats st = {};
 	struct vzctl_disk *d;
 
@@ -1382,14 +1382,7 @@ int vzctl2_env_get_disk_stats(struct vzctl_env_handle *h, const char *uuid,
 		return vzctl_err(VZCTL_E_INVAL, 0, "Unable to get disk "
 			"statistics: disk %s is not found", uuid);
 	ret = get_ploop_disk_stats(d, &st);
-	if (ret)
-		return ret;
-
-	memcpy(stats, &st, sizeof(st));
-
-	mnt_len = size - sizeof(struct vzctl_disk_stats);
-	if (stats->device[0] != '\0' && mnt_len > 1)
-		get_mnt_by_dev(stats->device, stats->mnt, mnt_len);
-
-	return 0;
+	if (ret == 0)
+		memcpy(stats, &st, size < sizeof(st) ? size : sizeof(st));
+	return ret;
 }
