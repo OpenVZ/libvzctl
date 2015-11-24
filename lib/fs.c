@@ -253,7 +253,7 @@ int vzctl2_env_umount(struct vzctl_env_handle *h, int flags)
 	if (ret)
 		return ret;
 
-	get_env_ops()->env_cleanup(h);
+	get_env_ops()->env_cleanup(h, flags);
 
 	logger(0, 0, "Container is unmounted");
 

@@ -998,7 +998,7 @@ static int ns_env_stop_force(struct vzctl_env_handle *h)
 	return 0;
 }
 
-static int ns_env_cleanup(struct vzctl_env_handle *h)
+static int ns_env_cleanup(struct vzctl_env_handle *h, int flags)
 {
 	clear_init_pid(EID(h));
 	return destroy_cgroup(h);
@@ -1055,7 +1055,7 @@ force:
 	if (ret == 0) {
 		if (is_managed_by_vcmmd())
 			vcmmd_unregister(h);
-		ns_env_cleanup(h);
+		ns_env_cleanup(h, 0);
 	}
 out:
 	return ret ? VZCTL_E_ENV_STOP : 0;
