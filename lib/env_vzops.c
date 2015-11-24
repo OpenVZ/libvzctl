@@ -922,7 +922,7 @@ static int get_feature(void)
         return (F_SETLUID);
 }
 
-static int vz_dummy(struct vzctl_env_handle *h)
+static int vz_dummy(struct vzctl_env_handle *h, int flags)
 {
 	return 0;
 }
@@ -955,6 +955,7 @@ static struct vzctl_env_ops env_vzops = {
 	.env_exec = vz_env_exec,
 	.env_exec_fn = vz_env_exec_fn,
 	.env_cleanup = vz_dummy,
+	.env_get_runtime_param = vz_dummy,
 	.close = vzctl_close,
 };
 

@@ -75,6 +75,7 @@ struct vzctl_env_ops {
 	int (* env_exec_fn)(struct vzctl_env_handle *h, execFn fn, void *data,
 			int *data_fd, int timeout, int flags, pid_t *pid);
 	int (* env_cleanup)(struct vzctl_env_handle *h, int flags);
+	int (* env_get_runtime_param)(struct vzctl_env_handle *h, int flags);
 	void (* close)(void);
 };
 

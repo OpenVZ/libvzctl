@@ -52,6 +52,7 @@
 #include "env_configure.h"
 #include "disk.h"
 #include "bindmount.h"
+#include "env_ops.h"
 
 static struct vzctl_config_param config_param_map[] = {
 /*	ip param	*/
@@ -772,7 +773,6 @@ int vzctl2_del_param_by_name(struct vzctl_env_handle *h, const char *name)
 	return vzctl_conf_del_param(h->conf, param->name);
 }
 
-
 int vzctl_update_env_param(struct vzctl_env_handle *h, int flags)
 {
 	struct vzctl_config *conf = h->conf;
@@ -798,6 +798,9 @@ int vzctl_update_env_param(struct vzctl_env_handle *h, int flags)
 	rc = set_disk_param(h->env_param, flags);
 	if (rc != 0 && ret == 0)
 		ret = rc; // return first error
+
+	if (flags & VZCTL_CONF_RUNTIME_PARAM)
+		get_env_ops()->env_get_runtime_param(h, flags);
 
 	if (ret == VZCTL_E_INVAL && (flags & VZCTL_CONF_SKIP_PARAM_ERRORS))
 		return 0;

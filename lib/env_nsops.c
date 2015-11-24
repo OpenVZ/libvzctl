@@ -1486,6 +1486,29 @@ static int ns_get_iopslimit(struct vzctl_env_handle *h, unsigned int *speed)
 	return ret;
 }
 
+
+static int ns_get_runtime_param(struct vzctl_env_handle *h, int flags)
+{
+	unsigned long limit1024;
+
+	if (!ns_is_env_run(h))
+		return 0;
+
+	if (cg_env_get_cpulimit(EID(h), &limit1024) == 0 && limit1024 != 0) {
+		struct vzctl_cpu_param *cpu = h->env_param->cpu;
+		if (cpu->limit_res == NULL) {
+			cpu->limit_res = xmalloc(sizeof(struct vzctl_cpulimit_param));
+			if (cpu->limit_res == NULL)
+				return VZCTL_E_NOMEM;
+		}
+
+		cpu->limit_res->type = VZCTL_CPULIMIT_PCT;
+		cpu->limit_res->limit = limit1024 * 100 / 1024;
+	}
+
+	return 0;
+}
+
 static struct vzctl_env_ops env_nsops = {
 	.get_feature = get_feature,
 	.open = ns_open,
@@ -1514,6 +1537,7 @@ static struct vzctl_env_ops env_nsops = {
 	.env_exec = ns_env_exec,
 	.env_exec_fn = ns_env_exec_fn,
 	.env_cleanup = ns_env_cleanup,
+	.env_get_runtime_param = ns_get_runtime_param,
 	.close = ns_close,
 };
 

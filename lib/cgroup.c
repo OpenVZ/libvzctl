@@ -459,6 +459,11 @@ int cg_env_set_cpulimit(const char *ctid, unsigned int limit1024)
 	return cg_set_ul(ctid, CG_CPU, "cpu.rate", limit1024);
 }
 
+int cg_env_get_cpulimit(const char *ctid, unsigned long *limit1024)
+{
+	return cg_get_ul(ctid, CG_CPU, "cpu.rate", limit1024);
+}
+
 int cg_env_set_vcpus(const char *ctid, unsigned int vcpus)
 {
 	return cg_set_ul(ctid, CG_CPU, "cpu.nr_cpus", vcpus);
