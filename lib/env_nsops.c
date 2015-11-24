@@ -1486,10 +1486,10 @@ static int ns_get_iopslimit(struct vzctl_env_handle *h, unsigned int *speed)
 	return ret;
 }
 
-
 static int ns_get_runtime_param(struct vzctl_env_handle *h, int flags)
 {
 	unsigned long limit1024;
+	unsigned int iolimit = 0, iopslimit = 0;
 
 	if (!ns_is_env_run(h))
 		return 0;
@@ -1504,6 +1504,19 @@ static int ns_get_runtime_param(struct vzctl_env_handle *h, int flags)
 
 		cpu->limit_res->type = VZCTL_CPULIMIT_PCT;
 		cpu->limit_res->limit = limit1024 * 100 / 1024;
+	}
+
+	ns_get_iopslimit(h, &iolimit);
+	ns_get_iolimit(h, &iopslimit);
+	if (iolimit != 0 || iopslimit != 0) {
+		if (h->env_param->io == NULL) {
+			h->env_param->io = xmalloc(sizeof(struct vzctl_io_param));
+			if (h->env_param->io == NULL)
+				return VZCTL_E_NOMEM;
+		}
+
+		h->env_param->io->iopslimit = iopslimit;
+		h->env_param->io->limit = iolimit;
 	}
 
 	return 0;
