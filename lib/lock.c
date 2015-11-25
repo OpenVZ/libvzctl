@@ -436,7 +436,7 @@ int vzctl2_get_enter_lock(struct vzctl_env_handle *h, int mode)
 	if (stat(VZCTL_ENTER_LOCK_DIR, &st)) {
 		if (errno != ENOENT)
 			return vzctl_err(-1, errno, "Failed to stat "VZCTL_ENTER_LOCK_DIR);
-		if (mkdir(VZCTL_ENTER_LOCK_DIR, 0755))
+		if (mkdir(VZCTL_ENTER_LOCK_DIR, 0755) && errno != EEXIST)
 			return vzctl_err(-1, errno, "failed to create "VZCTL_ENTER_LOCK_DIR);
 	}
 	fd = vzctl2_lock(get_enter_lock_fname(h, fname, sizeof(fname)), mode, VZCTL_ENTER_WAIT_TM);
