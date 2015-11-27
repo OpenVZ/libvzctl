@@ -33,7 +33,6 @@
 #include <assert.h>
 
 #include "env.h"
-#include "cap.h"
 #include "cpu.h"
 #include "veth.h"
 #include "dev.h"
@@ -123,9 +122,6 @@ static struct vzctl_config_param config_param_map[] = {
 /*	Features	*/
 {"FEATURES",	VZCTL_PARAM_FEATURES},
 {"TECHNOLOGIES",VZCTL_PARAM_TECHNOLOGIES},
-
-/*	Capability	*/
-{"CAPABILITY",	VZCTL_PARAM_CAP},
 
 {"NAME",	VZCTL_PARAM_NAME},
 
@@ -427,7 +423,7 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 		ret = parse_technologies(&env->features->tech, str);
 		break;
 	case VZCTL_PARAM_CAP:
-		ret = parse_cap(env->cap, str, replace);
+		/* deprecated */
 		break;
 	case VZCTL_PARAM_CPUUNITS:
 		if (env->cpu->units != NULL && !replace)
@@ -992,12 +988,6 @@ static char *env_param2str(struct vzctl_env_handle *h,
 	case VZCTL_PARAM_FEATURES:
 		if (env->features->known) {
 			features_mask2str(env->features, buf, sizeof(buf));
-			return strdup(buf);
-		}
-		break;
-	case VZCTL_PARAM_CAP:
-		if (env->cap->on || env->cap->off) {
-			build_cap_str(env->cap, buf, sizeof(buf));
 			return strdup(buf);
 		}
 		break;
