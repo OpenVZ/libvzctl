@@ -16,6 +16,7 @@ lib_LTLIBRARIES = libvzctl2.la
 pkginclude_HEADERS = vzctl_param.h vzerror.h list.h
 libvzctl2_la_SOURCES =  bitmap.c \
 			bindmount.c \
+			cap.c \
 			cgroup.c \
 			cleanup.c \
 			config.c \
