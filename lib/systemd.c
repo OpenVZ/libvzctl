@@ -66,89 +66,108 @@ static DBusMessage *dbus_send_message(DBusConnection *conn, DBusMessage *msg)
 	return reply;
 }
 
-static void set_property(DBusMessageIter *props, const char *key, int type,
+static int set_property(DBusMessageIter *props, const char *key, int type,
 		const void *value)
 {
 	const char type_str[] = { type, '\0' };
-	DBusMessageIter prop, var;
+	DBusMessageIter s0, s1;
 
-	dbus_message_iter_open_container(props, 'r', NULL, &prop);
-	dbus_message_iter_append_basic(&prop, 's', &key);
-	dbus_message_iter_open_container(&prop, 'v', type_str, &var);
-	dbus_message_iter_append_basic(&var, type, value);
-	dbus_message_iter_close_container(&prop, &var);
-	dbus_message_iter_close_container(props, &prop);
+	if (!dbus_message_iter_open_container(props, DBUS_TYPE_STRUCT, NULL, &s0) ||
+	    !dbus_message_iter_append_basic(&s0, DBUS_TYPE_STRING, &key) ||
+	    !dbus_message_iter_open_container(&s0, DBUS_TYPE_VARIANT, type_str, &s1) ||
+	    !dbus_message_iter_append_basic(&s1, type, value) ||
+	    !dbus_message_iter_close_container(&s0, &s1) ||
+	    !dbus_message_iter_close_container(props, &s0))
+		return vzctl_err(-1, ENOMEM, "set_property");
+
+	return 0;
 }
 
-static void set_pid(DBusMessageIter *props, pid_t pid)
+static int set_pid(DBusMessageIter *props, pid_t pid)
 {
-	const dbus_int32_t pids[] = { pid };
-	const dbus_int32_t *p = pids;
-	const char *type_str = "au";
+	const dbus_int32_t p = pid;
 	const char *key = "PIDs";
-	DBusMessageIter t, a, v;
+	DBusMessageIter s0, s1, s2;
 
-	dbus_message_iter_open_container(props, DBUS_TYPE_STRUCT, NULL, &t);
-	dbus_message_iter_append_basic(&t, DBUS_TYPE_STRING, &key);
+	if (!dbus_message_iter_open_container(props, DBUS_TYPE_STRUCT, NULL, &s0) ||
+	    !dbus_message_iter_append_basic(&s0, DBUS_TYPE_STRING, &key) ||
+	    !dbus_message_iter_open_container(&s0, DBUS_TYPE_VARIANT, "au", &s1) ||
+	    !dbus_message_iter_open_container(&s1, DBUS_TYPE_ARRAY, "u", &s2) ||
+	    !dbus_message_iter_append_basic(&s2, DBUS_TYPE_UINT32, &p) ||
+	    !dbus_message_iter_close_container(&s1, &s2) ||
+	    !dbus_message_iter_close_container(&s0, &s1) ||
+	    !dbus_message_iter_close_container(props, &s0))
+		return vzctl_err(-1, ENOMEM, "set_pid");
 
-	dbus_message_iter_open_container(&t, 'v', type_str, &v);
-	dbus_message_iter_open_container(&v, 'a', "u", &a);
-	dbus_message_iter_append_fixed_array(&a, 'u', &p, 1);
-	dbus_message_iter_close_container(&v, &a);
-	dbus_message_iter_close_container(&t, &v);
-
-	dbus_message_iter_close_container(props, &t);
+	return 0;
 }
 
 int systemd_start_ve_scope(struct vzctl_env_handle *h, pid_t pid)
 {
 	static const char *mode = "fail";
+	static const char *slice = "-.slice";
 	char unit_name[PATH_MAX], *name = unit_name;
 	char desc[1024], *pdesc = desc;
-	dbus_bool_t yes = true;
+	dbus_bool_t yes = false;
+	DBusConnection *conn;
+	DBusMessage *msg, *reply = NULL;
+	DBusMessageIter iter, props; // aux;
+	int ret = -1;
 
 	logger(3, 0, "Start CT slice");
-
-	DBusConnection *conn;
-	DBusMessage *msg, *reply;
-	DBusMessageIter args, props, aux;
-
-	snprintf(unit_name, sizeof(unit_name), SYSTEMD_CTID_SCOPE_FMT, EID(h));
+	snprintf(unit_name, sizeof(unit_name), "%s.scope", EID(h));
 	snprintf(desc, sizeof(desc), "Container %s", EID(h));
 
 	msg = dbus_message_new_method_call("org.freedesktop.systemd1",
 					   "/org/freedesktop/systemd1",
 					   "org.freedesktop.systemd1.Manager",
 					   "StartTransientUnit");
-	if (!msg)
-		return vzctl_err(-1, errno, "Can't allocate new method call");
+	if (msg == NULL) {
+		vzctl_err(-1, errno, "Can't allocate new method call");
+		goto err;
+	}
 
-	dbus_message_append_args(msg, 's', &name, 's', &mode, 0);
+	dbus_message_iter_init_append(msg, &iter);
 
-	dbus_message_iter_init_append(msg, &args);
+	if (!dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &name) ||
+	    !dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &mode) ||
+	    !dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(sv)", &props))
+	{
+		vzctl_err(-1, ENOMEM, "dbus_message");
+		goto err;
+	}
 
-	dbus_message_iter_open_container(&args, 'a', "(sv)", &props);
-	set_property(&props, "Description", 's', &pdesc);
+	if (set_property(&props, "Description", DBUS_TYPE_STRING, &pdesc) ||
+	    set_property(&props, "Slice", DBUS_TYPE_STRING, &slice) ||
+	    set_property(&props, "MemoryAccounting", DBUS_TYPE_BOOLEAN, &yes) ||
+	    set_property(&props, "CPUAccounting", DBUS_TYPE_BOOLEAN, &yes) ||
+	    set_property(&props, "BlockIOAccounting", DBUS_TYPE_BOOLEAN, &yes) ||
+	    set_pid(&props, pid))
+	{
+		goto err;
+	}
 
-	set_property(&props, "MemoryAccounting", 'b', &yes);
-	set_property(&props, "CPUAccounting", 'b', &yes);
-	set_property(&props, "BlockIOAccounting", 'b', &yes);
+	dbus_message_iter_close_container(&iter, &props);
 
-	set_pid(&props, pid);
-	dbus_message_iter_close_container(&args, &props);
-
-	dbus_message_iter_open_container(&args, 'a', "(sa(sv))", &aux);
-	dbus_message_iter_close_container(&args, &aux);
+//	dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(sa(sv))", &aux);
+//	dbus_message_iter_close_container(&iter, &aux);
 
 	conn = get_connection(DBUS_BUS_SYSTEM);
 	if (conn == NULL)
-		return vzctl_err(-1, 0, "Can't obtain system DBus");
+		goto err;
 
 	reply = dbus_send_message(conn, msg);
-	dbus_message_unref(msg);
-	if (reply == NULL)
-		return vzctl_err(-1, errno, "Can't send message to host systemd");
+	if (reply == NULL) {
+		vzctl_err(-1, errno, "Can't send message to host systemd");
+		goto err;
+	}
+	ret = 0;
 
-	dbus_message_unref(reply);
-	return 0;
+err:
+	if (reply)
+		dbus_message_unref(reply);
+
+	dbus_message_unref(msg);
+
+	return ret;
 }
