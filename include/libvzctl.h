@@ -218,6 +218,7 @@ struct vzctl_env_status {
 #define ENV_STATUS_SUSPENDED	0x08
 #define ENV_STATUS_CPT_SUSPENDED 0x10
 #define ENV_STATUS_CPT_UNDUMPED	0x20
+#define ENV_STATUS_MOUNTED_FAST	0x40
 #define ENV_STATUS_ALL		0xff
 /* flags */
 #define ENV_SKIP_OWNER		0x100

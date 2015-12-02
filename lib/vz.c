@@ -429,11 +429,12 @@ int vzctl2_get_env_status_info(struct vzctl_env_handle *h,
 		status->mask |= ENV_STATUS_EXISTS;
 
 	/* get mounted state */
-	if (mask & ENV_STATUS_MOUNTED && exists) {
+	if (mask & (ENV_STATUS_MOUNTED | ENV_STATUS_MOUNTED_FAST) && exists) {
 		if ((ret = check_var(ve_root, "VE_ROOT not set")))
 			return ret;
-
-		if (fs_is_mounted_check_by_dev(ve_root) == 1)
+		ret = (mask & ENV_STATUS_MOUNTED) ? vzctl2_env_is_mounted(h) :
+					 fs_is_mounted_check_by_dev(ve_root);
+		if (ret == 1)
 			status->mask |= ENV_STATUS_MOUNTED;
 	}
 	/* get suspended state */
@@ -445,7 +446,7 @@ int vzctl2_get_env_status_info(struct vzctl_env_handle *h,
 	read_env_transition(EID(h), h->env_param->opts->lockdir,
 			status->transition, sizeof(status->transition));
 
-	return ret;
+	return 0;
 }
 
 int vzctl2_get_env_status(const ctid_t ctid, vzctl_env_status_t *status, int mask)
