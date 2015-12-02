@@ -79,7 +79,7 @@ function vzerror()
 {
 	# print errors to stdout too
 	ERR=$?
-	echo "$SELFNAME ERROR: $1"
+	echo "$SELFNAME ERROR: $1" >&2
 	exit $2
 }
 
