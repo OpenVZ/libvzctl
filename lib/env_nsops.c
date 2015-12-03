@@ -238,7 +238,7 @@ static int real_ns_env_create(void *arg)
 	return 0;
 
 err:
-	if (write(param->status_p[1], &ret, sizeof(ret)) == -1)
+	if (write(param->status_p[1], &ret, sizeof(ret)) == -1 && errno != EPIPE)
 		logger(-1, errno, "real_ns_env_create write(param->status_p[1]");
 
 	return ret;
