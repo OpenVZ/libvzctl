@@ -732,8 +732,10 @@ int pre_setup_env(struct start_param *param)
 	/* Now we wait until Container setup will be done
 	 * If no error, then start init, otherwise exit.
 	 */
-	if (read(param->wait_p[0], &errcode, sizeof(errcode)) == 0)
-		return vzctl_err(-1, 0, "Cancel init execution");
+	if (read(param->wait_p[0], &errcode, sizeof(errcode)) == 0) {
+		logger(0, 0, "Cancel init execution");
+		return -1;
+	}
 
 	logger(10, 0, "* Setup done");
 	if ((fd = open("/dev/null", O_WRONLY)) != -1) {
