@@ -1565,7 +1565,7 @@ int vzctl2_exec_script(char *const argv[], char *const env[], int flags)
 	close(out[1]);
 	out[1] = -1;
 
-	vzctl_stdredir(out[0], STDOUT_FILENO, !(flags & EXEC_QUIET));
+	vzctl_stdredir(out[0], STDERR_FILENO, !(flags & EXEC_QUIET));
 
 	ret = env_wait(child, 0, &retcode);
 	unregister_cleanup_hook(h);
