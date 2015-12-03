@@ -38,6 +38,7 @@
 #include <linux/if.h>
 #include <linux/veth.h>
 #include <sys/ioctl.h>
+#include <math.h>
 
 #define __USE_GNU /* for CLONE_XXX */
 #include <sched.h>
@@ -1503,7 +1504,7 @@ static int ns_get_runtime_param(struct vzctl_env_handle *h, int flags)
 		}
 
 		cpu->limit_res->type = VZCTL_CPULIMIT_PCT;
-		cpu->limit_res->limit = limit1024 * 100 / 1024;
+		cpu->limit_res->limit = rint((double)limit1024 * 100 / 1024);
 	}
 
 	ns_get_iopslimit(h, &iolimit);
