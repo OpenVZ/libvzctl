@@ -911,6 +911,7 @@ static int ns_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
 err:
 
 		real_env_exec_close(param);
+		sleep(30);
 		_exit(ret);
 	}
 
