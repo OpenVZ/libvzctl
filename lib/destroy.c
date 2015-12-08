@@ -180,7 +180,7 @@ int destroydir(const char *dir)
 	ret = 0;
 	if (!(pid = fork())) {
 		setsid();
-		close_fds(VZCTL_CLOSE_STD, fd_lock, -1);
+		close_fds(VZCTL_CLOSE_STD | VZCTL_CLOSE_NOCHECK, fd_lock, -1);
 		do_destroydir(tmp);
 		_exit(0);
 	} else if (pid < 0)
