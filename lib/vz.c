@@ -746,7 +746,7 @@ static int vzctl_check_owner_quiet(
 
 	ret = is_shared_fs(ve_private);
 	if (ret == -1) {
-		if (errno != ENOENT)
+		if (errno == ENOENT)
 			return 0;
 		return VZCTL_E_SYSTEM;
 	} else if (ret == 0)
