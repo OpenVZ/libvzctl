@@ -890,7 +890,7 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 	char buf[PATH_MAX];
 	char veconf[STR_SIZE];
 	char path_r[PATH_MAX];
-	struct stat st, st2;
+	struct stat st;
 	int ret, err;
 	struct vzctl_env_handle *h;
 	FILE *fp;
@@ -1029,28 +1029,33 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 	if (ret)
 		goto err;
 
-	ret = vzctl2_env_save_conf(h, veconf);
-	if (ret)
-		goto err;
-
 	/* restore CT name */
 	if (vzctl2_env_get_param(h, "NAME", &name) == 0 &&
 			name != NULL && *name != '\0')
 	{
-		snprintf(buf, sizeof(buf), ENV_NAME_DIR "%s", name);
-		if (stat(buf, &st2) ||
-				(stat(veconf, &st) == 0 && cmp_stat(&st, &st2) == 0))
-		{
-			logger(1, 0, "Assing the name: %s", name);
+		ctid_t t;
+
+		if (vzctl2_get_envid_by_name(name, t) == 0) {
+			logger(-1, 0, "Name %s is in use by CT %s",
+					name, t);
+			if (!(flags & VZ_REG_FORCE))
+				goto err;
+
+			vzctl2_env_set_param(h, "NAME", NULL);
+		} else {
+			logger(0, 0, "Assing the name: %s", name);
+			snprintf(buf, sizeof(buf), ENV_NAME_DIR "%s", name);
 			unlink(buf);
 			if (symlink(veconf, buf)) {
 				logger(-1, errno, "Unable to create the link %s", buf);
 				goto err;
 			}
-		} else {
-			logger(-1, 0, "Name %s in use, skipped", name);
 		}
 	}
+
+	ret = vzctl2_env_save_conf(h, veconf);
+	if (ret)
+		goto err;
 
 	/* create registration */
 	vzctl2_get_env_conf_path(ctid, buf, sizeof(buf));
