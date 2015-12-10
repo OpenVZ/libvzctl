@@ -418,7 +418,7 @@ int vzctl2_get_env_status_info(struct vzctl_env_handle *h,
 		return ret;
 
 	vzctl2_get_env_conf_path(EID(h), path, sizeof(path));
-	if (stat_file(path) == 1) {
+	if (stat_file(path) == 1 && stat_file(ve_private) == 1) {
 		if (mask & ENV_SKIP_OWNER)
 			exists = 1;
 		else if (vzctl2_check_owner(ve_private) == 0)
