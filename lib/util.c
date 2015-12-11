@@ -2599,3 +2599,98 @@ char *get_netns_path(struct vzctl_env_handle *h, char *buf, int size)
 
 	return buf;
 }
+
+int get_bindmnt_target(const char *dir, char *out, int size)
+{
+	FILE *fp;
+	int ret = 1;
+	char buf[PATH_MAX];
+	char s[PATH_MAX], t[PATH_MAX];
+	char *src, *data = NULL;
+	struct stat fs;
+	unsigned u, maj, min;
+
+	if (stat(dir, &fs)) {
+		if (errno == ENOENT)
+			return 1;
+		return vzctl_err(-1, errno, "Cannot statfs %s", dir);
+	}
+
+	src = realpath(dir, NULL);
+	if (src == NULL)
+		return vzctl_err(-1, errno, "Failed to get realpath for %s", dir);
+
+	fp = fopen("/proc/self/mountinfo", "r");
+	if (fp == NULL)
+		return vzctl_err(-1, errno, "Can't open /proc/self/mountinfo");
+
+	while (fgets(buf, sizeof(buf), fp)) {
+		if (sscanf(buf, "%u %u %u:%u %s %s",
+					&u, &u, &maj, &min, s, t) != 6)
+			continue;
+
+		if (maj != gnu_dev_major(fs.st_dev) ||
+				min != gnu_dev_minor(fs.st_dev))
+			continue;
+
+		if (data == NULL) {
+			int l = strlen(t);
+
+			if (l == 1)
+				data = src;
+			else if (l < strlen(src))
+				data = src + l;
+
+			continue;
+		}
+
+		if (strcmp(s, data) == 0) {
+			if (out != NULL) {
+				strncpy(out, t, size - 1);
+				out[size - 1] = '\0';
+			}
+			ret = 0;
+			break;
+		}
+	}
+	fclose(fp);
+	free(src);
+
+	return ret;
+}
+
+int fs_is_mounted_check_by_target(const char *target)
+{
+	FILE *fp;
+	int ret = 1;
+	char buf[PATH_MAX];
+	char t[PATH_MAX];
+	char *data = NULL;
+	unsigned u;
+
+	if (access(target, F_OK))
+		return 0;
+
+	data = realpath(target, NULL);
+	if (data == NULL)
+		return vzctl_err(-1, errno, "Failed to get realpath for %s",
+				target);
+
+	fp = fopen("/proc/self/mountinfo", "r");
+	if (fp == NULL)
+		return vzctl_err(-1, errno, "Can't open /proc/self/mountinfo");
+
+	while (fgets(buf, sizeof(buf), fp)) {
+		if (sscanf(buf, "%u %u %u:%u %*s %s", &u, &u, &u, &u, t) != 6)
+			continue;
+
+		if (strcmp(t, data) == 0) {
+			ret = 0;
+			break;
+		}
+	}
+	fclose(fp);
+	free(data);
+
+	return ret;
+}

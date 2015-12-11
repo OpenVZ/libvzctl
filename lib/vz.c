@@ -297,46 +297,25 @@ int vzctl2_get_env_ids_by_state(vzctl_ids_t *ctids, unsigned int mask)
 	return ret;
 }
 
-static int fs_is_mounted_check_by_dev(const char *target)
-{
-	struct stat st1, st2;
-	char parent[MAXPATHLEN];
-
-	if (target == NULL)
-		return -1;
-
-	if (stat(target, &st1)) {
-		if (errno != ENOENT)
-			logger(-1, errno, "stat(%s)", target);
-		return 0;
-	}
-	snprintf(parent, sizeof(parent), "%s/..", target);
-	if (stat(parent, &st2)) {
-		if (errno == ENOENT)
-			logger(-1, errno, "stat(%s)", parent);
-		return 0;
-	}
-	if (st1.st_dev != st2.st_dev)
-		return 1;
-	return 0;
-}
-
 int vzctl2_env_is_mounted(struct vzctl_env_handle *h)
 {
 	const char *ve_private = h->env_param->fs->ve_private;
 	const char *target = h->env_param->fs->ve_root;
 
-	if (ve_private != NULL &&
-			vzctl2_env_layout_version(ve_private) == VZCTL_LAYOUT_5)
-	{
-		struct vzctl_disk *d = find_root_disk(h->env_param->disk);
+	if (ve_private != NULL) {
+		int layout = vzctl2_env_layout_version(ve_private);
 
-		if (d != NULL && !d->use_device)
-			return vzctl2_is_image_mounted(d->path);
+		if (layout == VZCTL_LAYOUT_5) {
+			struct vzctl_disk *d = find_root_disk(h->env_param->disk);
 
+			if (d != NULL && !d->use_device)
+				return vzctl2_is_image_mounted(d->path);
+
+		} else if (layout == VZCTL_LAYOUT_4)
+			return get_bindmnt_target(h->env_param->fs->ve_private_fs, NULL, 0) == 0;
 	}
 
-	return fs_is_mounted_check_by_dev(target);
+	return fs_is_mounted_check_by_target(target);
 }
 
 static void read_env_transition(ctid_t ctid, char *lockdir, char *str, int sz)
@@ -433,7 +412,7 @@ int vzctl2_get_env_status_info(struct vzctl_env_handle *h,
 		if ((ret = check_var(ve_root, "VE_ROOT not set")))
 			return ret;
 		ret = (mask & ENV_STATUS_MOUNTED) ? vzctl2_env_is_mounted(h) :
-					 fs_is_mounted_check_by_dev(ve_root);
+					 fs_is_mounted_check_by_target(ve_root);
 		if (ret == 1)
 			status->mask |= ENV_STATUS_MOUNTED;
 	}

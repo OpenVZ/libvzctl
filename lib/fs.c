@@ -45,34 +45,28 @@
 #define MNT_DETACH      0x00000002
 #endif
 
-extern int real_mount(const struct vzctl_fs_param *fs, const char *dst,
-	int remount);
-/** Mount Container.
- *
- * @param veid		Container id.
- * @param fs		file system parameters.
- * @param dq		disk quota parameters.
- * @return		0 on success.
- */
-static int fsmount(const struct vzctl_fs_param *fs,
-	const struct vzctl_dq_param *dq)
+static int fs_bindmount(struct vzctl_env_handle *h)
 {
+	struct vzctl_fs_param *fs = h->env_param->fs;
+
 	if (check_var(fs->ve_root, "VE_ROOT is not set"))
 		return VZCTL_E_NO_PARAM;
 	if (check_var(fs->ve_private_fs, "VE_PRIVATE is not set"))
 		return VZCTL_E_NO_PARAM;
-	if (!stat_file(fs->ve_private_fs)) {
-		logger(-1, 0, "Container private area %s does not exist",
-			fs->ve_private_fs);
-		return VZCTL_E_NO_PARAM;
-	}
+	if (!stat_file(fs->ve_private_fs))
+		return vzctl_err(VZCTL_E_NO_PARAM, 0,
+				"Container private area %s does not exist",
+				fs->ve_private_fs);
 	/* Create VE_ROOT mount point if not exist */
-	if (make_dir(fs->ve_root, 1)) {
-		logger(-1, 0, "Can't create mount point %s", fs->ve_root);
+	if (make_dir(fs->ve_root, 1))
 		return VZCTL_E_CREATE_DIR;
-	}
 
-	return real_mount(fs, fs->ve_root, 0);
+	logger(1, 0, "Mounting root: %s %s", fs->ve_private_fs, fs->ve_root);
+	if (mount(fs->ve_private_fs, fs->ve_root, "", MS_BIND, NULL) == -1)
+		return vzctl_err(VZCTL_E_MOUNT, errno, "Failed to bindmount %s %s",
+				fs->ve_private_fs, fs->ve_root);
+
+	return 0;
 }
 
 static int do_umount(const char *mnt)
@@ -177,7 +171,7 @@ static int do_env_mount(struct vzctl_env_handle *h, int flags)
 	if (h->env_param->fs->layout == VZCTL_LAYOUT_5)
 		return vzctl2_mount_disk(h, h->env_param->disk, flags);
 	else
-		return fsmount(h->env_param->fs, h->env_param->dq);
+		return fs_bindmount(h);
 }
 
 /** Mount Container and run mount action script if exists.

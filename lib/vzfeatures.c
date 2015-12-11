@@ -58,8 +58,6 @@ static struct feature_s features[] = {
 int vzctl2_fstype2layout(unsigned long fstype)
 {
 	switch (fstype) {
-	case VZ_T_VZFS3:
-	case VZ_T_VZFS4:
 	case VZ_T_SIMFS:
 		return VZCTL_LAYOUT_4;
 	case VZ_T_EXT4:
@@ -74,7 +72,7 @@ const char *vzctl2_layout2fstype(int layout)
 {
 	if (layout == VZCTL_LAYOUT_5)
 		return "ext4";
-	return "vz4";
+	return "simfs";
 }
 
 static struct feature_s *find_feature(const char *name)
@@ -178,9 +176,7 @@ static struct tech_mtx {
 	{VZ_T_VZFS_HASHDIR,	"2.6.9"},
 	{VZ_T_VZFS_COWDIR,	"2.6.9"},
 	{VZ_T_VZFS_MFILES,	"2.6.9"},
-	{VZ_T_VZFS0,		"2.4"},
-	{VZ_T_VZFS3,		"2.4"},
-	{VZ_T_VZFS4,		"2.6.9"},
+	{VZ_T_SIMFS,		"2.4"},
 	{VZ_T_EXT4,		"2.6.32"},
 };
 
@@ -197,8 +193,6 @@ static struct id2name {
 	{VZ_T_VZFS_HASHDIR,	"hashdir"},
 	{VZ_T_VZFS_COWDIR,	"cowdir"},
 	{VZ_T_VZFS_MFILES,	"mfiles"},
-	{VZ_T_VZFS3,		"vz3"},
-	{VZ_T_VZFS4,		"vz4"},
 	{VZ_T_EXT4,		"ext4"},
 	{VZ_T_VZFS0,		"simfs"},
 	{VZ_T_SIMFS,		"simfs"},
