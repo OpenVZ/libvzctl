@@ -2662,7 +2662,7 @@ int get_bindmnt_target(const char *dir, char *out, int size)
 int fs_is_mounted_check_by_target(const char *target)
 {
 	FILE *fp;
-	int ret = 1;
+	int ret = 0;
 	char buf[PATH_MAX];
 	char t[PATH_MAX];
 	char *data = NULL;
@@ -2685,7 +2685,7 @@ int fs_is_mounted_check_by_target(const char *target)
 			continue;
 
 		if (strcmp(t, data) == 0) {
-			ret = 0;
+			ret = 1;
 			break;
 		}
 	}

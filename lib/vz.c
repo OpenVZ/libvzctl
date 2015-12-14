@@ -311,8 +311,11 @@ int vzctl2_env_is_mounted(struct vzctl_env_handle *h)
 			if (d != NULL && !d->use_device)
 				return vzctl2_is_image_mounted(d->path);
 
-		} else if (layout == VZCTL_LAYOUT_4)
-			return get_bindmnt_target(h->env_param->fs->ve_private_fs, NULL, 0) == 0;
+		} else if (layout == VZCTL_LAYOUT_4) {
+			int ret;
+			ret = get_bindmnt_target(h->env_param->fs->ve_private_fs, NULL, 0);
+			return ret == -1 ? -1 : !ret;
+		}
 	}
 
 	return fs_is_mounted_check_by_target(target);
