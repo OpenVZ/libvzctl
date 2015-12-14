@@ -316,7 +316,7 @@ fill_configured_dev()
 #   no
 vzcheck_TOTALRATE()
 {
-	local TOTAL_DEV_LIST mes TOTALRATE_DEV_LIST TOTALRATE_CLASS_LIST;
+	local mes TOTALRATE_DEV_LIST TOTALRATE_CLASS_LIST;
 
 	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return;
 
@@ -334,7 +334,7 @@ vzcheck_TOTALRATE()
 	# Get devices mentioned in ${TOTALRATE}
 	vzmk_list1 "${TOTALRATE}"
 	TOTALRATE_DEV_LIST="${RET_LIST}"
-	mes=`vzis_list_in_list "${RET_LIST}" "${TOTAL_DEV_LIST}"`
+	mes=`vzis_list_in_list "${RET_LIST}" "${VZ_CONFIGURED_DEV}"`
 	[ $? -eq 0 ] && \
 		vzerror "Wrong TOTALRATE value (no such device ${mes} in BANDWIDTH)." ${VZ_SET_RATE}
 
@@ -694,12 +694,12 @@ vzcreate_qdisc()
 
 			[ -z "${DEV1}" -o -z "${BAND1}" -o -z "${CLASS1}" ] && \
 				vzerror "Wrong TOTALRATE value." ${VZ_SET_RATE};
-			[ "X${DEV}" != "X${DEV1}" ] && continue;
+			[ "X${dev}" != "X${DEV1}" ] && continue;
 			let found=1;
-			vzcreate_root_class "${DEV}" "${CLASS1}"
+			vzcreate_root_class "${dev}" "${CLASS1}"
 		done
 		if [ ${found} -eq 0 ]; then
-			vzwarning "Network interface ${DEV} is not found in TOTALRATE."
+			vzwarning "Network interface ${dev} is not found in TOTALRATE."
 		fi
 	done
 	if [ "X${1}" != "Xkeepdb" ]; then
