@@ -151,17 +151,26 @@ int run_stop_script(struct vzctl_env_handle *h, list_head_t *ips)
 	char *arg[2];
 	char *env[5];
 	char s_veid[STR_SIZE];
+	char env_bandwidth[STR_SIZE];
 	int ret;
 	int i = 0;
 	char *s_ips = NULL;
+	const char *bandwidth = NULL;
 
 	arg[0] = get_script_path(VZCTL_STOP, buf, sizeof(buf));
 	arg[1] = NULL;
 
 	snprintf(s_veid, sizeof(s_veid), "VEID=%s", EID(h));
 	env[i++] = s_veid;
-	if (h->env_param->vz->tc->traffic_shaping == VZCTL_PARAM_ON )
+	if (h->env_param->vz->tc->traffic_shaping == VZCTL_PARAM_ON) {
 		env[i++] = "TRAFFIC_SHAPING=yes";
+		/* BANDWIDTH is needed for tc class removal */
+		vzctl2_env_get_param(h, "BANDWIDTH", &bandwidth);
+		if (bandwidth != NULL) {
+			snprintf(env_bandwidth, sizeof(env_bandwidth), "BANDWIDTH=%s", bandwidth);
+			env[i++] = env_bandwidth;
+		}
+	}
 
 	s_ips = ip2str("IP_ADDR=", ips, 0);
 	env[i++] = s_ips;
