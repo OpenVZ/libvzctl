@@ -307,6 +307,9 @@ static int do_create_private(struct vzctl_env_handle *h, const char *dst,
 	int ret;
 	char tarball[PATH_MAX];
 
+	/* vztmpl_get_cache_tarball do call 'vzpkg info' that implicitly
+	 * install vz ostemplate
+	 */
 	ret = vztmpl_get_cache_tarball(vzpkg_conf,
 				&h->env_param->tmpl->ostmpl,
 				vzctl2_layout2fstype(layout),
@@ -314,6 +317,9 @@ static int do_create_private(struct vzctl_env_handle *h, const char *dst,
 				use_ostmpl,tarball, sizeof(tarball));
 	if (ret)
 		return ret;
+
+	if (h->env_param->disk->root == VZCTL_PARAM_OFF)
+		return 0;
 
 	logger(5, 0, "Used tarball: %s", tarball);
 
@@ -358,12 +364,10 @@ static int create_env_private(struct vzctl_env_handle *h, const char *ve_private
 	if (ret)
 		goto err;
 
-	if (h->env_param->disk->root != VZCTL_PARAM_OFF) {
-		ret = do_create_private(h, dst_tmp, ostmpl, vzpkg_conf,
-				layout, use_ostmpl, flags);
-		if (ret)
-			goto err;
-	}
+	ret = do_create_private(h, dst_tmp, ostmpl, vzpkg_conf,
+			layout, use_ostmpl, flags);
+	if (ret)
+		goto err;
 
 	ret = update_param(h);
 	if (ret)
