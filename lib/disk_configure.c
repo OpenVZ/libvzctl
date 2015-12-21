@@ -294,7 +294,7 @@ static int env_configure_disk(struct exec_disk_param *param)
 	if (send_uevent(device))
 		return -1;
 
-	if (disk->mnt != NULL) {
+	if (disk->mnt != NULL && param->fsuuid != NULL) {
 		if (access(disk->mnt, F_OK))
 			make_dir(disk->mnt, 1);
 
@@ -333,7 +333,7 @@ static struct vzctl_disk *find_disk_by_fsuuid(struct vzctl_env_disk *env_disk, c
 	struct vzctl_disk *disk;
 
 	list_for_each(disk, &env_disk->disks, list)
-		if (!strcmp(disk->fsuuid, fsuuid))
+		if (disk->fsuuid != NULL && !strcmp(disk->fsuuid, fsuuid))
 			return disk;
 
 	return NULL;

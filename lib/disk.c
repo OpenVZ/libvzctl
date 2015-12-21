@@ -892,6 +892,8 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	struct stat st;
 	char devname[STR_SIZE];
 	dev_t dev;
+	int skip_configure = (flags & VZCTL_SKIP_CONFIGURE) ||
+						is_root_disk(disk);
 
 	if (disk->use_device) {
 		snprintf(devname, sizeof(devname), "%s", disk->path);
@@ -914,9 +916,11 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 		/* Give access to the first partition 'ploopNp1' */
 		dev += 1;
 		get_partition_dev_name(dev, part, sizeof(part));
-		ret = get_fs_uuid(part, disk->fsuuid);
-		if (ret)
-			return ret;
+		if (!skip_configure) {
+			ret = get_fs_uuid(part, disk->fsuuid);
+			if (ret)
+				return ret;
+		}
 	}
 
 	ret = configure_mount_opts(h, disk, dev);
@@ -931,7 +935,7 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	if (ret)
 		return ret;
 
-	if (!(flags & VZCTL_SKIP_CONFIGURE)) {
+	if (!skip_configure) {
 		ret = configure_disk(h, disk, dev, flags, automount);
 		if (ret)
 			return ret;
@@ -1306,13 +1310,13 @@ int vzctl_setup_disk(struct vzctl_env_handle *h, struct vzctl_env_disk *env_disk
 		return 0;
 
 	list_for_each(disk, &env_disk->disks, list) {
-                if (disk->enabled == VZCTL_PARAM_OFF ||
-				is_root_disk(disk))
-                        continue;
+		if (disk->enabled == VZCTL_PARAM_OFF)
+			continue;
 
 		ret = do_setup_disk(h, disk, flags, 0);
 		if (ret && is_permanent_disk(disk))
 			return ret;
+
 		configured = 1;
 	}
 
