@@ -69,6 +69,7 @@ criu restore -vvvv					\
 		-W $VE_WORK_DIR				\
 		-o $VE_RESTORE_LOG_PATH			\
 		--pidfile $VE_PIDFILE			\
+		--cgroup-root /$VEID			\
 		$veth_args
 
 if [ $? -eq 0 ]; then
