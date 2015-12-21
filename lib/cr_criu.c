@@ -141,10 +141,8 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 	snprintf(buf, sizeof(buf), "VE_NETNS_FILE=%s", path);
 	env[i++] = strdup(buf);
 
-	if (is_vz_kernel()) {
-		snprintf(buf, sizeof(buf), "VEID=%s", h->ctid);
-		env[i++] = strdup(buf);
-	}
+	snprintf(buf, sizeof(buf), "VEID=%s", h->ctid);
+	env[i++] = strdup(buf);
 
 	pbuf = buf;
 	ep = buf + sizeof(buf);
