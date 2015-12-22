@@ -35,7 +35,7 @@ load_modules()
 	local mod msg modules devnodes features
 
 	eval $(. /etc/vz/conf/${VEID}.conf && \
-		echo devnodes=\"$DEVNODES\" features=\"$FEATURES\" veth==\"NETIF\")
+		echo devnodes=\"$DEVNODES\" features=\"$FEATURES\" veth=\"NETIF\")
 
 	# process tun/tap
 	if echo $devnodes | grep -Fq 'net/tun:'; then
