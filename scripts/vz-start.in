@@ -57,6 +57,7 @@ load_modules()
 	# process nfs and nfsd
 	for mod in nfs nfsd; do
 		if echo $features | grep -Fwq "${mod}:on"; then
+			[ "$mod" = "nfs" ] && mod="nfs nfsv4"
 			modules="$modules $mod"
 		fi
 	done
