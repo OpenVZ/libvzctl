@@ -892,8 +892,8 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	struct stat st;
 	char devname[STR_SIZE];
 	dev_t dev;
-	int skip_configure = (flags & VZCTL_SKIP_CONFIGURE) ||
-						is_root_disk(disk);
+	int root = is_root_disk(disk);
+	int skip_configure = (flags & VZCTL_SKIP_CONFIGURE) || root;
 
 	if (disk->use_device) {
 		snprintf(devname, sizeof(devname), "%s", disk->path);
@@ -923,9 +923,11 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 		}
 	}
 
-	ret = configure_mount_opts(h, disk, dev);
-	if (ret)
-		return ret;
+	if (!root) {
+		ret = configure_mount_opts(h, disk, dev);
+		if (ret)
+			return ret;
+	}
 
 	ret = configure_devperm(h, disk, dev, 0);
 	if (ret)
