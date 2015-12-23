@@ -57,6 +57,7 @@
 #include "disk.h"
 #include "iptables.h"
 #include "vzfeatures.h"
+#include "vcmm.h"
 
 int systemd_start_ve_scope(struct vzctl_env_handle *h, pid_t pid);
 
@@ -271,62 +272,6 @@ static int ns_set_ub(struct vzctl_env_handle *h,
 	return 0;
 }
 
-#define VCMMCTL_BIN	"/usr/sbin/vcmmdctl"
-static int is_managed_by_vcmmd()
-{
-	return access(VCMMCTL_BIN, F_OK) == 0;
-}
-
-/* TODO: use RPC to communicat with vcmmd */
-static int vcmmd_unregister(struct vzctl_env_handle *h)
-{
-	char *arg[] = {VCMMCTL_BIN, "unregister", "--id", EID(h), NULL};
-
-	return vzctl2_wrap_exec_script(arg, NULL, 0);
-}
-
-static int vcmmd_set_memory_param(struct vzctl_env_handle *h, struct vzctl_ub_param *ub)
-{
-	char *arg[9] = {VCMMCTL_BIN, "register", "--id", EID(h)};
-	char memory[21];
-	char swap[21];
-	int pagesize;
-	int i = 0;
-
-	if (h->state & VZCTL_STATE_STARTING)
-		vzctl2_wrap_exec_script(arg, NULL, 0);
-
-	if (ub->physpages == NULL && ub->swappages == NULL)
-		return 0;
-
-	pagesize = sysconf(_SC_PAGESIZE);
-	if (pagesize == -1) {
-		vzctl_err(VZCTL_E_SYSTEM, errno, "sysconf(_SC_PAGESIZE)");
-		pagesize = 4096;
-	}
-
-	arg[i++] = VCMMCTL_BIN;
-	arg[i++] = "set_config";
-	arg[i++] = "--id";
-	arg[i++] = EID(h);
-	if (ub->physpages) {
-		snprintf(memory, sizeof(memory), "%lu",
-				ub->physpages->l * pagesize);
-		arg[i++] = "--limit";
-		arg[i++] = memory;
-	}
-
-	if (ub->swappages) {
-		snprintf(swap, sizeof(swap), "%lu",
-				ub->swappages->l * pagesize);
-		arg[i++] = "--swap_limit";
-		arg[i++] = swap;
-	}
-	arg[i] = NULL;
-
-	return vzctl2_wrap_exec_script(arg, NULL, 0);
-}
-
 static int ns_set_memory_param(struct vzctl_env_handle *h, struct vzctl_ub_param *ub)
 {
 	int ret = 0;
@@ -378,7 +323,7 @@ static int ns_apply_res_param(struct vzctl_env_handle *h, struct vzctl_env_param
 	}
 
 	if (is_managed_by_vcmmd())
-		ret = vcmmd_set_memory_param(h, ub);
+		ret = vcmm_set_memory_param(h, ub);
 	else
 		ret = ns_set_memory_param(h, ub);
 
@@ -1044,7 +989,7 @@ force:
 
 	if (ret == 0) {
 		if (is_managed_by_vcmmd())
-			vcmmd_unregister(h);
+			vcmm_unregister(h);
 		ns_env_cleanup(h, 0);
 	}
 out:
