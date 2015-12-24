@@ -698,7 +698,8 @@ int pre_setup_env(struct start_param *param)
 		close(fd);
 
 	const char *hn = env->misc->hostname ?: "localhost.localdomain";
-	sethostname(hn, strlen(hn));
+	if (sethostname(hn, strlen(hn)))
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "Failed to set hostname %s", hn);
 
 	if (access("/proc", F_OK) == 0 && mount("proc", "/proc", "proc", 0, 0))
 		return vzctl_err(VZCTL_E_SYSTEM, errno, "Failed to mount /proc");
