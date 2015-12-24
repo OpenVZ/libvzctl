@@ -27,13 +27,43 @@
 #include <errno.h>
 #include <string.h>
 
+#include <libvcmmd/vcmmd.h>
+
 #include "env.h"
 #include "ub.h"
 #include "logger.h"
 #include "vzerror.h"
 #include "exec.h"
+#include "util.h"
 
 #define VCMMCTL_BIN     "/usr/sbin/vcmmdctl"
+
+static int vcmm_error(int rc, const char *msg)
+{
+	char buf[STR_SIZE];
+
+	return vzctl_err(VZCTL_E_VCMM, 0, "%s: %s",
+			msg, vcmmd_strerror(rc, buf, sizeof(buf)));
+}
+
+static struct vcmmd_ve_config *get_config(struct vcmmd_ve_config *c,
+		struct vzctl_ub_param *ub)
+{
+	vcmmd_ve_config_init(c);
+
+	if (ub->physpages != NULL) {
+		unsigned long l = ub->physpages->l * get_pagesize();
+
+		vcmmd_ve_config_append(c, VCMMD_VE_CONFIG_LIMIT, l);
+		vcmmd_ve_config_append(c, VCMMD_VE_CONFIG_MAX_LIMIT, l);
+	}
+
+	if (ub->swappages != NULL)
+		vcmmd_ve_config_append(c, VCMMD_VE_CONFIG_SWAP,
+				ub->physpages->l * get_pagesize());
+
+	return c;
+}
 
 int is_managed_by_vcmmd(void)
 {
@@ -42,49 +72,67 @@ int is_managed_by_vcmmd(void)
 
 int vcmm_unregister(struct vzctl_env_handle *h)
 {
-	char *arg[] = {VCMMCTL_BIN, "unregister", "--id", EID(h), NULL};
+	int rc;
 
-	return vzctl2_wrap_exec_script(arg, NULL, 0);
+	if (!is_managed_by_vcmmd())
+		return 0;
+
+	logger(1, 0, "vcmmd: unregister");
+	rc = vcmmd_unregister_ve(EID(h));
+	if (rc)
+		return vcmm_error(rc, "Failed to unregister");
+
+	return 0;
 }
 
-int vcmm_set_memory_param(struct vzctl_env_handle *h, struct vzctl_ub_param *ub)
+static int commit(struct vzctl_env_handle *h)
 {
-	char *arg[9] = {VCMMCTL_BIN, "register", "--id", EID(h)};
-	char memory[21];
-	char swap[21];
-	int pagesize;
-	int i = 0;
+	int rc;
 
-	if (h->state & VZCTL_STATE_STARTING)
-		vzctl2_wrap_exec_script(arg, NULL, 0);
+	logger(1, 0, "vcmmd: commit");
+	rc = vcmmd_commit_ve(EID(h));
+	if (rc)
+		return vcmm_error(rc, "Failed to commit");
+
+	return 0;
+}
+
+int vcmm_register(struct vzctl_env_handle *h)
+{
+	int rc;
+	struct vcmmd_ve_config c;
+
+	if (!is_managed_by_vcmmd())
+		return 0;
+
+	get_config(&c, h->env_param->res->ub);
+
+	logger(1, 0, "vcmmd: register");
+	rc = vcmmd_register_ve(EID(h), VCMMD_VE_CT, &c, true);
+	if (rc == VCMMD_ERROR_VE_NAME_ALREADY_IN_USE) {
+		vcmm_unregister(h);
+		rc = vcmmd_register_ve(EID(h), VCMMD_VE_CT, &c, true);
+	}
+	
+	if (rc)
+		return vcmm_error(rc, "Failed to register");
+	
+
+	return commit(h);
+}
+
+int vcmm_update(struct vzctl_env_handle *h, struct vzctl_ub_param *ub)
+{
+	int rc;
+	struct vcmmd_ve_config c = {};
 
 	if (ub->physpages == NULL && ub->swappages == NULL)
 		return 0;
 
-	pagesize = sysconf(_SC_PAGESIZE);
-	if (pagesize == -1) {
-		vzctl_err(VZCTL_E_SYSTEM, errno, "sysconf(_SC_PAGESIZE)");
-		pagesize = 4096;
-	}
+	logger(1, 0, "vcmmd: update");
+	rc = vcmmd_update_ve(EID(h), get_config(&c, ub), true);
+	if (rc)
+		return vcmm_error(rc, "Failed to update");
 
-	arg[i++] = VCMMCTL_BIN;
-	arg[i++] = "set_config";
-	arg[i++] = "--id";
-	arg[i++] = EID(h);
-	if (ub->physpages) {
-		snprintf(memory, sizeof(memory), "%lu",
-				ub->physpages->l * pagesize);
-		arg[i++] = "--limit";
-		arg[i++] = memory;
-	}
-
-	if (ub->swappages) {
-		snprintf(swap, sizeof(swap), "%lu",
-				ub->swappages->l * pagesize);
-		arg[i++] = "--swap_limit";
-		arg[i++] = swap;
-	}
-	arg[i] = NULL;
-
-	return vzctl2_wrap_exec_script(arg, NULL, 0);
+	return 0;
 }

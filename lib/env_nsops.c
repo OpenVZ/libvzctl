@@ -303,11 +303,11 @@ static int ns_set_memory_param(struct vzctl_env_handle *h, struct vzctl_ub_param
 			return ret;
 	}
 
-
 	return ret;
 }
 
-static int ns_apply_res_param(struct vzctl_env_handle *h, struct vzctl_env_param *env)
+static int ns_apply_res_param(struct vzctl_env_handle *h,
+		struct vzctl_env_param *env)
 {
 	int ret;
 	struct vzctl_ub_param *ub;
@@ -322,9 +322,10 @@ static int ns_apply_res_param(struct vzctl_env_handle *h, struct vzctl_env_param
 			goto err;
 	}
 
-	if (is_managed_by_vcmmd())
-		ret = vcmm_set_memory_param(h, ub);
-	else
+	if (is_managed_by_vcmmd()) {
+		if (h->state != VZCTL_STATE_STARTING)
+			ret = vcmm_update(h, ub);
+	} else
 		ret = ns_set_memory_param(h, ub);
 
 err:
@@ -623,7 +624,7 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 {
 	char child_stack[4096 * 10];
 	int ret;
-	pid_t pid;
+	pid_t pid = -1;
 	int clone_flags = 0;
 	struct sigaction act;
 
@@ -636,28 +637,36 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 	if (ret)
 		return ret;
 
+	ret = vcmm_register(h);
+	if (ret)
+		goto err;
+
 	ret = cg_attach_task(h->ctid, getpid());
 	if (ret)
-		return ret;
+		goto err;
 
 #if 0
 	ret = systemd_start_ve_scope(h, getpid());
 	if (ret)
-		return ret;
+		goto err;
 #endif
 
 	if (param->fn != NULL) {
 		ret = param->fn(h, param);
 		if (ret)
-			return ret;
+			goto err;
 	} else {
 		int init_p[2];
 
-		if (reset_loginuid())
-			return VZCTL_E_SYSTEM;
+		if (reset_loginuid()) {
+			ret = VZCTL_E_SYSTEM;
+			goto err;
+		}
 
-		if (pipe(init_p))
-			return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
+		if (pipe(init_p)) {
+			ret = vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
+			goto err;
+		}
 		param->init_p = init_p;
 
 		clone_flags |= CLONE_NEWUTS|CLONE_NEWPID|CLONE_NEWIPC|
@@ -665,18 +674,18 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 		pid = clone(real_ns_env_create,
 				child_stack + sizeof(child_stack),
 				clone_flags|SIGCHLD , (void *) param);
-		if (pid < 0)
-			return vzctl_err(VZCTL_E_RESOURCE, errno, "Unable to clone");
+		if (pid < 0) {
+			ret = vzctl_err(VZCTL_E_RESOURCE, errno, "Unable to clone");
+			goto err;
+		}
 
 		ret = write_init_pid(h->ctid, pid);
 		if (ret == 0) {
 			ret = write_id_maps(pid);
 			close(param->init_p[1]);
 		}
-		if (ret) {
-			kill(pid, SIGKILL);
-			return ret;
-		}
+		if (ret)
+			goto err;
 
 		char nspath[STR_SIZE];
 		char pidpath[STR_SIZE];
@@ -686,13 +695,21 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 		snprintf(pidpath, sizeof(pidpath), "/proc/%d/ns/net", pid);
 		unlink(nspath);
 		if (symlink(pidpath, nspath)) {
-			kill(pid, SIGKILL);
-			return vzctl_err(VZCTL_E_SYSTEM, errno,
+			ret = vzctl_err(VZCTL_E_SYSTEM, errno,
 					"Can't symlink into netns file %s", nspath);
+			goto err;
 		}
 	}
 
-	return 0;
+err:
+
+	if (ret) {
+		if (pid != -1)
+			kill(pid, SIGKILL);
+		vcmm_unregister(h);
+	}
+
+	return ret;
 }
 
 static int ns_env_create(struct vzctl_env_handle *h, struct start_param *param)
@@ -999,8 +1016,7 @@ force:
 	}
 
 	if (ret == 0) {
-		if (is_managed_by_vcmmd())
-			vcmm_unregister(h);
+		vcmm_unregister(h);
 		ns_env_cleanup(h, 0);
 	}
 out:
@@ -1131,12 +1147,17 @@ static int get_feature(void)
 static int ns_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 		struct vzctl_cpt_param *param, int flags)
 {
+	int ret;
+
 	switch(cmd) {
 	case VZCTL_CMD_SUSPEND:
 	case VZCTL_CMD_RESUME:
 		return cg_freezer_cmd(EID(h), cmd);
 	default:
-		return criu_cmd(h, cmd, param, NULL);
+		ret = criu_cmd(h, cmd, param, NULL);
+		if (ret == 0)
+			vcmm_unregister(h);
+		return ret;
 	}
 }
 

@@ -81,6 +81,14 @@ AC_CHECK_LIB([ploop], [ploop_replace_image], PLOOP_LIBS="-lploop",
 	AC_MSG_ERROR([Please install ploop package]))
 AC_SUBST(PLOOP_LIBS)
 
+# Checks for libvcmmd lib
+AC_CHECK_HEADER([libvcmmd/vcmmd.h], ,
+	AC_MSG_ERROR([Please install libvcmmd devel package]))
+AC_CHECK_LIB([vcmmd], [vcmmd_strerror], VCMMD_LIBS="-lvcmmd",
+	AC_MSG_ERROR([Please install libvcmmd package]))
+AC_SUBST(VCMMD_LIBS)
+
+
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_C_INLINE
