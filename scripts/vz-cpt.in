@@ -27,7 +27,10 @@
 #   VE_PID      - PID of CT init process
 exec 1>&2
 
-mkdir -p $VE_DUMP_DIR &&
+dumpdir="$VE_DUMP_DIR".tmp
+[ -d $dumpdir ] && rm -rf $dumpdir
+
+mkdir -p $dumpdir &&
 criu dump -vvvv -o dump.log				\
 		--file-locks				\
 		--tcp-established			\
@@ -41,16 +44,16 @@ criu dump -vvvv -o dump.log				\
 		--freeze-cgroup $VE_FREEZE_CG		\
 		--ghost-limit 5M			\
 		-t $VE_PID				\
-		-D $VE_DUMP_DIR				\
+		-D $dumpdir				\
 		$CRIU_EXTRA_ARGS
 
 if [ $? -ne 0 ]; then
         [ -d $VE_DUMP_DIR.fail ] && rm -rf $VE_DUMP_DIR.fail
-        mv -f $VE_DUMP_DIR $VE_DUMP_DIR.fail
+        mv -f $dumpdir $VE_DUMP_DIR.fail
         echo Failed to checkpoint the Container
         echo All dump files and logs were saved to $VE_DUMP_DIR.fail
         exit 1
 else
+	mv $dumpdir $VE_DUMP_DIR
         echo Checkpointing finished successfully
 fi
-
