@@ -1727,8 +1727,12 @@ int get_pagesize()
 
 	if (pagesize)
 		return pagesize;
-	if ((pagesize = sysconf(_SC_PAGESIZE)) == -1)
-		return vzctl_err(-1, errno,  "Unable to get page size");
+
+	if ((pagesize = sysconf(_SC_PAGESIZE)) == -1) {
+		vzctl_err(-1, errno,  "Unable to get page size");
+		pagesize = 4096;
+	}
+
 	return pagesize;
 }
 
