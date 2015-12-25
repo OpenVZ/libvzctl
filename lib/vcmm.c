@@ -55,7 +55,6 @@ static struct vcmmd_ve_config *get_config(struct vcmmd_ve_config *c,
 		unsigned long l = ub->physpages->l * get_pagesize();
 
 		vcmmd_ve_config_append(c, VCMMD_VE_CONFIG_LIMIT, l);
-		vcmmd_ve_config_append(c, VCMMD_VE_CONFIG_MAX_LIMIT, l);
 	}
 
 	if (ub->swappages != NULL)
