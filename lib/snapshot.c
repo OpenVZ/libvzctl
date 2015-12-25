@@ -353,19 +353,12 @@ int vzctl2_env_create_snapshot(struct vzctl_env_handle *h,
 	if (run == -1)
 		goto err1;
 
-	/* 1 freeze */
+	/* store dump & continue */
 	if (run) {
 		ret = vzctl2_env_chkpnt(h, VZCTL_CMD_FREEZE, &cpt, 0);
 		if (ret)
 			goto err1;
-	}
-	/* 2 create snapshot with specified guid */
-	ret = vzctl2_env_create_disk_snapshot(h, guid);
-	if (ret)
-		goto err2;
 
-	/* 3 store dump & continue */
-	if (run) {
 		if (!(param->flags & VZCTL_SNAPSHOT_SKIP_DUMP)) {
 			vzctl_get_snapshot_dumpfile(ve_private, guid, fname,
 					sizeof(fname));
@@ -376,11 +369,20 @@ int vzctl2_env_create_snapshot(struct vzctl_env_handle *h,
 				goto err2;
 			}
 		}
+	}
+
+	/* create snapshot with specified guid */
+	ret = vzctl2_env_create_disk_snapshot(h, guid);
+	if (ret)
+		goto err2;
+
+	if (run) {
 		/* report error if resume failed */
 		if (vzctl2_env_chkpnt(h, VZCTL_CMD_RESUME, &cpt, 0))
 			ret = vzctl_err(VZCTL_E_CREATE_SNAPSHOT, 0,
 					"Failed to resume Container");
 	}
+
 	// move snapshot.xml to its place
 	GET_SNAPSHOT_XML(fname, ve_private);
 	if (rename(tmp, fname))
@@ -393,8 +395,6 @@ int vzctl2_env_create_snapshot(struct vzctl_env_handle *h,
 	return ret;
 
 err2:
-	// merge top_delta
-	vzctl2_delete_snapshot(h, guid);
 	if (run) {
 		if (vzctl2_env_chkpnt(h, VZCTL_CMD_RESUME, &cpt, 0))
 			vzctl_err(-1, 0, "Failed to resume Container");
