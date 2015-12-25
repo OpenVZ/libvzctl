@@ -59,7 +59,7 @@ static struct vcmmd_ve_config *get_config(struct vcmmd_ve_config *c,
 
 	if (ub->swappages != NULL)
 		vcmmd_ve_config_append(c, VCMMD_VE_CONFIG_SWAP,
-				ub->physpages->l * get_pagesize());
+				ub->swappages->l * get_pagesize());
 
 	return c;
 }
