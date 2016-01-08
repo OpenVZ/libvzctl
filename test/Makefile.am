@@ -8,7 +8,7 @@ AM_CPPFLAGS = -Wall -I$(top_srcdir)/include -I$(top_srcdir)/lib \
 	      -DPKGCONFDIR=\"$(pkgconfdir)\" \
 	      -DPKGLIBDIR=\"$(pkglibdir)\"
 
-#sbin_PROGRAMS = test vzctl
+#sbin_PROGRAMS = test
 noinst_PROGRAMS = test
 
 VZCTL_LIBS = $(top_builddir)/lib/libvzctl2.la -lpthread
