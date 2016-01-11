@@ -274,7 +274,7 @@ int vzctl2_env_destroy(struct vzctl_env_handle *h, int flags)
 	remove_names(h);
 
 	/* cleanup venet0 ip addresses */
-	run_stop_script(h, &h->env_param->net->ip);
+	run_stop_script(h);
 
 	ret = vzctl2_env_unreg(h, 0);
 	if (ret && ret != VZCTL_E_UNREGISTER)

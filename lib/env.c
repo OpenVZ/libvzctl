@@ -145,20 +145,15 @@ static int run_start_script(struct vzctl_env_handle *h)
 	return vzctl2_wrap_exec_script(arg, env, 0);
 }
 
-int run_stop_script(struct vzctl_env_handle *h, list_head_t *ips)
+int run_stop_script(struct vzctl_env_handle *h)
 {
 	char buf[STR_SIZE];
-	char *arg[2];
-	char *env[5];
+	char *env[4];
 	char s_veid[STR_SIZE];
 	char env_bandwidth[STR_SIZE];
-	int ret;
 	int i = 0;
-	char *s_ips = NULL;
 	const char *bandwidth = NULL;
-
-	arg[0] = get_script_path(VZCTL_STOP, buf, sizeof(buf));
-	arg[1] = NULL;
+	char *arg[] = {get_script_path(VZCTL_STOP, buf, sizeof(buf)), NULL};
 
 	snprintf(s_veid, sizeof(s_veid), "VEID=%s", EID(h));
 	env[i++] = s_veid;
@@ -172,15 +167,9 @@ int run_stop_script(struct vzctl_env_handle *h, list_head_t *ips)
 		}
 	}
 
-	s_ips = ip2str("IP_ADDR=", ips, 0);
-	env[i++] = s_ips;
 	env[i] = NULL;
 
-	ret = vzctl2_wrap_exec_script(arg, env, 0);
-
-	free(s_ips);
-
-	return ret;
+	return vzctl2_wrap_exec_script(arg, env, 0);
 }
 
 int is_env_run(struct vzctl_env_handle *h)
@@ -235,8 +224,7 @@ kill:
 			" operation timed out");
 }
 
-static int do_env_post_stop(struct vzctl_env_handle *h, list_head_t *ips,
-		int flags)
+static int do_env_post_stop(struct vzctl_env_handle *h, int flags)
 {
 	int ret = 0;
 
@@ -245,7 +233,7 @@ static int do_env_post_stop(struct vzctl_env_handle *h, list_head_t *ips,
 	if (!(flags & VZCTL_SKIP_UMOUNT))
 		ret = vzctl2_env_umount(h, flags);
 
-	run_stop_script(h, ips);
+	run_stop_script(h);
 
 	return ret;
 }
@@ -256,12 +244,15 @@ int vzctl2_env_stop(struct vzctl_env_handle *h, stop_mode_e stop_mode, int flags
 	struct vzctl_env_param *env = h->env_param;
 	const char *ve_root = env->fs->ve_root;
 	struct vzctl_env_status env_status = {};
-	LIST_HEAD(ips);
 
 	vzctl2_get_env_status_info(h, &env_status, ENV_STATUS_RUNNING);
-	if (!(env_status.mask & ENV_STATUS_RUNNING))
+	if (!(env_status.mask & ENV_STATUS_RUNNING)) {
+		if (flags & VZCTL_FORCE)
+			goto force;
+
                 return vzctl_err(0, 0,
                                 "Container is not running");
+	}
 
 	logger(0, 0, "Stopping the Container ...");
 	if (env_status.mask & (ENV_STATUS_CPT_SUSPENDED | ENV_STATUS_CPT_UNDUMPED)) {
@@ -287,19 +278,14 @@ int vzctl2_env_stop(struct vzctl_env_handle *h, stop_mode_e stop_mode, int flags
 		}
 	}
 
-	get_env_ops()->env_get_veip(h, &ips);
-
-	if ((ret = do_env_stop(h, stop_mode)))
-		goto end;
+	ret = do_env_stop(h, stop_mode);
+	if (ret)
+		return ret;
 
 	logger(0, 0, "Container was stopped");
 
-	ret = do_env_post_stop(h, &ips, flags);
-end:
-
-	free_ip(&ips);
-
-	return ret;
+force:
+	return do_env_post_stop(h, flags);
 }
 
 #define K_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
@@ -1020,7 +1006,6 @@ int vzctl2_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 		struct vzctl_cpt_param *param, int flags)
 {
 	int ret;
-	LIST_HEAD(ips);
 
 	if (!is_env_run(h))
 		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
@@ -1029,7 +1014,6 @@ int vzctl2_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 		return vzctl2_cpt_cmd(h, VZCTL_CMD_CHKPNT, cmd, param, flags);
 
 	logger(0, 0, "Setting up checkpoint...");
-	get_env_ops()->env_get_veip(h, &ips);
 
 	if ((ret = get_env_ops()->env_chkpnt(h, cmd, param, flags)))
 		goto end;
@@ -1038,11 +1022,8 @@ int vzctl2_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 	criu bug. Wait some time for dumped processes termination. */
 	wait_env_state(h, VZCTL_ENV_STOPPED, 5);
 
-	ret = do_env_post_stop(h, &ips, flags);
-
 end:
-
-	free_ip(&ips);
+	do_env_post_stop(h, flags);
 
 	if (ret)
 		logger(-1, 0, "Checkpointing failed");

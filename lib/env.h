@@ -169,5 +169,5 @@ int wait_env_state(struct vzctl_env_handle *h, int state, unsigned int timeout);
 int get_cid_uuid_pair(const char *ctid, const char *uuid,
 		ctid_t ctid_out, ctid_t uuid_out);
 int enter_net_ns(struct vzctl_env_handle *h, pid_t *ct_pid);
-int run_stop_script(struct vzctl_env_handle *h, list_head_t *ips);
+int run_stop_script(struct vzctl_env_handle *h);
 #endif /* _ENV_H_ */

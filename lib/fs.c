@@ -235,21 +235,29 @@ int vzctl2_env_umount(struct vzctl_env_handle *h, int flags)
 	if (is_env_run(h))
 		return vzctl_err(VZCTL_E_ENV_RUN, 0, "Unable to unmount"
 				" running Container: stop it first");
-	if (!vzctl2_env_is_mounted(h))
-		return vzctl_err(VZCTL_E_FS_NOT_MOUNTED, 0, "Container is not mounted");
+	if (!vzctl2_env_is_mounted(h)) {
+		if (flags & VZCTL_FORCE)
+			goto force;
+
+		return vzctl_err(VZCTL_E_FS_NOT_MOUNTED, 0,
+				"Container is not mounted");
+	}
 
 	if (!(flags & VZCTL_SKIP_ACTION_SCRIPT)) {
 		ret = run_action_scripts(h, VZCTL_ACTION_UMOUNT);
 		if (ret)
 			return ret;
 	}
+
 	ret = do_env_umount(h);
 	if (ret)
 		return ret;
 
+	logger(0, 0, "Container is unmounted");
+
+force:
 	get_env_ops()->env_cleanup(h, flags);
 
-	logger(0, 0, "Container is unmounted");
 
 	return 0;
 }
