@@ -631,6 +631,7 @@ static struct devnode {
 	{4, 0x9, "/dev/tty9", S_IFCHR|0620},
 	{4, 0xa, "/dev/tty10", S_IFCHR|0620},
 	{4, 0xb, "/dev/tty11", S_IFCHR|0620},
+	{4, 0xc, "/dev/tty12", S_IFCHR|0620},
 	{1, 0x3, "/dev/null", S_IFCHR|0666},
 	{1, 0x5, "/dev/zero", S_IFCHR|0666},
 	{1, 0x7, "/dev/full", S_IFCHR|0666},
