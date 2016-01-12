@@ -78,7 +78,7 @@ int vcmm_unregister(struct vzctl_env_handle *h)
 
 	logger(1, 0, "vcmmd: unregister");
 	rc = vcmmd_unregister_ve(EID(h));
-	if (rc)
+	if (rc && rc != VCMMD_ERROR_VE_NOT_REGISTERED)
 		return vcmm_error(rc, "Failed to unregister");
 
 	return 0;
