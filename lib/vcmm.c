@@ -42,7 +42,7 @@ static int vcmm_error(int rc, const char *msg)
 {
 	char buf[STR_SIZE];
 
-	return vzctl_err(VZCTL_E_VCMM, 0, "%s: %s",
+	return vzctl_err(VZCTL_E_VCMM, 0, "vcmmd: %s: %s",
 			msg, vcmmd_strerror(rc, buf, sizeof(buf)));
 }
 
@@ -79,7 +79,7 @@ int vcmm_unregister(struct vzctl_env_handle *h)
 	logger(1, 0, "vcmmd: unregister");
 	rc = vcmmd_unregister_ve(EID(h));
 	if (rc && rc != VCMMD_ERROR_VE_NOT_REGISTERED)
-		return vcmm_error(rc, "Failed to unregister");
+		return vcmm_error(rc, "failed to unregister Container");
 
 	return 0;
 }
@@ -91,7 +91,7 @@ static int commit(struct vzctl_env_handle *h)
 	logger(1, 0, "vcmmd: commit");
 	rc = vcmmd_commit_ve(EID(h));
 	if (rc)
-		return vcmm_error(rc, "Failed to commit");
+		return vcmm_error(rc, "failed to commit Container configuration");
 
 	return 0;
 }
@@ -112,10 +112,10 @@ int vcmm_register(struct vzctl_env_handle *h)
 		vcmm_unregister(h);
 		rc = vcmmd_register_ve(EID(h), VCMMD_VE_CT, &c, true);
 	}
-	
+
 	if (rc)
-		return vcmm_error(rc, "Failed to register");
-	
+		return vcmm_error(rc, "failed to register Container");
+
 
 	return commit(h);
 }
@@ -131,7 +131,7 @@ int vcmm_update(struct vzctl_env_handle *h, struct vzctl_ub_param *ub)
 	logger(1, 0, "vcmmd: update");
 	rc = vcmmd_update_ve(EID(h), get_config(&c, ub), true);
 	if (rc)
-		return vcmm_error(rc, "Failed to update");
+		return vcmm_error(rc, "failed to update Container configuration");
 
 	return 0;
 }
