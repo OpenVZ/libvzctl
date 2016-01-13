@@ -89,7 +89,7 @@ static int commit(struct vzctl_env_handle *h)
 	int rc;
 
 	logger(1, 0, "vcmmd: commit");
-	rc = vcmmd_commit_ve(EID(h));
+	rc = vcmmd_activate_ve(EID(h));
 	if (rc)
 		return vcmm_error(rc, "failed to commit Container configuration");
 
@@ -107,7 +107,7 @@ int vcmm_register(struct vzctl_env_handle *h)
 	get_config(&c, h->env_param->res->ub);
 
 	logger(1, 0, "vcmmd: register");
-	rc = vcmmd_register_ve(EID(h), VCMMD_VE_CT, &c, true);
+	rc = vcmmd_register_ve(EID(h), VCMMD_VE_CT, &c);
 	if (rc == VCMMD_ERROR_VE_NAME_ALREADY_IN_USE) {
 		vcmm_unregister(h);
 		rc = vcmmd_register_ve(EID(h), VCMMD_VE_CT, &c, true);
@@ -129,7 +129,7 @@ int vcmm_update(struct vzctl_env_handle *h, struct vzctl_ub_param *ub)
 		return 0;
 
 	logger(1, 0, "vcmmd: update");
-	rc = vcmmd_update_ve(EID(h), get_config(&c, ub), true);
+	rc = vcmmd_update_ve(EID(h), get_config(&c, ub));
 	if (rc)
 		return vcmm_error(rc, "failed to update Container configuration");
 
