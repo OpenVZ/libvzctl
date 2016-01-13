@@ -110,7 +110,7 @@ int vcmm_register(struct vzctl_env_handle *h)
 	rc = vcmmd_register_ve(EID(h), VCMMD_VE_CT, &c);
 	if (rc == VCMMD_ERROR_VE_NAME_ALREADY_IN_USE) {
 		vcmm_unregister(h);
-		rc = vcmmd_register_ve(EID(h), VCMMD_VE_CT, &c, true);
+		rc = vcmmd_register_ve(EID(h), VCMMD_VE_CT, &c);
 	}
 
 	if (rc)
