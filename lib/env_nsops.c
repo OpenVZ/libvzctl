@@ -736,6 +736,9 @@ static int ns_env_create(struct vzctl_env_handle *h, struct start_param *param)
 	}
 
 	close(status_p[1]); status_p[1] = -1;
+	close(param->err_p[1]); param->err_p[1] = -1;
+	close(param->wait_p[0]); param->wait_p[0] = -1;
+
 	ret = wait_on_pipe(status_p[0]);
 	if (ret)
 		goto err;

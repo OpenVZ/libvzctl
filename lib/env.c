@@ -1067,8 +1067,8 @@ static int announce_ips(struct vzctl_env_handle *h)
 
 int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param, int flags)
 {
-	int wait_p[2];
-	int err_p[2];
+	int wait_p[2] = {-1, -1};
+	int err_p[2] = {-1, -1};
 	int ret;
 	struct vzctl_env_param *env = h->env_param;
 	const char *ve_root = env->fs->ve_root;
@@ -1100,8 +1100,7 @@ int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param
 		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
 
 	if (pipe(err_p) < 0) {
-		close(wait_p[0]);
-		close(wait_p[1]);
+		p_close(wait_p);
 		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
 	}
 
@@ -1128,8 +1127,6 @@ int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param
 		goto err;
 
 	logger(10, 0, "* env_restore %d ", ret);
-	close(wait_p[0]); wait_p[0] = -1;
-	close(err_p[1]); err_p[1] = -1;
 
 	if (!(flags & VZCTL_SKIP_SETUP)) {
 		ret = vzctl2_apply_param(h, env, flags);
@@ -1182,6 +1179,7 @@ err:
 		if (wait_p[1] != -1) {
 			if (close(wait_p[1]))
 				logger(4, errno, "Failed to close wait pipe");
+			wait_p[1] = -1;
 			wait_env_state(h, VZCTL_ENV_STOPPED, 5);
 		}
 
