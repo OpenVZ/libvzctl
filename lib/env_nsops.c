@@ -640,6 +640,12 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 	if (ret)
 		goto err;
 
+	if (param->fn != NULL) {
+		ret = cg_enable_pseudosuper(h->ctid);
+		if (ret)
+			goto err;
+	}
+
 	ret = cg_attach_task(h->ctid, getpid());
 	if (ret)
 		goto err;

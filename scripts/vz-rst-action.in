@@ -37,6 +37,7 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 	ln -s /proc/$pid/ns/net $VE_NETNS_FILE
 
 	if [ -n "$VEID" ]; then
+		cgset -r ve.pseudosuper="0" $VEID
 		cgset -r ve.state="START $pid" $VEID || exit
 	fi
 	;;

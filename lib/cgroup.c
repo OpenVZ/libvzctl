@@ -430,6 +430,11 @@ int cg_destroy_cgroup(const char *ctid)
 	return ret;
 }
 
+int cg_enable_pseudosuper(const char *ctid)
+{
+	return cg_set_ul(ctid, CG_VE, "ve.pseudosuper", 1);
+}
+
 int cg_attach_task(const char *ctid, pid_t pid)
 {
 	int ret, i;
