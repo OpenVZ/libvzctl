@@ -46,6 +46,7 @@ struct vzctl_disk {
 	char fsuuid[39];
 	char *storage_url;
 	int use_device;
+	dev_t dev;
 	disk_mount mount;
 	disk_umount umount;
 };

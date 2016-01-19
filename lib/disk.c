@@ -628,6 +628,9 @@ int mount_disk_device(struct vzctl_env_handle *h, struct vzctl_disk *d, int flag
 	if (mount(fname, param.target, "ext4", 0, NULL))
 		return vzctl_err(VZCTL_E_SYSTEM, errno,
 				"Failed to mount device %s", fname);
+
+	d->dev = st.st_rdev;
+
 	return 0;
 }
 
@@ -636,12 +639,23 @@ int mount_disk_image(struct vzctl_env_handle *h, struct vzctl_disk *d, int flags
 	int ret;
 	char buf[PATH_MAX];
 	struct vzctl_mount_param param = {};
+	struct stat st;
 
 	ret = get_disk_mount_param(h, d, &param, flags, buf, sizeof(buf));
 	if (ret)
 		return ret;
 
-	return vzctl2_mount_disk_image(d->path, &param);
+	ret = vzctl2_mount_disk_image(d->path, &param);
+	if (ret)
+		return ret;
+
+	if (stat(param.device, &st))
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "Cannot stat %s",
+				param.device);
+
+	d->dev = st.st_rdev;
+
+	return 0;
 }
 
 int vzctl2_mount_disk(struct vzctl_env_handle *h,

@@ -25,6 +25,37 @@
 
 exec 1>&2
 
+restore_devices()
+{
+	local s d t major minor old dir device
+	local pid=$(cat $VE_PIDFILE)
+
+	root=/proc/$pid/root
+
+	# VE_PLOOP_DEVS=UUID@ploopN:major:minor
+	for s in $VE_PLOOP_DEVS; do
+		uuid=${s%%@*}
+		t=${s#*@}
+		device=${t%%:*}
+		t=${t#*:}
+		major=${t%%:*}
+		minor=${t##*:}
+
+		[ ! -e "$root/dev/$uuid" ] && continue
+
+		old=$(readlink $root/dev/$uuid)
+		[ -z "$old" ] && continue
+
+		let minor=minor+1
+		for d in "${old}p1" "/dev/${device}p1"; do
+			rm -f $root/$d
+			mknod -m 660 $root/$d b $major $minor
+		done
+
+		rm -f $root/dev/$uuid
+	done
+}
+
 if [ -z "$CRTOOLS_SCRIPT_ACTION" ]; then
 	echo "Missing parameter CRTOOLS_SCRIPT_ACTION"
 	exit 1
@@ -37,9 +68,11 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 	ln -s /proc/$pid/ns/net $VE_NETNS_FILE
 
 	if [ -n "$VEID" ]; then
-		cgset -r ve.pseudosuper="0" $VEID
 		cgset -r ve.state="START $pid" $VEID || exit
 	fi
+	;;
+"post-setup-namespaces")
+	restore_devices
 	;;
 "network-unlock")
 	ret=0

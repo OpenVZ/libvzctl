@@ -31,6 +31,7 @@
 #include <sys/param.h>
 
 #include "libvzctl.h"
+#include "disk.h"
 #include "list.h"
 #include "cpt.h"
 #include "cgroup.h"
@@ -39,6 +40,31 @@
 #include "exec.h"
 #include "vzerror.h"
 #include "logger.h"
+
+static int create_ploop_dev_map(struct vzctl_env_handle *h, dev_t pid)
+{
+	int ret;
+	char devname[64];
+	char path[PATH_MAX];
+	struct vzctl_disk *d;
+
+	list_for_each(d, &h->env_param->disk->disks, list) {
+		ret = vzctl2_get_ploop_dev(d->path, devname, sizeof(devname));
+		if (ret)
+			return ret;
+
+		snprintf(path, sizeof(path), "/proc/%d/root/dev/%s",
+				(int)pid, d->uuid);
+		unlink(path);
+		logger(5, 0, "create device map %s -> %s", path, devname);
+		if (symlink(devname, path))
+			return vzctl_err(VZCTL_E_SYSTEM, errno,
+					"Failed to creaet symlink %s -> %s",
+					path, devname);
+	}
+
+	return 0;
+}
 
 static int do_dump(struct vzctl_env_handle *h, int cmd,
 		struct vzctl_cpt_param *param)
@@ -52,6 +78,10 @@ static int do_dump(struct vzctl_env_handle *h, int cmd,
 	pid_t pid;
 
 	ret = cg_env_get_init_pid(EID(h), &pid);
+	if (ret)
+		return ret;
+
+	ret = create_ploop_dev_map(h, pid);
 	if (ret)
 		return ret;
 
@@ -80,7 +110,7 @@ static int do_dump(struct vzctl_env_handle *h, int cmd,
 
 	ret = vzctl2_wrap_exec_script(arg, env, 0);
 	free_ar_str(env);
-	
+
 	return ret ? VZCTL_E_CHKPNT : 0;
 }
 
@@ -113,8 +143,9 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 	char script[PATH_MAX];
 	char buf[PATH_MAX];
 	char *arg[2];
-	char *env[10];
+	char *env[11];
 	struct vzctl_veth_dev *veth;
+	struct vzctl_disk *d;
 	int ret, i = 0;
 	char *pbuf, *ep;
 
@@ -153,10 +184,29 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 		if (pbuf > ep) {
 			env[i] = NULL;
 			free_ar_str(env);
-			return vzctl_err(VZCTL_E_INVAL, 0, "restore_FN: buffer overflow");
+			return vzctl_err(VZCTL_E_INVAL, 0, "restore: buffer overflow");
 		}
 	}
 	env[i++] = strdup(buf);
+
+	pbuf = buf;
+	ep = buf + sizeof(buf);
+	pbuf += snprintf(buf, sizeof(buf), "VE_PLOOP_DEVS=");
+	list_for_each(d, &h->env_param->disk->disks, list) {
+		pbuf += snprintf(pbuf, ep - pbuf, "%s@ploop%d:%d:%d\n",
+				d->uuid,
+				gnu_dev_minor(d->dev) >> 4,
+				gnu_dev_major(d->dev),
+				gnu_dev_minor(d->dev));
+		if (pbuf > ep) {
+			env[i] = NULL;
+			free_ar_str(env);
+			return vzctl_err(VZCTL_E_INVAL, 0, "restore: buffer overflow");
+		}
+	}
+	logger(10, 0, "* %s", buf);
+	env[i++] = strdup(buf);
+
 	env[i] = NULL;
 
 	arg[0] = get_script_path("vz-rst", script, sizeof(script));
