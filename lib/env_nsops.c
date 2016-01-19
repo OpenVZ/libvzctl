@@ -642,7 +642,7 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 
 	if (param->fn != NULL) {
 		ret = cg_enable_pseudosuper(h->ctid);
-		if (ret)
+		if (ret && errno != ENOENT)
 			goto err;
 	}
 
