@@ -2520,7 +2520,7 @@ void vzctl2_generate_ctid(ctid_t ctid)
 
 const char *get_devname(const char *device)
 {
-	char *p = strrchr(device, '/');
+	const char *p = strrchr(device, '/');
 
 	return p == NULL ? device : ++p;
 }
@@ -2687,7 +2687,7 @@ int fs_is_mounted_check_by_target(const char *target)
 	}
 
 	while (fgets(buf, sizeof(buf), fp)) {
-		if (sscanf(buf, "%u %u %u:%u %*s %s", &u, &u, &u, &u, t) != 6)
+		if (sscanf(buf, "%u %u %u:%u %*s %s", &u, &u, &u, &u, t) != 5)
 			continue;
 
 		if (strcmp(t, data) == 0) {
