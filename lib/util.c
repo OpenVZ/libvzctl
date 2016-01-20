@@ -2669,7 +2669,7 @@ int fs_is_mounted_check_by_target(const char *target)
 	int ret = 0;
 	char buf[PATH_MAX];
 	char t[PATH_MAX];
-	char *data = NULL;
+	char *data;
 	unsigned u;
 
 	if (access(target, F_OK))
@@ -2681,8 +2681,10 @@ int fs_is_mounted_check_by_target(const char *target)
 				target);
 
 	fp = fopen("/proc/self/mountinfo", "r");
-	if (fp == NULL)
+	if (fp == NULL) {
+		free(data);
 		return vzctl_err(-1, errno, "Can't open /proc/self/mountinfo");
+	}
 
 	while (fgets(buf, sizeof(buf), fp)) {
 		if (sscanf(buf, "%u %u %u:%u %*s %s", &u, &u, &u, &u, t) != 6)
