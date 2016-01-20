@@ -56,7 +56,7 @@ static int create_ploop_dev_map(struct vzctl_env_handle *h, dev_t pid)
 		snprintf(path, sizeof(path), "/proc/%d/root/dev/%s",
 				(int)pid, d->uuid);
 		unlink(path);
-		logger(5, 0, "create device map %s -> %s", path, devname);
+		logger(5, 0, "create device map %s -> %s", d->uuid, devname);
 		if (symlink(devname, path))
 			return vzctl_err(VZCTL_E_SYSTEM, errno,
 					"Failed to creaet symlink %s -> %s",
