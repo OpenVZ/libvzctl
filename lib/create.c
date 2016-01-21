@@ -260,7 +260,17 @@ static int create_private_ploop(struct vzctl_env_handle *h, const char *dst, con
 	char *env[5];
 	int i = 0;
 
-	get_root_disk_path(dst, data_root, sizeof(data_root));
+	switch (layout) {
+	case VZCTL_LAYOUT_5:
+		get_root_disk_path(dst, data_root, sizeof(data_root));
+		break;
+	case VZCTL_LAYOUT_4:
+		snprintf(data_root, sizeof(data_root), "%s", dst);
+		break;
+	default:
+		return vzctl_err(VZCTL_E_INVAL, 9, "Unsupported CT layout %d",
+				layout);
+	}
 
 	ret = make_dir(data_root, 1);
 	if (ret)
@@ -280,7 +290,10 @@ static int create_private_ploop(struct vzctl_env_handle *h, const char *dst, con
 	env[i] = NULL;
 	ret = vzctl2_wrap_exec_script(arg, env, 0);
 	if (ret)
-		goto err;
+		return ret;
+
+	if (layout == VZCTL_LAYOUT_4)
+		return 0;
 
 	/* Create compatible symlink templates -> root.hdd/templates */
 	snprintf(buf, sizeof(buf), "%s/templates", data_root);
@@ -294,10 +307,10 @@ static int create_private_ploop(struct vzctl_env_handle *h, const char *dst, con
 	if (h->env_param->dq->diskspace != NULL) {
 		ret = vzctl2_resize_disk_image(data_root, h->env_param->dq->diskspace->l, 0);
 		if (ret)
-			goto err;
+			return ret;
 	}
-err:
-	return ret;
+
+	return 0;
 }
 
 static int do_create_private(struct vzctl_env_handle *h, const char *dst,
