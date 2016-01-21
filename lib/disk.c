@@ -858,7 +858,7 @@ static int add_sysfs_entry(struct vzctl_env_handle *h, const char *sysfs)
 
 	n = scandir(path, &namelist, NULL, NULL);
 	if (n < 0)
-		return vzctl_err(VZCTL_E_SYSTEM, errno, "Unabel to open %s",
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "Unable to open %s",
 				path);
 
 	while (n--) {
@@ -879,11 +879,38 @@ static int add_sysfs_entry(struct vzctl_env_handle *h, const char *sysfs)
 	return ret;
 }
 
+static int get_sysfs_device_path(const char *devname, char *out, int size)
+{
+	int n;
+	char x[STR_SIZE];
+	char buf[PATH_MAX];
+	const char *p = buf;
+
+	snprintf(x, sizeof(x), "/sys/class/block/%s", devname);
+
+	n = readlink(x, buf, sizeof(buf) -1);
+	if (n == -1)
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "readling %s", buf);
+	buf[n-1] = '\0';
+
+	p += 6;
+	n = strlen(p) - strlen(devname) + 1;
+
+	if (n < 0 || n > size)
+		return vzctl_err(VZCTL_E_INVAL, 0,
+			"get_sysfs_device_path: incorrect value %s", buf);
+
+	snprintf(out, n, "%s", p);
+
+	return 0;
+}
+
 static int configure_sysfsperm(struct vzctl_env_handle *h, const char *device,
 		int del)
 {
 	char buf[STR_SIZE];
 	char part[STR_SIZE];
+	char sysfs[PATH_MAX];
 	int ret;
 	const char *devname, *partname;
 
@@ -894,13 +921,17 @@ static int configure_sysfsperm(struct vzctl_env_handle *h, const char *device,
 	devname = get_devname(device);
 	partname = get_devname(part);
 
+	ret = get_sysfs_device_path(devname, sysfs, sizeof(sysfs));
+	if (ret)
+		return ret;
+
 	if (del) {
-		snprintf(buf, sizeof(buf), "devices/virtual/block/%s -", devname);
+		snprintf(buf, sizeof(buf), "%s/%s -", sysfs, devname);
 		if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
 			return VZCTL_E_DISK_CONFIGURE;
 
-		snprintf(buf, sizeof(buf), "devices/virtual/block/%s/%s -",
-				devname, partname);
+		snprintf(buf, sizeof(buf), "%s/%s/%s -",
+				sysfs, devname, partname);
 		if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
 			return VZCTL_E_DISK_CONFIGURE;
 
@@ -910,21 +941,21 @@ static int configure_sysfsperm(struct vzctl_env_handle *h, const char *device,
 	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", "block rx"))
 		return VZCTL_E_DISK_CONFIGURE;
 
-	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions",
-				"devices/virtual/block rx"))
-		return VZCTL_E_DISK_CONFIGURE;
-
-	snprintf(buf, sizeof(buf), "devices/virtual/block/%s rx", devname);
+	snprintf(buf, sizeof(buf), "%s rx", sysfs);
 	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
 		return VZCTL_E_DISK_CONFIGURE;
 
-	snprintf(buf, sizeof(buf), "devices/virtual/block/%s", devname);
+	snprintf(buf, sizeof(buf), "%s/%s rx", sysfs, devname);
+	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
+		return VZCTL_E_DISK_CONFIGURE;
+
+	snprintf(buf, sizeof(buf), "%s/%s", sysfs, devname);
 	ret = add_sysfs_entry(h, buf);
 	if (ret)
 		return ret;
 
-	snprintf(buf, sizeof(buf), "devices/virtual/block/%s/%s",
-			devname, partname);
+	snprintf(buf, sizeof(buf), "%s/%s/%s",
+			sysfs, devname, partname);
 	ret = add_sysfs_entry(h, buf);
 	if (ret)
 		return ret;
