@@ -1023,8 +1023,8 @@ int vzctl2_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 	criu bug. Wait some time for dumped processes termination. */
 	wait_env_state(h, VZCTL_ENV_STOPPED, 5);
 
-end:
 	do_env_post_stop(h, flags);
+end:
 
 	if (ret)
 		logger(-1, 0, "Checkpointing failed");
