@@ -970,7 +970,7 @@ int bindmount_env_cgroup(struct vzctl_env_handle *h)
 err:
 	free_str(&head);
 
-	return 0;
+	return ret;
 }
 
 int cg_set_veid(const char *ctid, int veid)
