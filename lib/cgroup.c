@@ -128,7 +128,7 @@ static int is_prvt_cgroup(const char *subsys)
 {
 	struct cg_ctl *c = find_cg_ctl(subsys);
 
-	return (c == NULL ? 0 : c->is_prvt);
+	return (c == NULL ? 1 : c->is_prvt);
 }
 
 static int cg_get_ctl(const char *subsys, struct cg_ctl **ctl)
