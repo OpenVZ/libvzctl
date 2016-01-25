@@ -58,6 +58,7 @@
 #include "iptables.h"
 #include "vzfeatures.h"
 #include "vcmm.h"
+#include "vzctl_param.h"
 
 int systemd_start_ve_scope(struct vzctl_env_handle *h, pid_t pid);
 
@@ -275,14 +276,8 @@ static int ns_set_ub(struct vzctl_env_handle *h,
 static int ns_set_memory_param(struct vzctl_env_handle *h, struct vzctl_ub_param *ub)
 {
 	int ret = 0;
-	int pagesize;
+	int pagesize = get_pagesize();
 	unsigned long val;
-
-	pagesize = sysconf(_SC_PAGESIZE);
-	if (pagesize == -1) {
-		vzctl_err(VZCTL_E_SYSTEM, errno, "sysconf(_SC_PAGESIZE)");
-		pagesize = 4096;
-	}
 
 	if (ub->physpages) {
 		val = ub->physpages->l * pagesize;
@@ -290,7 +285,6 @@ static int ns_set_memory_param(struct vzctl_env_handle *h, struct vzctl_ub_param
 		if (ret)
 			return ret;
 	}
-
 
 	if (ub->swappages) {
 		ret = cg_env_get_memory(h->ctid, CG_MEM_LIMIT, &val);
@@ -323,8 +317,10 @@ static int ns_apply_res_param(struct vzctl_env_handle *h,
 	}
 
 	if (is_managed_by_vcmmd()) {
-		if (h->state != VZCTL_STATE_STARTING)
-			ret = vcmm_update(h, ub);
+		if (h->state == VZCTL_STATE_STARTING)
+			ret = vcmm_register(h, ub, env->res->memguar);
+		else
+			ret = vcmm_update(h, ub, env->res->memguar);
 	} else
 		ret = ns_set_memory_param(h, ub);
 
@@ -635,10 +631,6 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 	ret = create_cgroup(h);
 	if (ret)
 		return ret;
-
-	ret = vcmm_register(h);
-	if (ret)
-		goto err;
 
 	if (param->fn != NULL) {
 		ret = cg_enable_pseudosuper(h->ctid);

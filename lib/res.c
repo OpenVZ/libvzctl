@@ -42,6 +42,7 @@ void free_res_param(struct vzctl_res_param *res)
 	if (res->slm != NULL)
 		free_slm_param(res->slm);
 	free(res->ramsize);
+	free(res->memguar);
 	free(res);
 }
 

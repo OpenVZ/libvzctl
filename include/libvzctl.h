@@ -450,6 +450,16 @@ struct vzctl_reinstall_param {
 	char *reinstall_opts;
 };
 
+enum {
+	VZCTL_MEM_GUARANTEE_AUTO = 0,
+	VZCTL_MEM_GUARANTEE_PCT,
+};
+
+struct vzctl_mem_guarantee {
+	int type;
+	unsigned long value;
+	int dummy[32];
+};
 
 typedef int (* execFn)(void *data);
 
@@ -628,6 +638,10 @@ int vzctl2_env_get_ub_resource(vzctl_env_param_ptr env, int id, struct vzctl_2UL
 
 int vzctl2_env_set_ramsize(vzctl_env_param_ptr env, unsigned long ramsize);
 int vzctl2_env_get_ramsize(vzctl_env_param_ptr env, unsigned long *ramsize);
+int vzctl2_env_set_memguarantee(vzctl_env_param_ptr env,
+		struct vzctl_mem_guarantee *meemguarantee);
+int vzctl2_env_get_memguarantee(vzctl_env_param_ptr env,
+		struct vzctl_mem_guarantee *meemguarantee);
 
 int vzctl2_env_set_diskspace(vzctl_env_param_ptr env, struct vzctl_2UL_res *res);
 int vzctl2_env_get_diskspace(vzctl_env_param_ptr env, struct vzctl_2UL_res *res);

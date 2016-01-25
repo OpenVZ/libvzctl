@@ -34,6 +34,7 @@ enum {
 
 struct vzctl_res_param {
 	unsigned long *ramsize;
+	struct vzctl_mem_guarantee *memguar;
 	struct vzctl_ub_param *ub;
 	struct vzctl_slm_param *slm;
 };

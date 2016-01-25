@@ -1866,6 +1866,37 @@ int vzctl2_env_get_ramsize(struct vzctl_env_param *env, unsigned long *ramsize)
 	return -1;
 }
 
+int vzctl2_env_set_memguarantee(vzctl_env_param_ptr env,
+                struct vzctl_mem_guarantee *param)
+{
+	if (param->type != VZCTL_MEM_GUARANTEE_AUTO &&
+			param->type != VZCTL_MEM_GUARANTEE_PCT)
+		return VZCTL_E_INVAL;
+
+	if (env->res->memguar == NULL) {
+		env->res->memguar = malloc(sizeof(struct vzctl_mem_guarantee));
+		if (env->res->memguar == NULL)
+			return VZCTL_E_NOMEM;
+	}
+
+	env->res->memguar->type = param->type;
+	env->res->memguar->value = param->value;
+
+	return 0;
+}
+
+int vzctl2_env_get_memguarantee(vzctl_env_param_ptr env,
+		struct vzctl_mem_guarantee *param)
+{
+	if (env->res->memguar == NULL)
+		return -1;
+
+	param->type = env->res->memguar->type;
+	param->value = env->res->memguar->value;
+
+	return 0;
+}
+
 int vzctl2_env_set_iolimit(struct vzctl_env_param *env, unsigned int limit)
 {
 	env->io->limit = limit;

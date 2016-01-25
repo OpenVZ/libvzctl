@@ -1205,6 +1205,46 @@ void test_config_ramsize(vzctl_env_handle_ptr h)
 	vzctl2_env_close(h_res);
 }
 
+void test_config_memguarantee(vzctl_env_handle_ptr h)
+{
+	int err;
+	vzctl_env_handle_ptr h_res = NULL;
+	vzctl_env_param_ptr new_param;
+	int i;
+	struct vzctl_mem_guarantee x;
+
+	TEST()
+	x.type = VZCTL_MEM_GUARANTEE_AUTO;
+	x.value = 0;
+	for (i = 0; i < 2; i++) {
+		struct vzctl_mem_guarantee res = {
+				.type = -1,
+				.value = UINT_MAX,
+		};
+
+		printf("(info) test_config_memguarantee: %d:%lu\n",
+				x.type, x.value);
+		CHECK_PTR(new_param, vzctl2_alloc_env_param())
+		CHECK_RET(vzctl2_env_set_memguarantee(new_param, &x))
+		CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
+
+		CHECK_RET(vzctl2_env_get_memguarantee(vzctl2_get_env_param(h), &res))
+		if (x.type != res.type) {
+			printf("\t(err) type: %d != %d\n", x.type, res.type);
+			TEST_ERR("vzctl2_env_get_memguarantee");
+		}
+
+		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
+		vzctl2_free_env_param(new_param);
+		CHECK_PTR(new_param, vzctl2_get_env_param(h_res))
+
+		x.type = VZCTL_MEM_GUARANTEE_PCT;
+		x.value = rand_ul() % 100;
+	}
+
+	vzctl2_env_close(h_res);
+}
+
 void test_config_layout(vzctl_env_handle_ptr h)
 {
 	int layout;
@@ -1521,6 +1561,7 @@ void test_config()
 	h = vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err);
 	if (h == NULL)
 		TEST_ERR("vzctl2_env_open2")
+
 #if 0
 	test_config_DISK(h);
 	test_config_CAPABILITY(h);
@@ -1540,6 +1581,7 @@ void test_config()
 	test_config_VETH(h);
 	test_config_MISC(h);
 	test_config_ramsize(h);
+	test_config_memguarantee(h);
 	test_config_layout(h);
 	test_config_APPLY_IPONLY(h);
 	test_config_FEATURES(h);

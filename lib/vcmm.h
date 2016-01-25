@@ -24,6 +24,8 @@
 #ifndef	_VCMM_H_
 int is_managed_by_vcmmd(void);
 int vcmm_unregister(struct vzctl_env_handle *h);
-int vcmm_register(struct vzctl_env_handle *h);
-int vcmm_update(struct vzctl_env_handle *h, struct vzctl_ub_param *ub);
+int vcmm_register(struct vzctl_env_handle *h, struct vzctl_ub_param *ub,
+		struct vzctl_mem_guarantee *guar);
+int vcmm_update(struct vzctl_env_handle *h, struct vzctl_ub_param *ub,
+		struct vzctl_mem_guarantee *guar);
 #endif

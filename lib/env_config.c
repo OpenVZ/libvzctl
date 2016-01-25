@@ -181,6 +181,8 @@ static struct vzctl_config_param config_param_map[] = {
 {"RATE",	VZCTL_PARAM_RATE},
 {"RATEBOUND",	VZCTL_PARAM_RATEBOUND},
 
+{"MEMGUARANTEE",VZCTL_PARAM_MEM_GUARANTEE},
+
 
 /* TODO */
 // EXT_IP_ADDRESS
@@ -218,6 +220,39 @@ static int parse_str(char **dst, const char *src, int replace)
 	if (*dst != NULL && !replace)
 		return 0;
 	return xstrdup(dst, src);
+}
+
+static int parse_memguar(struct vzctl_res_param *res, const char *str)
+{
+	struct vzctl_mem_guarantee x = {};
+
+	if (strcmp(str, "auto") == 0) {
+		x.type = VZCTL_MEM_GUARANTEE_AUTO;
+	} else {
+		x.type = VZCTL_MEM_GUARANTEE_PCT;
+		if (parse_ul(str, &x.value))
+			return VZCTL_E_INVAL;
+	}
+
+	if (res->memguar == NULL) {
+		res->memguar = xmalloc(sizeof(*res->memguar));
+		if (res->memguar == NULL)
+			return VZCTL_E_NOMEM;
+	}
+
+	memcpy(res->memguar, &x, sizeof(struct vzctl_mem_guarantee));
+
+	return 0;
+}
+
+static char *memguar2str(struct vzctl_mem_guarantee *memguar)
+{
+	char x[12] = "auto";
+
+	if (memguar->type == VZCTL_MEM_GUARANTEE_PCT)
+		snprintf(x, sizeof(x), "%lu", memguar->value);
+
+	return strdup(x);
 }
 
 static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
@@ -687,6 +722,11 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 		if ((id = yesno2id(str)) == -1)
 			return VZCTL_E_INVAL;
 		env->vz->tc->ratebound = id;
+		break;
+	case VZCTL_PARAM_MEM_GUARANTEE:
+		if (env->res->memguar != NULL && !replace)
+			break;
+		ret = parse_memguar(env->res, str);
 		break;
 	default:
 		debug(DBG_CFG, "Unknown parameter id=%d", param_id);
@@ -1217,6 +1257,10 @@ static char *env_param2str(struct vzctl_env_handle *h,
 	case VZCTL_PARAM_RATEBOUND:
 		if (env->vz->tc->ratebound)
 			return strdup(id2yesno(env->vz->tc->ratebound ));
+		break;
+	case VZCTL_PARAM_MEM_GUARANTEE:
+		if (env->res->memguar != NULL)
+			return memguar2str(env->res->memguar);
 		break;
 	default:
 		break;
