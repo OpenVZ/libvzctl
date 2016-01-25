@@ -128,7 +128,7 @@ static int is_prvt_cgroup(const char *subsys)
 {
 	struct cg_ctl *c = find_cg_ctl(subsys);
 
-	return (c == NULL ? 0 : c->is_prvt); 
+	return (c == NULL ? 0 : c->is_prvt);
 }
 
 static int cg_get_ctl(const char *subsys, struct cg_ctl **ctl)
@@ -322,8 +322,6 @@ int cg_get_ull(const char *ctid, const char *subsys, const char *name,
 
 	return 0;
 }
-
-
 
 static int cg_create(const char *ctid, struct cg_ctl *ctl)
 {
@@ -725,7 +723,7 @@ static int get_veip(const char *path, list_head_t *list)
 		p = strrchr(str, '\n');
 		if (p != NULL)
 			*p = '\0';
-		
+
 		ret = get_ip_name(str, ip_str, sizeof(ip_str));
 		if (ret)
 			break;
@@ -931,7 +929,6 @@ static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t * head)
 		ret = create_perctl_symlink(ve_root, it->str);
 		if (ret)
 			goto err;
-		
 	}
 
 	snprintf(s, sizeof(s), "/sys/fs/cgroup/systemd/"SYSTEMD_CTID_SCOPE_FMT, EID(h));
@@ -941,12 +938,12 @@ static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t * head)
 err:
 	if (ret) {
 		list_for_each(it, head, list) {
-        		snprintf(s, sizeof(s), "%s/%s",
+			snprintf(s, sizeof(s), "%s/%s",
 					ve_root, it->str);
 			umount(s);
 		}
 
-        	snprintf(s, sizeof(s), "%s/sys/fs/cgroup", ve_root);
+		snprintf(s, sizeof(s), "%s/sys/fs/cgroup", ve_root);
 		umount(s);
 
 		snprintf(s, sizeof(s), "%s/sys", ve_root);
@@ -956,7 +953,7 @@ err:
 	return ret;
 }
 
-int bindmount_env_cgroup(struct vzctl_env_handle *h) 
+int bindmount_env_cgroup(struct vzctl_env_handle *h)
 {
 	int ret;
 	LIST_HEAD(head);
