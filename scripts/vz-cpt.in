@@ -42,7 +42,7 @@ criu dump -vvvv -o dump.log				\
 		--enable-external-maste			\
 		--root $VE_ROOT				\
 		--freeze-cgroup $VE_FREEZE_CG		\
-		--ghost-limit 5M			\
+		--ghost-limit 50M			\
 		-t $VE_PID				\
 		-D $dumpdir				\
 		$CRIU_EXTRA_ARGS
