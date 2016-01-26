@@ -41,7 +41,7 @@ restore_devices()
 		major=${t%%:*}
 		minor=${t##*:}
 
-		[ ! -e "$root/dev/$uuid" ] && continue
+		[ ! -L "$root/dev/$uuid" ] && continue
 
 		old=$(readlink $root/dev/$uuid)
 		[ -z "$old" ] && continue
