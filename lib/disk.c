@@ -837,6 +837,25 @@ static int configure_devperm(struct vzctl_env_handle *h, struct vzctl_disk *disk
 	return get_env_ops()->env_set_devperm(h, &devperms);
 }
 
+static int add_sysfs_dir(struct vzctl_env_handle *h, const char *sysfs,
+		const char *devname)
+{
+	char buf[PATH_MAX];
+	char t[PATH_MAX];
+	char *p;
+
+	snprintf(t, sizeof(t), "%s/%s/", sysfs, devname);
+	for (p = strchr(t, '/'); p != NULL; p = strchr(p, '/')) {
+		*p = '\0';
+		snprintf(buf, sizeof(buf), "%s rx", t);
+		if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
+			return VZCTL_E_DISK_CONFIGURE;
+		*p++ = '/';
+	}
+
+	return 0;
+}
+
 static int add_sysfs_entry(struct vzctl_env_handle *h, const char *sysfs)
 {
 	char path[PATH_MAX];
@@ -941,12 +960,7 @@ static int configure_sysfsperm(struct vzctl_env_handle *h, const char *device,
 	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", "block rx"))
 		return VZCTL_E_DISK_CONFIGURE;
 
-	snprintf(buf, sizeof(buf), "%s rx", sysfs);
-	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
-		return VZCTL_E_DISK_CONFIGURE;
-
-	snprintf(buf, sizeof(buf), "%s/%s rx", sysfs, devname);
-	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
+	if (add_sysfs_dir(h, sysfs, devname))
 		return VZCTL_E_DISK_CONFIGURE;
 
 	snprintf(buf, sizeof(buf), "%s/%s", sysfs, devname);
@@ -1017,7 +1031,7 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 		return ret;
 
 	if (!skip_configure) {
-		ret = configure_disk(h, disk, dev, flags, automount);
+		ret = configure_disk(h, disk, dev, device, part, flags, automount);
 		if (ret)
 			return ret;
 	}

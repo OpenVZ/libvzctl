@@ -47,6 +47,8 @@
 
 struct exec_disk_param {
 	const char *fsuuid;
+	const char *device;
+	const char *part;
 	dev_t dev;
 	struct vzctl_disk *disk;
 	int automount;
@@ -265,33 +267,26 @@ err:
 	return err;
 }
 
-void get_partition_dev_name(dev_t dev, char *out, int len)
-{
-	snprintf(out, len, "/dev/ploop%dp1", gnu_dev_minor(dev) >> 4);
-}
-
-int send_uevent(const char *devname)
+int send_uevent(const char *part)
 {
 	char path[PATH_MAX];
 
 	snprintf(path, sizeof(path), "/sys/class/block/%s/uevent",
-			get_devname(devname));
+			get_devname(part));
 
 	return write_data(path, "add");
 }
 
 static int env_configure_disk(struct exec_disk_param *param)
 {
-	char device[STR_SIZE];
 	struct vzctl_disk *disk = param->disk;
-
-	get_partition_dev_name(param->dev, device, sizeof(device));
+	const char *device = param->device;
 
 	if (create_static_dev(device, S_IFBLK | S_IRUSR | S_IWUSR,
 				param->dev))
 		return -1;
 
-	if (send_uevent(device))
+	if (send_uevent(param->part))
 		return -1;
 
 	if (disk->mnt != NULL && param->fsuuid != NULL) {
@@ -311,11 +306,14 @@ static int env_configure_disk(struct exec_disk_param *param)
 	return 0;
 }
 
-int configure_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk, dev_t dev,
+int configure_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
+		dev_t dev, const char *device, const char *part,
 		int flags, int automount)
 {
 	struct exec_disk_param param = {
 		.fsuuid = disk->fsuuid,
+		.device = device,
+		.part = part,
 		.dev = dev,
 		.disk = disk,
 		.automount = automount
