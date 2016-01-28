@@ -37,7 +37,7 @@
 #include "util.h"
 
 #define VCMMCTL_BIN     "/usr/sbin/vcmmdctl"
-
+#define DEFAULT_MEM_GUARANTEE_PCT	20
 static int vcmm_error(int rc, const char *msg)
 {
 	char buf[STR_SIZE];
@@ -46,44 +46,110 @@ static int vcmm_error(int rc, const char *msg)
 			msg, vcmmd_strerror(rc, buf, sizeof(buf)));
 }
 
-#define DEFAULT_MEM_GUARANTEE_PCT	20
-static struct vcmmd_ve_config *get_config(struct vcmmd_ve_config *c,
-		struct vzctl_ub_param *ub, struct vzctl_mem_guarantee * guar,
-		int init)
+static struct vcmmd_ve_config *vcmm_get_config(struct vcmmd_ve_config *c,
+		unsigned long *mem, unsigned long *swap, unsigned long *guar)
 {
 	vcmmd_ve_config_init(c);
-	int update_guar = init;
-	unsigned long memguar = DEFAULT_MEM_GUARANTEE_PCT;
-	unsigned long memlimit = 0;
+	char s[STR_SIZE] = "";
+	char *sp = s;
 
-	if (ub != NULL) {
-		if (ub->physpages != NULL) {
-			memlimit = ub->physpages->l * get_pagesize();
-			vcmmd_ve_config_append(c, VCMMD_VE_CONFIG_LIMIT,
-					memlimit);
-			update_guar = 1;
-		}
+	if (mem != NULL) {
+		vcmmd_ve_config_append(c, VCMMD_VE_CONFIG_LIMIT, *mem);
+		sp += sprintf(sp, "memlimit=%lubytes ", *mem);
+	}
 
-		if (ub->swappages != NULL)
-			vcmmd_ve_config_append(c, VCMMD_VE_CONFIG_SWAP,
-					ub->swappages->l * get_pagesize());
+	if (swap != NULL) {
+		vcmmd_ve_config_append(c, VCMMD_VE_CONFIG_SWAP, *swap);
+		sp += sprintf(sp, "swaplimit=%lubytes ", *swap);
 	}
 
 	if (guar != NULL) {
-		memguar = guar->type == VZCTL_MEM_GUARANTEE_PCT ?
-				guar->value : DEFAULT_MEM_GUARANTEE_PCT;
-		update_guar = 1;
+		vcmmd_ve_config_append(c, VCMMD_VE_CONFIG_GUARANTEE, *guar);
+		sp += sprintf(sp, "guarantee=%lubytes", *guar);
 	}
 
-	if (update_guar) {
-		unsigned long memguarlimit = memlimit *  memguar / 100;
-		logger(1, 0, "memory guaranty %lu%% %lubytes",
-				memguar, memguarlimit);
-		vcmmd_ve_config_append(c, VCMMD_VE_CONFIG_GUARANTEE,
-				memguarlimit);
-	}
+	logger(1, 0, "Configure %s", s);
 
 	return c;
+}
+
+static int vcmm_get_param(const char *id, unsigned long *mem,
+		unsigned long *guar)
+{
+	int rc;
+	struct vcmmd_ve_config c;
+
+	vcmmd_ve_config_init(&c);
+	rc = vcmmd_get_ve_config(id, &c);
+	if (rc)
+		return vcmm_error(rc, "vcmmd_get_ve_config");
+
+	if (!vcmmd_ve_config_extract(&c, VCMMD_VE_CONFIG_LIMIT, mem))
+		return vzctl_err(VZCTL_E_VCMM, 0,
+			"Unable to get VCMMD_VE_CONFIG_LIMIT parameter");
+
+	if (!vcmmd_ve_config_extract(&c, VCMMD_VE_CONFIG_GUARANTEE, guar))
+		*guar = 0;
+
+	logger(5, 0, "vcmmd CT configuration mem=%lu guar=%lu",	*mem, *guar);
+
+	return 0;
+}
+
+static int get_vcmm_config(const char *id, struct vcmmd_ve_config *c,
+		struct vzctl_ub_param *ub, struct vzctl_mem_guarantee *guar,
+		int init)
+{
+	int ret;
+	unsigned long *mem_p = NULL, *swap_p = NULL, *guar_p = NULL;
+	unsigned long mem, swap, guar_bytes;
+	unsigned long mem_cur, guar_bytes_cur;
+	unsigned long x;
+	struct vzctl_mem_guarantee guar_def = {
+		.type = VZCTL_MEM_GUARANTEE_AUTO
+	};
+
+	if (init) {
+		/* use default garanty if not set */
+		if (guar == NULL)
+			guar = &guar_def;
+	} else if (ub->physpages == NULL || guar == NULL) {
+		ret = vcmm_get_param(id, &mem_cur, &guar_bytes_cur);
+		if (ret)
+			return ret;
+		if (ub->physpages == NULL)
+			mem = mem_cur;
+	}
+
+	if (ub->physpages != NULL) {
+		mem = ub->physpages->l * get_pagesize();
+		mem_p = &mem;
+		/* scale guaranty on memlimit chage */
+		if (guar == NULL) {
+			guar_def.type = DEFAULT_MEM_GUARANTEE_PCT;
+			guar_def.value = ((float)guar_bytes_cur / mem_cur) * 100;
+			guar = &guar_def;
+		}
+	}
+
+	if (ub->swappages != NULL) {
+		swap = ub->swappages->l * get_pagesize();
+		swap_p = &swap;
+	}
+
+	if (guar != NULL) {
+		x = (guar->type == VZCTL_MEM_GUARANTEE_AUTO) ?
+				DEFAULT_MEM_GUARANTEE_PCT : guar->value;
+
+		guar_bytes = ((float)mem * x) / 100;
+
+		logger(0, 0, "Configure memguarantee %lu%%", x);
+		guar_p = &guar_bytes;
+	}
+
+	vcmm_get_config(c, mem_p, swap_p, guar_p);
+
+	return 0;
 }
 
 int is_managed_by_vcmmd(void)
@@ -115,7 +181,9 @@ int vcmm_register(struct vzctl_env_handle *h, struct vzctl_ub_param *ub,
 	if (!is_managed_by_vcmmd())
 		return 0;
 
-	get_config(&c, ub, guar, 1);
+	rc = get_vcmm_config(EID(h), &c, ub, guar, 1);
+	if (rc)
+		return rc;
 
 	logger(1, 0, "vcmmd: register");
 	rc = vcmmd_register_ve(EID(h), VCMMD_VE_CT, &c);
@@ -144,7 +212,11 @@ int vcmm_update(struct vzctl_env_handle *h, struct vzctl_ub_param *ub,
 		return 0;
 
 	logger(1, 0, "vcmmd: update");
-	rc = vcmmd_update_ve(EID(h), get_config(&c, ub, guar, 0));
+	rc = get_vcmm_config(EID(h), &c, ub, guar, 0);
+	if (rc)
+		return rc;
+
+	rc = vcmmd_update_ve(EID(h), &c);
 	if (rc)
 		return vcmm_error(rc, "failed to update Container configuration");
 
