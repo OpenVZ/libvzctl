@@ -34,6 +34,13 @@ for dev in $VE_VETH_DEVS; do
 	veth_args="$veth_args --veth-pair $dev"
 done
 
+ext_mount_map=
+for s in $VE_CGROUP_MOUNT_MAP; do
+	m=${s%%:*}
+	c=${s##*:}
+	ext_mount_map="$ext_mount_map --ext-mount-map $c:$m/$VEID"
+done
+
 action_script=@SCRIPTDIR@/vz-rst-action
 
 d=$(dirname $VE_PIDFILE)
@@ -60,9 +67,6 @@ criu restore -vvvv					\
 		--manage-cgroups			\
 		--link-remap				\
 		--root $VE_ROOT				\
-		--ext-mount-map auto			\
-		--enable-external-sharing		\
-		--enable-external-masters		\
 		--restore-detached			\
 		--action-script $action_script		\
 		-D $VE_DUMP_DIR				\
@@ -70,6 +74,7 @@ criu restore -vvvv					\
 		-o $VE_RESTORE_LOG_PATH			\
 		--pidfile $VE_PIDFILE			\
 		--cgroup-root /$VEID			\
+		$ext_mount_map				\
 		$veth_args
 
 if [ $? -eq 0 ]; then

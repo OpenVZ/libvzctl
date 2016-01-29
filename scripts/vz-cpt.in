@@ -28,6 +28,11 @@
 exec 1>&2
 
 dumpdir="$VE_DUMP_DIR".tmp
+ext_mount_map=
+for s in $VE_CGROUP_MOUNT_MAP; do
+	ext_mount_map="$ext_mount_map --ext-mount-map $s"
+done
+
 [ -d $dumpdir ] && rm -rf $dumpdir
 
 mkdir -p $dumpdir &&
@@ -37,14 +42,12 @@ criu dump -vvvv -o dump.log				\
 		--evasive-devices			\
 		--manage-cgroups			\
 		--link-remap				\
-		--ext-mount-map auto			\
-		--enable-external-shari			\
-		--enable-external-maste			\
 		--root $VE_ROOT				\
 		--freeze-cgroup $VE_FREEZE_CG		\
 		--ghost-limit 50M			\
 		-t $VE_PID				\
 		-D $dumpdir				\
+		$ext_mount_map				\
 		$CRIU_EXTRA_ARGS
 
 if [ $? -ne 0 ]; then

@@ -73,7 +73,7 @@ static int do_dump(struct vzctl_env_handle *h, int cmd,
 	char buf[PATH_MAX];
 	char script[PATH_MAX];
 	char *arg[2];
-	char *env[6];
+	char *env[7];
 	int ret, i = 0;
 	pid_t pid;
 
@@ -103,6 +103,10 @@ static int do_dump(struct vzctl_env_handle *h, int cmd,
 		snprintf(buf, sizeof(buf), "CRIU_EXTRA_ARGS=--leave-running");
 		env[i++] = strdup(buf);
 	}
+
+	cg_get_cgroup_env_param(buf, sizeof(buf));
+	env[i++] = strdup(buf);
+
 	env[i] = NULL;
 
 	arg[0] = get_script_path("vz-cpt", script, sizeof(script));
@@ -143,7 +147,7 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 	char script[PATH_MAX];
 	char buf[PATH_MAX];
 	char *arg[2];
-	char *env[11];
+	char *env[12];
 	struct vzctl_veth_dev *veth;
 	struct vzctl_disk *d;
 	int ret, i = 0;
@@ -205,6 +209,9 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 		}
 	}
 	logger(10, 0, "* %s", buf);
+	env[i++] = strdup(buf);
+
+	cg_get_cgroup_env_param(buf, sizeof(buf));
 	env[i++] = strdup(buf);
 
 	env[i] = NULL;

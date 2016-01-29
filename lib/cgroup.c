@@ -390,6 +390,28 @@ static int cg_destroy(const char *ctid, struct cg_ctl *ctl)
 	return ret;
 }
 
+int cg_get_cgroup_env_param(char *out, int size)
+{
+	int i, ret;
+	struct cg_ctl *ctl;
+	char *p = out;
+	char *ep = p + size;
+
+	p += snprintf(p, ep - p, "VE_CGROUP_MOUNT_MAP=");
+	for (i = 0; i < sizeof(cg_ctl_map)/sizeof(cg_ctl_map[0]); i++) {
+		ret = cg_get_ctl(cg_ctl_map[i].subsys, &ctl);
+		if (ret == -1)
+			return 1;
+		/* Skip non exists */
+		if (ret)
+			continue;
+
+		p += snprintf(p, ep - p, " %s:%s", ctl->mount_path, ctl->subsys);
+	}
+
+	return 0;
+}
+
 int cg_new_cgroup(const char *ctid)
 {
 	int ret, i;
