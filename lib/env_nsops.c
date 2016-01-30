@@ -251,7 +251,7 @@ static int ns_set_ub(struct vzctl_env_handle *h,
 		struct vzctl_ub_param *ub)
 {
 #define SET_UB_LIMIT(name)						\
-	if (ub->name != NULL || h->state & VZCTL_STATE_STARTING) {	\
+	if (ub->name != NULL || h->ctx->state & VZCTL_STATE_STARTING) {	\
 		if (cg_env_set_ub(h->ctid, #name,			\
 				ub->name ? ub->name->b : LONG_MAX,	\
 				ub->name ? ub->name->l : LONG_MAX))	\
@@ -317,7 +317,7 @@ static int ns_apply_res_param(struct vzctl_env_handle *h,
 	}
 
 	if (is_managed_by_vcmmd()) {
-		if (h->state == VZCTL_STATE_STARTING)
+		if (h->ctx->state == VZCTL_STATE_STARTING)
 			ret = vcmm_register(h, ub, env->res->memguar);
 		else
 			ret = vcmm_update(h, ub, env->res->memguar);
@@ -1085,7 +1085,7 @@ static int ns_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param
 	int ret;
 
 	if (ns_is_env_run(h)) {
-		if (h->state == VZCTL_STATE_STARTING) {
+		if (h->ctx->state == VZCTL_STATE_STARTING) {
 			ret = set_net_classid(h);
 			if (ret)
 				return ret;
@@ -1124,7 +1124,7 @@ static int ns_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param
 		if (ret)
 			return ret;
 
-		if (h->state == VZCTL_STATE_STARTING) {
+		if (h->ctx->state == VZCTL_STATE_STARTING) {
 			ret = env_console_configure(h, flags);
 			if (ret)
 				return ret;

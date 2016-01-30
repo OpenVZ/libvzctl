@@ -709,7 +709,7 @@ static int env_veth_configure(struct vzctl_env_handle *h, int add,
 		do {
 			if (it_dev->configure_mode == VZCTL_VETH_CONFIGURE_NONE)
 				break;
-			if (h->state & VZCTL_STATE_STARTING) {
+			if (h->ctx->state & VZCTL_STATE_STARTING) {
 				/* Compatibility: no parameters set */
 				if (it_dev->configure_mode == 0 && !changed)
 					break;

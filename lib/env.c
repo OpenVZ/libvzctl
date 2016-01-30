@@ -908,7 +908,7 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 	fix_numiptent(env->res->ub);
 	fix_cpu_param(env->cpu);
 
-	h->state = VZCTL_STATE_STARTING;
+	h->ctx->state = VZCTL_STATE_STARTING;
 	if ((ret = get_env_ops()->env_create(h, &param)))
 		goto err;
 
@@ -944,7 +944,7 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 		goto err;
 	close(wait_p[1]); wait_p[1] = -1;
 
-	h->state = 0;
+	h->ctx->state = 0;
 
 	ret = read_p(err_p[0]);
 	if (ret) {
@@ -1122,7 +1122,7 @@ int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param
 	fix_numiptent(env->res->ub);
 	fix_cpu_param(env->cpu);
 
-	h->state = VZCTL_STATE_STARTING;
+	h->ctx->state = VZCTL_STATE_STARTING;
 	if ((ret = get_env_ops()->env_restore(h, &start_param, param, flags)))
 		goto err;
 
@@ -1156,7 +1156,7 @@ int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param
 		goto err;
 	close(wait_p[1]); wait_p[1] = -1;
 
-	h->state = 0;
+	h->ctx->state = 0;
 
 	logger(10, 0, "* Wait on error pipe");
 	ret = read_p(err_p[0]);
@@ -1305,10 +1305,10 @@ int vzctl2_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 	if (flags & VZCTL_SKIP_SETUP)
 		goto err;
 
-	if (h->state == 0 && is_env_run(h))
-		h->state = VZCTL_STATE_RUNNING;
+	if (h->ctx->state == 0 && is_env_run(h))
+		h->ctx->state = VZCTL_STATE_RUNNING;
 
-	if (h->state != VZCTL_STATE_STARTING) {
+	if (h->ctx->state != VZCTL_STATE_STARTING) {
 		setmode_err = check_setmode(h, env);
 		if (setmode_err) {
 			if (env->opts->setmode == VZCTL_SET_RESTART) {
@@ -1329,7 +1329,7 @@ int vzctl2_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 		goto err;
 
 	if (h->env_param->fs->layout == VZCTL_LAYOUT_5) {
-		if (h->state != VZCTL_STATE_STARTING &&
+		if (h->ctx->state != VZCTL_STATE_STARTING &&
 				env->dq->diskspace != NULL &&
 				(ret = vzctl2_resize_image(h->env_param->fs->ve_private,
 							  env->dq->diskspace->l, 0)))
@@ -1420,6 +1420,16 @@ int vzctl2_env_set_userpasswd(struct vzctl_env_handle *h, const char *user,
 	return env_set_userpasswd(h, user, passwd, flags);
 }
 
+static struct vzctl_runtime_ctx *alloc_runtime_ctx(void)
+{
+	return calloc(1, sizeof(struct vzctl_runtime_ctx));
+}
+
+static void free_runtime_ctx(struct vzctl_runtime_ctx *ctx)
+{
+	free(ctx);
+}
+
 void vzctl_free_env_handle(struct vzctl_env_handle *h)
 {
 	if (h == NULL)
@@ -1428,6 +1438,7 @@ void vzctl_free_env_handle(struct vzctl_env_handle *h)
 	vzctl2_free_env_param(h->env_param);
 	free_dist_action(h->dist_actions);
 	vzctl2_conf_close(h->conf);
+	free_runtime_ctx(h->ctx);
 	free(h);
 }
 
@@ -1443,6 +1454,9 @@ struct vzctl_env_handle *vzctl2_alloc_env_handle()
 		goto err;
 	if ((h->conf = alloc_conf()) == NULL)
 		goto err;
+	if ((h->ctx = alloc_runtime_ctx()) == NULL)
+		goto err;
+
 	return h;
 err:
 	vzctl_free_env_handle(h);

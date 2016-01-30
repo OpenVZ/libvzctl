@@ -753,7 +753,7 @@ static int vz_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param
 	 */
 	if (is_env_run(h) || !(flags & VZCTL_SAVE)) {
 		/* ubc/slm already set on Container start */
-		if (h->state != VZCTL_STATE_STARTING) {
+		if (h->ctx->state != VZCTL_STATE_STARTING) {
 			if ((ret = vzctl_res_configure(h, env, flags)))
 				goto err;
 		}
@@ -783,7 +783,7 @@ static int vz_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param
 		if ((ret = vzctl_env_configure(h, env, flags)))
 			goto err;
 
-		if (h->state == VZCTL_STATE_STARTING) {
+		if (h->ctx->state == VZCTL_STATE_STARTING) {
 			if ((ret = setup_vzlink_dev(h, flags)))
 				goto err;
 			if ((ret = env_console_configure(h, flags)))

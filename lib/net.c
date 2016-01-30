@@ -525,7 +525,7 @@ static int del_ip(struct vzctl_env_handle *h, struct vzctl_env_param *env, int f
 	int ret = 0;
 	struct vzctl_ip_param *it;
 	struct vzctl_net_param *net = env->net;
-	int delall = net->delall || h->state == VZCTL_STATE_STARTING;
+	int delall = net->delall || h->ctx->state == VZCTL_STATE_STARTING;
 	list_head_t *ip = &net->ip_del;
 	LIST_HEAD(ipdel);
 	LIST_HEAD(iprun);

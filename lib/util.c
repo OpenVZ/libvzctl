@@ -1700,7 +1700,7 @@ const char *state2str(int state)
 
 const char *get_state(struct vzctl_env_handle *h)
 {
-	return state2str(h->state);
+	return state2str(h->ctx->state);
 }
 
 int get_num_cpu(void)
