@@ -130,7 +130,9 @@ struct vzctl_env_param {
 struct vzctl_config;
 
 struct vzctl_runtime_ctx {
-        int state;
+	int state;
+	int wait_p[2];
+	int err_p[2];
 };
 
 struct vzctl_env_handle {
@@ -144,9 +146,7 @@ struct vzctl_env_handle {
 
 struct start_param {
 	struct vzctl_env_handle *h;
-	int *err_p;
 	int *init_p;
-	int *wait_p;
 	int *status_p;
 	pid_t pid;
 	vzctl_env_create_FN fn;

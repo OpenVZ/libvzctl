@@ -592,18 +592,18 @@ static int vz_env_create(struct vzctl_env_handle *h, struct start_param *param)
 
 		fcntl(status_p[1], F_SETFD, FD_CLOEXEC);
 		close(status_p[0]);
-		fcntl(param->err_p[1], F_SETFD, FD_CLOEXEC);
-		close(param->err_p[0]);
-		fcntl(param->wait_p[0], F_SETFD, FD_CLOEXEC);
-		close(param->wait_p[1]);
+		fcntl(param->h->ctx->err_p[1], F_SETFD, FD_CLOEXEC);
+		close(param->h->ctx->err_p[0]);
+		fcntl(param->h->ctx->wait_p[0], F_SETFD, FD_CLOEXEC);
+		close(param->h->ctx->wait_p[1]);
 
 		ret = real_env_create(h, param);
 
 		_exit(ret);
 	}
 	/* Wait for environment created */
-	close(param->wait_p[0]); param->wait_p[0] = -1;
-	close(param->err_p[1]); param->err_p[1] = -1;
+	close(param->h->ctx->wait_p[0]); param->h->ctx->wait_p[0] = -1;
+	close(param->h->ctx->err_p[1]); param->h->ctx->err_p[1] = -1;
 	close(status_p[1]); status_p[1] = -1;
 	ret = 0;
 	rc = read(status_p[0], &errcode, sizeof(errcode));
@@ -931,10 +931,6 @@ static struct vzctl_env_ops env_vzops = {
 	.get_feature = get_feature,
 	.open = vzctl_open,
 	.env_create = vz_env_create,
-	.env_chkpnt = vz_env_chkpnt,
-	.env_restore = vz_env_restore,
-	.env_cpt_cmd = vz_env_cpt_cmd,
-	.env_get_cpt_state = vz_env_get_cpt_state,
 	.env_stop = vz_env_stop,
 	.env_apply_param = vz_env_apply_param,
 	.is_env_run = vz_is_env_run,

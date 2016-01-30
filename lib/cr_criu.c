@@ -169,7 +169,7 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 	if (data != NULL) {
 		snprintf(buf, sizeof(buf), "STATUSFD=%d", data->status_p[1]);
 		env[i++] = strdup(buf);
-		snprintf(buf, sizeof(buf), "WAITFD=%d", data->wait_p[0]);
+		snprintf(buf, sizeof(buf), "WAITFD=%d", h->ctx->wait_p[0]);
 		env[i++] = strdup(buf);
 	}
 	get_netns_path(h, path, sizeof(path));

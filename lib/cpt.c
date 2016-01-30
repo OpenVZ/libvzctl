@@ -457,7 +457,7 @@ static int restore_FN(struct vzctl_env_handle *h, struct start_param *param)
 	status = VZCTL_E_RESTORE;
 
 	/* Close all fds */
-	close_fds(VZCTL_CLOSE_NOCHECK, param->wait_p[0], param->err_p[1], param->status_p[1],
+	close_fds(VZCTL_CLOSE_NOCHECK, param->h->ctx->wait_p[0], param->h->ctx->err_p[1], param->status_p[1],
 			get_vzctlfd(), cpt_param->rst_fd, vzctl2_get_log_fd(), -1);
 
 	if (ioctl(cpt_param->rst_fd, CPT_SET_VEID, veid) < 0) {
@@ -476,11 +476,11 @@ static int restore_FN(struct vzctl_env_handle *h, struct start_param *param)
 	}
 
 	close(error_pipe[1]); error_pipe[1] = -1;
-	if (ioctl(cpt_param->rst_fd, CPT_SET_LOCKFD2, param->wait_p[0]) < 0) {
+	if (ioctl(cpt_param->rst_fd, CPT_SET_LOCKFD2, param->h->ctx->wait_p[0]) < 0) {
 		logger(-1, errno, "Can't set lockfd");
 		goto err;
 	}
-	close(param->wait_p[0]); param->wait_p[0] = -1;
+	close(param->h->ctx->wait_p[0]); param->h->ctx->wait_p[0] = -1;
 	if (ioctl(cpt_param->rst_fd, CPT_SET_STATUSFD, param->status_p[1]) < 0) {
 		logger(-1, errno, "Can't set statusfd");
 		goto err;
@@ -512,7 +512,7 @@ err:
 	if (error_pipe[1] != -1)
 		close(error_pipe[1]);
 
-	if (write(param->err_p[1], &status, sizeof(status)) == -1)
+	if (write(param->h->ctx->err_p[1], &status, sizeof(status)) == -1)
 		logger(-1, errno, "Failed to write to error pipe (restore_FN)");
 	return status;
 
@@ -528,7 +528,7 @@ err_undump:
 	if (error_pipe[1] != -1)
 		close(error_pipe[1]);
 
-	if (write(param->err_p[1], &status, sizeof(status)) == -1)
+	if (write(param->h->ctx->err_p[1], &status, sizeof(status)) == -1)
 		logger(-1, errno, "Failed to write to error pipe");
 	return status;
 }

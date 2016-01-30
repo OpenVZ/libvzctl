@@ -733,7 +733,7 @@ int pre_setup_env(struct start_param *param)
 	/* Now we wait until Container setup will be done
 	 * If no error, then start init, otherwise exit.
 	 */
-	if (read(param->wait_p[0], &errcode, sizeof(errcode)) == 0) {
+	if (read(param->h->ctx->wait_p[0], &errcode, sizeof(errcode)) == 0) {
 		logger(0, 0, "Cancel init execution");
 		return -1;
 	}
@@ -746,7 +746,7 @@ int pre_setup_env(struct start_param *param)
 		close(fd);
 	}
 
-	close_fds(0, param->err_p[1], -1);
+	close_fds(0, param->h->ctx->err_p[1], -1);
 
 	return 0;
 }
@@ -799,8 +799,8 @@ int exec_init(struct start_param *param)
 			stat_file("/bin/init") == 0)
 		errcode = VZCTL_E_BAD_TMPL;
 
-	if (write(param->err_p[1], &errcode, sizeof(errcode)) == -1)
-		logger(-1, errno, "exec_init: write(param->err_p[1]");
+	if (write(param->h->ctx->err_p[1], &errcode, sizeof(errcode)) == -1)
+		logger(-1, errno, "exec_init: write(param->h->ctx->err_p[1]");
 
 	snprintf(cid, sizeof(cid), "container="SYSTEMD_CTID_FMT, EID(param->h));
 	env = makeenv(envp, &param->h->env_param->misc->ve_env);
@@ -845,15 +845,11 @@ static int drop_dump_state(struct vzctl_env_handle *h)
 /** Start and configure Container. */
 int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 {
-	int wait_p[2];
-	int err_p[2];
 	int ret;
 	struct vzctl_env_param *env = h->env_param;
 	const char *ve_root;
 	struct start_param param = {
 		.h = h,
-		.err_p = err_p,
-		.wait_p = wait_p,
 	};
 
 	/* FIXME: */
@@ -876,12 +872,11 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 
 	ve_root = env->fs->ve_root;
 
-	if (pipe(wait_p) < 0)
+	if (pipe(h->ctx->wait_p) < 0)
 		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
 
-	if (pipe(err_p) < 0) {
-		close(wait_p[0]);
-		close(wait_p[1]);
+	if (pipe(h->ctx->err_p) < 0) {
+		p_close(h->ctx->wait_p);
 		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
 	}
 
@@ -913,8 +908,8 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 		goto err;
 
 	logger(10, 0, "* env_create ret=%d ", ret);
-	close(wait_p[0]); wait_p[0] = -1;
-	close(err_p[1]); err_p[1] = -1;
+	close(h->ctx->wait_p[0]); h->ctx->wait_p[0] = -1;
+	close(h->ctx->err_p[1]); h->ctx->err_p[1] = -1;
 
 	if (!(flags & VZCTL_SKIP_SETUP)) {
 		ret = vzctl2_apply_param(h, env, flags);
@@ -937,23 +932,23 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 
 	ret = 0;
 	logger(10, 0, "* Report to parent to continue");
-	if (write(wait_p[1], &ret, sizeof(ret)) == -1)
+	if (write(h->ctx->wait_p[1], &ret, sizeof(ret)) == -1)
 		ret = vzctl_err(VZCTL_E_SYSTEM, errno,
 			"Unable to write to the wait file descriptor when starting the Container");
 	if (ret)
 		goto err;
-	close(wait_p[1]); wait_p[1] = -1;
+	close(h->ctx->wait_p[1]); h->ctx->wait_p[1] = -1;
 
 	h->ctx->state = 0;
 
-	ret = read_p(err_p[0]);
+	ret = read_p(h->ctx->err_p[0]);
 	if (ret) {
 		if (ret == VZCTL_E_BAD_TMPL)
 			logger(-1, 0, "Unable to start init,"
 					" probably incorrect template");
 		goto err;
 	}
-	close(err_p[0]); err_p[0] = -1;
+	close(h->ctx->err_p[0]); h->ctx->err_p[0] = -1;
 
 	if (env->opts->wait == VZCTL_PARAM_ON) {
 		logger(0, 0, "Container start in progress"
@@ -979,7 +974,7 @@ err:
 	if (ret) {
 		logger(10, 0, "* Failed to configure [%d]", ret);
 		/* report error to waiter */
-		if (wait_p[1] != -1 && close(wait_p[1]))
+		if (h->ctx->wait_p[1] != -1 && close(h->ctx->wait_p[1]))
 			logger(4, errno, "Failed to close wait pipe");
 
 		wait_env_state(h, VZCTL_ENV_STOPPED, 5);
@@ -997,8 +992,8 @@ err:
 		env_wait(param.pid, 0, NULL);
 
 err_pipe:
-	p_close(wait_p);
-	p_close(err_p);
+	p_close(h->ctx->wait_p);
+	p_close(h->ctx->err_p);
 
 	return ret;
 }
@@ -1067,15 +1062,11 @@ static int announce_ips(struct vzctl_env_handle *h)
 
 int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param, int flags)
 {
-	int wait_p[2] = {-1, -1};
-	int err_p[2] = {-1, -1};
 	int ret;
 	struct vzctl_env_param *env = h->env_param;
 	const char *ve_root = env->fs->ve_root;
 	struct start_param start_param = {
 		.h = h,
-		.err_p = err_p,
-		.wait_p = wait_p,
 	};
 
 	if (param->cmd != VZCTL_CMD_RESTORE)
@@ -1096,11 +1087,11 @@ int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param
 	if (ret)
 		return ret;
 
-	if (pipe(wait_p) < 0)
+	if (pipe(h->ctx->wait_p) < 0)
 		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
 
-	if (pipe(err_p) < 0) {
-		p_close(wait_p);
+	if (pipe(h->ctx->err_p) < 0) {
+		p_close(h->ctx->wait_p);
 		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
 	}
 
@@ -1149,22 +1140,22 @@ int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param
 
 	ret = 0;
 	logger(10, 0, "* Report to parent to continue");
-	if (write(wait_p[1], &ret, sizeof(ret)) == -1)
+	if (write(h->ctx->wait_p[1], &ret, sizeof(ret)) == -1)
 		ret = vzctl_err(VZCTL_E_SYSTEM, errno,
 			"Unable to write to the wait file descriptor when starting the Container");
 	if (ret)
 		goto err;
-	close(wait_p[1]); wait_p[1] = -1;
+	close(h->ctx->wait_p[1]); h->ctx->wait_p[1] = -1;
 
 	h->ctx->state = 0;
 
 	logger(10, 0, "* Wait on error pipe");
-	ret = read_p(err_p[0]);
+	ret = read_p(h->ctx->err_p[0]);
 	if (ret) {
 		logger(-1, 0, "Error %d reported from restore", ret);
 		goto err;
 	}
-	close(err_p[0]); err_p[0] = -1;
+	close(h->ctx->err_p[0]); h->ctx->err_p[0] = -1;
 
 	if (param->cmd == VZCTL_CMD_RESTORE && param->dumpfile == NULL)
 		drop_dump_state(h);
@@ -1176,10 +1167,10 @@ err:
 	if (ret) {
 		logger(10, 0, "* Failed to configure [%d]", ret);
 		/* report error to waiter */
-		if (wait_p[1] != -1) {
-			if (close(wait_p[1]))
+		if (h->ctx->wait_p[1] != -1) {
+			if (close(h->ctx->wait_p[1]))
 				logger(4, errno, "Failed to close wait pipe");
-			wait_p[1] = -1;
+			h->ctx->wait_p[1] = -1;
 			wait_env_state(h, VZCTL_ENV_STOPPED, 5);
 		}
 
@@ -1197,8 +1188,8 @@ err:
 		env_wait(start_param.pid, 0, NULL);
 
 err_pipe:
-	p_close(wait_p);
-	p_close(err_p);
+	p_close(h->ctx->wait_p);
+	p_close(h->ctx->err_p);
 
 	return ret;
 }
@@ -1356,16 +1347,12 @@ err:
 static int env_set_userpasswd(struct vzctl_env_handle *h, const char *user,
 		const char *passwd, int flags)
 {
-	int wait_p[2] = {-1, -1};
-	int err_p[2] = {-1, -1};
 	int i, ret;
 	struct vzctl_env_param *env;
 	int running;
 	int was_mounted = 0;
 	struct start_param param = {
 		.h = h,
-		.err_p = err_p,
-		.wait_p = wait_p,
 	};
 
 	env = vzctl2_get_env_param(h);
@@ -1383,21 +1370,21 @@ static int env_set_userpasswd(struct vzctl_env_handle *h, const char *user,
 				return ret;
 			was_mounted = 1;
 		}
-		if (pipe(wait_p) < 0 || pipe(err_p) < 0) {
+		if (pipe(h->ctx->wait_p) < 0 || pipe(h->ctx->err_p) < 0) {
 			ret = vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
 			goto out;
 		}
 		if ((ret = get_env_ops()->env_create(h, &param)))
 			goto out;
-		close(wait_p[0]); wait_p[0] = -1;
-		close(err_p[1]); err_p[1] = -1;
+		close(h->ctx->wait_p[0]); h->ctx->wait_p[0] = -1;
+		close(h->ctx->err_p[1]); h->ctx->err_p[1] = -1;
 	}
 
 	ret = env_pw_configure(h, user, passwd, flags);
 out:
 	if (!running) {
 		/* Destroy env */
-		close(wait_p[1]); wait_p[1] = -1;
+		close(h->ctx->wait_p[1]); h->ctx->wait_p[1] = -1;
 		for (i = 0; i < 100; i++) {
 			if (!is_env_run(h))
 				break;
@@ -1407,8 +1394,8 @@ out:
 		if (was_mounted)
 			vzctl2_env_umount(h, 0);
 
-		p_close(wait_p);
-		p_close(err_p);
+		p_close(h->ctx->wait_p);
+		p_close(h->ctx->err_p);
 	}
 
 	return ret;
@@ -1422,11 +1409,27 @@ int vzctl2_env_set_userpasswd(struct vzctl_env_handle *h, const char *user,
 
 static struct vzctl_runtime_ctx *alloc_runtime_ctx(void)
 {
-	return calloc(1, sizeof(struct vzctl_runtime_ctx));
+	struct vzctl_runtime_ctx *x;
+
+	x = calloc(1, sizeof(struct vzctl_runtime_ctx));
+	if (x == NULL) {
+		vzctl_err(VZCTL_E_NOMEM, ENOMEM, "alloc_runtime_ctx");
+		return NULL;
+	}
+
+	x->wait_p[0] = -1;
+	x->wait_p[1] = -1;
+	x->err_p[0] = -1;
+	x->err_p[1] = -1;
+
+	return x;
 }
 
 static void free_runtime_ctx(struct vzctl_runtime_ctx *ctx)
 {
+	p_close(ctx->wait_p);
+	p_close(ctx->err_p);
+
 	free(ctx);
 }
 

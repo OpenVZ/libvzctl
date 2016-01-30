@@ -210,8 +210,8 @@ static int real_ns_env_create(void *arg)
 
 	close(param->init_p[1]);
 	fcntl(param->status_p[1], F_SETFD, FD_CLOEXEC);
-	fcntl(param->err_p[1], F_SETFD, FD_CLOEXEC);
-	fcntl(param->wait_p[0], F_SETFD, FD_CLOEXEC);
+	fcntl(param->h->ctx->err_p[1], F_SETFD, FD_CLOEXEC);
+	fcntl(param->h->ctx->wait_p[0], F_SETFD, FD_CLOEXEC);
 
 	/* Wait while user id mappings have been configuraed */
 	if (read(param->init_p[0], &ret, sizeof(ret)))
@@ -725,8 +725,8 @@ static int ns_env_create(struct vzctl_env_handle *h, struct start_param *param)
 		goto err;
 	} else if (param->pid == 0) {
 		close(param->status_p[0]); param->status_p[0] = -1;
-		close(param->err_p[0]); param->err_p[0] = -1;
-		close(param->wait_p[1]); param->wait_p[1] = -1;
+		close(param->h->ctx->err_p[0]); param->h->ctx->err_p[0] = -1;
+		close(param->h->ctx->wait_p[1]); param->h->ctx->wait_p[1] = -1;
 		ret = do_env_create(h, param);
 		if (ret && write(param->status_p[1], &ret, sizeof(ret)) == -1)
 			vzctl_err(-1, errno, "ns_env_create: failed to write to the status pipe");
@@ -734,8 +734,8 @@ static int ns_env_create(struct vzctl_env_handle *h, struct start_param *param)
 	}
 
 	close(status_p[1]); status_p[1] = -1;
-	close(param->err_p[1]); param->err_p[1] = -1;
-	close(param->wait_p[0]); param->wait_p[0] = -1;
+	close(param->h->ctx->err_p[1]); param->h->ctx->err_p[1] = -1;
+	close(param->h->ctx->wait_p[0]); param->h->ctx->wait_p[0] = -1;
 
 	ret = wait_on_pipe(status_p[0]);
 	if (ret)
@@ -1168,7 +1168,7 @@ static int restore_FN(struct vzctl_env_handle *h, struct start_param *data)
 
 	ret = criu_cmd(h, VZCTL_CMD_RESTORE, cpt, data);
 
-	if (write(data->err_p[1], &ret, sizeof(ret)) == -1)
+	if (write(h->ctx->err_p[1], &ret, sizeof(ret)) == -1)
 		vzctl_err(-1, errno, "Failed to write to the error pipe");
 
 	return ret;
