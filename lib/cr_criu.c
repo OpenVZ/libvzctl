@@ -67,13 +67,13 @@ static int create_ploop_dev_map(struct vzctl_env_handle *h, dev_t pid)
 }
 
 static int do_dump(struct vzctl_env_handle *h, int cmd,
-		struct vzctl_cpt_param *param)
+		struct vzctl_cpt_param *param, struct start_param *data)
 {
 	char path[PATH_MAX];
 	char buf[PATH_MAX];
 	char script[PATH_MAX];
 	char *arg[2];
-	char *env[7];
+	char *env[9];
 	int ret, i = 0;
 	pid_t pid;
 
@@ -100,6 +100,11 @@ static int do_dump(struct vzctl_env_handle *h, int cmd,
 	env[i++] = strdup(buf);
 
 	if (cmd == VZCTL_CMD_DUMP) {
+		snprintf(buf, sizeof(buf), "STATUSFD=%d", data->status_p[1]);
+		env[i++] = strdup(buf);
+		snprintf(buf, sizeof(buf), "WAITFD=%d", h->ctx->wait_p[0]);
+		env[i++] = strdup(buf);
+
 		snprintf(buf, sizeof(buf), "CRIU_EXTRA_ARGS=--leave-running");
 		env[i++] = strdup(buf);
 	}
@@ -119,9 +124,9 @@ static int do_dump(struct vzctl_env_handle *h, int cmd,
 }
 
 static int dump(struct vzctl_env_handle *h, int cmd,
-		struct vzctl_cpt_param *param)
+		struct vzctl_cpt_param *param, struct start_param *data)
 {
-	return do_dump(h, cmd, param);
+	return do_dump(h, cmd, param, data);
 }
 
 static int chkpnt(struct vzctl_env_handle *h, int cmd,
@@ -130,7 +135,7 @@ static int chkpnt(struct vzctl_env_handle *h, int cmd,
 	int ret;
 	char buf[PATH_MAX];
 
-	ret = do_dump(h, cmd, param);
+	ret = do_dump(h, cmd, param, NULL);
 	if (ret)
 		return ret;
 
@@ -236,7 +241,7 @@ int criu_cmd(struct vzctl_env_handle *h, int cmd,
 		return chkpnt(h, cmd, param);
 	case VZCTL_CMD_DUMP:
 		logger(0, 0, "\tdump");
-		return dump(h, cmd, param);
+		return dump(h, cmd, param, data);
 	/* rst */
 	case VZCTL_CMD_RESTORE:
 		return restore(h, param, data);

@@ -549,7 +549,7 @@ static int create_cgroup(struct vzctl_env_handle *h)
 	return 0;
 }
 
-static int wait_on_pipe(int status_p)
+static int wait_on_pipe(const char *msg, int status_p)
 {
 	int ret, errcode = 0;
 
@@ -557,11 +557,11 @@ static int wait_on_pipe(int status_p)
 	ret = read(status_p, &errcode, sizeof(errcode));
 	logger(10, 0, "* Done wait status ret=%d errcode=%d", ret, errcode);
 	if (ret == -1)
-		return vzctl_err(VZCTL_E_SYSTEM, errno, "Failed tp start the Container,"
-				" read from status pipe is failed");
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "Failed tp %s the Container,"
+				" read from status pipe is failed", msg);
 	if (ret == 0)
-		return vzctl_err(VZCTL_E_SYSTEM, 0, "Failed tp start the Container,"
-				" status pipe unexpectedly closed");
+		return vzctl_err(VZCTL_E_SYSTEM, 0, "Failed tp %s the Container,"
+				" status pipe unexpectedly closed", msg);
 	return errcode;
 }
 
@@ -737,7 +737,7 @@ static int ns_env_create(struct vzctl_env_handle *h, struct start_param *param)
 	close(param->h->ctx->err_p[1]); param->h->ctx->err_p[1] = -1;
 	close(param->h->ctx->wait_p[0]); param->h->ctx->wait_p[0] = -1;
 
-	ret = wait_on_pipe(status_p[0]);
+	ret = wait_on_pipe("start", status_p[0]);
 	if (ret)
 		goto err;
 
@@ -1144,6 +1144,70 @@ static int get_feature(void)
 	return 0;
 }
 
+static int env_dump(struct vzctl_env_handle *h, int cmd,
+		struct vzctl_cpt_param *param)
+{
+	int ret;
+	int status_p[2];
+	struct start_param data = {
+		.status_p = status_p,
+	};
+
+	if (pipe(status_p))
+		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
+
+	if (pipe(h->ctx->wait_p)) {
+		p_close(status_p);
+		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
+	}
+
+	h->ctx->pid  = fork();
+	if (h->ctx->pid == -1) {
+		p_close(status_p);
+		p_close(h->ctx->wait_p);
+		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
+	} else if (h->ctx->pid == 0) {
+		close(status_p[0]);
+		close(h->ctx->wait_p[1]); h->ctx->wait_p[1] = -1;
+
+		ret = criu_cmd(h, cmd, param, &data);
+		_exit(ret);
+	}
+
+	close(status_p[1]);
+	close(h->ctx->wait_p[0]); h->ctx->wait_p[0] = -1;
+
+	ret = wait_on_pipe("dump", status_p[0]);
+	close(status_p[0]);
+
+	h->ctx->state = VZCTL_STATE_CHECKPOINTING;
+
+	return ret;
+}
+
+static int env_resume(struct vzctl_env_handle *h, int status)
+{
+	int ret = 0;
+
+	if (h->ctx->state != VZCTL_STATE_CHECKPOINTING)
+		return vzctl_err(VZCTL_E_INVAL, 0,
+				"state != VZCTL_STATE_CHECKPOINTING");
+
+	logger(0, 0, "\tpost dump");
+	if (write(h->ctx->wait_p[1], &status, sizeof(status)) == -1) {
+		if (status && errno != EPIPE)
+			ret = vzctl_err(VZCTL_E_SYSTEM, errno, "Failed to resume");
+	}
+
+	p_close(h->ctx->wait_p);
+
+	env_wait(h->ctx->pid, 0, &ret);
+
+	cg_freezer_cmd(EID(h), VZCTL_CMD_RESUME);
+
+	return ret;
+}
+
 static int ns_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 		struct vzctl_cpt_param *param, int flags)
 {
@@ -1151,13 +1215,21 @@ static int ns_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 
 	switch(cmd) {
 	case VZCTL_CMD_SUSPEND:
+		return cg_freezer_cmd(EID(h), VZCTL_CMD_SUSPEND);
 	case VZCTL_CMD_RESUME:
+		if (h->ctx->state == VZCTL_STATE_CHECKPOINTING)
+			return env_resume(h, flags);
 		return cg_freezer_cmd(EID(h), cmd);
-	default:
+	case VZCTL_CMD_DUMP:
+		return env_dump(h, cmd, param);
+	case VZCTL_CMD_CHKPNT:
 		ret = criu_cmd(h, cmd, param, NULL);
 		if (ret == 0)
 			vcmm_unregister(h);
 		return ret;
+	default:
+		return vzctl_err(VZCTL_E_INVAL, 0,
+				"ns_env_chkpnt: Unsupported action %d", cmd);
 	}
 }
 

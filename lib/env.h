@@ -131,6 +131,7 @@ struct vzctl_config;
 
 struct vzctl_runtime_ctx {
 	int state;
+	pid_t pid;
 	int wait_p[2];
 	int err_p[2];
 };

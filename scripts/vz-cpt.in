@@ -27,6 +27,7 @@
 #   VE_PID      - PID of CT init process
 exec 1>&2
 
+action_script=@SCRIPTDIR@/vz-cpt-action
 dumpdir="$VE_DUMP_DIR".tmp
 ext_mount_map=
 for s in $VE_CGROUP_MOUNT_MAP; do
@@ -45,6 +46,7 @@ criu dump -vvvv -o dump.log				\
 		--root $VE_ROOT				\
 		--freeze-cgroup $VE_FREEZE_CG		\
 		--ghost-limit 50M			\
+		--action-script $action_script		\
 		-t $VE_PID				\
 		-D $dumpdir				\
 		$ext_mount_map				\

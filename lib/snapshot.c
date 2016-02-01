@@ -396,7 +396,7 @@ int vzctl2_env_create_snapshot(struct vzctl_env_handle *h,
 
 err2:
 	if (run) {
-		if (vzctl2_env_chkpnt(h, VZCTL_CMD_RESUME, &cpt, 0))
+		if (vzctl2_env_chkpnt(h, VZCTL_CMD_RESUME, &cpt, 1))
 			vzctl_err(-1, 0, "Failed to resume Container");
 	}
 

@@ -221,6 +221,7 @@ void generate_eid(ctid_t ctid);
 const char *get_devname(const char *device);
 int get_dir_list(list_head_t *head, const char *root, int level);
 void p_close(int p[2]);
+int read_p(int fd);
 void get_init_pid_path(const ctid_t ctid, char *path);
 int write_init_pid(const ctid_t ctid, pid_t pid);
 int read_init_pid(const ctid_t ctid, pid_t *pid);

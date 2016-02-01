@@ -818,7 +818,7 @@ int exec_init(struct start_param *param)
 	return VZCTL_E_BAD_TMPL;
 }
 
-static int read_p(int fd)
+int read_p(int fd)
 {
 	int rc, errcode;
 
@@ -1417,6 +1417,7 @@ static struct vzctl_runtime_ctx *alloc_runtime_ctx(void)
 		return NULL;
 	}
 
+	x->pid = -1;
 	x->wait_p[0] = -1;
 	x->wait_p[1] = -1;
 	x->err_p[0] = -1;

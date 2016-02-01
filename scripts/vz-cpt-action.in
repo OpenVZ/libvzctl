@@ -1,4 +1,5 @@
-#  Copyright (C) 2000-2008, Parallels, Inc. All rights reserved.
+#!/bin/sh
+#  Copyright (c) 2013-2015 Parallels IP Holdings GmbH
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -14,34 +15,27 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
+#
+# Parameters are passed in environment variables.
+# Required parameters:
+#   STATUSFD	  - file descriptor for sending signal to vzctl
+#   WAITFD	  - file descriptor for receiving signal from vzctl
+#   CRTOOLS_SCRIPT_ACTION - current action (set by criu)
 
-include $(top_srcdir)/pathsubst.am
+exec 1>&2
 
-script_SCRIPTS = \
-		 vz-announce_ips \
-		 vz-cpt-action \
-		 vz-cpt \
-		 vz-create_prvt \
-		 vz-functions \
-		 vznetcfg \
-		 vz-net_add \
-		 vz-net_del \
-		 vz-netns_dev_add \
-		 vz-netns_dev_del \
-		 vz-pci_configure \
-		 vz-postinst \
-		 vz-rst-action \
-		 vz-rst \
-		 vz-setrate \
-		 vz-start \
-		 vz-stop
+if [ -z "$CRTOOLS_SCRIPT_ACTION" ]; then
+	echo "Missing parameter CRTOOLS_SCRIPT_ACTION"
+	exit 1
+fi
 
+set -e
+case "$CRTOOLS_SCRIPT_ACTION" in
+"post-dump")
+	ret=0
+	[ -n "$STATUSFD" ] && printf '\0\0\0\0' >&${STATUSFD}
+	[ -n "$WAITFD" ] && ret=$(cat <&$WAITFD | hexdump -e '"%d"' -n 4)
 
-scriptd_DATA = README
-
-EXTRA_DIST = \
-	$(script_SCRIPTS:%=%.in) \
-	$(scriptd_DATA)
-
-CLEANFILES = \
-	$(script_SCRIPTS)
+	[ "$ret" -eq "0" ]
+	;;
+esac
