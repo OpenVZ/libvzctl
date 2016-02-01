@@ -280,10 +280,12 @@ int send_uevent(const char *part)
 static int env_configure_disk(struct exec_disk_param *param)
 {
 	struct vzctl_disk *disk = param->disk;
-	const char *device = param->device;
 
-	if (create_static_dev(device, S_IFBLK | S_IRUSR | S_IWUSR,
+	if (create_static_dev(param->part, S_IFBLK | S_IRUSR | S_IWUSR,
 				param->dev))
+		return -1;
+
+	if (send_uevent(param->device))
 		return -1;
 
 	if (send_uevent(param->part))
@@ -299,8 +301,10 @@ static int env_configure_disk(struct exec_disk_param *param)
 		if (env_configure_systemd_unit(param->fsuuid, disk->mnt, disk->mnt_opts))
 			return -1;
 
-		if (param->automount && mount(device, disk->mnt, "ext4", 0, NULL))
-			return vzctl_err(-1, errno, "Failed to mount %s",  disk->mnt);
+		if (param->automount &&
+				mount(param->part, disk->mnt, "ext4", 0, NULL))
+			return vzctl_err(-1, errno, "Failed to mount %s %s",
+					param->part, disk->mnt);
 	}
 
 	return 0;
