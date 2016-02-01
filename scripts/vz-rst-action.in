@@ -46,7 +46,7 @@ restore_devices()
 		old=$(readlink $root/dev/$uuid)
 		[ -z "$old" ] && continue
 
-		let minor=minor+1
+		minor=$((minor+1))
 		for d in "${old}p1" "/dev/${device}p1"; do
 			rm -f $root/$d
 			mknod -m 660 $root/$d b $major $minor
