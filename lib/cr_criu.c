@@ -100,10 +100,12 @@ static int do_dump(struct vzctl_env_handle *h, int cmd,
 	env[i++] = strdup(buf);
 
 	if (cmd == VZCTL_CMD_DUMP) {
-		snprintf(buf, sizeof(buf), "STATUSFD=%d", data->status_p[1]);
-		env[i++] = strdup(buf);
-		snprintf(buf, sizeof(buf), "WAITFD=%d", h->ctx->wait_p[0]);
-		env[i++] = strdup(buf);
+		if (data != NULL) {
+			snprintf(buf, sizeof(buf), "STATUSFD=%d", data->status_p[1]);
+			env[i++] = strdup(buf);
+			snprintf(buf, sizeof(buf), "WAITFD=%d", h->ctx->wait_p[0]);
+			env[i++] = strdup(buf);
+		}
 
 		snprintf(buf, sizeof(buf), "CRIU_EXTRA_ARGS=--leave-running");
 		env[i++] = strdup(buf);

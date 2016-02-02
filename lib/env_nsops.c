@@ -1153,6 +1153,9 @@ static int env_dump(struct vzctl_env_handle *h, int cmd,
 		.status_p = status_p,
 	};
 
+	if (h->ctx->wait_p[0] == -1)
+		return criu_cmd(h, cmd, param, NULL);
+
 	if (pipe(status_p))
 		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
 
@@ -1161,7 +1164,7 @@ static int env_dump(struct vzctl_env_handle *h, int cmd,
 		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
 	}
 
-	h->ctx->pid  = fork();
+	h->ctx->pid = fork();
 	if (h->ctx->pid == -1) {
 		p_close(status_p);
 		p_close(h->ctx->wait_p);
@@ -1202,6 +1205,7 @@ static int env_resume(struct vzctl_env_handle *h, int status)
 	p_close(h->ctx->wait_p);
 
 	env_wait(h->ctx->pid, 0, &ret);
+	h->ctx->pid = -1;
 
 	cg_freezer_cmd(EID(h), VZCTL_CMD_RESUME);
 
