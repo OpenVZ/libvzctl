@@ -255,7 +255,7 @@ int vzctl2_env_destroy(struct vzctl_env_handle *h, int flags)
 	if (check_var(fs->ve_private, "VE_PRIVATE is not set"))
 		return VZCTL_E_VE_PRIVATE_NOTSET;
 	if (is_env_run(h))
-		return vzctl_err(VZCTL_E_ENV_RUN, 0, "Container is currently runing."
+		return vzctl_err(VZCTL_E_ENV_RUN, 0, "Container is currently running."
 				" Stop it before proceeding.");
 	if (vzctl2_env_is_mounted(h))
 		return vzctl_err(VZCTL_E_FS_MOUNTED, 0, "Container is currently mounted."
