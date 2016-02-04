@@ -37,7 +37,7 @@
 #include "util.h"
 
 #define VCMMCTL_BIN     "/usr/sbin/vcmmdctl"
-#define DEFAULT_MEM_GUARANTEE_PCT	20
+#define DEFAULT_MEM_GUARANTEE_PCT	0
 static int vcmm_error(int rc, const char *msg)
 {
 	char buf[STR_SIZE];
