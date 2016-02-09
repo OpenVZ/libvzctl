@@ -648,10 +648,10 @@ static int setup_devtmpfs()
 
 	if (mount("none", "/dev", "devtmpfs", 0, NULL))
 		return vzctl_err(-1, errno, "Failed to mount devtmpfs");
- 
+
 	for (i = 0; i < sizeof(_g_devs)/sizeof(_g_devs[0]); i++) {
 		dev_t dev = makedev(_g_devs[i].major, _g_devs[i].minor);
-		if (mknod(_g_devs[i].name, _g_devs[0].mode, dev) &&
+		if (mknod(_g_devs[i].name, _g_devs[i].mode, dev) &&
 				errno != EEXIST)
 		{
 			ret = vzctl_err(-1, errno, "Failed to creaet %s",
