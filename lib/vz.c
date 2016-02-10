@@ -1025,7 +1025,7 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 
 			vzctl2_env_set_param(h, "NAME", NULL);
 		} else {
-			logger(0, 0, "Assing the name: %s", name);
+			logger(0, 0, "Assign the name: %s", name);
 			snprintf(buf, sizeof(buf), ENV_NAME_DIR "%s", name);
 			unlink(buf);
 			if (symlink(veconf, buf)) {
