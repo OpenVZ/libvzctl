@@ -289,7 +289,6 @@ int vzctl2_env_destroy(struct vzctl_env_handle *h, int flags)
 
 	/* Check if directory looks like a valid container if we cannot determine ve_layout */
 	ret = validate_ve_private(EID(h), fs->layout, fs->ve_private);
-
 	if (ret) {
 		if (ret == -1)
 			/* "-1" in case realpath of ve_private fails */
