@@ -244,6 +244,32 @@ static int umount_all(const char *path)
 	return ret;
 }
 
+static int validate_ve_private(const char *ctid, int layout, const char *path)
+{
+	char buf[PATH_MAX], sctid[STR_SIZE], *ptr;
+
+	if (layout > 0)
+		return 0;
+
+	if (realpath(path, buf) == NULL) {
+		if (errno == ENOENT)
+			return 0;
+		return vzctl_err(-1, errno, "realpath function for path \"%s\" returned error", path);
+	}
+
+	// We can skip rindex result verifivation because realpath would return a valid path consisting at least of one "/"
+	// Hence rindex will 100% succeed. If path is invalid realpath would fail itself.
+	ptr = rindex(buf, '/');
+	sprintf(sctid, "/%s", ctid);
+
+	if (!strcmp(ptr, sctid))
+		// Lines are equal -> ve_private ends with "/$VEID" which is considered OK
+		return 0;
+	else
+		// Lines are different -> ve_private does not end with "/$VEID" which we cannot accept
+		return 1;
+}
+
 int vzctl2_env_destroy(struct vzctl_env_handle *h, int flags)
 {
 	int ret;
@@ -260,6 +286,19 @@ int vzctl2_env_destroy(struct vzctl_env_handle *h, int flags)
 	if (vzctl2_env_is_mounted(h))
 		return vzctl_err(VZCTL_E_FS_MOUNTED, 0, "Container is currently mounted."
 				" Unmount it before proceeding.");
+
+	/* Check if directory looks like a valid container if we cannot determine ve_layout */
+	ret = validate_ve_private(EID(h), fs->layout, fs->ve_private);
+	if (ret) {
+		if (ret == -1)
+			/* "-1" in case realpath of ve_private fails */
+			logger(-1, 0, "Container's private area (%s) is invalid.",fs->ve_private);
+		else 
+			/* "1" in case we couldn't confirm gparam->ve_private as a container's private area */
+			logger(-1, 0, "Container's private area (%s) does not resemble a valid container directory."
+					" Container removal is aborted to avoid accidential data loss.",fs->ve_private);
+		return VZCTL_E_FS_DEL_PRVT;
+	}
 
 	logger(0, 0, "Destroying Container private area: %s", fs->ve_private);
 	if (h->env_param->fs->layout >= VZCTL_LAYOUT_5) {
