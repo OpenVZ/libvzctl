@@ -1338,7 +1338,7 @@ err:
 
 	// FIXME: merge param
 	if (flags & VZCTL_SAVE) {
-		if ((ret = vzctl2_env_save(h)) == 0)
+		if (vzctl2_env_save(h) == 0)
 			logger(0, 0, "Saved parameters for Container");
 	}
 
