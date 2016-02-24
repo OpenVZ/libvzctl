@@ -321,6 +321,10 @@ static int ns_apply_res_param(struct vzctl_env_handle *h,
 			ret = vcmm_register(h, ub, env->res->memguar);
 		else
 			ret = vcmm_update(h, ub, env->res->memguar);
+		if (ret) {
+			free(env->res->memguar);
+			env->res->memguar = NULL;
+		}
 	} else
 		ret = ns_set_memory_param(h, ub);
 
