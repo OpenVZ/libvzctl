@@ -82,4 +82,14 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 
 	[ "$ret" -eq "0" ]
 	;;
+"post-restore")
+	if [ -z "$CRTOOLS_IMAGE_DIR" ]; then
+		echo "Missing parameter CRTOOLS_IMAGE_DIR"
+		exit 1
+	fi
+	if [ -f "$CRTOOLS_IMAGE_DIR/vz_core_pattern.img" ]; then
+		[ -n "$VEID" ] && { cgexec -g ve:$VEID echo `cat $CRTOOLS_IMAGE_DIR/vz_core_pattern.img` \
+			> /proc/sys/kernel/core_pattern || { echo "Failed to restore core_pattern"; exit 1; } }
+	fi
+	;;
 esac

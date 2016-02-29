@@ -112,6 +112,9 @@ static int do_dump(struct vzctl_env_handle *h, int cmd,
 		env[i++] = strdup(buf);
 	}
 
+	snprintf(buf, sizeof(buf), "VEID=%s", h->ctid);
+	env[i++] = strdup(buf);
+
 	cg_get_cgroup_env_param(buf, sizeof(buf));
 	env[i++] = strdup(buf);
 

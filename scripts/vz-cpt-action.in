@@ -32,6 +32,12 @@ fi
 set -e
 case "$CRTOOLS_SCRIPT_ACTION" in
 "post-dump")
+	if [ -z "$CRTOOLS_IMAGE_DIR" ]; then
+		echo "Missing parameter CRTOOLS_IMAGE_DIR"
+		exit 1
+	fi
+	[ -n "$VEID" ] && { cgexec -g ve:$VEID cat /proc/sys/kernel/core_pattern > \
+		$CRTOOLS_IMAGE_DIR/vz_core_pattern.img || { echo "Failed to dump core_pattern"; exit 1; } }
 	ret=0
 	[ -n "$STATUSFD" ] && printf '\0\0\0\0' >&${STATUSFD}
 	[ -n "$WAITFD" ] && ret=$(cat <&$WAITFD | hexdump -e '"%d"' -n 4)
