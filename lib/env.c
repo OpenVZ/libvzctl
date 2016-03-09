@@ -204,8 +204,11 @@ static int do_env_stop(struct vzctl_env_handle *h, int stop_mode)
 {
 	int ret;
 
-	if (stop_mode == M_KILL || stop_mode == M_KILL_FORCE)
+	if (stop_mode == M_KILL)
 		goto kill;
+
+	if (stop_mode == M_KILL_FORCE)
+		goto kill_force;
 
 	ret = get_env_ops()->env_stop(h, stop_mode);
 	if (ret == 0)
@@ -214,7 +217,7 @@ kill:
 	ret = get_env_ops()->env_stop(h, M_KILL);
 	if (ret == 0)
 		return 0;
-
+kill_force:
 	ret = get_env_ops()->env_stop(h, M_KILL_FORCE);
 	if (ret == 0)
 		return 0;
