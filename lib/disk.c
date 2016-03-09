@@ -1311,7 +1311,7 @@ int vzctl2_resize_disk(struct vzctl_env_handle *h, const char *guid,
 {
 	int ret, root;
 	struct vzctl_disk *d;
-	pid_t pid;
+	pid_t pid = 0;
 
 	d = find_disk(h->env_param->disk, guid);
 	if (d == NULL)
