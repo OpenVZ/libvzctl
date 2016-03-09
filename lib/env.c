@@ -1010,7 +1010,7 @@ int vzctl2_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 	if (!is_env_run(h))
 		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
 
-	if (cmd != VZCTL_CMD_CHKPNT) 
+	if (cmd != VZCTL_CMD_CHKPNT || param->flags & VZCTL_CPT_CREATE_DEVMAP)
 		return vzctl2_cpt_cmd(h, VZCTL_CMD_CHKPNT, cmd, param, flags);
 
 	logger(0, 0, "Setting up checkpoint...");

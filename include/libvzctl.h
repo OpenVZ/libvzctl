@@ -147,6 +147,7 @@ enum {
 	VZCTL_CPT_UNFREEZE_ON_DUMP      = 0x1,
 	VZCTL_CPT_KEEP_PAGES            = 0x2,
 	VZCTL_CPT_STOP_TRACKER		= 0x4,
+	VZCTL_CPT_CREATE_DEVMAP		= 0x8,
 };
 
 enum vzctl_config_flags {

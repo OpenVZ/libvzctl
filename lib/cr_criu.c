@@ -38,10 +38,11 @@
 #include "env.h"
 #include "util.h"
 #include "exec.h"
+#include "vcmm.h"
 #include "vzerror.h"
 #include "logger.h"
 
-static int create_ploop_dev_map(struct vzctl_env_handle *h, dev_t pid)
+static int create_ploop_dev_map(struct vzctl_env_handle *h, pid_t pid)
 {
 	int ret;
 	char devname[64];
@@ -141,6 +142,7 @@ static int chkpnt(struct vzctl_env_handle *h, int cmd,
 	if (ret)
 		return ret;
 
+	vcmm_unregister(h);
 	get_init_pid_path(EID(h), buf);
 	unlink(buf);
 
@@ -229,6 +231,7 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 	ret = vzctl2_wrap_exec_script(arg, env, 0);
 	if (ret)
 		ret = VZCTL_E_RESTORE;
+
 	free_ar_str(env);
 
 	return ret;
@@ -240,6 +243,16 @@ int criu_cmd(struct vzctl_env_handle *h, int cmd,
 	switch (cmd) {
 	/* cpt */
 	case VZCTL_CMD_CHKPNT:
+		if (param->flags & VZCTL_CPT_CREATE_DEVMAP) {
+			int ret;
+			pid_t pid;
+
+			ret = cg_env_get_init_pid(EID(h), &pid);
+			if (ret)
+				return ret;
+
+			return create_ploop_dev_map(h, pid);
+		}
 		return chkpnt(h, cmd, param);
 	case VZCTL_CMD_DUMP:
 		logger(0, 0, "\tdump");

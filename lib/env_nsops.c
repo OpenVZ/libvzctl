@@ -1220,8 +1220,6 @@ static int env_resume(struct vzctl_env_handle *h, int status)
 static int ns_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 		struct vzctl_cpt_param *param, int flags)
 {
-	int ret;
-
 	switch(cmd) {
 	case VZCTL_CMD_SUSPEND:
 		return cg_freezer_cmd(EID(h), VZCTL_CMD_SUSPEND);
@@ -1232,10 +1230,7 @@ static int ns_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 	case VZCTL_CMD_DUMP:
 		return env_dump(h, cmd, param);
 	case VZCTL_CMD_CHKPNT:
-		ret = criu_cmd(h, cmd, param, NULL);
-		if (ret == 0)
-			vcmm_unregister(h);
-		return ret;
+		return criu_cmd(h, cmd, param, NULL);
 	default:
 		return vzctl_err(VZCTL_E_INVAL, 0,
 				"ns_env_chkpnt: Unsupported action %d", cmd);
