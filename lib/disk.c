@@ -1426,14 +1426,18 @@ int is_external_disk(const char *path)
 	return path[0] == '/';
 }
 
-int check_external_disk(struct vzctl_env_disk *env_disk)
+int check_external_disk(const char *basedir, struct vzctl_env_disk *env_disk)
 {
-	struct vzctl_disk *disk;
+	char fname[PATH_MAX];
+	struct vzctl_disk *d;
 
-	if (env_disk != NULL && !list_empty(&env_disk->disks)) {
-		list_for_each(disk, &env_disk->disks, list)
-			if (is_external_disk(disk->path))
-				return 1;
+	if (env_disk == NULL)
+		return 0;
+
+	list_for_each(d, &env_disk->disks, list) {
+		get_rel_path(basedir, d->path, fname, sizeof(fname));
+		if (is_external_disk(fname))
+			return 1;
 	}
 
 	return 0;

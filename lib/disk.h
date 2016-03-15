@@ -84,5 +84,5 @@ int env_fin_configure_disk(struct vzctl_env_disk *disk);
 int fin_configure_disk(struct vzctl_env_handle *h, struct vzctl_env_disk *disk);
 void get_partition_dev_name(dev_t dev, char *out, int len);
 int is_external_disk(const char *path);
-int check_external_disk(struct vzctl_env_disk *env_disk);
+int check_external_disk(const char *basedir, struct vzctl_env_disk *env_disk);
 #endif

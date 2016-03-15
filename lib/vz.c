@@ -932,7 +932,7 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
                 ha_enable = yesno2id(data);
 
 	if (on_pcs && ha_enable != VZCTL_PARAM_OFF &&
-			check_external_disk(h->env_param->disk) &&
+			check_external_disk(path_r, h->env_param->disk) &&
 			shaman_is_configured())
 	{
 		logger(-1, 0, "Containers with external disks cannot be"
