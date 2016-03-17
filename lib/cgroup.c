@@ -470,6 +470,28 @@ int cg_enable_pseudosuper(const char *ctid)
 	return cg_set_ul(ctid, CG_VE, "ve.pseudosuper", 1);
 }
 
+int cg_pseudosuper_open(const char *ctid, int *fd)
+{
+	int ret;
+	char path[PATH_MAX];
+
+	ret = cg_get_path(ctid, CG_VE, "ve.pseudosuper", path, sizeof(path));
+	if (ret)
+		return ret;
+
+	*fd = open(path, O_WRONLY);
+	if (*fd == -1)
+		return vzctl_err(-1, errno, "Cannot open %s", path);
+
+	fcntl(*fd, F_SETFD, FD_CLOEXEC);
+	return 0;
+}
+
+int cg_disable_pseudosuper(const int pseudosuper_fd)
+{
+	return do_write_data(pseudosuper_fd, "0", 1);
+}
+
 int cg_attach_task(const char *ctid, pid_t pid)
 {
 	int ret, i;

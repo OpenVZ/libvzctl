@@ -674,6 +674,7 @@ int pre_setup_env(struct start_param *param)
 {
 	struct vzctl_env_param *env = param->h->env_param;
 	int fd;
+	int ret;
 	int errcode = 0;
 
 	/* Clear supplementary group IDs */
@@ -748,6 +749,14 @@ int pre_setup_env(struct start_param *param)
 		dup2(fd, 1);
 		dup2(fd, 2);
 		close(fd);
+	}
+
+	if (param->pseudosuper_fd != -1) {
+		ret = cg_disable_pseudosuper(param->pseudosuper_fd);
+		if (ret) {
+			close(param->pseudosuper_fd);
+			return ret;
+		}
 	}
 
 	close_fds(0, param->h->ctx->err_p[1], -1);
@@ -854,6 +863,7 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 	const char *ve_root;
 	struct start_param param = {
 		.h = h,
+		.pseudosuper_fd = -1,
 	};
 
 	/* FIXME: */
@@ -1071,6 +1081,7 @@ int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param
 	const char *ve_root = env->fs->ve_root;
 	struct start_param start_param = {
 		.h = h,
+		.pseudosuper_fd = -1,
 	};
 
 	if (param->cmd != VZCTL_CMD_RESTORE)
@@ -1357,6 +1368,7 @@ static int env_set_userpasswd(struct vzctl_env_handle *h, const char *user,
 	int was_mounted = 0;
 	struct start_param param = {
 		.h = h,
+		.pseudosuper_fd = -1,
 	};
 
 	env = vzctl2_get_env_param(h);
