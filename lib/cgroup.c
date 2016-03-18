@@ -167,27 +167,40 @@ out:
 	return ret;
 }
 
+int do_write_data(const int fd, const char *data, const int len)
+{
+	int w;
+
+	w = write(fd, data, len);
+	if (w != len) {
+		int eno = errno;
+		if (w < 0)
+			logger(-1, errno, "Error writing to fd %d data='%s'",
+					fd, data);
+		else
+			logger(-1, 0, "Output truncated while writing to fd %d", fd);
+		errno = eno;
+		return -1;
+	}
+
+	return 0;
+}
+
 int write_data(const char *path, const char *data)
 {
-	int fd, len, w;
+	int fd;
+	int ret;
 
 	fd = open(path, O_WRONLY);
 	if (fd < 0)
 		return vzctl_err(-1, errno, "Can't open %s for writing", path);
 
 	logger(3, 0, "Write %s <%s>", path, data);
-	len = strlen(data);
-	w = write(fd, data, len);
-	if (w != len) {
+	ret = do_write_data(fd, data, strlen(data));
+	if (ret == -1) {
 		int eno = errno;
-		if (w < 0)
-			logger(-1, errno, "Error writing to file %s data='%s'",
-					path, data);
-		else
-			logger(-1, 0, "Output truncated while writing to %s", path);
 		close(fd);
 		errno = eno;
-
 		return -1;
 	}
 
