@@ -637,11 +637,13 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 	if (ret)
 		return ret;
 
-	if (param->fn != NULL) {
-		ret = cg_enable_pseudosuper(h->ctid);
-		if (ret && errno != ENOENT)
-			goto err;
-	}
+	ret = cg_enable_pseudosuper(h->ctid);
+	if (ret && errno != ENOENT)
+		goto err;
+
+	ret = cg_pseudosuper_open(h->ctid, &param->pseudosuper_fd);
+	if (ret && errno != ENOENT)
+		goto err;
 
 	ret = cg_attach_task(h->ctid, getpid());
 	if (ret)
@@ -710,6 +712,9 @@ err:
 			kill(pid, SIGKILL);
 		vcmm_unregister(h);
 	}
+
+	if (param->pseudosuper_fd != -1)
+		close(param->pseudosuper_fd);
 
 	return ret;
 }
@@ -1156,6 +1161,7 @@ static int env_dump(struct vzctl_env_handle *h, int cmd,
 	int status_p[2];
 	struct start_param data = {
 		.status_p = status_p,
+		.pseudosuper_fd = -1,
 	};
 
 	if (h->ctx->wait_p[0] == -1)

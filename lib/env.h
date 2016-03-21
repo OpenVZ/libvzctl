@@ -149,6 +149,7 @@ struct start_param {
 	struct vzctl_env_handle *h;
 	int *init_p;
 	int *status_p;
+	int pseudosuper_fd;
 	pid_t pid;
 	vzctl_env_create_FN fn;
 	void *data;
