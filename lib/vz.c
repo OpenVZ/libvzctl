@@ -1017,7 +1017,9 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 	{
 		ctid_t t;
 
-		if (vzctl2_get_envid_by_name(name, t) == 0) {
+		if (vzctl2_get_envid_by_name(name, t) == 0 &&
+				CMP_CTID(t, ctid))
+		{
 			logger(-1, 0, "Name %s is in use by CT %s",
 					name, t);
 			if (!(flags & VZ_REG_FORCE))
