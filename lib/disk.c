@@ -1089,7 +1089,7 @@ int vzctl2_add_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param,
 	if (d == NULL)
 		return VZCTL_E_NOMEM;
 
-	if (d->use_device)
+	if (d->use_device || d->storage_url)
 		goto skip_create;
 
 	get_rel_path(h->env_param->fs->ve_private, d->path, fname, sizeof(fname));
