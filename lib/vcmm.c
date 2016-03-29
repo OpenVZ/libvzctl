@@ -186,16 +186,16 @@ int vcmm_register(struct vzctl_env_handle *h, struct vzctl_ub_param *ub,
 		return rc;
 
 	logger(1, 0, "vcmmd: register");
-	rc = vcmmd_register_ve(EID(h), VCMMD_VE_CT, &c);
+	rc = vcmmd_register_ve(EID(h), VCMMD_VE_CT, &c, 0);
 	if (rc == VCMMD_ERROR_VE_NAME_ALREADY_IN_USE) {
 		vcmm_unregister(h);
-		rc = vcmmd_register_ve(EID(h), VCMMD_VE_CT, &c);
+		rc = vcmmd_register_ve(EID(h), VCMMD_VE_CT, &c, 0);
 	}
 	if (rc)
 		return vcmm_error(rc, "failed to register Container");
 
 	logger(1, 0, "vcmmd: activate");
-	rc = vcmmd_activate_ve(EID(h));
+	rc = vcmmd_activate_ve(EID(h), 0);
 	if (rc)
 		return vcmm_error(rc, "failed to activate Container");
 
@@ -216,7 +216,7 @@ int vcmm_update(struct vzctl_env_handle *h, struct vzctl_ub_param *ub,
 	if (rc)
 		return rc;
 
-	rc = vcmmd_update_ve(EID(h), &c);
+	rc = vcmmd_update_ve(EID(h), &c, 0);
 	if (rc)
 		return vcmm_error(rc, "failed to update Container configuration");
 
