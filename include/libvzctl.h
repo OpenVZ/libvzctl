@@ -860,10 +860,8 @@ int vzctl2_env_layout_version(const char *path);
 
 int vzctl2_env_is_mounted(struct vzctl_env_handle *h);
 
-/***************** Cancelation *******************************
-cleanup_handler_t *vzctl2_get_cleanup_handler(void);
-void vzctl2_cancel_last_operation(cleanup_handler_t *h);
-*/
+/***************** Cancelation *******************************/
+void vzctl2_cancel_last_operation(void);
 
 /***************** Logging/Error *******************************/
 int vzctl2_init_log(const char *progname);

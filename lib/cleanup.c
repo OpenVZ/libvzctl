@@ -79,20 +79,12 @@ static cleanup_ctx_t *get_cleanup_ctx(void)
 }
 #endif
 
-list_head_t *vzctl2_get_cleanup_handler(void)
-{
-	return get_cleanup_ctx();
-}
-
-void vzctl2_cancel_last_operation(list_head_t *h)
+void vzctl2_cancel_last_operation(void)
 {
 	struct vzctl_cleanup_hook *it;
 
-	if (h == NULL)
-		return;
-
 	logger(10, 0, "vzctl_cancel_operation");
-	list_for_each(it, h, list) {
+	list_for_each(it, get_cleanup_ctx(), list) {
 		it->fn(it->data);
 	}
 }
