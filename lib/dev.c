@@ -214,8 +214,9 @@ int create_static_dev(const char *name, mode_t mode, dev_t dev)
 			create_tmpfiles(device, mode, dev);
 		} else {
 			snprintf(buf, sizeof(buf), "%s/%s", dir,
-					get_devname(device));
+				name[0] == '/' ? get_devname(device) : name);
 			unlink(buf);
+			make_dir(buf, 0);
 			if (mknod(buf, mode, dev))
 				logger(-1, errno, "Failed to mknod %s", buf);
 		}
