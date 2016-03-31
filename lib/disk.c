@@ -396,9 +396,12 @@ static int parse_disk_str(const char *str, struct vzctl_disk *disk)
 				return ret;
 		} else if (!strncmp("mnt_opts=", p, 9)) {
 			GET_PARAM_VAL(p, "mnt_opts=")
+			ret = xstrdup(&disk->mnt_opts, tmp);
+			if (ret)
+				return ret;
 		} else if (!strncmp("autocompact=", p, 12)) {
 			GET_PARAM_VAL(p, "autocompact=")
-				disk->autocompact = yesno2id(tmp);
+			disk->autocompact = yesno2id(tmp);
 			if (disk->autocompact == -1)
 				logger(-1, 0, "Incorrect autocompact=%s", tmp);
 		} else if (!strncmp("storage_url=", p, 12)) {
@@ -808,7 +811,7 @@ static int configure_mount_opts(struct vzctl_env_handle *h, struct vzctl_disk *d
 	char buf[4096];
 	char mnt_opts[4096];
 
-	ret = vzctl2_get_mount_opts(disk->mnt_opts, disk->user_quota,
+	ret = get_mount_opts(disk->mnt_opts, disk->user_quota,
 			mnt_opts, sizeof(mnt_opts));
 	if (ret)
 		return ret;

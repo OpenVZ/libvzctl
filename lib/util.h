@@ -196,6 +196,7 @@ int vzctl2_get_normalized_guid(const char *str, char *buf, int len);
 int vzctl2_get_normalized_uuid(const char *str, char *buf, int len);
 int vzctl2_get_normalized_ctid(const char *str, char *out, int len);
 char *vzctl_get_guid_str(const char *str, char *uuid);
+int get_mount_opts(const char *opts, int user_quota, char *out, int size);
 int vzctl2_get_mount_opts(const char *mnt_opts, int user_quota, char *out, int size);
 int configure_sysctl(const char *var, const char *val);
 FILE *vzctl_popen(char *argv[], char *env[], int quiet);

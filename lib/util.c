@@ -2297,47 +2297,42 @@ static char *get_pfcache_opts(char *buf, int len)
 
 	buf[0] = '\0';
 	if (get_global_param("PFCACHE", opts, sizeof(opts)) == 0)
-		snprintf(buf, len, "pfcache=%s", opts);
+		snprintf(buf, len, "pfcache_csum,pfcache=%s", opts);
 	return buf;
 }
+
+int get_mount_opts(const char *opts, int user_quota, char *out, int size)
+{
+	int rc;
+
+	rc = snprintf(out, size, "%s%s%s",
+		opts != NULL ? opts : "",
+		opts != NULL ? "," : "",
+		user_quota ? get_quota_mount_opts(user_quota) : "");
+	if (rc >= size)
+		return VZCTL_E_INVAL;
+
+	return 0;
+}
+
 /* process 'csum,pfcache' mount options
  * disabled only if 'noscum' present
  */
-int vzctl2_get_mount_opts(const char *mnt_opts, int user_quota, char *out, int size)
+int vzctl2_get_mount_opts(const char *opts, int user_quota, char *out, int size)
 {
-	char pfcache_opts[PATH_MAX] = "";
-	char *sp = out;
-	char *ep = out + size;
+	int len;
 
-	get_pfcache_opts(pfcache_opts, sizeof(pfcache_opts));
+	if (get_mount_opts(opts, user_quota, out, size))
+		return vzctl_err(VZCTL_E_INVAL, 0,
+			"Not enough buffer size to store mnt_ops result");
 
-	if (mnt_opts == NULL) {
-		sp += snprintf(sp, ep - sp, "pfcache_csum,%s,", pfcache_opts);
-		if (sp >= ep)
-			goto err;
-	} else {
-		sp += snprintf(sp, ep - sp, "%s,", mnt_opts);
-		if (sp >= ep)
-			goto err;
-		if (strstr(mnt_opts, "nopfcache_csum") == NULL) {
-			sp += snprintf(sp, ep - sp, "%s,pfcache_csum,%s,",
-					mnt_opts, pfcache_opts);
-			if (sp >= ep)
-				goto err;
-		}
-	}
+	if (strstr(out, "nopfcache_csum") == NULL) {
+		len = strlen(out);
 
-	if (user_quota) {
-		sp += snprintf(sp, ep - sp , "%s,",
-				get_quota_mount_opts(user_quota));
-		if (sp >= ep)
-			goto err;
+		get_pfcache_opts(out + len,  size - len);
 	}
 
 	return 0;
-err:
-
-	return vzctl_err(VZCTL_E_SYSTEM, 0, "Not enough buffer size to store mnt_ops result");
 }
 
 int configure_sysctl(const char *var, const char *val)
