@@ -2297,7 +2297,7 @@ static char *get_pfcache_opts(char *buf, int len)
 
 	buf[0] = '\0';
 	if (get_global_param("PFCACHE", opts, sizeof(opts)) == 0)
-		snprintf(buf, len, "pfcache_csum,pfcache=%s", opts);
+		snprintf(buf, len, ",pfcache_csum,pfcache=%s", opts);
 	return buf;
 }
 
