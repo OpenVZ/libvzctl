@@ -45,7 +45,17 @@ done
 # simply increase the number of file descriptors allowed.
 ulimit -n 8192
 
+function cg_dump_props {
+	if [ -n "$VEID" ]; then
+		# Save monotonic offsets for next restore
+		cgget -n -v -r ve.clock_bootbased $VEID > $1/vz_clock_bootbased.img
+		cgget -n -v -r ve.clock_monotonic $VEID > $1/vz_clock_monotonic.img
+	fi
+	return 0
+}
+
 mkdir -p $dumpdir &&
+cg_dump_props $dumpdir &&
 criu dump -vvvv -o dump.log				\
 		--file-locks				\
 		--tcp-established			\

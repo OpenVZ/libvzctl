@@ -68,7 +68,9 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 	ln -s /proc/$pid/ns/net $VE_NETNS_FILE
 
 	if [ -n "$VEID" ]; then
-		cgset -r ve.state="START $pid" $VEID || exit
+		[ -n "$VE_CLOCK_BOOTBASED" ] && cgset -r ve.clock_bootbased="$VE_CLOCK_BOOTBASED" $VEID
+		[ -n "$VE_CLOCK_MONOTONIC" ] && cgset -r ve.clock_monotonic="$VE_CLOCK_MONOTONIC" $VEID
+ 		cgset -r ve.state="START $pid" $VEID || exit
 		cgset -r ve.pseudosuper="0" $VEID
 	fi
 	;;
