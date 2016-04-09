@@ -50,6 +50,8 @@ function cg_dump_props {
 		# Save monotonic offsets for next restore
 		cgget -n -v -r ve.clock_bootbased $VEID > $1/vz_clock_bootbased.img
 		cgget -n -v -r ve.clock_monotonic $VEID > $1/vz_clock_monotonic.img
+		# AIO statistics
+		cgget -n -v -r ve.aio_max_nr $VEID > $1/vz_aio_max_nr.img
 	fi
 	return 0
 }

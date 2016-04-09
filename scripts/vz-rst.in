@@ -61,6 +61,7 @@ extra_args_path="$VE_DUMP_DIR/restore-extra-args"
 if [ -n "$VEID" ]; then
         export VE_CLOCK_BOOTBASED=`cat $VE_DUMP_DIR/vz_clock_bootbased.img`
         export VE_CLOCK_MONOTONIC=`cat $VE_DUMP_DIR/vz_clock_monotonic.img`
+        export VE_AIO_MAX_NR=`cat $VE_DUMP_DIR/vz_aio_max_nr.img`
 fi
 
 # Setup default log name if not explicitly specified
