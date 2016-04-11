@@ -26,5 +26,6 @@
 
 void remove_names( struct vzctl_env_handle *h);
 int validate_env_name(struct vzctl_env_handle *h, const char *name, ctid_t ctid);
+const char *gen_uniq_name(const char *name, char *out, int size);
 int vzctl2_set_name(struct vzctl_env_handle *h, const char *name);
 #endif /* __NAME_H__ */

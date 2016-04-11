@@ -168,3 +168,22 @@ del_name:
 
 	return 0;
 }
+
+const char *gen_uniq_name(const char *name, char *out, int size)
+{
+	int i;
+	char path[PATH_MAX];
+	struct stat st;
+
+#define NAME_FMT	"%s-(%d)"
+	for (i = 0; i < 0xffff; i++) {
+		snprintf(path, sizeof(path), ENV_NAME_DIR NAME_FMT, name, i);
+		if (lstat(path, &st) && errno == ENOENT) {
+			snprintf(out, size, NAME_FMT, name, i);
+			return out;
+		}
+	}
+
+#undef  NAME_FMT
+	return "";
+}

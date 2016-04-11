@@ -62,6 +62,7 @@
 #include "exec.h"
 #include "ha.h"
 #include "disk.h"
+#include "name.h"
 
 #define PROC_VEINFO	"/proc/vz/veinfo"
 static int _initialized = 0;
@@ -1016,24 +1017,21 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 			name != NULL && *name != '\0')
 	{
 		ctid_t t;
+		char x[PATH_MAX];
+		const char *new_name = name;
 
-		if (vzctl2_get_envid_by_name(name, t) == 0 &&
-				CMP_CTID(t, ctid))
-		{
-			logger(-1, 0, "Name %s is in use by CT %s",
-					name, t);
-			if (!(flags & VZ_REG_FORCE))
-				goto err;
+		if (vzctl2_get_envid_by_name(name, t) == 0 && CMP_CTID(t, ctid)) {
+			logger(-1, 0, "Name %s is in use by CT %s", name, t);
+			new_name = gen_uniq_name(name, x, sizeof(x));
+			vzctl2_env_set_param(h, "NAME", new_name);
+		}
 
-			vzctl2_env_set_param(h, "NAME", NULL);
-		} else {
-			logger(0, 0, "Assign the name: %s", name);
-			snprintf(buf, sizeof(buf), ENV_NAME_DIR "%s", name);
-			unlink(buf);
-			if (symlink(veconf, buf)) {
-				logger(-1, errno, "Unable to create the link %s", buf);
-				goto err;
-			}
+		logger(0, 0, "Assign the name: %s", new_name);
+		snprintf(buf, sizeof(buf), ENV_NAME_DIR "%s", new_name);
+		unlink(buf);
+		if (symlink(veconf, buf)) {
+			logger(-1, errno, "Unable to create the link %s", buf);
+			goto err;
 		}
 	}
 
