@@ -74,7 +74,7 @@ static int do_dump(struct vzctl_env_handle *h, int cmd,
 	char buf[PATH_MAX];
 	char script[PATH_MAX];
 	char *arg[2];
-	char *env[9];
+	char *env[10];
 	int ret, i = 0;
 	pid_t pid;
 
@@ -94,6 +94,9 @@ static int do_dump(struct vzctl_env_handle *h, int cmd,
 	snprintf(buf, sizeof(buf), "VE_ROOT=%s", h->env_param->fs->ve_root);
 	env[i++] = strdup(buf);
 	snprintf(buf, sizeof(buf), "VE_PID=%d", pid);
+	env[i++] = strdup(buf);
+	snprintf(buf, sizeof(buf), "CRIU_LOGLEVEL=%d",
+		vzctl2_get_log_verbose() + 1);
 	env[i++] = strdup(buf);
 
 	cg_get_path(EID(h), CG_FREEZER, "", path, sizeof(path));
@@ -159,7 +162,7 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 	char script[PATH_MAX];
 	char buf[PATH_MAX];
 	char *arg[2];
-	char *env[12];
+	char *env[13];
 	struct vzctl_veth_dev *veth;
 	struct vzctl_disk *d;
 	int ret, i = 0;
@@ -168,6 +171,16 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 	get_dumpfile(h, param, path, sizeof(path));
 	logger(3, 0, "Open the dump file %s", path);
 	snprintf(buf, sizeof(buf), "VE_DUMP_DIR=%s", path);
+	env[i++] = strdup(buf);
+
+	/*
+	   -v1, -v only messages and errors;
+	   -v2, -vv also warnings (default level);
+	   -v3, -vvv also information messages and timestamps;
+	   -v4, -vvvv lots of debug.*
+	*/
+	snprintf(buf, sizeof(buf), "CRIU_LOGLEVEL=%d",
+		vzctl2_get_log_verbose() + 1);
 	env[i++] = strdup(buf);
 
 	get_init_pid_path(h->ctid, path);

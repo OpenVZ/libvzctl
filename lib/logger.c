@@ -258,6 +258,11 @@ int vzctl2_set_log_verbose(int verbose)
 	return tmp;
 }
 
+int vzctl2_get_log_verbose(void)
+{
+	return _g_log.verbose;
+}
+
 int vzctl2_init_log(const char *progname)
 {
 	const struct vzctl_config *gconf;
