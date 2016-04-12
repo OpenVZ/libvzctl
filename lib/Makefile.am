@@ -50,6 +50,7 @@ libvzctl2_la_SOURCES =  bitmap.c \
 			res.c \
 			scandir.c \
 			snapshot.c \
+			sysfs_perm.c \
 			ub.c \
 			util.c \
 			veth.c \
