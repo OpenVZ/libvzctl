@@ -38,7 +38,6 @@
 #include <linux/if.h>
 #include <linux/veth.h>
 #include <sys/ioctl.h>
-#include <math.h>
 
 #define __USE_GNU /* for CLONE_XXX */
 #include <sched.h>
@@ -345,8 +344,8 @@ static int ns_apply_cpu_param(struct vzctl_env_handle *h, struct vzctl_cpu_param
 			return ret;
 	}
 	if (cpu->limit_res) {
-		logger(0, 0, "CPU limit: %0.1f%%", (float)cpu->limit1024*100/1024);
-		ret = cg_env_set_cpulimit(h->ctid, cpu->limit1024);
+		logger(0, 0, "CPU limit: %0.1f%%", cpu->limit);
+		ret = cg_env_set_cpulimit(h->ctid, cpu->limit);
 		if (ret)
 			return ret;
 	}
@@ -1555,13 +1554,13 @@ static int ns_get_iopslimit(struct vzctl_env_handle *h, unsigned int *speed)
 
 static int ns_get_runtime_param(struct vzctl_env_handle *h, int flags)
 {
-	unsigned long limit1024;
+	float limit = 0;
 	unsigned int iolimit = 0, iopslimit = 0;
 
 	if (!ns_is_env_run(h))
 		return 0;
 
-	if (cg_env_get_cpulimit(EID(h), &limit1024) == 0 && limit1024 != 0) {
+	if (cg_env_get_cpulimit(EID(h), &limit) == 0 && limit != 0) {
 		struct vzctl_cpu_param *cpu = h->env_param->cpu;
 		if (cpu->limit_res == NULL) {
 			cpu->limit_res = xmalloc(sizeof(struct vzctl_cpulimit_param));
@@ -1570,7 +1569,7 @@ static int ns_get_runtime_param(struct vzctl_env_handle *h, int flags)
 		}
 
 		cpu->limit_res->type = VZCTL_CPULIMIT_PCT;
-		cpu->limit_res->limit = rint((double)limit1024 * 100 / 1024);
+		cpu->limit_res->limit = (unsigned long)limit;
 	}
 
 	ns_get_iopslimit(h, &iolimit);

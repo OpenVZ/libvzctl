@@ -207,7 +207,7 @@ int apply_cpu_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int
 		return 0;
 	}
 	if (cpu->limit_res != NULL) {
-		if ((ret = env_set_cpulimit(h, cpu->limit1024)))
+		if ((ret = env_set_cpulimit(h, cpu->limit * 1024 /100)))
 			return ret;
 	}
 	if (cpu->vcpus != NULL) {
@@ -357,7 +357,7 @@ int vzctl_parse_cpulimit(struct vzctl_cpu_param *param, struct vzctl_cpulimit_pa
 					" is higher the total %llu",
 					cpu->limit, info.freq/1000);
 
-		param->limit1024 = 1024.0 * cpu->limit * 1000 * info.ncpu / info.freq;
+		param->limit = 100.0 * cpu->limit * 1000 * info.ncpu / info.freq;
 		param->limit_res->limit = cpu->limit;
 		param->limit_res->type = VZCTL_CPULIMIT_MHZ;
 
@@ -367,7 +367,7 @@ int vzctl_parse_cpulimit(struct vzctl_cpu_param *param, struct vzctl_cpulimit_pa
 					" is higher the total %d",
 					cpu->limit , info.ncpu * 100);
 
-		param->limit1024 = cpu->limit * 1024 / 100;
+		param->limit = cpu->limit;
 		param->limit_res->limit = cpu->limit;
 		param->limit_res->type = VZCTL_CPULIMIT_PCT;
 	}

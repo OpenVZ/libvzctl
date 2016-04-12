@@ -30,7 +30,7 @@
 /** Data structure for cpu parameters.
  */
 struct vzctl_cpu_param {
-	unsigned long limit1024;	/**< CPU usage for the VE, in per cent. */
+	float limit;	/**< CPU usage for the VE, in percent. */
 	struct vzctl_cpulimit_param *limit_res;
 	unsigned long *weight;
 	unsigned long *units;	/**< CPU weight for the VE, in units. */

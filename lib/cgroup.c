@@ -31,6 +31,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/mount.h>
+#include <math.h>
 
 #include "list.h"
 #include "cgroup.h"
@@ -516,14 +517,47 @@ int cg_env_set_cpuunits(const char *ctid, unsigned int cpuunits)
 	return cg_set_ul(ctid, CG_CPU, "cpu.shares", cpuunits * 1024 / 1000);
 }
 
-int cg_env_set_cpulimit(const char *ctid, unsigned int limit1024)
+int cg_env_set_cpulimit(const char *ctid, float limit)
 {
-	return cg_set_ul(ctid, CG_CPU, "cpu.rate", limit1024);
+	int rc;
+	unsigned long period, quota;
+
+	if (limit == 0)
+		return cg_set_param(ctid, CG_CPU, "cpu.cfs_quota_us", "-1");
+
+	rc = cg_get_ul(ctid, CG_CPU, "cpu.cfs_period_us", &period);
+	if (rc)
+		return rc;
+
+	quota = rint(limit * period / 100);
+	return cg_set_ul(ctid, CG_CPU, "cpu.cfs_quota_us", quota);
 }
 
-int cg_env_get_cpulimit(const char *ctid, unsigned long *limit1024)
+int cg_env_get_cpulimit(const char *ctid, float *limit)
 {
-	return cg_get_ul(ctid, CG_CPU, "cpu.rate", limit1024);
+	int rc;
+	char data[12];
+	unsigned long period, quota;
+
+	rc = cg_get_param(ctid, CG_CPU, "cpu.cfs_quota_us", data, sizeof(data));
+	if (rc)
+		return rc;
+
+	*limit = 0;
+	if (strcmp(data, "-1") == 0)
+		return 0;
+
+	rc = parse_ul(data, &quota);
+	if (rc)
+		return rc;
+
+	rc = cg_get_ul(ctid, CG_CPU, "cpu.cfs_period_us", &period);
+	if (rc)
+		return rc;
+
+	*limit = 100.0 * quota / period;
+
+	return 0;
 }
 
 int cg_env_set_vcpus(const char *ctid, unsigned int vcpus)
