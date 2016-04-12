@@ -59,6 +59,7 @@
 #include "vzfeatures.h"
 #include "vcmm.h"
 #include "vzctl_param.h"
+#include "sysfs_perm.h"
 
 int systemd_start_ve_scope(struct vzctl_env_handle *h, pid_t pid);
 
@@ -1459,12 +1460,22 @@ static int ns_veth_ctl(struct vzctl_env_handle *h, int op,
 
 static int ns_netdev_ctl(struct vzctl_env_handle *h, int add, const char *dev)
 {
+	int ret;
 	char script[PATH_MAX];
+	char sysfs[PATH_MAX];
 	char id_s[STR_SIZE];
 	char vname_s[STR_SIZE];
 	char hname_s[STR_SIZE];
 	char *arg[] = {script, NULL};
 	char *envp[] = {id_s, vname_s, hname_s, NULL};
+
+	logger(0, 0, "%s the network device: %s", add ? "Add" : "Delete", dev);
+
+	if (add) {
+		ret = get_sysfs_device_path("net", dev, sysfs, sizeof(sysfs));
+		if (ret)
+			return ret;
+	}
 
 	snprintf(id_s, sizeof(id_s), "VEID=%s", EID(h));
 	snprintf(vname_s, sizeof(vname_s), "VNAME=%s", dev);
@@ -1473,6 +1484,13 @@ static int ns_netdev_ctl(struct vzctl_env_handle *h, int add, const char *dev)
 			script, sizeof(script));
 	if (vzctl2_wrap_exec_script(arg, envp, 0))
 		return VZCTL_E_NETDEV;
+
+	if (!add) {
+		/* get sysfs device name after it moved on host */
+		if (get_sysfs_device_path("net", dev, sysfs, sizeof(sysfs)) == 0)
+			add_sysfs_dir(h, sysfs, NULL,  "-");
+	} else
+		add_sysfs_dir(h, sysfs, NULL,  "rx");
 
 	return 0;
 }

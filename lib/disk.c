@@ -53,7 +53,6 @@
 #include "cluster.h"
 #include "cgroup.h"
 
-
 static int mount_disk_image(struct vzctl_env_handle *h, struct vzctl_disk *d, int flags);
 static int umount_disk_image(struct vzctl_disk *d);
 static int mount_disk_device(struct vzctl_env_handle *h, struct vzctl_disk *d, int flags);
@@ -840,26 +839,30 @@ static int configure_devperm(struct vzctl_env_handle *h, struct vzctl_disk *disk
 	return get_env_ops()->env_set_devperm(h, &devperms);
 }
 
-static int add_sysfs_dir(struct vzctl_env_handle *h, const char *sysfs,
-		const char *devname)
+int add_sysfs_dir(struct vzctl_env_handle *h, const char *sysfs,
+		const char *devname, const char *mode)
 {
 	char buf[PATH_MAX];
 	char t[PATH_MAX];
 	char *p;
 
-	snprintf(t, sizeof(t), "%s/%s/", sysfs, devname);
+	if (devname != NULL)
+		snprintf(t, sizeof(t), "%s/%s/", sysfs, devname);
+	else
+		snprintf(t, sizeof(t), "%s/", sysfs);
+
 	for (p = strchr(t, '/'); p != NULL; p = strchr(p, '/')) {
 		*p = '\0';
-		snprintf(buf, sizeof(buf), "%s rx", t);
+		snprintf(buf, sizeof(buf), "%s %s", t, mode);
 		if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
-			return VZCTL_E_DISK_CONFIGURE;
+			return VZCTL_E_SYSFS_PERM;
 		*p++ = '/';
 	}
 
 	return 0;
 }
 
-static int add_sysfs_entry(struct vzctl_env_handle *h, const char *sysfs)
+int add_sysfs_entry(struct vzctl_env_handle *h, const char *sysfs)
 {
 	char path[PATH_MAX];
 	struct dirent **namelist;
@@ -869,7 +872,7 @@ static int add_sysfs_entry(struct vzctl_env_handle *h, const char *sysfs)
 
 	snprintf(path, sizeof(path), "%s rx", sysfs);
 	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", path))
-		return VZCTL_E_DISK_CONFIGURE;
+		return VZCTL_E_SYSFS_PERM;
 
 	snprintf(path, sizeof(path), "/sys/%s", sysfs);
 	if (lstat(path, &st))
@@ -892,7 +895,7 @@ static int add_sysfs_entry(struct vzctl_env_handle *h, const char *sysfs)
 			sysfs, namelist[n]->d_name,
 			!strcmp(namelist[n]->d_name, "uevent") ? "rw" : "rx");
 		if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", path))
-			ret = VZCTL_E_DISK_CONFIGURE;
+			ret = VZCTL_E_SYSFS_PERM;
 
 		free(namelist[n]);
 	}
@@ -901,18 +904,19 @@ static int add_sysfs_entry(struct vzctl_env_handle *h, const char *sysfs)
 	return ret;
 }
 
-static int get_sysfs_device_path(const char *devname, char *out, int size)
+int get_sysfs_device_path(const char *class, const char *devname, char *out,
+		int size)
 {
 	int n;
 	char x[STR_SIZE];
 	char buf[PATH_MAX];
 	const char *p = buf;
 
-	snprintf(x, sizeof(x), "/sys/class/block/%s", devname);
+	snprintf(x, sizeof(x), "/sys/class/%s/%s", class, devname);
 
 	n = readlink(x, buf, sizeof(buf) -1);
 	if (n == -1)
-		return vzctl_err(VZCTL_E_SYSTEM, errno, "readling %s", buf);
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "Failed to read %s", x);
 	buf[n-1] = '\0';
 
 	p += 6;
@@ -943,7 +947,7 @@ static int configure_sysfsperm(struct vzctl_env_handle *h, const char *device,
 	devname = get_devname(device);
 	partname = get_devname(part);
 
-	ret = get_sysfs_device_path(devname, sysfs, sizeof(sysfs));
+	ret = get_sysfs_device_path("block", devname, sysfs, sizeof(sysfs));
 	if (ret)
 		return ret;
 
@@ -963,7 +967,7 @@ static int configure_sysfsperm(struct vzctl_env_handle *h, const char *device,
 	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", "block rx"))
 		return VZCTL_E_DISK_CONFIGURE;
 
-	if (add_sysfs_dir(h, sysfs, devname))
+	if (add_sysfs_dir(h, sysfs, devname, "rx"))
 		return VZCTL_E_DISK_CONFIGURE;
 
 	snprintf(buf, sizeof(buf), "%s/%s", sysfs, devname);
