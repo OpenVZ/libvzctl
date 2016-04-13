@@ -1106,11 +1106,8 @@ int vzctl2_env_unreg(struct vzctl_env_handle *h, int flags)
 		return vzctl_err(VZCTL_E_ENV_RUN, 0,
 			"Container is running, Stop Container before proceeding.");
 
-	if (vzctl2_env_layout_version(ve_private) < VZCTL_LAYOUT_4) {
-		logger(0, 0, "Warning: Container is in old data format,"
-			" unregistration skipped");
+	if (vzctl2_env_layout_version(ve_private) < VZCTL_LAYOUT_4)
 		return 0;
-	}
 
 	ret = vzctl_check_owner_quiet(ve_private, buf, sizeof(buf), host, sizeof(host));
 	if (ret == VZCTL_E_ENV_MANAGE_DISABLED)
