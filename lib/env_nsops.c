@@ -132,6 +132,9 @@ static int setup_rootfs(struct vzctl_env_handle *h)
 
 	logger(10, 0, "* setup rootfs %s", root);
 
+	if (chdir(root))
+		return vzctl_err(-1, 0, "Unable to chdir %s", root);
+
 	if (mount("", root, NULL, MS_SLAVE|MS_REC, NULL) < 0)
 		return vzctl_err(-1, errno, "Can't make slave %s", root);
 
@@ -142,9 +145,6 @@ static int setup_rootfs(struct vzctl_env_handle *h)
 	ret = bindmount_env_cgroup(h);
 	if (ret)
 		return ret;
-
-	if (chdir(root))
-		return vzctl_err(-1, 0, "Unable to chdir %s", root);
 
 	if (access(oldroot, F_OK) && mkdir(oldroot, 0755))
 		return vzctl_err(-1, errno, "Can't make dir %s", oldroot);
