@@ -1106,6 +1106,9 @@ int vzctl2_env_unreg(struct vzctl_env_handle *h, int flags)
 		return vzctl_err(VZCTL_E_ENV_RUN, 0,
 			"Container is running, Stop Container before proceeding.");
 
+	if (access(ve_private, F_OK) && errno == ENOENT)
+		return unregister_env_conf(h);
+
 	if (vzctl2_env_layout_version(ve_private) < VZCTL_LAYOUT_4)
 		return 0;
 
