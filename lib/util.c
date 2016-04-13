@@ -2395,7 +2395,7 @@ FILE *vzctl_popen(char *argv[], char *env[], int close_std)
 
 		if (close_std & CLOSE_STDERR)
 			dup2(fd, STDERR_FILENO);
-		else
+		else if (!(close_std & DONT_REDIRECT_ERR2OUT))
 			dup2(out[1], STDERR_FILENO);
 
 		close(fd);

@@ -281,7 +281,7 @@ static int vztmpl_get_appcache_tarball(const char *cache_config, const char *ost
 	}
 	arg[i++] = NULL;
 
-	fp = vzctl_popen(arg, NULL, CLOSE_STDERR);
+	fp = vzctl_popen(arg, NULL, DONT_REDIRECT_ERR2OUT);
 	if (fp == NULL)
 		goto err;
 

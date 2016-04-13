@@ -41,6 +41,7 @@
 enum {
 	CLOSE_STDOUT    = 0x1,
 	CLOSE_STDERR    = 0x2,
+	DONT_REDIRECT_ERR2OUT	= 0x4,
 };
 
 struct vzctl_idstr_pair {
