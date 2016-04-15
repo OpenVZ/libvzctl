@@ -67,6 +67,12 @@ fi
 # Setup default log name if not explicitly specified
 [ -z "$VE_RESTORE_LOG_PATH" ] && VE_RESTORE_LOG_PATH="restore.log"
 
+# AutoFS actions
+autofs_actions_path=/usr/libexec/criu/scripts/systemd-autofs-restart.sh
+if [ -f "$autofs_actions_path" ]; then
+	autofs_actions="--action-script $autofs_actions_path"
+fi
+
 criu restore -v$CRIU_LOGLEVEL				\
 		--file-locks				\
 		--tcp-established			\
@@ -82,6 +88,7 @@ criu restore -v$CRIU_LOGLEVEL				\
 		--pidfile $VE_PIDFILE			\
 		--cgroup-root /$VEID			\
 		$ext_mount_map				\
+		$autofs_actions				\
 		$veth_args
 
 if [ $? -eq 0 ]; then
