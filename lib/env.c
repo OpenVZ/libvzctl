@@ -1348,7 +1348,7 @@ int vzctl2_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 	ret = setmode_err;
 
 err:
-	vzctl2_merge_env_param(h, env);
+	merge_env_param(h, env, NULL, flags);
 
 	// FIXME: merge param
 	if (flags & VZCTL_SAVE) {

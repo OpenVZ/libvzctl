@@ -31,6 +31,6 @@ int is_private_param(const char *name);
 int vzctl2_add_env_param(struct vzctl_env_param *env, struct vzctl_data_param *data, int flags);
 int vzctl_update_env_param(struct vzctl_env_handle *h, int flags);
 int merge_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
-		param_filter_f filter);
+		param_filter_f filter, int flags);
 
 #endif /* __ENV_CONFIG_H__ */

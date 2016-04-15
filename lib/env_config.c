@@ -1269,7 +1269,7 @@ static char *env_param2str(struct vzctl_env_handle *h,
 }
 
 int merge_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
-		param_filter_f filter)
+		param_filter_f filter, int flags)
 {
 	struct vzctl_config_param *param;
 	char *str;
@@ -1297,9 +1297,12 @@ int merge_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 			add_env_param(h, h->env_param, &data, VZCTL_CONF_PARAM);
 
 			/* compatibility bugfix #PSBM-33885 */
-			if (data.id == VZCTL_PARAM_DEVNODES) {
+			if (data.id == VZCTL_PARAM_DEVNODES &&
+					!(flags & VZCTL_APPLY_CONF))
+			{
 				free(str);
 				str = devnodes2str(h->env_param->dev, 1);
+				printf("& %s %d\n", str, flags);
 			}
 
 			ret = add_conf_data(h->conf, param->name, str, CONF_DATA_UPDATED);
@@ -1316,7 +1319,7 @@ int merge_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
  */
 int vzctl2_merge_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env)
 {
-	return merge_env_param(h, env, NULL);
+	return merge_env_param(h, env, NULL, 0);
 }
 
 static void free_tmpl_param(struct vzctl_tmpl_param *tmpl)

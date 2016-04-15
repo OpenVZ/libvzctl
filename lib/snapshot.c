@@ -454,7 +454,7 @@ static int restore_env_config(struct vzctl_env_handle *h, const char *guid,
 	/* Preserve private data */
 	vzctl2_env_set_param(*h_snap, "VEID", EID(h));
 
-	if (merge_env_param(*h_snap, h->env_param, private_param_filter))
+	if (merge_env_param(*h_snap, h->env_param, private_param_filter, 0))
 		return -1;
 
 	if (vzctl2_env_save_conf(*h_snap, ve_conf_tmp))
