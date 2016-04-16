@@ -152,12 +152,6 @@ enum {
 	VZCTL_QUOTA_MODE,
 };
 
-enum {
-	VZCTL_SET_NONE = 0,
-	VZCTL_SET_RESTART,
-	VZCTL_SET_IGNORE,
-};
-
 enum {elf_none, elf_32, elf_64};
 
 struct vzctl_env_handle;

@@ -284,6 +284,13 @@ typedef enum {
 	VZCTL_ENV_TYPE_MAX = VZCTL_ENV_TYPE_TEMPLATE,
 } vzctl_env_type;
 
+typedef enum {
+        VZCTL_SET_NONE = 0,
+        VZCTL_SET_RESTART,
+        VZCTL_SET_IGNORE,
+        VZCTL_SET_MODE_MAX = VZCTL_SET_IGNORE,
+} vzctl_setmode_t;
+
 enum {
 	VZCTL_DISK_DETACH       = 0x1,
 	VZCTL_DISK_SKIP_CREATE  = 0x2,
@@ -1042,6 +1049,7 @@ int vzctl2_get_normalized_guid(const char *str, char *buf, int len);
 int vzctl2_get_normalized_uuid(const char *str, char *buf, int len);
 int vzctl2_set_tc_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 		int flags);
+int vzctl2_env_set_setmode(struct vzctl_env_param *env, vzctl_setmode_t mode);
 
 /************** Depricated *****************************/
 struct vzctl_config *vzctl2_conf_open(const char *fname, int flags, int *err);

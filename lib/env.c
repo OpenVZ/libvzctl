@@ -3276,3 +3276,13 @@ int vzctl2_env_set_bootorder(struct vzctl_env_param *env, unsigned long bootorde
 	*env->opts->bootorder = bootorder;
 	return 0;
 }
+
+int vzctl2_env_set_setmode(struct vzctl_env_param *env, vzctl_setmode_t mode)
+{
+	if (mode > VZCTL_SET_MODE_MAX)
+		return VZCTL_E_INVAL;
+
+	env->opts->setmode = mode;
+
+	return 0;
+}
