@@ -60,6 +60,7 @@
 #include "vzctl_param.h"
 #include "sysfs_perm.h"
 #include "exec.h"
+#include "cleanup.h"
 
 int systemd_start_ve_scope(struct vzctl_env_handle *h, pid_t pid);
 
@@ -855,6 +856,8 @@ static int ns_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
 	if (*pid < 0) {
 		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
 	} else if (*pid == 0) {
+		struct vzctl_cleanup_hook *hook;
+
 		ret = ns_env_enter(h, flags);
 		if (ret)
 			goto err;
@@ -874,12 +877,14 @@ static int ns_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
 			_exit(ret);
 		}
 
+		hook = register_cleanup_hook(cleanup_kill_process, (void *) &pid2);
 		close_array_fds(VZCTL_CLOSE_STD, NULL, -1);
 
 		if (param->timeout)
 			set_timeout_handler(pid2, param->timeout);
 
 		ret = env_wait(pid2, param->timeout, NULL);
+		unregister_cleanup_hook(hook);
 err:
 
 		_exit(ret);
