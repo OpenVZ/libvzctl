@@ -59,6 +59,7 @@
 #include "vcmm.h"
 #include "vzctl_param.h"
 #include "sysfs_perm.h"
+#include "exec.h"
 
 int systemd_start_ve_scope(struct vzctl_env_handle *h, pid_t pid);
 
@@ -843,6 +844,7 @@ err:
 
 	return ret;
 }
+
 static int ns_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
 		int flags, pid_t *pid)
 {
@@ -853,10 +855,6 @@ static int ns_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
 	if (*pid < 0) {
 		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
 	} else if (*pid == 0) {
-		ret = real_env_exec_init(param);
-		if (ret)
-			goto err;
-
 		ret = ns_env_enter(h, flags);
 		if (ret)
 			goto err;
@@ -876,13 +874,14 @@ static int ns_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
 			_exit(ret);
 		}
 
+		close_array_fds(VZCTL_CLOSE_STD, NULL, -1);
+
 		if (param->timeout)
 			set_timeout_handler(pid2, param->timeout);
 
-		ret = real_env_exec_waiter(param, pid2, param->timeout, flags);
+		ret = env_wait(pid2, param->timeout, NULL);
 err:
 
-		real_env_exec_close(param);
 		_exit(ret);
 	}
 

@@ -163,7 +163,7 @@ void close_array_fds(int close_std, int *fds, ...)
 			skip_fds[i] = fds[j];
 	}
 	skip_fds[i] = -1;
-	_close_fds(close_std, skip_fds);
+	_close_fds(close_std, i == 0 ? NULL : skip_fds);
 }
 
 /** Close all fd.
@@ -574,12 +574,17 @@ static int do_env_exec(struct vzctl_env_handle *h, exec_mode_e exec_mode,
 	if (lfd < 0)
 		return VZCTL_E_LOCK;
 
+	ret = real_env_exec_init(&param);
+	if (ret)
+		goto err;
+
 	ret = get_env_ops()->env_exec(h, &param, flags, &pid);
 	if (ret)
 		goto err;
 
 	hook = register_cleanup_hook(cleanup_kill_process, (void *) &pid);
-	ret = env_wait(pid, timeout, NULL);
+	ret = real_env_exec_waiter(&param, pid, timeout, flags);
+
 	unregister_cleanup_hook(hook);
 err:
 	real_env_exec_close(&param);
