@@ -83,7 +83,6 @@ void vzctl2_cancel_last_operation(void)
 {
 	struct vzctl_cleanup_hook *it;
 
-	logger(10, 0, "vzctl_cancel_operation");
 	list_for_each(it, get_cleanup_ctx(), list) {
 		it->fn(it->data);
 	}
@@ -114,17 +113,15 @@ void unregister_cleanup_hook(struct vzctl_cleanup_hook *h)
 
 void cleanup_kill_process(void *data)
 {
-	int pid = *(int *) data;
+	pid_t pid = *(pid_t *) data;
 
-	logger(0, 0, "Killing process %d", pid);
-	kill(-pid, SIGTERM);
+	kill(pid, SIGTERM);
 }
 
 void cleanup_destroydir(void *data)
 {
 	char *dir = (char *) data;
 
-	logger(0, 0, "Destroying %s", dir);
 	destroydir(dir);
 }
 
@@ -132,6 +129,5 @@ void cleanup_kill_ve(void *data)
 {
 	struct vzctl_env_handle *h = (struct vzctl_env_handle *) data;
 
-	logger(0, 0, "Stopping Container");
 	vzctl2_env_stop(h, M_KILL, 0);
 }
