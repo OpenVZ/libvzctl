@@ -240,6 +240,15 @@ static int update_param(struct vzctl_env_handle *h)
 		vzctl_conf_add_param(h->conf, "DISTRIBUTION", buf);
 	}
 
+	ret = vztmpl_get_osrelease(env->tmpl->ostmpl, buf, sizeof(buf));
+	if (ret == 0 && buf[0] != '\0') {
+		ret = xstrdup(&h->env_param->tmpl->osrelease, buf);
+		if (ret)
+			return ret;
+
+		vzctl_conf_add_param(h->conf, "OSRELEASE", buf);
+	}
+
 	if (h->env_param->dq->journaled_quota == 0 &&
 			!vztmpl_is_jquota_supported(h->env_param->tmpl->ostmpl))
 		vzctl_conf_add_param(h->conf, "JOURNALED_QUOTA", "no");
