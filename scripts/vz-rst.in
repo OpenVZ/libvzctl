@@ -94,6 +94,6 @@ criu restore -v$CRIU_LOGLEVEL				\
 if [ $? -eq 0 ]; then
 	echo Ok
 else
-	echo The restore log was saved in $VE_DUMP_DIR/restore.log
+	echo The restore log was saved in $VE_WORK_DIR/$VE_RESTORE_LOG_PATH
 	exit 1
 fi
