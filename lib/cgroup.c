@@ -588,8 +588,19 @@ static int cg_env_set_mask(const char *ctid, const char *name,  unsigned long *c
 
 	/* Autocorrect mask */
 	bitmap_and(mask, cpumask, mask, size);
+	if (*mask == 0)
+	{
+		free(mask);
+
+		char val[4096];
+		bitmap_snprintf(val, sizeof(val), cpumask, size);
+		return vzctl_err(VZCTL_E_CPUMASK, 0,
+				"Unable to set %s value %s, supported range: %s", name, val, buf);
+	}
+
 	bitmap_snprintf(buf, sizeof(buf), mask, size);
 	free(mask);
+
 	snprintf(cg_name, sizeof(cg_name), "cpuset.%s", name);
 	if (cg_set_param(ctid, CG_CPUSET, cg_name, buf))
 		return vzctl_err(VZCTL_E_CPUMASK, errno,

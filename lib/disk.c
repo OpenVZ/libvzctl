@@ -1344,14 +1344,20 @@ int is_external_disk(const char *path)
 
 int check_external_disk(const char *basedir, struct vzctl_env_disk *env_disk)
 {
-	char fname[PATH_MAX];
+	char fname[PATH_MAX], path[PATH_MAX];
 	struct vzctl_disk *d;
 
 	if (env_disk == NULL)
 		return 0;
 
 	list_for_each(d, &env_disk->disks, list) {
-		get_rel_path(basedir, d->path, fname, sizeof(fname));
+		if (realpath(d->path, path) == NULL) {
+			vzctl2_log(VZCTL_E_SYSTEM, errno,
+				"Failed to get realpath for disk %s", d->path);
+			continue;
+		}
+
+		get_rel_path(basedir, path, fname, sizeof(fname));
 		if (is_external_disk(fname))
 			return 1;
 	}
