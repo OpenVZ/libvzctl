@@ -159,6 +159,8 @@ static int do_umount_submounts(char *root)
 
 static int do_env_umount(struct vzctl_env_handle *h)
 {
+	vzctl2_send_state_evt(EID(h), VZCTL_ENV_UMOUNT);
+
 	do_umount_submounts(h->env_param->fs->ve_root);
 	if (h->env_param->fs->layout == VZCTL_LAYOUT_5)
 		return vzctl2_umount_disk(h->env_param->disk);
