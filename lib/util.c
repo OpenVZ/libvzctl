@@ -2293,11 +2293,25 @@ int get_global_param(const char *name, char *buf, int size)
 
 static char *get_pfcache_opts(char *buf, int len)
 {
-	char opts[PATH_MAX];
+	int err;
+	const char *data = NULL;;
+	struct vzctl_config *c;
+	const char *fname = "/etc/vz/pfcache.conf";
 
 	buf[0] = '\0';
-	if (get_global_param("PFCACHE", opts, sizeof(opts)) == 0)
-		snprintf(buf, len, ",pfcache_csum,pfcache=%s", opts);
+	if (access(fname, F_OK))
+		return buf;
+
+	c = vzctl2_conf_open(fname, 0, &err);
+	if (c == NULL)
+		return buf;
+
+	vzctl2_conf_get_param(c, "PFCACHE", &data);
+	if (data != NULL)
+		snprintf(buf, len, ",pfcache_csum,pfcache=%s", data);
+
+	vzctl2_conf_close(c);
+
 	return buf;
 }
 
