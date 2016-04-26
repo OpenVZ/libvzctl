@@ -794,9 +794,12 @@ int cg_get_legacy_veid(const char *ctid, unsigned long *value)
 int cg_add_veip(const char *ctid, const char *ip)
 {
 	if (cg_set_param(ctid, CG_VE,
-				is_ip6(ip) ? "ve.ip6_allow" : "ve.ip_allow", ip))
-		return vzctl_err(VZCTL_E_CANT_ADDIP, errno,
+			is_ip6(ip) ? "ve.ip6_allow" : "ve.ip_allow", ip))
+	{
+		int rc = errno == EADDRINUSE ? VZCTL_E_IP_INUSE : VZCTL_E_CANT_ADDIP;
+		return vzctl_err(rc, errno,
 				"Unable to add ip %s", ip);
+	}
 	return 0;
 }
 
