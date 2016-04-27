@@ -54,6 +54,7 @@ int get_vswap_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 int check_res_requires(struct vzctl_env_param *env);
 int vzctl_res_setup_post(struct vzctl_env_handle *h);
 int vzctl_res_configure(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags);
+int dump_resources_failcnt(ctid_t ctid);
 #ifdef __cplusplus
 }
 #endif

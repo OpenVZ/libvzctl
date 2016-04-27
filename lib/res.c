@@ -27,6 +27,7 @@
 #include <string.h>
 #include <limits.h>
 
+#include "libvzctl.h"
 #include "vzsyscalls.h"
 #include "env.h"
 #include "ub.h"
@@ -61,6 +62,36 @@ struct vzctl_res_param *alloc_res_param()
 err:
 	free_res_param(res);
 	return NULL;
+}
+
+int dump_resources_failcnt(ctid_t ctid)
+{
+	FILE *fd;
+	char buf[STR_SIZE];
+	int cnt = 0;
+
+	sprintf(buf, "/proc/bc/%s/resources", ctid);
+	fd = fopen(buf, "r");
+	if (fd == NULL)
+		return 0;
+
+	while (fgets(buf, sizeof(buf), fd) != NULL) {
+		char n[64];
+		unsigned long n1, n2, n3, n4, failcnt;
+
+		if (sscanf(buf, "%63s%lu%lu%lu%lu%lu",
+					n, &n1, &n2, &n3, &n4, &failcnt) != 6)
+			continue;
+		if (failcnt == 0)
+			continue;
+
+		logger(0, 0, "%s %lu %lu %lu %lu %lu",
+				n, n1, n2, n3, n4, failcnt );
+		cnt++;
+	}
+	fclose(fd);
+
+	return cnt;
 }
 
 //----------------------------------------------------

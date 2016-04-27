@@ -30,7 +30,6 @@
 #include <limits.h>
 
 #include "vzerror.h"
-#include "res.h"
 #include "logger.h"
 #include "meminfo.h"
 #include "vztypes.h"

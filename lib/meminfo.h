@@ -30,6 +30,8 @@ struct vzctl_meminfo_param {
 #define VE_MEMINFO_PRIVVMPAGES 3
 	unsigned long val;
 };
+struct vzctl_env_handle;
+struct vzctl_env_param;
 
 struct vzctl_meminfo_param *alloc_meminfo_param(void);
 int apply_meminfo_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags);
