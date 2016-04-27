@@ -214,6 +214,9 @@ int bitmap_snprintf(char *buf, unsigned int buflen,
 static int parse_range(const char *str, unsigned *a, unsigned *b,
 		char **endptr)
 {
+	if (!isdigit(*str))
+		return -1;
+
 	*a = *b = strtoul(str, endptr, 10);
 	if (errno == ERANGE)
                 return -1;
