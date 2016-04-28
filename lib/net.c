@@ -835,6 +835,7 @@ int vzctl2_get_env_tc_netstat(struct vzctl_env_handle *h,
 		.outgoing = stat->outgoing,
 		.incoming_pkt = stat->incoming_pkt,
 		.outgoing_pkt = stat->outgoing_pkt,
+		.length = TC_MAX_CLASSES,
 	};
 
 	bzero(stat, sizeof(struct vzctl_tc_netstat));
