@@ -824,3 +824,24 @@ int vzctl2_clear_all_ve_netstat(void)
 
 	return rc;
 }
+
+int vzctl2_get_env_tc_netstat(struct vzctl_env_handle *h,
+		struct vzctl_tc_netstat *stat, int v6)
+{
+	int ret;
+	struct vzctl_tc_get_stat s = {
+		.veid = h->veid,
+		.incoming = stat->incoming,
+		.outgoing = stat->outgoing,
+		.incoming_pkt = stat->incoming_pkt,
+		.outgoing_pkt = stat->outgoing_pkt,
+	};
+
+	bzero(stat, sizeof(struct vzctl_tc_netstat));
+	ret = ioctl(get_vzctlfd(),
+			v6 ? VZCTL_TC_GET_STAT_V6 : VZCTL_TC_GET_STAT, &s);
+	if (ret == -1 && errno != ESRCH && errno != ENOTTY)
+		return -1;
+
+	return 0;
+}

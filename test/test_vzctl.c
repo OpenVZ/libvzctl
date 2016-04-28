@@ -745,6 +745,21 @@ void test_ctid()
 	}
 }
 
+void test_netstat()
+{
+	int err;
+	vzctl_env_handle_ptr h;
+	struct vzctl_tc_netstat stat;
+
+	TEST()
+
+	CHECK_PTR(h, vzctl2_env_open(ctid, 0, &err))
+	CHECK_RET(vzctl2_get_env_tc_netstat(h, &stat, 0));
+	CHECK_RET(vzctl2_get_env_tc_netstat(h, &stat, 1));
+
+	vzctl2_env_close(h);
+}
+
 void test_vzctl()
 {
         int err;
@@ -778,6 +793,7 @@ void test_vzctl()
 	test_set_userpasswd();
 	test_exec();
 	test_meminfo();
+	test_netstat();
 
 	test_env_stop();
 	test_env_register();

@@ -260,6 +260,14 @@ struct vzctl_iostat {
 	unsigned long long write;
 };
 
+#define TC_MAX_CLASSES	15
+struct vzctl_tc_netstat {
+	unsigned long long incoming[TC_MAX_CLASSES];
+	unsigned long long outgoing[TC_MAX_CLASSES];
+	unsigned int incoming_pkt[TC_MAX_CLASSES];
+	unsigned int outgoing_pkt[TC_MAX_CLASSES];
+};
+
 enum {
 	VZCTL_ENV_CREATED = 1,
 	VZCTL_ENV_REGISTERED = 2,
@@ -609,11 +617,15 @@ int vzctl2_get_env_iostat(const ctid_t ctid, struct vzctl_iostat *stat, int size
 int vzctl2_get_env_meminfo(const ctid_t ctid, struct vzctl_meminfo *meminfo, int size);
 int vzctl2_get_env_total_meminfo(unsigned long *limit_bytes, unsigned long *usage_bytes);
 
+
 /** Get Container cpu statisctics
  * @return		0 on success
  */
 int vzctl2_env_cpustat(struct vzctl_env_handle *h, struct vzctl_cpustat *cpustat,
 		int size);
+
+int vzctl2_get_env_tc_netstat(struct vzctl_env_handle *h,
+		struct vzctl_tc_netstat *stat, int v6);
 
 /** Set Container I/O priority
  * @return		0 on success
