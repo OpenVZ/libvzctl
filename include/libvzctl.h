@@ -260,7 +260,7 @@ struct vzctl_iostat {
 	unsigned long long write;
 };
 
-#define TC_MAX_CLASSES	15
+#define TC_MAX_CLASSES	16
 struct vzctl_tc_netstat {
 	unsigned long long incoming[TC_MAX_CLASSES];
 	unsigned long long outgoing[TC_MAX_CLASSES];
