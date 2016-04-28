@@ -425,10 +425,6 @@ static int setup_env_cgroup(struct vzctl_env_handle *h, struct vzctl_env_param *
 	if (ret)
 		return ret;
 
-	ret = cg_env_set_memory(h->ctid, CG_KMEM_LIMIT, LONG_MAX);
-	if (ret)
-		return ret;
-
 	return 0;
 }
 

@@ -37,8 +37,6 @@
 
 #define CG_MEM_LIMIT	"memory.limit_in_bytes"
 #define CG_SWAP_LIMIT	"memory.memsw.limit_in_bytes"
-#define CG_KMEM_LIMIT	"memory.kmem.limit_in_bytes"
-#define CG_TCP_LIMIT	"memory.kmem.tcp.limit_in_bytes"
 #define CG_NET_CLASSID	"net_cls.classid"
 
 struct vzctl_env_handle;
