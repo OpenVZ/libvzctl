@@ -1106,16 +1106,23 @@ int vzctl2_env_unreg(struct vzctl_env_handle *h, int flags)
 		return vzctl_err(VZCTL_E_ENV_RUN, 0,
 			"Container is running, Stop Container before proceeding.");
 
-	if (access(ve_private, F_OK) && errno == ENOENT)
-		return unregister_env_conf(h);
+	if (access(ve_private, F_OK) && errno == ENOENT) {
+		ret = unregister_env_conf(h);
+		if (ret)
+			return ret;
+		goto out;
+	}
 
 	if (vzctl2_env_layout_version(ve_private) < VZCTL_LAYOUT_4)
 		return 0;
 
 	ret = vzctl_check_owner_quiet(ve_private, buf, sizeof(buf), host, sizeof(host));
-	if (ret == VZCTL_E_ENV_MANAGE_DISABLED)
-		return unregister_env_conf(h);
-	else if (ret)
+	if (ret == VZCTL_E_ENV_MANAGE_DISABLED) {
+		ret = unregister_env_conf(h);
+		if (ret)
+			return ret;
+		goto out;
+	} else if (ret)
 		return ret;
 
 	ve_root = h->env_param->fs->ve_root;
@@ -1157,6 +1164,7 @@ int vzctl2_env_unreg(struct vzctl_env_handle *h, int flags)
 			shaman_del_resource(EID(h)))
 		logger(0, 0,"Warning: Failed to unregister the Container on HA cluster");
 
+out:
 	vzctl2_destroy_net_stat(h, 0);
 	vzctl2_send_state_evt(EID(h), VZCTL_ENV_UNREGISTERED);
 	logger(0, 0, "Container unregistered succesfully");
