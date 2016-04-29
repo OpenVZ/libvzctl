@@ -2832,8 +2832,8 @@ int vzctl2_get_env_meminfo(const ctid_t ctid, struct vzctl_meminfo *meminfo, int
 	}
 
 	while (fgets(buf, sizeof(buf), fp)) {
-		sscanf(buf, "swapin %llu", &data.swap_in);
-		sscanf(buf, "swapout %llu", &data.swap_out);
+		sscanf(buf, " swapin %llu", &data.swap_in);
+		sscanf(buf, " swapout %llu", &data.swap_out);
 	}
 	fclose(fp);
 
