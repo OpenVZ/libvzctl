@@ -298,7 +298,7 @@ function parallel_execution()
 	local ex="${2}"
 	local pids=""
 	local cmd=""
-	declare -a args=("${!2}")
+	declare -a args=("${!3}")
 
 	while ((${counter} < ${#args[@]})); do
 		fork_counter=${MAX_FORKS}
