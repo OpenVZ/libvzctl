@@ -51,7 +51,7 @@ TC_CMD=tc
 IP_CMD=ip
 MAX_FORKS=100
 ARPING_CMD="/sbin/arping"
-ARPING_ARGS="-c 1 -q"
+ARPING_ARGS="-f -c 1 -q"
 NDSEND_CMD="/usr/sbin/ndsend"
 OVSCTL_CMD="/usr/bin/ovs-vsctl"
 VZ_ARP_ANNOUNCE_LOCK="/var/lock/vz_tc_classes.lock"
@@ -294,7 +294,8 @@ function parallel_execution()
 {
 	local counter=0
 	local fork_counter=0
-	local ex="${1}"
+	local delay="${1}"
+	local ex="${2}"
 	local pids=""
 	local cmd=""
 	declare -a args=("${!2}")
@@ -314,7 +315,7 @@ function parallel_execution()
 		while [ ! -z "${pids}" ]; do
 			for pid in ${pids}; do
 				kill -0 ${pid} > /dev/null 2>&1
-				[ $? -eq 0 ] && sleep 1 && continue
+				[ $? -eq 0 ] && usleep ${delay} && continue
 				wait ${pid} || vzwarning "${command_list[${pid}]} FAILED"
 				pids=$(echo ${pids} | sed "s,\<${pid}\>,,g")
 			done
@@ -346,7 +347,7 @@ function vzarpipdetect()
 			fi
 		done
 	done
-	parallel_execution "! ${ARPING_CMD} ${ARPING_ARGS} -w 1 -I" ipv4_pairs[@]
+	parallel_execution 1000000 "! ${ARPING_CMD} ${ARPING_ARGS} -w 1 -I" ipv4_pairs[@]
 }
 
 # Send ARP request to update neighbour ARP caches
@@ -384,10 +385,10 @@ function vzarpipset()
 	lockfile ${VZ_ARP_ANNOUNCE_LOCK}
 	nonlocal_bind_prev=$(cat /proc/sys/net/ipv4/ip_nonlocal_bind)
 	echo "1" > /proc/sys/net/ipv4/ip_nonlocal_bind
-	parallel_execution "${ARPING_CMD} ${ARPING_ARGS} -A -I" ipv4_pairs[@]
+	parallel_execution 100000 "${ARPING_CMD} ${ARPING_ARGS} -A -I" ipv4_pairs[@]
 	echo "${nonlocal_bind_prev}" > /proc/sys/net/ipv4/ip_nonlocal_bind
 	rm -rf ${VZ_ARP_ANNOUNCE_LOCK} > /dev/null 2>&1
-	parallel_execution "${NDSEND_CMD}" ipv6_pairs[@]
+	parallel_execution 100000 "${NDSEND_CMD}" ipv6_pairs[@]
 }
 
 # Sets VE0 source routing for given IP

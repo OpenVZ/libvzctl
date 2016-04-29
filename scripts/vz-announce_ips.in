@@ -17,7 +17,7 @@ if [ ! -d "${VEROOT}/sys/class/net" ]; then
 fi
 
 ARPING_CMD=/sbin/arping
-ARPING_ARGS="-c 1 -w 1"
+ARPING_ARGS="-f -c 1 -w 1"
 IP_CMD=/sbin/ip
 NDSEND_CMD=/usr/sbin/ndsend
 
