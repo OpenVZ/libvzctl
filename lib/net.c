@@ -829,6 +829,10 @@ int vzctl2_get_env_tc_netstat(struct vzctl_env_handle *h,
 		struct vzctl_tc_netstat *stat, int v6)
 {
 	int ret;
+
+	if (h == NULL || stat == NULL)
+		return -1;
+
 	struct vzctl_tc_get_stat s = {
 		.veid = h->veid,
 		.incoming = stat->incoming,
