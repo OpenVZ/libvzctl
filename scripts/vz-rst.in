@@ -52,7 +52,8 @@ rm -f $VE_PIDFILE
 extra_args_path="$VE_DUMP_DIR/restore-extra-args"
 [ -f "$extra_args_path" ] && eval $(. ${extra_args_path} && echo \
 	VE_WORK_DIR="${VE_WORK_DIR}" \
-	VE_RESTORE_LOG_PATH="${VE_RESTORE_LOG_PATH}")
+	VE_RESTORE_LOG_PATH="${VE_RESTORE_LOG_PATH}" \
+	CRIU_LOGLEVEL="${VE_CRIU_LOGLEVEL}")
 
 # Setup default work directory if not explicitly specified
 [ -z "$VE_WORK_DIR" ] && VE_WORK_DIR="$VE_DUMP_DIR"
