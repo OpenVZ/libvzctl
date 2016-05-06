@@ -58,10 +58,13 @@ extra_args_path="$VE_DUMP_DIR/restore-extra-args"
 # Setup default work directory if not explicitly specified
 [ -z "$VE_WORK_DIR" ] && VE_WORK_DIR="$VE_DUMP_DIR"
 
-# Setup monotonic offsets for clock adjustments
+# Setup VE specific settings (cgroup interface)
 if [ -n "$VEID" ]; then
         export VE_CLOCK_BOOTBASED=`cat $VE_DUMP_DIR/vz_clock_bootbased.img`
         export VE_CLOCK_MONOTONIC=`cat $VE_DUMP_DIR/vz_clock_monotonic.img`
+        export VE_IPTABLES_MASK=`cat $VE_DUMP_DIR/vz_iptables_mask.img`
+        export VE_OS_RELEASE=`cat $VE_DUMP_DIR/vz_os_release.img`
+        export VE_FEATURES=`cat $VE_DUMP_DIR/vz_features.img`
         export VE_AIO_MAX_NR=`cat $VE_DUMP_DIR/vz_aio_max_nr.img`
 fi
 

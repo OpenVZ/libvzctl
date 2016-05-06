@@ -50,6 +50,12 @@ function cg_dump_props {
 		# Save monotonic offsets for next restore
 		cgget -n -v -r ve.clock_bootbased $VEID > $1/vz_clock_bootbased.img
 		cgget -n -v -r ve.clock_monotonic $VEID > $1/vz_clock_monotonic.img
+		# Netfilter mask
+		cgget -n -v -r ve.iptables_mask $VEID > $1/vz_iptables_mask.img
+		# OS version virtualization
+		cgget -n -v -r ve.os_release $VEID > $1/vz_os_release.img
+		# Features granted to VE
+		cgget -n -v -r ve.features $VEID > $1/vz_features.img
 		# AIO statistics
 		cgget -n -v -r ve.aio_max_nr $VEID > $1/vz_aio_max_nr.img
 	fi

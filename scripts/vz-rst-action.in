@@ -70,13 +70,17 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 	if [ -n "$VEID" ]; then
 		[ -n "$VE_CLOCK_BOOTBASED" ] && cgset -r ve.clock_bootbased="$VE_CLOCK_BOOTBASED" $VEID
 		[ -n "$VE_CLOCK_MONOTONIC" ] && cgset -r ve.clock_monotonic="$VE_CLOCK_MONOTONIC" $VEID
+		[ -n "$VE_IPTABLES_MASK" ] && cgset -r ve.iptables_mask="$VE_IPTABLES_MASK" $VEID
+		[ -n "$VE_FEATURES" ] && cgset -r ve.features="$VE_FEATURES" $VEID
 		[ -n "$VE_AIO_MAX_NR" ] && cgset -r ve.aio_max_nr="$VE_AIO_MAX_NR" $VEID
  		cgset -r ve.state="START $pid" $VEID || exit
-		cgset -r ve.pseudosuper="0" $VEID
 	fi
 	;;
 "post-setup-namespaces")
 	restore_devices
+	if [ -n "$VEID" ]; then
+		[ -n "$VE_OS_RELEASE" ] && cgset -r ve.os_release="$VE_OS_RELEASE" $VEID
+	fi
 	;;
 "network-unlock")
 	ret=0
@@ -94,5 +98,6 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 		[ -n "$VEID" ] && { cgexec -g ve:$VEID echo `cat $CRTOOLS_IMAGE_DIR/vz_core_pattern.img` \
 			> /proc/sys/kernel/core_pattern || { echo "Failed to restore core_pattern"; exit 1; } }
 	fi
+	[ -n "$VEID" ] && cgset -r ve.pseudosuper="0" $VEID
 	;;
 esac
