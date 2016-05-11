@@ -125,6 +125,76 @@ static int check_systemd(void)
 
 	return 0;
 }
+static int env_configure_udev_rules(void)
+{
+	const char *fname = "/lib/udev/rules.d/60-persistent-storage.rules";
+	const char *fname_tmp = "/lib/udev/rules.d/60-persistent-storage.rules.tmp";
+	const char ptrn[] = "KERNEL!=\"loop*|";
+	FILE *rfp = NULL, *wfp;
+	struct stat st;
+	int err = -1;
+	int found = 0;
+	char buf[4096];
+
+	rfp = fopen(fname, "r");
+	if (rfp == NULL)
+		return vzctl_err(-1, errno, "Unable to open /etc/fstab");
+
+	if (fstat(fileno(rfp), &st)) {
+		fclose(rfp);
+		return vzctl_err(-1, errno, "Failed to stat /etc/fstab");
+	}
+
+	wfp = fopen(fname_tmp, "w+");
+	if (wfp == NULL) {
+		fclose(rfp);
+		return vzctl_err(-1, errno, "Unable to create /etc/fstab.tmp");
+	}
+
+	fchmod(fileno(wfp), st.st_mode);
+	fchown(fileno(wfp), st.st_uid, st.st_gid);
+	while (!feof(rfp)) {
+		const char *p = buf;
+
+		if (fgets(buf, sizeof(buf), rfp) == NULL) {
+			if (ferror(rfp)) {
+				logger(-1, 0, "Failed to read /etc/fstab");
+				goto err;
+			}
+			break;
+		}
+
+		if (strncmp(ptrn, buf, sizeof(ptrn) - 1) == 0) {
+			found = 1;
+			if (fprintf(wfp, "KERNEL!=\"ploop*|") == -1)
+				goto err;
+			p = buf + sizeof("KERNEL!=");
+		}
+
+		if (fprintf(wfp, "%s", p) == -1)
+			goto err;
+	}
+
+	if (!found) {
+		err = 0;
+		goto err;
+	}
+
+	logger(0, 0, "Configure %s", fname);
+	if (rename(fname_tmp, fname)) {
+		logger(-1, errno, "Failed to rename  /etc/fstab.tmp");
+		goto err;
+	}
+
+	err = 0;
+err:
+	fclose(wfp);
+	fclose(rfp);
+	unlink(fname_tmp);
+
+	return err;
+}
+
 
 static void get_systemd_mount_unit_name(const char *mnt, char *name)
 {
@@ -290,6 +360,8 @@ static int env_configure_disk(struct exec_disk_param *param)
 
 	if (send_uevent(param->part))
 		return -1;
+
+	env_configure_udev_rules();
 
 	if (disk->mnt != NULL && param->fsuuid != NULL) {
 		if (access(disk->mnt, F_OK))
