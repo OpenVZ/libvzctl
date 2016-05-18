@@ -701,8 +701,8 @@ int pre_setup_env(struct start_param *param)
 	if (setup_devtmpfs())
 		return VZCTL_E_SYSTEM;
 
-	if (stat_file("/sys"))
-		mount("sysfs", "/sys", "sysfs", 0, 0);
+	if (stat_file("/sys") && mount("sysfs", "/sys", "sysfs", MS_SHARED | MS_REC, 0))
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "Failed to mount /sys");
 
 	if (env->features->mask & VE_FEATURE_NFSD) {
 		mount("nfsd", "/proc/fs/nfsd", "nfsd", 0, 0);
