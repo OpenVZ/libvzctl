@@ -138,17 +138,17 @@ static int env_configure_udev_rules(void)
 
 	rfp = fopen(fname, "r");
 	if (rfp == NULL)
-		return vzctl_err(-1, errno, "Unable to open /etc/fstab");
+		return vzctl_err(-1, errno, "Unable to open /lib/udev/rules.d/60-persistent-storage.rules");
 
 	if (fstat(fileno(rfp), &st)) {
 		fclose(rfp);
-		return vzctl_err(-1, errno, "Failed to stat /etc/fstab");
+		return vzctl_err(-1, errno, "Failed to stat /lib/udev/rules.d/60-persistent-storage.rules");
 	}
 
 	wfp = fopen(fname_tmp, "w+");
 	if (wfp == NULL) {
 		fclose(rfp);
-		return vzctl_err(-1, errno, "Unable to create /etc/fstab.tmp");
+		return vzctl_err(-1, errno, "Unable to create /lib/udev/rules.d/60-persistent-storage.rules.tmp");
 	}
 
 	fchmod(fileno(wfp), st.st_mode);
@@ -158,7 +158,7 @@ static int env_configure_udev_rules(void)
 
 		if (fgets(buf, sizeof(buf), rfp) == NULL) {
 			if (ferror(rfp)) {
-				logger(-1, 0, "Failed to read /etc/fstab");
+				logger(-1, 0, "Failed to read /lib/udev/rules.d/60-persistent-storage.rules");
 				goto err;
 			}
 			break;
@@ -182,7 +182,7 @@ static int env_configure_udev_rules(void)
 
 	logger(0, 0, "Configure %s", fname);
 	if (rename(fname_tmp, fname)) {
-		logger(-1, errno, "Failed to rename  /etc/fstab.tmp");
+		logger(-1, errno, "Failed to rename /lib/udev/rules.d/60-persistent-storage.rules.tmp");
 		goto err;
 	}
 
