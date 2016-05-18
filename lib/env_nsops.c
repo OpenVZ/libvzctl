@@ -452,6 +452,7 @@ static int init_env_cgroup(struct vzctl_env_handle *h)
 		"c 1:11 mw",		/* kmsg */
 		"c 10:200 rmw",		/* tun */
 		"c 10:235 rwm",		/* autofs */
+		"c 10:229 rwm",		/* fuse */
 	};
 	char *cpu[] = {
 		"cpuset.cpus",
