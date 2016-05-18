@@ -121,6 +121,11 @@ IPADDR=127.0.0.1" > ${IFCFG} || \
 		echo "127.0.0.1 localhost.localdomain localhost" > $HOSTFILE
 	fi
 	fix_ifup_route
+
+	echo "default - - ${VENET_DEV}" > ${ROUTES}
+	if [ "${IPV6}" = "yes" ]; then
+		echo "default :: - ${VENET_DEV}" >> ${ROUTES}
+	fi
 }
 
 function add_alias()
@@ -149,18 +154,8 @@ function add_ip()
 	local ipm ip mask found
 	local ifnum=-1
 
-	if [ "x${VE_STATE}" = "xstarting" ]; then
-		init_config
-		echo "default - - ${VENET_DEV}" > ${ROUTES}
-		if [ "${IPV6}" = "yes" ]; then
-			echo "default :: - ${VENET_DEV}" >> ${ROUTES}
-		fi
-	elif [ ! -f "${IFCFG}" ]; then
-		init_config
-	fi
-	if [ "x${IPDELALL}" = "xyes" ]; then
-		init_config
-	fi
+	[ "x${VE_STATE}" = "xstarting" -o ! -f "${IFCFG}" -o "x${IPDELALL}" = "xyes" ] && init_config
+
 	get_aliases
 	for ipm in ${IP_ADDR}; do
 		ip=${ipm%%/*}
