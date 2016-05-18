@@ -77,6 +77,12 @@ if [ -f "$autofs_actions_path" ]; then
 	autofs_actions="--action-script $autofs_actions_path"
 fi
 
+# SPFS actions
+spfs_actions_path=/usr/libexec/criu/scripts/spfs-change-mode.sh
+if [ -f "$spfs_actions_path" ]; then
+	spfs_actions="--action-script $spfs_actions_path"
+fi
+
 criu restore -v$CRIU_LOGLEVEL				\
 		--file-locks				\
 		--tcp-established			\
@@ -93,6 +99,7 @@ criu restore -v$CRIU_LOGLEVEL				\
 		--cgroup-root /$VEID			\
 		$ext_mount_map				\
 		$autofs_actions				\
+		$spfs_actions				\
 		$veth_args
 
 if [ $? -eq 0 ]; then
