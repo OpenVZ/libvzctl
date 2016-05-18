@@ -62,6 +62,12 @@ function cg_dump_props {
 	return 0
 }
 
+# NFS actions
+nfs_actions_path=/usr/libexec/criu/scripts/nfs-ports-allow.sh
+if [ -f "$nfs_actions_path" ]; then
+	nfs_actions="--action-script $nfs_actions_path"
+fi
+
 mkdir -p $dumpdir &&
 cg_dump_props $dumpdir &&
 criu dump -v$CRIU_LOGLEVEL -o dump.log				\
@@ -76,6 +82,7 @@ criu dump -v$CRIU_LOGLEVEL -o dump.log				\
 		--action-script $action_script		\
 		-t $VE_PID				\
 		-D $dumpdir				\
+		$nfs_actions				\
 		$ext_mount_map				\
 		$CRIU_EXTRA_ARGS
 
