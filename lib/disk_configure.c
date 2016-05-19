@@ -137,8 +137,11 @@ static int env_configure_udev_rules(void)
 	char buf[4096];
 
 	rfp = fopen(fname, "r");
-	if (rfp == NULL)
+	if (rfp == NULL) {
+		if (errno == ENOENT)
+			return 0;
 		return vzctl_err(-1, errno, "Unable to open %s", fname);
+	}
 
 	if (fstat(fileno(rfp), &st)) {
 		fclose(rfp);
