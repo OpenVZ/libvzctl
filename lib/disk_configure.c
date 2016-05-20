@@ -154,8 +154,11 @@ static int env_configure_udev_rules(void)
 		return vzctl_err(-1, errno, "Unable to create %s", fname_tmp);
 	}
 
-	fchmod(fileno(wfp), st.st_mode);
-	fchown(fileno(wfp), st.st_uid, st.st_gid);
+	if (fchmod(fileno(wfp), st.st_mode))
+		vzctl_err(-1, errno, "fchmod");
+	if (fchown(fileno(wfp), st.st_uid, st.st_gid))
+		vzctl_err(-1, errno, "fchown");
+
 	while (!feof(rfp)) {
 		const char *p = buf;
 
