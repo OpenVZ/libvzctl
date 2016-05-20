@@ -46,6 +46,7 @@ function restart_network()
 	local dev
 
 	if is_wicked; then
+		systemctl restart wickedd
 		# Flush all devices, wicked don't clean DHCP addresses
 		for dev in `ip a l 2>/dev/null | grep ^[0-9] | sed -e "s,^[0-9]*: ,,g" -e "s,:.*,,g"`; do
 			ip addr flush $dev
