@@ -1004,10 +1004,6 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 		fclose(fp);
 	}
 
-	vzctl2_env_set_param(h, "VEID", ctid);
-	/* Update UUID */
-	vzctl2_env_set_param(h, "UUID", uuid);
-
 	ret = renew_VE_PRIVATE(h, path, ctid);
 	if (ret)
 		goto err;
@@ -1019,8 +1015,13 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 		ctid_t t;
 		char x[PATH_MAX];
 		const char *new_name = name;
+		const char *veid = NULL;
 
-		if (vzctl2_get_envid_by_name(name, t) == 0 && CMP_CTID(t, ctid)) {
+		vzctl2_env_get_param(h, "VEID", &veid);
+
+		if (vzctl2_get_envid_by_name(name, t) == 0 &&
+				CMP_CTID(t, veid))
+		{
 			logger(-1, 0, "Name %s is in use by CT %s", name, t);
 			new_name = gen_uniq_name(name, x, sizeof(x));
 			vzctl2_env_set_param(h, "NAME", new_name);
@@ -1034,6 +1035,10 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 			goto err;
 		}
 	}
+
+	vzctl2_env_set_param(h, "VEID", ctid);
+	/* Update UUID */
+	vzctl2_env_set_param(h, "UUID", uuid);
 
 	ret = vzctl2_env_save_conf(h, veconf);
 	if (ret)
