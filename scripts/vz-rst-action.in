@@ -73,7 +73,7 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 		[ -n "$VE_IPTABLES_MASK" ] && cgset -r ve.iptables_mask="$VE_IPTABLES_MASK" $VEID
 		[ -n "$VE_FEATURES" ] && cgset -r ve.features="$VE_FEATURES" $VEID
 		[ -n "$VE_AIO_MAX_NR" ] && cgset -r ve.aio_max_nr="$VE_AIO_MAX_NR" $VEID
- 		cgset -r ve.state="START $pid" $VEID || exit
+		cgset -r ve.state="START $pid" $VEID || { echo "Failed to start $VEID"; exit 1; }
 	fi
 	;;
 "post-setup-namespaces")
@@ -87,7 +87,7 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 	[ -n "$STATUSFD" ] && printf '\0\0\0\0' >&${STATUSFD}
 	[ -n "$WAITFD" ] && ret=$(cat <&$WAITFD | hexdump -e '"%d"' -n 4)
 
-	[ "$ret" -eq "0" ]
+	[ "$ret" -eq "0" ] || { echo "Failed on network unlocking for $VEID"; exit 1; }
 	;;
 "post-restore")
 	if [ -z "$CRTOOLS_IMAGE_DIR" ]; then
@@ -98,6 +98,11 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 		[ -n "$VEID" ] && { cgexec -g ve:$VEID echo `cat $CRTOOLS_IMAGE_DIR/vz_core_pattern.img` \
 			> /proc/sys/kernel/core_pattern || { echo "Failed to restore core_pattern"; exit 1; } }
 	fi
-	[ -n "$VEID" ] && cgset -r ve.pseudosuper="0" $VEID
+	[ -n "$VEID" ] && { cgset -r ve.pseudosuper="0" $VEID || { echo "Failed to drop pseudosuper on $VEID"; exit 1; } }
 	;;
 esac
+
+#
+# Exit with success by default, any error must cause
+# messaging with explicit "exit 1"
+exit 0
