@@ -1131,7 +1131,9 @@ static int del_disk(struct vzctl_env_handle *h, struct vzctl_disk *d)
 	int ret;
 
 	if (d->use_device) {
-		snprintf(dev, sizeof(dev), "%s", d->path);
+		ret = get_real_device(d->path, dev, sizeof(dev));
+		if (ret)
+			return ret;
 	} else {
 		ret = vzctl2_get_ploop_dev(d->path, dev, sizeof(dev));
 		if (ret == -1)
