@@ -1302,7 +1302,6 @@ int merge_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 			{
 				free(str);
 				str = devnodes2str(h->env_param->dev, 1);
-				printf("& %s %d\n", str, flags);
 			}
 
 			ret = add_conf_data(h->conf, param->name, str, CONF_DATA_UPDATED);
