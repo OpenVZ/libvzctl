@@ -1148,21 +1148,21 @@ static int del_disk(struct vzctl_env_handle *h, struct vzctl_disk *d)
 		return vzctl_err(VZCTL_E_SYSTEM, errno,	"Unable to stat %s",
 				dev);
 
-	if (is_env_run(h) && d->mnt != NULL)
-		vzctl2_env_exec_fn2(h, env_umount, d->mnt, 0, 0);
-
-	if (d->umount != NULL) {
-		ret = d->umount(d);
-		if (ret)
-			return ret;
-	}
-
 	if (is_env_run(h)) {
+		if (d->mnt != NULL)
+			vzctl2_env_exec_fn2(h, env_umount, d->mnt, 0, 0);
+
 		ret = configure_devperm(h, d, st.st_rdev + 1, 1);
 		if (ret)
 			return ret;
 
 		ret = configure_sysfsperm(h, dev, 1);
+		if (ret)
+			return ret;
+	}
+
+	if (d->umount != NULL) {
+		ret = d->umount(d);
 		if (ret)
 			return ret;
 	}
