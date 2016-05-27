@@ -2307,7 +2307,7 @@ static char *get_pfcache_opts(char *buf, int len)
 		return buf;
 
 	vzctl2_conf_get_param(c, "PFCACHE", &data);
-	if (data != NULL)
+	if (data != NULL && stat_file(data) == 1)
 		snprintf(buf, len, ",pfcache_csum,pfcache=%s", data);
 
 	vzctl2_conf_close(c);
