@@ -147,7 +147,10 @@ int vztmpl_is_jquota_supported(const char *ostmpl)
 
 static int vztmpl_create_cache(const char *ostmpl, const char *fstype)
 {
+	const char *p;
 	char *arg[8];
+	char progress[STR_SIZE] = "";
+	char *env[] = {progress, NULL };
 	int i = 0;
 
 	arg[i++] = VZPKG;
@@ -162,7 +165,10 @@ static int vztmpl_create_cache(const char *ostmpl, const char *fstype)
 	}
 	arg[i++] = NULL;
 
-	return vzctl2_wrap_exec_script(arg, NULL, 0);
+	if ((p = getenv("VZ_PROGRESS_FD")))
+		snprintf(progress, sizeof(progress), "VZ_PROGRESS_FD=%s", p);
+
+	return vzctl2_wrap_exec_script(arg, env, 0);
 }
 
 static int vztmpl_create_appcache(const char *config, const char *ostmpl, const char *fstype)
