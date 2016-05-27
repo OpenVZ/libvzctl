@@ -69,8 +69,7 @@ int vzctl2_get_state_evt(vzevt_handle_t *h, struct vzctl_state_evt *evt, int siz
 int vzctl2_send_state_evt(const ctid_t ctid, int state)
 {
 	int ret;
-	struct vzctl_state_evt evt;
-
+	struct vzctl_state_evt evt = {};
 
 	if (vzctl2_get_flags() & VZCTL_FLAG_DONT_SEND_EVT)
 		return 0;
@@ -78,6 +77,25 @@ int vzctl2_send_state_evt(const ctid_t ctid, int state)
 	evt.type = VZCTL_STATE_EVT;
 	memcpy(evt.ctid, ctid, sizeof(ctid_t));
 	evt.state = state;
+
+	ret = vzevt_send(NULL, VZEVENT_VZCTL_EVENT_TYPE,
+			sizeof(struct vzctl_state_evt), &evt);
+
+	return ret;
+}
+
+int vzctl2_send_umount_evt(const ctid_t ctid, dev_t dev)
+{
+	int ret;
+	struct vzctl_state_evt evt = {};
+
+	if (vzctl2_get_flags() & VZCTL_FLAG_DONT_SEND_EVT)
+		return 0;
+
+	evt.type = VZCTL_STATE_EVT;
+	memcpy(evt.ctid, ctid, sizeof(ctid_t));
+	evt.state = VZCTL_ENV_UMOUNT;
+	evt.dev = dev;
 
 	ret = vzevt_send(NULL, VZEVENT_VZCTL_EVENT_TYPE,
 			sizeof(struct vzctl_state_evt), &evt);

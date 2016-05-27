@@ -310,6 +310,7 @@ struct vzctl_state_evt {
 	unsigned int type;
 	ctid_t ctid;
 	unsigned int state;
+	unsigned long long dev;
 };
 
 struct vzctl_mount_param {

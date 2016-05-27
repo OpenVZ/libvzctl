@@ -40,6 +40,7 @@
 #include "disk.h"
 #include "env.h"
 #include "env_ops.h"
+#include "evt.h"
 
 #ifndef MNT_DETACH
 #define MNT_DETACH      0x00000002
@@ -159,7 +160,10 @@ static int do_umount_submounts(char *root)
 
 static int do_env_umount(struct vzctl_env_handle *h)
 {
-	vzctl2_send_state_evt(EID(h), VZCTL_ENV_UMOUNT);
+	struct stat st;
+
+	if (stat(h->env_param->fs->ve_root, &st) == 0)
+		vzctl2_send_umount_evt(EID(h), st.st_dev);
 
 	do_umount_submounts(h->env_param->fs->ve_root);
 	if (h->env_param->fs->layout == VZCTL_LAYOUT_5)

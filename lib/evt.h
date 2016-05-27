@@ -32,6 +32,7 @@ int vzctl2_register_evt(vzevt_handle_t **h);
 void vzctl2_unregister_evt(vzevt_handle_t *h);
 int vzctl2_get_state_evt(vzevt_handle_t *h, struct vzctl_state_evt *evt, int size);
 int vzctl2_send_state_evt(const ctid_t ctid, int state);
+int vzctl2_send_umount_evt(const ctid_t ctid, dev_t dev);
 int vzctl2_get_evt_fd(vzevt_handle_t *h);
 
 
