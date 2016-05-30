@@ -664,8 +664,6 @@ static int setup_devtmpfs()
 		}
 	}
 	umask(m);
-	if (umount("/dev"))
-		logger(-1, errno, "Failed to umount devtmpfs");
 
 	return ret;
 }
