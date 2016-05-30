@@ -148,34 +148,6 @@ err:
 	return ret;
 }
 
-static int create_tmpfiles(const char *name, mode_t mode, dev_t dev)
-{
-	FILE *fp;
-	char *p;
-	char buf[STR_SIZE];
-		
-	snprintf(buf, sizeof(buf), "/etc/tmpfiles.d/device-%s.conf",
-			get_devname(name));
-	logger(0, 0, "Create %s", buf);
-	fp = fopen(buf, "w");
-	if (fp == NULL)
-		return vzctl_err(-1, errno, "Failed to create %s", buf);
-
-	snprintf(buf, sizeof(buf), "%s", name);
-	p = strrchr(buf, '/');
-	if (p != NULL) {
-		*p = '\0';
-		if (strcmp(buf, "/dev"))
-			fprintf(fp, "d %s 0755 root root\n", buf);
-	}
-	fprintf(fp, "%c %s 0700 root root - %d:%d\n",
-			S_ISBLK(mode) ? 'b' : 'c',
-			name, gnu_dev_major(dev), gnu_dev_minor(dev));
-	fclose(fp);
-
-	return 0;
-}
-
 static const char *get_static_dev_dir(void)
 {
 	if (access("/etc/udev/devices", F_OK) == 0)
@@ -188,12 +160,10 @@ static const char *get_static_dev_dir(void)
 	return NULL;
 }
 
-int create_static_dev(const char *name, mode_t mode, dev_t dev)
+static int create_static_dev(const char *name, mode_t mode, dev_t dev)
 {
-	const char *dir;
-	char buf[STR_SIZE];
 	char device[STR_SIZE];
-	
+
 	if (name == NULL)
 		return 0;
 
@@ -206,21 +176,6 @@ int create_static_dev(const char *name, mode_t mode, dev_t dev)
 	unlink(device);
 	if (mknod(device, mode, dev))
 		logger(-1, errno, "Failed to mknod %s", device);
-
-	/* Additionally create static entry  */
-	dir = get_static_dev_dir();
-	if (dir != NULL) {
-		if (strcmp(dir, "/etc/tmpfiles.d") == 0) {
-			create_tmpfiles(device, mode, dev);
-		} else {
-			snprintf(buf, sizeof(buf), "%s/%s", dir,
-				name[0] == '/' ? get_devname(device) : name);
-			unlink(buf);
-			make_dir(buf, 0);
-			if (mknod(buf, mode, dev))
-				logger(-1, errno, "Failed to mknod %s", buf);
-		}
-	}
 
 	return 0;
 }
@@ -714,9 +669,11 @@ int create_root_dev(void *data)
 	logger(10, 0, "Root device: %s", device);
 	if (stat(root, &st))
 		return vzctl_err(-1, errno, "Failed to stat /");
-
+	unlink(device);
+	if (mknod(device, S_IFBLK | S_IRUSR | S_IWUSR, st.st_dev))
+		return vzctl_err(-1, errno, "Failed to mknod %s", device);
 	remove_tmpfiles_caps();
 
-	return create_static_dev(device, S_IFBLK | S_IRUSR | S_IWUSR, st.st_dev);
+	return 0;
 }
 

@@ -48,8 +48,9 @@
 struct exec_disk_param {
 	const char *fsuuid;
 	const char *device;
-	const char *part;
 	dev_t dev;
+	const char *part;
+	dev_t part_dev;
 	struct vzctl_disk *disk;
 	int automount;
 };
@@ -357,8 +358,13 @@ static int env_configure_disk(struct exec_disk_param *param)
 {
 	struct vzctl_disk *disk = param->disk;
 
-	if (create_static_dev(param->part, S_IFBLK | S_IRUSR | S_IWUSR,
+	unlink(param->device);
+	if (mknod(param->device, S_IFBLK | S_IRUSR | S_IWUSR,
 				param->dev))
+		return -1;
+	unlink(param->part);
+	if (mknod(param->part, S_IFBLK | S_IRUSR | S_IWUSR,
+				param->part_dev))
 		return -1;
 
 	if (send_uevent(param->device))
@@ -389,14 +395,15 @@ static int env_configure_disk(struct exec_disk_param *param)
 }
 
 int configure_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
-		dev_t dev, const char *device, const char *part,
+		dev_t dev, const char *device, dev_t part_dev, const char *part,
 		int flags, int automount)
 {
 	struct exec_disk_param param = {
 		.fsuuid = disk->fsuuid,
 		.device = device,
-		.part = part,
 		.dev = dev,
+		.part = part,
+		.part_dev = part_dev,
 		.disk = disk,
 		.automount = automount
 	};

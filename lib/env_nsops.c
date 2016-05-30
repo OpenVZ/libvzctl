@@ -507,10 +507,17 @@ static int init_env_cgroup(struct vzctl_env_handle *h)
 			continue;
 
 		snprintf(buf, sizeof(buf), "b %d:%d rm",
+			gnu_dev_major(d->dev), gnu_dev_minor(d->dev));
+		ret = cg_env_set_devices(h->ctid, "devices.allow", buf);
+		if (ret)
+			return vzctl_err(-1, 0, "Failed to set %s", buf);
+
+		snprintf(buf, sizeof(buf), "b %d:%d rm",
 			gnu_dev_major(d->dev), gnu_dev_minor(d->dev + 1));
 		ret = cg_env_set_devices(h->ctid, "devices.allow", buf);
 		if (ret)
 			return vzctl_err(-1, 0, "Failed to set %s", buf);
+
 	}
 
 	return setup_env_cgroup(h, h->env_param);

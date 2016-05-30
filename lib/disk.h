@@ -58,7 +58,7 @@ struct vzctl_env_disk {
 
 int is_root_disk(struct vzctl_disk *disk);
 int configure_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
-		dev_t dev, const char *device, const char *part,
+		dev_t dev, const char *device, dev_t part_dev, const char *part,
 		int flags, int automount);
 void free_disk_param(struct vzctl_disk_param *disk);
 void free_disk(struct vzctl_disk *disk);

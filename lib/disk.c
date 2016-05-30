@@ -900,9 +900,9 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	struct stat st;
 	char device[STR_SIZE];
 	char part[STR_SIZE];
-	dev_t dev;
+	dev_t dev, part_dev;
 	int root = is_root_disk(disk);
-	int skip_configure = (flags & VZCTL_SKIP_CONFIGURE) || root;
+	int skip_configure = (flags & VZCTL_SKIP_CONFIGURE);
 
 	if (disk->use_device) {
 		ret = get_real_device(disk->path, device, sizeof(device));
@@ -920,11 +920,15 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	if (ret)
 		return ret;
 
-	if (stat(part, &st))
-		return vzctl_err(VZCTL_E_DISK_CONFIGURE, errno, "Unable to stat %s",
+	if (stat(device, &st))
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "Unable to stat %s",
 				device);
-
 	dev = st.st_rdev;
+
+	if (stat(part, &st))
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "Unable to stat %s",
+				part);
+	part_dev = st.st_rdev;
 
 	if (!skip_configure) {
 		ret = get_fs_uuid(part, disk->fsuuid);
@@ -933,12 +937,15 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	}
 
 	if (!root) {
-		ret = configure_mount_opts(h, disk, dev);
+		ret = configure_mount_opts(h, disk, part_dev);
 		if (ret)
 			return ret;
 	}
 
 	ret = configure_devperm(h, disk, dev, 0);
+	if (ret)
+		return ret;
+	ret = configure_devperm(h, disk, part_dev, 0);
 	if (ret)
 		return ret;
 
@@ -947,7 +954,8 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 		return ret;
 
 	if (!skip_configure) {
-		ret = configure_disk(h, disk, dev, device, part, flags, automount);
+		ret = configure_disk(h, disk, dev, device, part_dev, part,
+				flags, automount);
 		if (ret)
 			return ret;
 	}
