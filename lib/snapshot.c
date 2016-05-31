@@ -428,7 +428,7 @@ static int private_param_filter(const char *name)
 		NULL,
 	};
 
-	return (find_ar_str(param, name) != NULL);
+	return (find_ar_str(param, name) == NULL);
 }
 
 static int restore_env_config(struct vzctl_env_handle *h, const char *guid,
