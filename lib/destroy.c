@@ -171,11 +171,14 @@ int destroydir(const char *dir)
 		return 0;
 	}
 	snprintf(buf, sizeof(buf), "%s/rm.lck", tmp);
-	if ((fd_lock = vzctl2_lock(buf, VZCTL_LOCK_EX | VZCTL_LOCK_NB, 0)) == -2)
-		/* already locked */
+	fd_lock = vzctl2_lock(buf, VZCTL_LOCK_EX | VZCTL_LOCK_NB, 0);
+	if (fd_lock < 0) {
+		if (fd_lock == -1 && del_dir(buf))
+			return VZCTL_E_FS_DEL_PRVT;
+
+		/* if (fd_lock == -2) already locked */
 		return 0;
-	else if (fd_lock == -1)
-		return VZCTL_E_FS_DEL_PRVT;
+	}
 
 	ret = 0;
 	if (!(pid = fork())) {
