@@ -1044,8 +1044,12 @@ int vzctl2_add_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param,
 		}
 		logger(0, 0, "The ploop image %s already exists",
 				d->path);
-		if (read_dd(d->path, &di))
+		if (open_dd(d->path, &di))
 			goto err;
+		if (ploop_read_dd(di)) {
+			ploop_close_dd(di);
+			goto err;
+		}
 		d->size = (unsigned long)di->size >> 1; /* sectors -> 1K */
 		ploop_close_dd(di);
 	} else {
@@ -1060,7 +1064,7 @@ int vzctl2_add_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param,
 		if (make_dir(d->path, 1))
 			goto err;
 
-		create_param.size = param->size;
+		create_param.size = d->size = param->size;
 		ret = vzctl2_create_disk_image(d->path, &create_param);
 		if (ret) {
 			unlink(d->path);
