@@ -51,7 +51,7 @@ const char *get_root_disk_path(const char *ve_private, char *buf, int len)
 	return buf;
 }
 
-int read_dd(const char *path, struct ploop_disk_images_data **di)
+int open_dd(const char *path, struct ploop_disk_images_data **di)
 {
 	char fname[PATH_MAX];
 
@@ -66,7 +66,7 @@ static int read_root_dd(const char *ve_private, struct ploop_disk_images_data **
 {
 	char fname[PATH_MAX];
 
-	return read_dd(get_root_disk_path(ve_private, fname, sizeof(fname)), di);
+	return open_dd(get_root_disk_path(ve_private, fname, sizeof(fname)), di);
 }
 
 int get_ploop_type(const char *type)
@@ -94,7 +94,7 @@ int vzctl2_is_image_mounted(const char *path)
 	if (stat(fname, &st) && errno == ENOENT)
 		return 0;
 
-	ret = read_dd(path, &di);
+	ret = open_dd(path, &di);
 	if (ret)
 		return -1;
 
@@ -119,7 +119,7 @@ int vzctl2_mount_disk_image(const char *path, struct vzctl_mount_param *param)
 		if (ret)
 			return ret;
 	}
-	ret = read_dd(path, &di);
+	ret = open_dd(path, &di);
 	if (ret)
 		return ret;
 
@@ -172,7 +172,7 @@ int vzctl2_umount_disk_image(const char *path)
 	struct ploop_disk_images_data *di;
 
 	logger(0, 0, "Unmount image: %s", path);
-	ret = read_dd(path, &di);
+	ret = open_dd(path, &di);
 	if (ret)
 		return ret;
 
@@ -276,7 +276,7 @@ int resize_disk_image(const char *path, unsigned long long newsize,
 				"Failed to resize image: the image path is not specified");
 
 	logger(0, 0, "Resize the image %s to %lluK", path, newsize);
-	ret = read_dd(path, &di);
+	ret = open_dd(path, &di);
 	if (ret)
 		return ret;
 
@@ -344,7 +344,7 @@ int vzctl2_get_ploop_dev(const char *path, char *dev, int len)
 		return vzctl_err(-1, 0, "Failed to get ploop device: "
 				"the image path is not specified");
 
-	if (read_dd(path, &di))
+	if (open_dd(path, &di))
 		return -1;
 
 	ret = ploop_get_dev(di, dev, len);
@@ -366,7 +366,7 @@ int vzctl2_get_ploop_devs(const char *path, char **out[])
 		return vzctl_err(-1, 0, "Failed to get ploop device: "
 				"the image path is not specified");
 
-	ret = read_dd(path, &di);
+	ret = open_dd(path, &di);
 	if (ret)
 		return ret;
 
@@ -413,7 +413,7 @@ int vzctl2_delete_disk_snapshot(const char *path, const char *guid)
 				"Failed to delete snapshot: the image path is not specified");
 
 	logger(0, 0, "Delete image snapshot uuid=%s image=%s", guid, path);
-	ret = read_dd(path, &di);
+	ret = open_dd(path, &di);
 	if (ret)
 		return ret;
 
@@ -458,7 +458,7 @@ int vzctl2_merge_disk_snapshot(const char *path, const char *guid)
 				"Failed to merge snapshot: the image path is not specified");
 
 	logger(0, 0, "Merge image snapshot uuid=%s image=%s", guid, path);
-	ret = read_dd(path, &di);
+	ret = open_dd(path, &di);
 	if (ret)
 		return ret;
 
@@ -533,7 +533,7 @@ static int create_disk_snapshot(const char *path, const char *guid,
 				"Failed to create snapshot: image path is not specified");
 
 	logger(0, 0, "Creating image snapshot uuid=%s image=%s", guid, path);
-	ret = read_dd(path, &di);
+	ret = open_dd(path, &di);
 	if (ret)
 		return ret;
 
@@ -642,7 +642,7 @@ int vzctl2_switch_disk_snapshot(const char *path, const char *guid, const char *
 
 	logger(0, 0, "Switching to image snapshot uuid=%s image=%s %s",
 			guid, path, guid_old ? guid_old : "");
-	ret = read_dd(path, &di);
+	ret = open_dd(path, &di);
 	if (ret)
 		return ret;
 
@@ -810,7 +810,7 @@ int vzctl2_umount_disk_snapshot(const char *path, const char *guid, const char *
 		return vzctl_err(VZCTL_E_INVAL, 0,
 				"Failed to umount snapshot: snapshot guid is not specified");
 
-	ret = read_dd(path, &di);
+	ret = open_dd(path, &di);
 	if (ret)
 		return ret;
 
