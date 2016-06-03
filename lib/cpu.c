@@ -352,24 +352,25 @@ int vzctl_parse_cpulimit(struct vzctl_cpu_param *param, struct vzctl_cpulimit_pa
 	}
 
 	if (type == VZCTL_CPULIMIT_MHZ) {
-		if (cpu->limit * 1000 > info.freq)
-			logger(0, 0, "Warning: the specified CPU frequency %lu"
-					" is higher the total %llu",
-					cpu->limit, info.freq/1000);
-
 		param->limit = 100.0 * cpu->limit * 1000 * info.ncpu / info.freq;
 		param->limit_res->limit = cpu->limit;
 		param->limit_res->type = VZCTL_CPULIMIT_MHZ;
-
+		if (cpu->limit * 1000 > info.freq) {
+			logger(0, 0, "Warning: the specified CPU frequency %lu"
+					" is higher the total %llu",
+					cpu->limit, info.freq/1000);
+			param->limit = info.ncpu * 100;
+		}
 	} else if (type == VZCTL_CPULIMIT_PCT) {
-		if (cpu->limit > info.ncpu * 100)
-			logger(0, 0, "Warning: the specified CPU limit %lu"
-					" is higher the total %d",
-					cpu->limit , info.ncpu * 100);
-
 		param->limit = cpu->limit;
 		param->limit_res->limit = cpu->limit;
 		param->limit_res->type = VZCTL_CPULIMIT_PCT;
+		if (cpu->limit > info.ncpu * 100) {
+			logger(0, 0, "Warning: the specified CPU limit %lu"
+					" is higher the total %d",
+					cpu->limit , info.ncpu * 100);
+			param->limit = info.ncpu * 100;
+		}
 	}
 
 	return 0;
