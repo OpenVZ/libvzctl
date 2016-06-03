@@ -947,11 +947,8 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 	if (write(h->ctx->wait_p[1], &ret, sizeof(ret)) == -1)
 		ret = vzctl_err(VZCTL_E_SYSTEM, errno,
 			"Unable to write to the wait file descriptor when starting the Container");
-	if (ret) {
-		if (dump_resources_failcnt(EID(h)))
-			ret = VZCTL_E_RESOURCE;
+	if (ret)
 		goto err;
-	}
 
 	close(h->ctx->wait_p[1]); h->ctx->wait_p[1] = -1;
 
@@ -988,6 +985,9 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 
 err:
 	if (ret) {
+		if (dump_resources_failcnt(EID(h)))
+			ret = VZCTL_E_RESOURCE;
+
 		logger(10, 0, "* Failed to configure [%d]", ret);
 		/* report error to waiter */
 		if (h->ctx->wait_p[1] != -1 && close(h->ctx->wait_p[1]))
