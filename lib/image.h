@@ -30,7 +30,7 @@ struct vzctl_mount_param;
 struct vzctl_create_image_param;
 
 const char *get_root_disk_path(const char *ve_private, char *buf, int len);
-int read_dd(const char *path, struct ploop_disk_images_data **di);
+int open_dd(const char *path, struct ploop_disk_images_data **di);
 int get_ploop_type(const char *type);
 int vzctl2_get_ploop_devs(const char *path, char **out[]);
 int vzctl2_switch_snapshot(struct vzctl_env_handle *h, const char *guid,
