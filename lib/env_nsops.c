@@ -1173,12 +1173,10 @@ static int env_dump(struct vzctl_env_handle *h, int cmd,
 		.pseudosuper_fd = -1,
 	};
 
-	if (h->ctx->wait_p[0] == -1)
-		return criu_cmd(h, cmd, param, NULL);
-
 	if (pipe(status_p))
 		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
 
+	p_close(h->ctx->wait_p);
 	if (pipe(h->ctx->wait_p)) {
 		p_close(status_p);
 		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
