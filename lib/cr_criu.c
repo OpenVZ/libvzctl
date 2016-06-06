@@ -74,7 +74,7 @@ static int do_dump(struct vzctl_env_handle *h, int cmd,
 	char buf[PATH_MAX];
 	char script[PATH_MAX];
 	char *arg[2];
-	char *env[10];
+	char *env[11];
 	int ret, i = 0;
 	pid_t pid;
 
