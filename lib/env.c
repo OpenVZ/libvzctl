@@ -1251,6 +1251,34 @@ static int is_quotaugidlimit_changed(struct vzctl_env_handle *h, unsigned long u
 	return (configured != (ugidlimit > 0));
 }
 
+static int drop_quotaugidlimit(struct vzctl_env_handle *h)
+{
+	int ret;
+	char buf[PATH_MAX];
+	const char *ve_root = h->env_param->fs->ve_root;
+	int mounted = vzctl2_env_is_mounted(h);
+
+	logger(3, 0, "Drop user quota limits");
+	if (!mounted) {
+		ret = vzctl2_env_mount(h, VZCTL_SKIP_ACTION_SCRIPT);
+		if (ret)
+			return ret;
+	}
+
+	snprintf(buf, sizeof(buf), "%s/"QUOTA_U, ve_root);
+	if (unlink(buf) && errno != EEXIST)
+		logger(-1, errno, "Failed to unlink %s", buf);
+
+	snprintf(buf, sizeof(buf), "%s/"QUOTA_G, ve_root);
+	if (unlink(buf) && errno != EEXIST)
+		logger(-1, errno, "Failed to unlink %s", buf);
+
+	if (!mounted)
+		vzctl2_env_umount(h, VZCTL_SKIP_ACTION_SCRIPT);
+
+	return 0;
+}
+
 static int check_setmode(struct vzctl_env_handle *h, struct vzctl_env_param *env)
 {
 	int ret = 0;
@@ -1305,6 +1333,7 @@ int vzctl2_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 {
 	int ret = 0;
 	int setmode_err = 0;
+	int run;
 
 	ret = merge_veth_ifname_param(h, env);
 	if (ret)
@@ -1313,7 +1342,8 @@ int vzctl2_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 	if (flags & VZCTL_SKIP_SETUP)
 		goto err;
 
-	if (h->ctx->state == 0 && is_env_run(h))
+	run = is_env_run(h);
+	if (h->ctx->state == 0 && run)
 		h->ctx->state = VZCTL_STATE_RUNNING;
 
 	if (h->ctx->state != VZCTL_STATE_STARTING) {
@@ -1336,10 +1366,18 @@ int vzctl2_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 	if (ret)
 		goto err;
 
-	if (h->env_param->fs->layout == VZCTL_LAYOUT_5) {
-		if (h->ctx->state != VZCTL_STATE_STARTING &&
-				env->dq->diskspace != NULL &&
-				(ret = vzctl2_resize_image(h->env_param->fs->ve_private,
+	if (h->ctx->state != VZCTL_STATE_STARTING) {
+		if (!run && env->dq->ugidlimit && *env->dq->ugidlimit == 0 &&
+			h->env_param->dq->ugidlimit && *h->env_param->dq->ugidlimit)
+		{
+			ret = drop_quotaugidlimit(h);
+			if (ret)
+				goto err;
+		}
+
+		if (h->env_param->fs->layout == VZCTL_LAYOUT_5 &&
+			env->dq->diskspace != NULL &&
+			(ret = vzctl2_resize_image(h->env_param->fs->ve_private,
 							  env->dq->diskspace->l, 0)))
 		{
 			free(env->dq->diskspace);
