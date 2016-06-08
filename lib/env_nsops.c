@@ -1278,6 +1278,8 @@ static int ns_env_cpt_cmd(struct vzctl_env_handle *h, int action, int cmd,
 	switch (cmd) {
 	case VZCTL_CMD_KILL:
 		return ns_env_stop_force(h);
+	case VZCTL_CMD_DUMP:
+		return criu_cmd(h, cmd, param, NULL);
 	default:
 		return ns_env_chkpnt(h, cmd, param, flags);
 	}
