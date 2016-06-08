@@ -519,43 +519,21 @@ int cg_env_set_cpuunits(const char *ctid, unsigned int cpuunits)
 
 int cg_env_set_cpulimit(const char *ctid, float limit)
 {
-	int rc;
-	unsigned long period, quota;
+	unsigned long limit1024 = limit * 1024 / 100;
 
-	if (limit == 0)
-		return cg_set_param(ctid, CG_CPU, "cpu.cfs_quota_us", "-1");
-
-	rc = cg_get_ul(ctid, CG_CPU, "cpu.cfs_period_us", &period);
-	if (rc)
-		return rc;
-
-	quota = rint(limit * period / 100);
-	return cg_set_ul(ctid, CG_CPU, "cpu.cfs_quota_us", quota);
+	return cg_set_ul(ctid, CG_CPU, "cpu.rate", limit1024);
 }
 
 int cg_env_get_cpulimit(const char *ctid, float *limit)
 {
-	int rc;
-	char data[12];
-	unsigned long period, quota;
+	int ret;
+	unsigned long limit1024;
 
-	rc = cg_get_param(ctid, CG_CPU, "cpu.cfs_quota_us", data, sizeof(data));
-	if (rc)
-		return rc;
+	ret = cg_get_ul(ctid, CG_CPU, "cpu.rate", &limit1024);
+	if (ret)
+		return ret;
 
-	*limit = 0;
-	if (strcmp(data, "-1") == 0)
-		return 0;
-
-	rc = parse_ul(data, &quota);
-	if (rc)
-		return rc;
-
-	rc = cg_get_ul(ctid, CG_CPU, "cpu.cfs_period_us", &period);
-	if (rc)
-		return rc;
-
-	*limit = 100.0 * quota / period;
+	*limit = limit1024 * 100 / 1024;
 
 	return 0;
 }
