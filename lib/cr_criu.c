@@ -45,11 +45,14 @@
 static int create_ploop_dev_map(struct vzctl_env_handle *h, pid_t pid)
 {
 	int ret;
-	char devname[64];
+	char devname[STR_SIZE];
 	char path[PATH_MAX];
 	struct vzctl_disk *d;
 
 	list_for_each(d, &h->env_param->disk->disks, list) {
+		if (d->enabled == VZCTL_PARAM_OFF)
+			continue;
+
 		ret = vzctl2_get_ploop_dev(d->path, devname, sizeof(devname));
 		if (ret)
 			return ret;
@@ -67,6 +70,46 @@ static int create_ploop_dev_map(struct vzctl_env_handle *h, pid_t pid)
 	return 0;
 }
 
+static int make_ploop_dev_args(struct vzctl_env_handle *h, char *out, int size)
+{
+	int ret;
+	char *ep, *pbuf = out;
+	char devname[STR_SIZE];
+	struct vzctl_disk *d;
+	struct stat st;
+	dev_t dev;
+
+	ep = pbuf + size;
+	pbuf += snprintf(pbuf, size, "VE_PLOOP_DEVS=");
+	list_for_each(d, &h->env_param->disk->disks, list) {
+		if (d->enabled == VZCTL_PARAM_OFF)
+			continue;
+
+		dev = d->dev;
+		if (dev == 0) {
+			ret = vzctl2_get_ploop_dev(d->path, devname, sizeof(devname));
+			if (ret)
+				return ret;
+
+			if (stat(devname, &st))
+				return vzctl_err(VZCTL_E_SYSTEM, errno, "Can't stat %s",
+						devname);
+			dev = st.st_rdev;
+		}
+
+		pbuf += snprintf(pbuf, ep - pbuf, "%s@ploop%d:%d:%d:%s\n",
+				d->uuid,
+				gnu_dev_minor(dev) >> 4,
+				gnu_dev_major(dev),
+				gnu_dev_minor(dev),
+				is_root_disk(d) ? "root" : "");
+		if (pbuf > ep)
+			return vzctl_err(VZCTL_E_INVAL, 0, "make_ploop_dev_args: buffer overflow");
+	}
+
+	return 0;
+}
+
 static int do_dump(struct vzctl_env_handle *h, int cmd,
 		struct vzctl_cpt_param *param, struct start_param *data)
 {
@@ -74,7 +117,7 @@ static int do_dump(struct vzctl_env_handle *h, int cmd,
 	char buf[PATH_MAX];
 	char script[PATH_MAX];
 	char *arg[2];
-	char *env[11];
+	char *env[12] = {};
 	int ret, i = 0;
 	pid_t pid;
 
@@ -115,6 +158,12 @@ static int do_dump(struct vzctl_env_handle *h, int cmd,
 		env[i++] = strdup(buf);
 	}
 
+	ret = make_ploop_dev_args(h, buf, sizeof(buf));
+	if (ret)
+		goto err;
+
+	env[i++] = strdup(buf);
+
 	snprintf(buf, sizeof(buf), "VEID=%s", h->ctid);
 	env[i++] = strdup(buf);
 
@@ -127,9 +176,13 @@ static int do_dump(struct vzctl_env_handle *h, int cmd,
 	arg[1] = NULL;
 
 	ret = vzctl2_wrap_exec_script(arg, env, 0);
+	if (ret)
+		ret = VZCTL_E_CHKPNT;
+
+err:
 	free_ar_str(env);
 
-	return ret ? VZCTL_E_CHKPNT : 0;
+	return ret;
 }
 
 static int dump(struct vzctl_env_handle *h, int cmd,
@@ -162,9 +215,8 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 	char script[PATH_MAX];
 	char buf[PATH_MAX];
 	char *arg[2];
-	char *env[13];
+	char *env[14] = {};
 	struct vzctl_veth_dev *veth;
-	struct vzctl_disk *d;
 	int ret, i = 0;
 	char *pbuf, *ep;
 
@@ -218,21 +270,9 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 	}
 	env[i++] = strdup(buf);
 
-	pbuf = buf;
-	ep = buf + sizeof(buf);
-	pbuf += snprintf(buf, sizeof(buf), "VE_PLOOP_DEVS=");
-	list_for_each(d, &h->env_param->disk->disks, list) {
-		pbuf += snprintf(pbuf, ep - pbuf, "%s@ploop%d:%d:%d\n",
-				d->uuid,
-				gnu_dev_minor(d->dev) >> 4,
-				gnu_dev_major(d->dev),
-				gnu_dev_minor(d->dev));
-		if (pbuf > ep) {
-			env[i] = NULL;
-			free_ar_str(env);
-			return vzctl_err(VZCTL_E_INVAL, 0, "restore: buffer overflow");
-		}
-	}
+	ret = make_ploop_dev_args(h, buf, sizeof(buf));
+	if (ret)
+		goto err;
 	logger(10, 0, "* %s", buf);
 	env[i++] = strdup(buf);
 
@@ -248,6 +288,7 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 	if (ret)
 		ret = VZCTL_E_RESTORE;
 
+err:
 	free_ar_str(env);
 
 	return ret;

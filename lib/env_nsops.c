@@ -512,12 +512,21 @@ static int init_env_cgroup(struct vzctl_env_handle *h)
 		if (ret)
 			return vzctl_err(-1, 0, "Failed to set %s", buf);
 
-		snprintf(buf, sizeof(buf), "b %d:%d rm",
+		snprintf(buf, sizeof(buf), "b %d:%d rwm",
 			gnu_dev_major(d->dev), gnu_dev_minor(d->dev + 1));
 		ret = cg_env_set_devices(h->ctid, "devices.allow", buf);
 		if (ret)
 			return vzctl_err(-1, 0, "Failed to set %s", buf);
 
+		/* temporary workaround bug #PSBM-48188 */
+		if (!is_root_disk(d)) {
+		        snprintf(buf, sizeof(buf),
+				"0 %u:%u;2 data=ordered,balloon_ino=12",
+				gnu_dev_major(d->dev), gnu_dev_minor(d->dev+1));
+		        ret = cg_set_param(EID(h), CG_VE, "ve.mount_opts", buf);
+			if (ret)
+				return ret;
+		}
 	}
 
 	return setup_env_cgroup(h, h->env_param);
@@ -1256,7 +1265,6 @@ static int restore_FN(struct vzctl_env_handle *h, struct start_param *data)
 	struct vzctl_cpt_param *cpt = (struct vzctl_cpt_param *)data->data;
 
 	ret = criu_cmd(h, VZCTL_CMD_RESTORE, cpt, data);
-
 	if (write(h->ctx->err_p[1], &ret, sizeof(ret)) == -1)
 		vzctl_err(-1, errno, "Failed to write to the error pipe");
 

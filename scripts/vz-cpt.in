@@ -34,6 +34,24 @@ for s in $VE_CGROUP_MOUNT_MAP; do
 	ext_mount_map="$ext_mount_map --ext-mount-map $s"
 done
 
+external= 
+# VE_PLOOP_DEVS=UUID@ploopN:major:minor:[root]
+for s in $VE_PLOOP_DEVS; do
+	uuid=${s%%@*}
+	t=${s#*@}
+	device=${t%%:*}
+	t=${t#*:}
+	major=${t%%:*}
+	t=${t#*:}
+	minor=${t%%:*}
+	root=${t#*:}
+
+	[ "$root" = "root" ] && continue
+
+	minor=$((minor+1))
+	external="$external --external dev[$major/$minor]:$uuid"
+done
+
 [ -d $dumpdir ] && rm -rf $dumpdir
 
 #
@@ -84,6 +102,7 @@ criu dump -v$CRIU_LOGLEVEL -o dump.log				\
 		-D $dumpdir				\
 		$nfs_actions				\
 		$ext_mount_map				\
+		$external				\
 		$CRIU_EXTRA_ARGS
 
 if [ $? -ne 0 ]; then

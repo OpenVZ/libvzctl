@@ -32,14 +32,15 @@ restore_devices()
 
 	root=/proc/$pid/root
 
-	# VE_PLOOP_DEVS=UUID@ploopN:major:minor
+	# VE_PLOOP_DEVS=UUID@ploopN:major:minor:[root]
 	for s in $VE_PLOOP_DEVS; do
 		uuid=${s%%@*}
 		t=${s#*@}
 		device=${t%%:*}
 		t=${t#*:}
 		major=${t%%:*}
-		minor=${t##*:}
+		t=${t#*:}
+		minor=${t%%:*}
 
 		[ ! -L "$root/dev/$uuid" ] && continue
 
