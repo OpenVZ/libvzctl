@@ -307,7 +307,7 @@ int set_disk_param(struct vzctl_env_param *env, int flags)
 
 		root->mount = mount_disk_image;
 		root->umount = umount_disk_image;
-			
+
 		/* add to the head */
 		list_add(&root->list, &env->disk->disks);
 	}
@@ -690,7 +690,7 @@ int vzctl2_mount_disk(struct vzctl_env_handle *h,
 		const struct vzctl_env_disk *env_disk, int flags)
 {
 	int ret;
-	struct vzctl_disk *disk;
+	struct vzctl_disk *disk, *e;
 
 	/* disks */
 	list_for_each(disk, &env_disk->disks, list) {
@@ -714,7 +714,13 @@ int vzctl2_mount_disk(struct vzctl_env_handle *h,
 	return 0;
 
 err:
-	vzctl2_umount_disk(env_disk);
+	for (e = list_entry(disk->list.prev, typeof(*e), list);
+			&e->list != (list_elem_t*)(&env_disk->disks);
+			e = list_entry(e->list.prev, typeof(*e), list))
+	{
+                if (e->umount != NULL)
+			e->umount(e);
+	}
 
 	return ret;
 }
