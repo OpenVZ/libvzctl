@@ -96,6 +96,7 @@ criu dump -v$CRIU_LOGLEVEL -o dump.log				\
 		--link-remap				\
 		--root $VE_ROOT				\
 		--freeze-cgroup $VE_FREEZE_CG		\
+		--timeout 180				\
 		--ghost-limit 50M			\
 		--action-script $action_script		\
 		-t $VE_PID				\
