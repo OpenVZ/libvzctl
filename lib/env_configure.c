@@ -316,7 +316,7 @@ static int setup_env_quota(struct quota_param *param)
 		return mk_vzquota_link(st.st_dev);
 	} else if (param->turnon) {
 		if (stat_file(QUOTA_U) == 0 || stat_file(QUOTA_G) == 0) {
-			char *quotacheck[] = {"quotacheck", "-anugmM", NULL};
+			char *quotacheck[] = {"quotacheck", "-anugmM", "-F", (char *)get_jquota_format(), NULL};
 
 			logger(0, 0, "Running quotacheck ...");
 			ret = vzctl2_exec_script(quotacheck, NULL, 0);

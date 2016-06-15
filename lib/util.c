@@ -2262,13 +2262,22 @@ char *get_fs_root(const char *dir)
 	return strdup("/");
 }
 
-static const char *get_quota_mount_opts(int mode)
+const char *get_jquota_format()
+{
+	return "vfsv0";
+}
+
+static const char *get_quota_mount_opts(int mode, char *out, int size)
 {
 	if (mode == VZCTL_JQUOTA_MODE)
-		return "usrjquota=aquota.user,grpjquota=aquota.group,jqfmt=vfsv0";
+		snprintf(out, size, "usrjquota=aquota.user,grpjquota=aquota.group,jqfmt=%s",
+			get_jquota_format());
 	else if (mode == VZCTL_QUOTA_MODE)
-		return "usrquota,grpquota";
-	return "";
+		snprintf(out, size, "usrquota,grpquota");
+	else
+		out[0] = '\0';
+
+	return out;
 }
 
 int get_global_param(const char *name, char *buf, int size)
@@ -2318,11 +2327,12 @@ static char *get_pfcache_opts(char *buf, int len)
 int get_mount_opts(const char *opts, int user_quota, char *out, int size)
 {
 	int rc;
+	char jq[64];
 
 	rc = snprintf(out, size, "%s%s%s",
 		opts != NULL ? opts : "",
 		opts != NULL ? "," : "",
-		user_quota ? get_quota_mount_opts(user_quota) : "");
+		user_quota ? get_quota_mount_opts(user_quota, jq, sizeof(jq)) : "");
 	if (rc >= size)
 		return VZCTL_E_INVAL;
 
