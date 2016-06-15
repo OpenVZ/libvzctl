@@ -428,7 +428,7 @@ static int setup_env_cgroup(struct vzctl_env_handle *h, struct vzctl_env_param *
 	return 0;
 }
 
-static int init_env_cgroup(struct vzctl_env_handle *h)
+static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 {
 	int ret, i;
 	char buf[4096];
@@ -505,25 +505,30 @@ static int init_env_cgroup(struct vzctl_env_handle *h)
 	list_for_each(d, &h->env_param->disk->disks, list) {
 		if (d->enabled == VZCTL_PARAM_OFF)
 			continue;
+		/* set permission for device and first partition */
+		for (i = 0; i < 2; i++) {
+			struct vzctl_dev_perm perm = {
+				.mask = S_IROTH,
+				.type = S_IFBLK,
+				.dev = d->dev + i,
+			};
 
-		snprintf(buf, sizeof(buf), "b %d:%d rm",
-			gnu_dev_major(d->dev), gnu_dev_minor(d->dev));
-		ret = cg_env_set_devices(h->ctid, "devices.allow", buf);
-		if (ret)
-			return vzctl_err(-1, 0, "Failed to set %s", buf);
+			/* temporary workaround bug #PSBM-48188
+			 * to mount device inside CT by criu
+			 */
+			if (i > 0 && (flags & VZCTL_RESTORE) &&
+					!is_root_disk(d))
+			{
+				perm.mask |= S_IWOTH;
+				snprintf(buf, sizeof(buf),
+					"0 %u:%u;2 data=ordered,balloon_ino=12",
+					gnu_dev_major(d->dev), gnu_dev_minor(d->dev + i));
+				ret = cg_set_param(EID(h), CG_VE, "ve.mount_opts", buf);
+				if (ret)
+					return ret;
+			}
 
-		snprintf(buf, sizeof(buf), "b %d:%d rwm",
-			gnu_dev_major(d->dev), gnu_dev_minor(d->dev + 1));
-		ret = cg_env_set_devices(h->ctid, "devices.allow", buf);
-		if (ret)
-			return vzctl_err(-1, 0, "Failed to set %s", buf);
-
-		/* temporary workaround bug #PSBM-48188 */
-		if (!is_root_disk(d)) {
-		        snprintf(buf, sizeof(buf),
-				"0 %u:%u;2 data=ordered,balloon_ino=12",
-				gnu_dev_major(d->dev), gnu_dev_minor(d->dev+1));
-		        ret = cg_set_param(EID(h), CG_VE, "ve.mount_opts", buf);
+			ret = get_env_ops()->env_set_devperm(h, &perm);
 			if (ret)
 				return ret;
 		}
@@ -550,7 +555,7 @@ static int destroy_cgroup(struct vzctl_env_handle *h)
 	return cg_destroy_cgroup(h->ctid);
 }
 
-static int create_cgroup(struct vzctl_env_handle *h)
+static int create_cgroup(struct vzctl_env_handle *h, int flags)
 {
 	int ret;
 
@@ -563,7 +568,7 @@ static int create_cgroup(struct vzctl_env_handle *h)
 	if (ret)
 		return ret;
 
-	ret = init_env_cgroup(h);
+	ret = init_env_cgroup(h, flags);
 	if (ret)
 		return ret;
 
@@ -643,13 +648,14 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 	pid_t pid = -1;
 	int clone_flags = 0;
 	struct sigaction act;
+	int flags = param->fn ? VZCTL_RESTORE : 0;
 
 	sigemptyset(&act.sa_mask);
 	act.sa_handler = SIG_IGN;
 	act.sa_flags = SA_NOCLDSTOP;
 	sigaction(SIGPIPE, &act, NULL);
 
-	ret = create_cgroup(h);
+	ret = create_cgroup(h, flags);
 	if (ret)
 		return ret;
 
