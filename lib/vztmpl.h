@@ -30,7 +30,7 @@ int vztmpl_get_osrelease(const char *ostmpl, char *buf, int size);
 int vztmpl_is_jquota_supported(const char *ostmpl);
 int vztmpl_install_app(ctid_t ctid, const char *apps, int force);
 int vztmpl_get_cache_tarball(const char *cache_config, char **ostmpl,
-		const char *fstype, const char *applist, int use_ostmpl,
+		const char *fstype, char **applist, int use_ostmpl,
 		char *tarball, int len);
 int vztmpl_get_applist(ctid_t ctid, list_head_t *head, const char *ostmpl);
 #endif

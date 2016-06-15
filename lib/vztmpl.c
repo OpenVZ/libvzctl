@@ -318,7 +318,7 @@ err:
 #endif
 
 int vztmpl_get_cache_tarball(const char *config, char **ostmpl,
-		const char *fstype, const char *applist, int use_ostmpl,
+		const char *fstype, char **applist, int use_ostmpl,
 		char *tarball, int len)
 {
 	int ret = 0;
@@ -330,7 +330,7 @@ int vztmpl_get_cache_tarball(const char *config, char **ostmpl,
 	ret = vztmpl_get_appcache_tarball(config_name, *ostmpl, fstype,
 			&unsupported_applist, tarball, len);
 	if (ret == 0)
-		return 0;
+		goto out;
 
 	if (ret != VZT_TMPL_NOT_CACHED) {
 		/* Other vztt errors are fatal, stop here */
@@ -354,7 +354,7 @@ int vztmpl_get_cache_tarball(const char *config, char **ostmpl,
 	}
 
 	if (tarball[0] == '\0') {
-		if (applist != NULL && !use_ostmpl) {
+		if (*applist != NULL && !use_ostmpl) {
 			logger(0, 0, "Cached package set '%s' with applications"
 					" from config %s is not found, run create "
 					"appcache utility...", *ostmpl, config_name);
@@ -385,9 +385,21 @@ int vztmpl_get_cache_tarball(const char *config, char **ostmpl,
 		goto err;
 	}
 
+out:
+
+	/* Override the given applist to install unsupported templates */
+	if (applist != NULL && config != NULL) {
+		free(*applist);
+		*applist = list2str("", &unsupported_applist);
+	}
+
+	free_str(&unsupported_applist);
+
 	return 0;
 
 err:
+	free_str(&unsupported_applist);
+
 	return VZCTL_E_FS_NEW_VE_PRVT;
 }
 
