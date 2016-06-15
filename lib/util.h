@@ -204,6 +204,7 @@ FILE *vzctl_popen(char *argv[], char *env[], int quiet);
 int vzctl_pclose(FILE *fp);
 int vztmpl_get_osrelease(const char *ostemplate, char *buf, int size);
 int run_action_scripts(struct vzctl_env_handle *h, int action);
+const char* get_jquota_format();
 int get_global_param(const char *name, char *buf, int size);
 char *get_fs_root(const char *dirk);
 int is_2quota_enabled(const struct vzctl_dq_param *dq);
