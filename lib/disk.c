@@ -270,11 +270,11 @@ int set_disk_param(struct vzctl_env_param *env, int flags)
 				env->fs->ve_private,
 				env->fs->layout == VZCTL_LAYOUT_4 ? VZCTL_VE_FS_DIR : "");
 		ret = xstrdup(&env->fs->ve_private_fs, path);
-
-		return ret;
-	}
-
-	if (env->disk->root != VZCTL_PARAM_OFF && find_root_disk(env->disk) == NULL) {
+		if (ret)
+			return ret;
+	} else if (env->disk->root != VZCTL_PARAM_OFF &&	
+			find_root_disk(env->disk) == NULL)
+	{
 		/* build default root disk: VE_PRIVATE/root.hdd */
 		root = calloc(1, sizeof(struct vzctl_disk));
 		if (root == NULL) {
