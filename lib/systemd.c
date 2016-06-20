@@ -115,7 +115,7 @@ int systemd_start_ve_scope(struct vzctl_env_handle *h, pid_t pid)
 	int ret = -1;
 
 	logger(3, 0, "Start CT slice");
-	snprintf(unit_name, sizeof(unit_name), SYSTEMD_CTID_UNIT_FMT, EID(h));
+	snprintf(unit_name, sizeof(unit_name), SYSTEMD_CTID_SCOPE_FMT, EID(h));
 	snprintf(desc, sizeof(desc), "Container %s", EID(h));
 
 	msg = dbus_message_new_method_call("org.freedesktop.systemd1",

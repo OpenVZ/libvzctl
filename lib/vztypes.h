@@ -108,21 +108,8 @@
 
 #define STR_UNLIMITED	"unlimited"
 
-/*
- * Traditional namings for systemd cgroups
- * are "scope" and "slices" but in criu we
- * might be rewritting global roots. So lets
- * simply name these cgroups from VEIDs. It
- * is more convenient to work with and don't
- * cause problems so far.
- *
- * #define SYSTEMD_CTID_FMT		"ve-%s"
- * #define SYSTEMD_CTID_SCOPE_FMT	SYSTEMD_CTID_FMT".scope"
- * #define SYSTEMD_CTID_UNIT_FMT	"%s.scope"
- */
 #define SYSTEMD_CTID_FMT	"%s"
-#define SYSTEMD_CTID_SCOPE_FMT	"%s"
-#define SYSTEMD_CTID_UNIT_FMT	"%s"
+#define SYSTEMD_CTID_SCOPE_FMT	SYSTEMD_CTID_FMT".scope"
 
 #define NETNS_RUN_DIR   "/var/run/netns"
 
