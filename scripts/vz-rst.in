@@ -52,10 +52,14 @@ for s in $VE_PLOOP_DEVS; do
 done
 
 ext_mount_map=
+cgroup_root="--cgroup-root ve:/$VEID --cgroup-root beancounter:/$VEID"
 for s in $VE_CGROUP_MOUNT_MAP; do
-	m=${s%%:*}
-	c=${s##*:}
-	ext_mount_map="$ext_mount_map --ext-mount-map $c:$m/$VEID"
+	ext_mount_map="$ext_mount_map --ext-mount-map $s"
+
+	ctl=${s%%:*}
+	t=${s#*/sys/fs/cgroup/}
+	root=${t#*/}
+	cgroup_root="$cgroup_root --cgroup-root $ctl:/$root"
 done
 
 action_script=@SCRIPTDIR@/vz-rst-action
@@ -114,7 +118,7 @@ criu restore -v$CRIU_LOGLEVEL				\
 		-W $VE_WORK_DIR				\
 		-o $VE_RESTORE_LOG_PATH			\
 		--pidfile $VE_PIDFILE			\
-		--cgroup-root /$VEID			\
+		$cgroup_root				\
 		$ext_mount_map				\
 		$autofs_actions				\
 		$spfs_actions				\
