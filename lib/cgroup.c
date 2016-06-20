@@ -232,7 +232,10 @@ static void get_cgroup_name(const char *ctid, struct cg_ctl *ctl,
 		snprintf(out, size, "%s/"SYSTEMD_CTID_SCOPE_FMT,
 				ctl->mount_path, ctid);
 	else
-		snprintf(out, size, "%s/%s", ctl->mount_path, ctid);
+		snprintf(out, size, "%s/%s%s",
+				ctl->mount_path,
+				ctl->is_prvt ? "" : "machine.slice/",
+				ctid);
 }
 
 int cg_get_path(const char *ctid, const char *subsys, const char *name,
@@ -339,10 +342,7 @@ static int cg_create(const char *ctid, struct cg_ctl *ctl)
 	get_cgroup_name(ctid, ctl, path, sizeof(path));
 
 	logger(3, 0, "Create cgroup %s", path);
-	if (mkdir(path, 0755) && errno != EEXIST)
-		return vzctl_err(-1, errno, "Unable to create cgroup %s",
-				path);
-	return 0;
+	return make_dir(path, 1);
 }
 
 

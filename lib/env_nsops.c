@@ -470,7 +470,7 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 
 	/* Bind beancounter with blkio/memory cgroups */
 	for (i = 0; i < sizeof(bc)/sizeof(bc[0]); i++) {
-		snprintf(buf, sizeof(buf), "/%s", EID(h));
+		snprintf(buf, sizeof(buf), "/machine.slice/%s", EID(h));
 		ret = cg_set_param(EID(h), CG_UB, bc[i], buf);
 		if (ret)
 			return ret;
@@ -482,9 +482,20 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 
 	/* Init cpu: copy settings from parent */
 	for (i = 0; i < sizeof(cpu)/sizeof(cpu[0]); i++) {
+		char x[STR_SIZE];
 		ret = cg_get_param("", CG_CPUSET, cpu[i], buf, sizeof(buf));
 		if (ret)
 			return -1;
+
+		ret = cg_get_param("/", CG_CPUSET, cpu[i], x, sizeof(x));
+		if (ret)
+			return -1;
+
+		if (x[0] == '\0') {
+			ret = cg_set_param("/", CG_CPUSET, cpu[i], buf);
+			if (ret)
+				return ret;
+		}
 
 		ret = cg_set_param(h->ctid, CG_CPUSET, cpu[i], buf);
 		if (ret)
@@ -704,7 +715,7 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 			ret = vzctl_err(VZCTL_E_RESOURCE, errno, "Unable to clone");
 			goto err;
 		}
-
+		
 		ret = write_init_pid(h->ctid, pid);
 		if (ret == 0) {
 			ret = write_id_maps(pid);

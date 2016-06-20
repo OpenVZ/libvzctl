@@ -109,7 +109,7 @@
 #define STR_UNLIMITED	"unlimited"
 
 #define SYSTEMD_CTID_FMT	"%s"
-#define SYSTEMD_CTID_SCOPE_FMT	SYSTEMD_CTID_FMT".scope"
+#define SYSTEMD_CTID_SCOPE_FMT	SYSTEMD_CTID_FMT
 
 #define NETNS_RUN_DIR   "/var/run/netns"
 
