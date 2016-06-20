@@ -127,13 +127,6 @@ static struct cg_ctl *find_cg_ctl(const char *subsys)
 	return NULL;
 }
 
-static int is_prvt_cgroup(const char *subsys)
-{
-	struct cg_ctl *c = find_cg_ctl(subsys);
-
-	return (c == NULL ? 1 : c->is_prvt);
-}
-
 static int cg_get_ctl(const char *subsys, struct cg_ctl **ctl)
 {
 	int ret;
@@ -858,67 +851,6 @@ int cg_get_veip(const char *ctid, list_head_t *list)
 	return 0;
 }
 
-static int get_cgroup_mounts(list_head_t *head, cgroup_filter_f filter)
-{
-	int ret = 0;
-	FILE *fp;
-	char buf[512];
-	char path[PATH_MAX];
-
-	fp = fopen("/proc/cgroups", "r");
-	if (fp == NULL)
-		return vzctl_err(VZCTL_E_SYSTEM, errno,
-				"Unable to open /proc/cgroups");
-
-	while (fgets(buf, sizeof(buf), fp)) {
-		int rc;
-
-		if (sscanf(buf, "%511s", buf) != 1)
-			continue;
-
-		if (buf[0] == '#')
-			continue;
-
-		if (filter != NULL && filter(buf))
-			continue;
-
-		rc = get_mount_path(buf, path, sizeof(path));
-		if (rc == -1) {
-			ret = VZCTL_E_SYSTEM;
-			break;
-		} else if (rc)
-			continue;
-
-		if (find_str(head, path) != NULL)
-			continue;
-
-		if (add_str_param(head, path) == NULL) {
-			ret = VZCTL_E_NOMEM;
-			break;
-		}
-	}
-	fclose(fp);
-
-	if (ret)
-		free_str(head);
-
-	return ret;
-}
-
-static int cg_make_slaves(list_head_t *head)
-{
-	struct vzctl_str_param *it;
-
-	list_for_each(it, head, list) {
-		if (mount(NULL, it->str, NULL, MS_SLAVE, NULL))
-			return vzctl_err(VZCTL_E_SYSTEM, errno,
-					"Remounting cgroup %s as slaves failed",
-					it->str);
-	}
-
-	return 0;
-}
-
 static int do_bindmount(const char *src, const char *dst, int mnt_flags)
 {
 
@@ -989,12 +921,15 @@ static int create_perctl_symlink(const char *root, const char *path)
 	return ret;
 }
 
-static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t * head)
+static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t *head)
 {
-	int ret;
+	int ret = 0, i;
 	char s[PATH_MAX], d[PATH_MAX];
 	char *ve_root = h->env_param->fs->ve_root;
 	struct vzctl_str_param *it;
+	const char *mnt;
+	struct cg_ctl *ctl;
+	int flags;
 
 	snprintf(s, sizeof(s), "%s/sys", ve_root);
 	if (access(s, F_OK) && make_dir(s, 1))
@@ -1004,7 +939,7 @@ static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t * head)
 		return vzctl_err(VZCTL_E_RESOURCE, errno,
 				"Can't pre-mount sysfs in %s", s);
 
-        snprintf(s, sizeof(s), "%s/sys/fs/cgroup", ve_root);
+	snprintf(s, sizeof(s), "%s/sys/fs/cgroup", ve_root);
 	if (access(s, F_OK) && make_dir(s, 1))
 		return vzctl_err(VZCTL_E_RESOURCE, errno,
 				"Can't pre-mount tmpfs in %s", s);
@@ -1012,23 +947,43 @@ static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t * head)
 		return vzctl_err(VZCTL_E_RESOURCE, errno,
 				"Can't pre-mount tmpfs in %s", s);
 
-	list_for_each(it, head, list) {
-		snprintf(d, sizeof(d), "%s%s", ve_root, it->str);
-		snprintf(s, sizeof(s), "%s/%s", it->str, EID(h));
-		ret = do_bindmount(s, d, MS_BIND|MS_PRIVATE);
+	for (i = 0; i < sizeof(cg_ctl_map)/sizeof(cg_ctl_map[0]); i++) {
+		ret = cg_get_ctl(cg_ctl_map[i].subsys, &ctl);
+		if (ret == -1)
+			goto err;
+		if (ctl->is_prvt)
+			continue;
+
+		if (find_str(head, ctl->mount_path) != NULL)
+			continue;
+
+		mnt = ctl->mount_path;
+		if (mount(NULL, mnt, NULL, MS_SLAVE, NULL)) {
+			ret =  vzctl_err(VZCTL_E_SYSTEM, errno,
+					"Remounting cgroup %s as slaves failed",
+					mnt);
+			goto err;
+		}
+
+		if (add_str_param(head, ctl->mount_path) == NULL) {
+			ret = VZCTL_E_NOMEM;
+			break;
+		}
+
+		snprintf(d, sizeof(d), "%s%s", ve_root, mnt);
+		get_cgroup_name(EID(h), ctl, s, sizeof(s));
+		flags = MS_BIND;
+		if (!cg_is_systemd(ctl->subsys))
+			flags |= MS_PRIVATE;
+		
+		ret = do_bindmount(s, d, flags);
 		if (ret)
 			goto err;
 
-
-		ret = create_perctl_symlink(ve_root, it->str);
+		ret = create_perctl_symlink(ve_root, mnt);
 		if (ret)
 			goto err;
 	}
-
-	snprintf(s, sizeof(s), "/sys/fs/cgroup/systemd/"SYSTEMD_CTID_SCOPE_FMT, EID(h));
-	snprintf(d, sizeof(d), "%s/sys/fs/cgroup/systemd", ve_root);
-	ret = do_bindmount(s, d, MS_BIND);
-
 err:
 	if (ret) {
 		list_for_each(it, head, list) {
@@ -1052,16 +1007,7 @@ int bindmount_env_cgroup(struct vzctl_env_handle *h)
 	int ret;
 	LIST_HEAD(head);
 
-	ret = get_cgroup_mounts(&head, is_prvt_cgroup);
-	if (ret)
-		return ret;
-
-	ret = cg_make_slaves(&head);
-	if (ret)
-		goto err;
-
 	ret = cg_bindmount_cgroup(h, &head);
-err:
 	free_str(&head);
 
 	return ret;
