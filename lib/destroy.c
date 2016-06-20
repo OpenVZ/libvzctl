@@ -127,7 +127,7 @@ int destroydir(const char *dir)
 	char buf[STR_SIZE];
 	char tmp[STR_SIZE];
 	char *tmp_dir;
-	int fd_lock, pid;
+	int fd_lock = -1, pid;
 	struct stat st;
 
 	if (stat(dir, &st)) {
@@ -143,9 +143,11 @@ int destroydir(const char *dir)
 		return 0;
 	}
 
+	ret = VZCTL_E_SYSTEM;
 	tmp_dir = get_fs_root(dir);
 	if (tmp_dir == NULL)
-		return VZCTL_E_FS_DEL_PRVT;
+		goto err;
+
 	snprintf(tmp, sizeof(tmp), "%s/del", tmp_dir);
 	free(tmp_dir);
 
@@ -153,32 +155,27 @@ int destroydir(const char *dir)
 		if (errno != ENOENT)
 			return vzctl_err(-1, errno, "Unable to stat %s", tmp);
 		/* try to create temporary del dir */
-		ret = make_dir(tmp, 1);
-		if (ret)
-			return ret;
+		if (make_dir(tmp, 1))
+			goto err;
 	}
 
-	/* First move to del */
-	if (maketmpdir(tmp, buf, sizeof(buf)))
-		return VZCTL_E_FS_DEL_PRVT;
-
-	logger(5, 0, "remove dir=%s tmp=%s", dir, buf);
-	if (rename(dir, buf)) {
-		logger(-1, errno, "Cannot move %s to %s, remove the directory in place",
-				dir, buf);
-		if (del_dir(dir))
-			return VZCTL_E_FS_DEL_PRVT;
-		return 0;
-	}
+	logger(5, 0, "destroy dir=%s", dir);
 	snprintf(buf, sizeof(buf), "%s/rm.lck", tmp);
 	fd_lock = vzctl2_lock(buf, VZCTL_LOCK_EX | VZCTL_LOCK_NB, 0);
-	if (fd_lock < 0) {
-		if (fd_lock == -1 && del_dir(buf))
-			return VZCTL_E_FS_DEL_PRVT;
+	if (fd_lock == -1)
+		goto err;
 
-		/* if (fd_lock == -2) already locked */
-		return 0;
+	/* move to del */
+	if (maketmpdir(tmp, buf, sizeof(buf)))
+		goto err;
+
+	if (rename(dir, buf)) {
+		logger(-1, errno, "Can't rename %s -> %s", dir, buf);
+		goto err;
 	}
+
+	if (fd_lock == -2) /* already locked */
+		return 0;
 
 	ret = 0;
 	if (!(pid = fork())) {
@@ -188,7 +185,16 @@ int destroydir(const char *dir)
 		_exit(0);
 	} else if (pid < 0)
 		ret = vzctl_err(VZCTL_E_FORK, errno, "destroydir: Unable to fork");
-	close(fd_lock);
+
+err:
+	if (fd_lock >= 0)
+		close(fd_lock);
+	if (ret) {
+		logger(-1, 0, "Remove the directory %s in place", dir);
+		ret = del_dir(dir);
+		if (ret)
+			ret = VZCTL_E_FS_DEL_PRVT;
+	}
 
 	return ret;
 }
