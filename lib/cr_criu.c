@@ -167,7 +167,7 @@ static int do_dump(struct vzctl_env_handle *h, int cmd,
 	snprintf(buf, sizeof(buf), "VEID=%s", h->ctid);
 	env[i++] = strdup(buf);
 
-	cg_get_cgroup_env_param(buf, sizeof(buf));
+	cg_get_cgroup_env_param(NULL, buf, sizeof(buf));
 	env[i++] = strdup(buf);
 
 	env[i] = NULL;
@@ -276,7 +276,7 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 	logger(10, 0, "* %s", buf);
 	env[i++] = strdup(buf);
 
-	cg_get_cgroup_env_param(buf, sizeof(buf));
+	cg_get_cgroup_env_param(EID(h), buf, sizeof(buf));
 	env[i++] = strdup(buf);
 
 	env[i] = NULL;
