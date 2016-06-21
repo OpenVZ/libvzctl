@@ -1008,8 +1008,14 @@ static int ns_env_stop_force(struct vzctl_env_handle *h)
 
 static int ns_env_cleanup(struct vzctl_env_handle *h, int flags)
 {
+	char x[] = "XXXX";
+
 	vcmm_unregister(h);
 	clear_init_pid(EID(h));
+	if (get_global_param("SKIP_CGROUP_DESTROY", x, sizeof(x)) == 0 &&
+			strcmp(x, "yes") == 0)
+		return 0;
+
 	return destroy_cgroup(h);
 }
 
