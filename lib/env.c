@@ -1039,8 +1039,10 @@ end:
 
 	if (ret)
 		logger(-1, 0, "Checkpointing failed");
-	else
+	else {
+		vzctl2_send_state_evt(EID(h), VZCTL_ENV_SUSPENDED);
 		logger(0, 0, "Checkpointing completed successfully");
+	}
 
 	return ret;
 }
