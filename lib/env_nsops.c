@@ -164,7 +164,7 @@ static int setup_rootfs(struct vzctl_env_handle *h)
 	if (chdir("/"))
 		return vzctl_err(-1, errno, "Can't chdir /");
 
-	if (mount("", oldroot, NULL, MS_PRIVATE|MS_REC, NULL) < 0)
+	if (mount("", oldroot, NULL, MS_SLAVE|MS_REC, NULL) < 0)
 		return vzctl_err(-1, errno, "Can't remount root with MS_PRIVATE");
 
 	if (umount2(oldroot, MNT_DETACH))
