@@ -573,6 +573,12 @@ static int check_requires(struct vzctl_env_param *env, int flags)
 		return vzctl_err(VZCTL_E_NO_PRVT, 0,
 			"Container private area %s does not exist",
 			env->fs->ve_private);
+
+	if (env->fs->layout == VZCTL_LAYOUT_5 &&
+			find_root_disk(env->disk) == NULL)
+		return vzctl_err(VZCTL_E_INVAL, 0,
+			"Container root disk is not configured");
+
 	return ret;
 }
 
