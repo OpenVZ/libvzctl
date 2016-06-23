@@ -810,7 +810,7 @@ int vzctl2_umount_disk(const struct vzctl_env_disk *env_disk)
 	return 0;
 }
 
-static int configure_mount_opts(struct vzctl_env_handle *h, struct vzctl_disk *disk,
+int configure_mount_opts(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 		 dev_t dev)
 {
 	int ret;

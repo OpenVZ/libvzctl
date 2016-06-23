@@ -518,6 +518,12 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 			continue;
 		/* set permission for device and first partition */
 		for (i = 0; i < 2; i++) {
+			if (i > 0) {
+				ret = configure_mount_opts(h, d, d->dev + i);
+				if (ret)
+					return ret;
+			}
+
 			ret = configure_disk_perm(h, d, d->dev + i, 0);
 			if (ret)
 				return ret;
