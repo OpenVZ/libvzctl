@@ -63,6 +63,8 @@ int configure_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 void free_disk_param(struct vzctl_disk_param *disk);
 void free_disk(struct vzctl_disk *disk);
 void free_env_disk(struct vzctl_env_disk *env_disk);
+int configure_disk_perm(struct vzctl_env_handle *h,
+		struct vzctl_disk *disk, dev_t dev, int del);
 struct vzctl_env_disk *alloc_env_disk(void);
 struct vzctl_disk *find_root_disk(const struct vzctl_env_disk *env_disk);
 int is_secondary_disk_present(const struct vzctl_env_disk *env_disk);

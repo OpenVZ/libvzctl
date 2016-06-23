@@ -830,12 +830,12 @@ static int configure_mount_opts(struct vzctl_env_handle *h, struct vzctl_disk *d
 	return cg_set_param(EID(h), CG_VE, "ve.mount_opts", buf);
 }
 
-static int configure_devperm(struct vzctl_env_handle *h, struct vzctl_disk *disk,
+int configure_disk_perm(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 		dev_t dev, int del)
 {
 	struct vzctl_dev_perm devperms = {
 		.dev = dev,
-		.mask = S_IROTH | is_root_disk(disk) ? 0 : S_IXUSR,
+		.mask = S_IROTH | (is_root_disk(disk) ? 0 : S_IXUSR),
 		.type = S_IFBLK | VE_USE_MINOR,
 	};
 
@@ -948,10 +948,10 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 			return ret;
 	}
 
-	ret = configure_devperm(h, disk, dev, 0);
+	ret = configure_disk_perm(h, disk, dev, 0);
 	if (ret)
 		return ret;
-	ret = configure_devperm(h, disk, part_dev, 0);
+	ret = configure_disk_perm(h, disk, part_dev, 0);
 	if (ret)
 		return ret;
 
@@ -1170,7 +1170,7 @@ static int del_disk(struct vzctl_env_handle *h, struct vzctl_disk *d)
 		if (d->mnt != NULL)
 			vzctl2_env_exec_fn2(h, env_umount, d->mnt, 0, 0);
 
-		ret = configure_devperm(h, d, st.st_rdev + 1, 1);
+		ret = configure_disk_perm(h, d, st.st_rdev + 1, 1);
 		if (ret)
 			return ret;
 

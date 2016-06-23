@@ -518,28 +518,7 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 			continue;
 		/* set permission for device and first partition */
 		for (i = 0; i < 2; i++) {
-			struct vzctl_dev_perm perm = {
-				.mask = S_IROTH,
-				.type = S_IFBLK,
-				.dev = d->dev + i,
-			};
-
-			/* temporary workaround bug #PSBM-48188
-			 * to mount device inside CT by criu
-			 */
-			if (i > 0 && (flags & VZCTL_RESTORE) &&
-					!is_root_disk(d))
-			{
-				perm.mask |= S_IWOTH;
-				snprintf(buf, sizeof(buf),
-					"0 %u:%u;2 data=ordered,balloon_ino=12",
-					gnu_dev_major(d->dev), gnu_dev_minor(d->dev + i));
-				ret = cg_set_param(EID(h), CG_VE, "ve.mount_opts", buf);
-				if (ret)
-					return ret;
-			}
-
-			ret = get_env_ops()->env_set_devperm(h, &perm);
+			ret = configure_disk_perm(h, d, d->dev + i, 0);
 			if (ret)
 				return ret;
 		}
@@ -1078,7 +1057,7 @@ static int ns_set_devperm(struct vzctl_env_handle *h, struct vzctl_dev_perm *dev
 {
 	char dev_str_part[STR_SIZE];
 	char dev_str[STR_SIZE];
-	char perms[4];
+	char perms[5];
 	int i = 0;
 	int deny = 0;
 	int ret;
@@ -1086,22 +1065,18 @@ static int ns_set_devperm(struct vzctl_env_handle *h, struct vzctl_dev_perm *dev
 	if (dev->mask & S_IXGRP)
 		return 0;
 
-	if (dev->mask & S_IXUSR) {
-		ret = vz_env_set_devperm(h, dev);
-		if (ret)
-			return ret;
-	}
-
 	if (dev->mask & S_IROTH)
 		perms[i++] = 'r';
 	if (dev->mask & S_IWOTH)
 		perms[i++] = 'w';
+	if (dev->mask & S_IXUSR)
+		perms[i++] = 'M';
 
 	/* if no perm specifyed deny device */
 	if (i == 0)
 		deny = 1;
 	perms[i++] = 'm'; /* mknod */
-	perms[i++] = '\0';
+	perms[i] = '\0';
 
 	if (dev->use_major)
 		snprintf(dev_str_part, sizeof(dev_str_part), "%c %d:*",
@@ -1112,8 +1087,12 @@ static int ns_set_devperm(struct vzctl_env_handle *h, struct vzctl_dev_perm *dev
 			S_ISBLK(dev->type) ? 'b' : 'c',
 			major(dev->dev), minor(dev->dev));
 
-	snprintf(dev_str, sizeof(dev_str), "%s rwm", dev_str_part);
+	snprintf(dev_str, sizeof(dev_str), "%s rwmM", dev_str_part);
 	ret = cg_env_set_devices(h->ctid, "devices.deny", dev_str);
+	if (ret) {
+		snprintf(dev_str, sizeof(dev_str), "%s rwm", dev_str_part);
+		ret = cg_env_set_devices(h->ctid, "devices.deny", dev_str);
+	}
 	if (ret || deny)
 		return ret;
 
