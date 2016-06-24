@@ -1190,6 +1190,7 @@ static int env_dump(struct vzctl_env_handle *h, int cmd,
 		.pseudosuper_fd = -1,
 	};
 
+	logger(0, 0, "Dumping CT to %s", param->dumpfile);
 	if (pipe(status_p))
 		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
 

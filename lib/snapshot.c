@@ -50,6 +50,7 @@
 #include "snapshot.h"
 #include "config.h"
 #include "disk.h"
+#include "env_ops.h"
 
 #define GET_SNAPSHOT_XML_TMP(buf, ve_private) \
 	snprintf(buf, sizeof(buf), "%s/" SNAPSHOT_XML ".tmp", ve_private);
@@ -364,7 +365,7 @@ int vzctl2_env_create_snapshot(struct vzctl_env_handle *h,
 					sizeof(fname));
 			cpt.dumpfile = fname;
 
-			if (vzctl2_env_chkpnt(h, VZCTL_CMD_DUMP, &cpt, 0)) {
+			if (get_env_ops()->env_chkpnt(h, VZCTL_CMD_DUMP, &cpt, 0)) {
 				logger(-1, 0, "Failed to dump Container");
 				goto err2;
 			}
@@ -396,7 +397,7 @@ int vzctl2_env_create_snapshot(struct vzctl_env_handle *h,
 
 err2:
 	if (run) {
-		if (vzctl2_env_chkpnt(h, VZCTL_CMD_RESUME, &cpt, 1))
+		if (get_env_ops()->env_chkpnt(h, VZCTL_CMD_RESUME, &cpt, 1))
 			vzctl_err(-1, 0, "Failed to resume Container");
 	}
 
