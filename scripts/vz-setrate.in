@@ -585,7 +585,7 @@ vzcreate_root_class()
 {
 	local dev="$1"
 	local class="$2"
-	local maxburst total_band class_hex configured
+	local maxburst total_band class_hex configured action
 
 	total_band=`vzget_dev_band "${dev}" "${class}" ${TOTALRATE}`
 	[ -z "${total_band}" ] && vzerror "Device ${dev} not found in TOTALRATE"
@@ -604,11 +604,13 @@ vzcreate_root_class()
 		vzrun_tc $TC_CMD qdisc add dev ${dev} root handle 1: htb
 	fi
 	configured=`${TC_CMD} class show dev ${dev} classid 1:${class_hex}`
-	if [ -z "${configured}" ]; then
-		vzrun_tc ${TC_CMD} class add dev ${dev} parent 1: \
-			classid 1:${class_hex} htb \
-			rate ${total_band}Kbit ${PRIO} ${maxburst} ${total_mpu}
+	action=add
+	[ -n "${configured}" ] && action=replace
+	vzrun_tc ${TC_CMD} class $action dev ${dev} parent 1: \
+		classid 1:${class_hex} htb \
+		rate ${total_band}Kbit ${PRIO} ${maxburst} ${total_mpu}
 
+	if [ -z "${configured}" ]; then
 		vzrun_tc ${TC_CMD} qdisc add dev ${dev} parent 1:${class_hex} \
 			handle ${class_hex}: htb
 	fi
@@ -680,7 +682,9 @@ vzcreate_qdisc()
 	local found;
 	local maxburst;
 
-	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return;
+	eval $(. /etc/vz/vz.conf && echo TRAFFIC_SHAPING=\"$TRAFFIC_SHAPING\" \
+			BANDWIDTH=\"$BANDWIDTH\" TOTALRATE=\"$TOTALRATE\" )
+	[ "X$TRAFFIC_SHAPING" != "Xyes" ] && return;
 
 	vzcheck_TOTALRATE
 
