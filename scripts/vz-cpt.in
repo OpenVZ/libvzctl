@@ -88,6 +88,8 @@ fi
 
 mkdir -p $dumpdir &&
 cg_dump_props $dumpdir &&
+
+CRIU_LOGLEVEL=4
 criu dump -v$CRIU_LOGLEVEL -o dump.log				\
 		--file-locks				\
 		--tcp-established			\

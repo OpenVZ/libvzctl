@@ -105,6 +105,7 @@ for script in $spfs_scripts; do
 	[ -f "$script" ] && spfs_actions=$spfs_actions"--action-script $script "
 done
 
+CRIU_LOGLEVEL=4
 criu restore -v$CRIU_LOGLEVEL				\
 		--file-locks				\
 		--tcp-established			\
