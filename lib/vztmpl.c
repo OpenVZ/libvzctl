@@ -127,8 +127,9 @@ int vztmpl_get_osrelease(const char *ostmpl, char *out, int len)
 	int ret;
 	char *arg[] = {VZPKG, "info", "-q", (char *)ostmpl, "osrelease", NULL};
 
+	out[0] = '\0';
 	ret = get_last_line(arg, out, len);
-	if (ret)
+	if (ret && ret != 24 /* Template was not found */)
 		return vzctl_err(VZCTL_E_GET_OSRELEASE, errno, "Failed to get osrelease for %s",
 				ostmpl);
 	return 0;
