@@ -238,33 +238,6 @@ int env_pw_configure(struct vzctl_env_handle *h, const char *user,
 	return ret;
 }
 
-int setup_2quota_perm(struct vzctl_env_handle *h, const char *ve_root)
-{
-	struct stat st;
-	struct vzctl_dev_perm perm = {
-		.mask = S_IXGRP,
-		.type = S_IFBLK | VE_USE_MINOR,
-	};
-
-	if (stat(ve_root, &st))
-		return vzctl_err(VZCTL_E_SET_USER_QUOTA, errno,
-				"Failed to stat %s", ve_root);
-
-	perm.dev = st.st_dev;
-	/*
-	 * Give Container permissions to do quotactl
-	 * operations on its root.
-	 *
-	 * Permission on the root should not be in the
-	 * main device permission list since the device
-	 * is expected to be dynamically numbered
-	 * ("unnamed").  Mount script can do additional
-	 * work or override these permissions.
-	 *
-	 */
-	return get_env_ops()->env_set_devperm(h, &perm);
-}
-
 static int quotaon(void)
 {
 	int pid, ret;
@@ -373,10 +346,8 @@ static int env_quota_configure(struct vzctl_env_handle *h, unsigned long ugidlim
 
 int apply_quota_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags)
 {
-	int ret;
 	struct quota_param qparam = {.ve_layout = h->env_param->fs->layout};
 	unsigned long ugidlimit;
-	char *ve_root = h->env_param->fs->ve_root;
 
 	if (h->env_param->dq->enable == VZCTL_PARAM_OFF ||
 			env->dq->ugidlimit == NULL)
@@ -384,10 +355,6 @@ int apply_quota_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, i
 
 	ugidlimit = *env->dq->ugidlimit;
 	if (ugidlimit != 0) {
-		ret = setup_2quota_perm(h, ve_root);
-		if (ret)
-			return ret;
-
 		qparam.turnon =  1;
 		if (vzctl2_env_exec_fn2(h, (execFn) setup_env_quota,
 					(void *)&qparam, 0, VE_SKIPLOCK))
