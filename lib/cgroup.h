@@ -41,6 +41,7 @@
 
 struct vzctl_env_handle;
 
+const char *cg_get_slice_name(void);
 int cg_get_path(const char *ctid, const char *subsys, const char *name,
 		char *out, int size);
 int write_data(const char *path, const char *data);

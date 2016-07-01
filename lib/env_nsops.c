@@ -470,7 +470,7 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 
 	/* Bind beancounter with blkio/memory cgroups */
 	for (i = 0; i < sizeof(bc)/sizeof(bc[0]); i++) {
-		snprintf(buf, sizeof(buf), "/machine.slice/%s", EID(h));
+		snprintf(buf, sizeof(buf), "/%s/%s", cg_get_slice_name(), EID(h));
 		ret = cg_set_param(EID(h), CG_UB, bc[i], buf);
 		if (ret)
 			return ret;

@@ -225,17 +225,22 @@ static int cg_read(const char *path, char *out, int size)
 	return 0;
 }
 
+const char *cg_get_slice_name(void)
+{
+	return "machine.slice";
+}
+
 static void get_cgroup_name(const char *ctid, struct cg_ctl *ctl,
 		char *out, int size)
 {
 	if (cg_is_systemd(ctl->subsys))
 		snprintf(out, size, "%s/"SYSTEMD_CTID_SCOPE_FMT,
 				ctl->mount_path, ctid);
+	else if (ctl->is_prvt)
+		snprintf(out, size, "%s/%s", ctl->mount_path, ctid);
 	else
-		snprintf(out, size, "%s/%s%s",
-				ctl->mount_path,
-				ctl->is_prvt ? "" : "machine.slice/",
-				ctid);
+		snprintf(out, size, "%s/%s/%s",
+				ctl->mount_path, cg_get_slice_name(), ctid);
 }
 
 int cg_get_path(const char *ctid, const char *subsys, const char *name,
