@@ -227,7 +227,16 @@ static int cg_read(const char *path, char *out, int size)
 
 const char *cg_get_slice_name(void)
 {
-	return "machine.slice";
+	static int inited = 0;
+	static char slice[64];
+
+	if (!inited) {
+		if (get_global_param("VE_CGROUP_SLICE", slice, sizeof(slice)))
+			strcat(slice, "machine.slice");
+		inited = 1;
+	}
+
+	return slice;
 }
 
 static void get_cgroup_name(const char *ctid, struct cg_ctl *ctl,
