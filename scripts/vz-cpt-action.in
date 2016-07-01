@@ -36,8 +36,16 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 		echo "Missing parameter CRTOOLS_IMAGE_DIR"
 		exit 1
 	fi
-	[ -n "$VEID" ] && { cgexec -g ve:$VEID cat /proc/sys/kernel/core_pattern > \
-		$CRTOOLS_IMAGE_DIR/vz_core_pattern.img || { echo "Failed to dump core_pattern"; exit 1; } }
+	if [ -n "$VEID" ]; then
+		cgexec -g ve:$VEID cat /proc/sys/kernel/core_pattern > \
+			$CRTOOLS_IMAGE_DIR/vz_core_pattern.img || { echo "Failed to dump core_pattern"; exit 1; }
+		cgexec -g ve:$VEID cat /proc/sys/fs/fsync-enable > \
+			$CRTOOLS_IMAGE_DIR/vz_fsync-enable.img || { echo "Failed to dump fsync-enable"; exit 1; }
+		cgexec -g ve:$VEID cat /proc/sys/fs/odirect_enable > \
+			$CRTOOLS_IMAGE_DIR/vz_odirect_enable.img || { echo "Failed to dump odirect_enable"; exit 1; }
+		cgexec -g ve:$VEID cat /proc/sys/kernel/randomize_va_space > \
+			$CRTOOLS_IMAGE_DIR/vz_randomize_va_space.img || { echo "Failed to dump randomize_va_space"; exit 1; }
+	fi
 	ret=0
 	[ -n "$STATUSFD" ] && printf '\0\0\0\0' >&${STATUSFD}
 	[ -n "$WAITFD" ] && ret=$(cat <&$WAITFD | hexdump -e '"%d"' -n 4)

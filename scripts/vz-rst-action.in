@@ -100,9 +100,19 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 		echo "Missing parameter CRTOOLS_IMAGE_DIR"
 		exit 1
 	fi
-	if [ -f "$CRTOOLS_IMAGE_DIR/vz_core_pattern.img" ]; then
-		[ -n "$VEID" ] && { cgexec -g ve:$VEID echo `cat $CRTOOLS_IMAGE_DIR/vz_core_pattern.img` \
-			> /proc/sys/kernel/core_pattern || { echo "Failed to restore core_pattern"; exit 1; } }
+	if [ -n "$VEID" ]; then
+		[ -f "$CRTOOLS_IMAGE_DIR/vz_core_pattern.img" ] && \
+			{ cgexec -g ve:$VEID echo `cat $CRTOOLS_IMAGE_DIR/vz_core_pattern.img` \
+			 > /proc/sys/kernel/core_pattern || { echo "Failed to restore core_pattern"; exit 1; } }
+		[ -f "$CRTOOLS_IMAGE_DIR/vz_fsync-enable.img" ] && \
+			{ cgexec -g ve:$VEID echo `cat $CRTOOLS_IMAGE_DIR/vz_fsync-enable.img` \
+			 > /proc/sys/fs/fsync-enable || { echo "Failed to restore fsync-enable"; exit 1; } }
+		[ -f "$CRTOOLS_IMAGE_DIR/vz_odirect_enable.img" ] && \
+			{ cgexec -g ve:$VEID echo `cat $CRTOOLS_IMAGE_DIR/vz_odirect_enable.img` \
+			 > /proc/sys/fs/odirect_enable || { echo "Failed to restore odirect_enable"; exit 1; } }
+		[ -f "$CRTOOLS_IMAGE_DIR/vz_randomize_va_space.img" ] && \
+			{ cgexec -g ve:$VEID echo `cat $CRTOOLS_IMAGE_DIR/vz_randomize_va_space.img` \
+			 > /proc/sys/kernel/randomize_va_space || { echo "Failed to restore randomize_va_space"; exit 1; } }
 	fi
 	[ -n "$VEID" ] && { cgset -r ve.pseudosuper="0" $VEID || { echo "Failed to drop pseudosuper on $VEID"; exit 1; } }
 	;;
