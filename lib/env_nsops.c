@@ -516,18 +516,15 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 	list_for_each(d, &h->env_param->disk->disks, list) {
 		if (d->enabled == VZCTL_PARAM_OFF)
 			continue;
-		/* set permission for device and first partition */
-		for (i = 0; i < 2; i++) {
-			if (i > 0 && !is_root_disk(d)) {
-				ret = configure_mount_opts(h, d, d->dev + i);
-				if (ret)
-					return ret;
-			}
-
-			ret = configure_disk_perm(h, d, d->dev + i, 0);
+		if (!is_root_disk(d)) {
+			ret = configure_mount_opts(h, d, d->part_dev);
 			if (ret)
 				return ret;
 		}
+
+		ret = configure_disk_perm(h, d, 0);
+		if (ret)
+			return ret;
 	}
 
 	return setup_env_cgroup(h, h->env_param);

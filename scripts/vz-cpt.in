@@ -48,7 +48,6 @@ for s in $VE_PLOOP_DEVS; do
 
 	[ "$root" = "root" ] && continue
 
-	minor=$((minor+1))
 	external="$external --external dev[$major/$minor]:$uuid"
 done
 

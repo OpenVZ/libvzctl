@@ -41,11 +41,11 @@
 #include "vcmm.h"
 #include "vzerror.h"
 #include "logger.h"
+#include "disk.h"
 
 static int create_ploop_dev_map(struct vzctl_env_handle *h, pid_t pid)
 {
 	int ret;
-	char devname[STR_SIZE];
 	char path[PATH_MAX];
 	struct vzctl_disk *d;
 
@@ -53,18 +53,20 @@ static int create_ploop_dev_map(struct vzctl_env_handle *h, pid_t pid)
 		if (d->enabled == VZCTL_PARAM_OFF)
 			continue;
 
-		ret = vzctl2_get_ploop_dev(d->path, devname, sizeof(devname));
-		if (ret)
-			return ret;
+		if (d-> dev == 0) {
+			ret = update_disk_info(d);
+			if (ret)
+				return ret;
+		}
 
 		snprintf(path, sizeof(path), "/proc/%d/root/dev/%s",
 				(int)pid, d->uuid);
 		unlink(path);
-		logger(5, 0, "create device map %s -> %s", d->uuid, devname);
-		if (symlink(devname, path))
+		logger(5, 0, "create device map %s -> %s", d->uuid, d->partname);
+		if (symlink(d->partname, path))
 			return vzctl_err(VZCTL_E_SYSTEM, errno,
-					"Failed to creaet symlink %s -> %s",
-					path, devname);
+					"Failed to create symlink %s -> %s",
+					path, d->partname);
 	}
 
 	return 0;
@@ -72,12 +74,8 @@ static int create_ploop_dev_map(struct vzctl_env_handle *h, pid_t pid)
 
 static int make_ploop_dev_args(struct vzctl_env_handle *h, char *out, int size)
 {
-	int ret;
 	char *ep, *pbuf = out;
-	char devname[STR_SIZE];
 	struct vzctl_disk *d;
-	struct stat st;
-	dev_t dev;
 
 	ep = pbuf + size;
 	pbuf += snprintf(pbuf, size, "VE_PLOOP_DEVS=");
@@ -85,23 +83,11 @@ static int make_ploop_dev_args(struct vzctl_env_handle *h, char *out, int size)
 		if (d->enabled == VZCTL_PARAM_OFF)
 			continue;
 
-		dev = d->dev;
-		if (dev == 0) {
-			ret = vzctl2_get_ploop_dev(d->path, devname, sizeof(devname));
-			if (ret)
-				return ret;
-
-			if (stat(devname, &st))
-				return vzctl_err(VZCTL_E_SYSTEM, errno, "Can't stat %s",
-						devname);
-			dev = st.st_rdev;
-		}
-
-		pbuf += snprintf(pbuf, ep - pbuf, "%s@ploop%d:%d:%d:%s\n",
+		pbuf += snprintf(pbuf, ep - pbuf, "%s@%sd:%d:%d:%s\n",
 				d->uuid,
-				gnu_dev_minor(dev) >> 4,
-				gnu_dev_major(dev),
-				gnu_dev_minor(dev),
+				get_devname(d->partname),
+				gnu_dev_major(d->part_dev),
+				gnu_dev_minor(d->part_dev),
 				is_root_disk(d) ? "root" : "");
 		if (pbuf > ep)
 			return vzctl_err(VZCTL_E_INVAL, 0, "make_ploop_dev_args: buffer overflow");

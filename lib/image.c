@@ -357,6 +357,28 @@ int vzctl2_get_ploop_dev(const char *path, char *dev, int len)
 	return ret;
 }
 
+int get_ploop_dev(const char *path, char *dev, int d_len, char *part, int p_len)
+{
+	struct ploop_disk_images_data *di;
+	int ret;
+
+	if (path == NULL)
+		return vzctl_err(-1, 0, "Failed to get ploop device: "
+				"the image path is not specified");
+
+	if (open_dd(path, &di))
+		return -1;
+
+	ret = ploop_get_partdev(di, dev, d_len, part, p_len);
+	if (ret)
+		ret = vzctl_err(VZCTL_E_SYSTEM, 0, "ploop_get_dev path=%s: %s",
+				path, ploop_get_last_error());
+
+	ploop_close_dd(di);
+
+	return ret;
+}
+
 int vzctl2_get_ploop_devs(const char *path, char **out[])
 {
 	struct ploop_disk_images_data *di;
