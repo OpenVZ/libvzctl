@@ -105,15 +105,23 @@ int get_sysfs_device_path(const char *class, const char *devname, char *out,
 	int n;
 	char x[STR_SIZE];
 	char buf[PATH_MAX];
+	const char *p = buf;
 
 	snprintf(x, sizeof(x), "/sys/class/%s/%s", class, devname);
 
 	n = readlink(x, buf, sizeof(buf) -1);
 	if (n == -1)
 		return vzctl_err(VZCTL_E_SYSTEM, errno, "Failed to read %s", x);
-	buf[n] = '\0';
+	buf[n-1] = '\0';
 
-	snprintf(out, size, "%s", buf + sizeof("../../") - 1);
+	p += 6;
+	n = strlen(p) - strlen(devname) + 1;
+
+	if (n < 0 || n > size)
+		return vzctl_err(VZCTL_E_INVAL, 0,
+			"get_sysfs_device_path: incorrect value %s", buf);
+
+	snprintf(out, n, "%s", p);
 
 	return 0;
 }

@@ -48,7 +48,7 @@ for s in $VE_PLOOP_DEVS; do
 
 	[ "$root" = "root" ] && continue
 
-	external="$external --external dev[$uuid]:/dev/${device}"
+	external="$external --external dev[$uuid]:/dev/${device}p1"
 done
 
 ext_mount_map=
