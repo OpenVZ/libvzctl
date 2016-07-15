@@ -76,6 +76,8 @@ function cg_dump_props {
 		cgget -n -v -r ve.features $VEID > $1/vz_features.img
 		# AIO statistics
 		cgget -n -v -r ve.aio_max_nr $VEID > $1/vz_aio_max_nr.img
+		# Maximum pid in VE
+		cgget -n -v -r ve.pid_max $VEID > $1/vz_pid_max.img
 	fi
 	return 0
 }

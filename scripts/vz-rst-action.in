@@ -86,6 +86,7 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 	restore_devices
 	if [ -n "$VEID" ]; then
 		[ -n "$VE_OS_RELEASE" ] && cgset -r ve.os_release="$VE_OS_RELEASE" $VEID
+		[ -n "$VE_PID_MAX" ] && cgset -r ve.pid_max="$VE_PID_MAX" $VEID
 	fi
 	;;
 "network-unlock")
