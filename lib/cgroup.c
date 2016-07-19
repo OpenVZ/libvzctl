@@ -935,6 +935,39 @@ static int create_perctl_symlink(const char *root, const char *path)
 	return ret;
 }
 
+static int get_cgroups(list_head_t *head)
+{
+       int ret = 0;
+       FILE *fp;
+       char buf[STR_SIZE];
+
+       fp = fopen("/proc/cgroups", "r");
+       if (fp == NULL)
+               return vzctl_err(VZCTL_E_SYSTEM, errno,
+                               "Unable to open /proc/cgroups");
+
+       while (fgets(buf, sizeof(buf), fp)) {
+               if (sscanf(buf, "%s", buf) != 1)
+                       continue;
+
+               if (buf[0] == '#')
+                       continue;
+
+		printf("****** %s\n", buf);
+
+               if (add_str_param(head, buf) == NULL) {
+                       ret = VZCTL_E_NOMEM;
+                       break;
+               }
+       }
+       fclose(fp);
+
+       if (ret)
+               free_str(head);
+
+       return ret;
+}
+
 static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t *head)
 {
 	int ret = 0, i;
@@ -944,6 +977,7 @@ static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t *head)
 	const char *mnt;
 	struct cg_ctl *ctl;
 	int flags;
+	LIST_HEAD(cgroups);
 
 	snprintf(s, sizeof(s), "%s/sys", ve_root);
 	if (access(s, F_OK) && make_dir(s, 1))
@@ -961,13 +995,19 @@ static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t *head)
 		return vzctl_err(VZCTL_E_RESOURCE, errno,
 				"Can't pre-mount tmpfs in %s", s);
 
+	ret = get_cgroups(&cgroups);
+	if (ret)
+		return ret;
+
 	for (i = 0; i < sizeof(cg_ctl_map)/sizeof(cg_ctl_map[0]); i++) {
 		ret = cg_get_ctl(cg_ctl_map[i].subsys, &ctl);
 		if (ret == -1)
 			goto err;
 		if (ctl->is_prvt)
 			continue;
-
+		if (!cg_is_systemd(ctl->subsys) &&
+				find_str(&cgroups, ctl->subsys) == NULL)
+			continue;
 		if (find_str(head, ctl->mount_path) != NULL)
 			continue;
 
@@ -989,7 +1029,7 @@ static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t *head)
 		flags = MS_BIND;
 		if (!cg_is_systemd(ctl->subsys))
 			flags |= MS_PRIVATE;
-		
+
 		ret = do_bindmount(s, d, flags);
 		if (ret)
 			goto err;
@@ -1012,6 +1052,8 @@ err:
 		snprintf(s, sizeof(s), "%s/sys", ve_root);
 		umount(s);
 	}
+
+	free_str(&cgroups);
 
 	return ret;
 }
