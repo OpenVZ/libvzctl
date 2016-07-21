@@ -1170,6 +1170,10 @@ static int del_disk(struct vzctl_env_handle *h, struct vzctl_disk *d)
 		if (d->mnt != NULL)
 			vzctl2_env_exec_fn2(h, env_umount, d->mnt, 0, 0);
 
+		ret = configure_disk_perm(h, d, st.st_rdev, 1);
+		if (ret)
+			return ret;
+
 		ret = configure_disk_perm(h, d, st.st_rdev + 1, 1);
 		if (ret)
 			return ret;
