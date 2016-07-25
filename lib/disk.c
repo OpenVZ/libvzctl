@@ -1139,7 +1139,13 @@ static void remove_empty_bundle(struct vzctl_env_handle *h, const char *path)
 
 static int env_umount(void *data)
 {
-	return umount((const char *)data);
+	char mnt[PATH_MAX];
+
+	if (get_mnt_by_dev((const char *)data, mnt, sizeof(mnt)) == 0) {
+		if (umount(mnt))
+			return vzctl_err(-1, errno, "Failed to umount %s", mnt);
+	}
+	return 0;
 }
 
 static int del_disk(struct vzctl_env_handle *h, struct vzctl_disk *d)
@@ -1167,8 +1173,8 @@ static int del_disk(struct vzctl_env_handle *h, struct vzctl_disk *d)
 				dev);
 
 	if (is_env_run(h)) {
-		if (d->mnt != NULL)
-			vzctl2_env_exec_fn2(h, env_umount, d->mnt, 0, 0);
+		if (vzctl2_env_exec_fn2(h, env_umount, dev, 0, 0))
+			vzctl_err(-1, 0, "Failed to unmount %s", dev);
 
 		ret = configure_disk_perm(h, d, st.st_rdev, 1);
 		if (ret)
