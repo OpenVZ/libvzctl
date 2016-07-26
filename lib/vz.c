@@ -1009,9 +1009,8 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 		goto err;
 
 	/* restore CT name */
-	if (vzctl2_env_get_param(h, "NAME", &name) == 0 &&
-			name != NULL && *name != '\0')
-	{
+	name = param->name ?: h->env_param->name->name;
+	if (name != NULL && *name != '\0') {
 		ctid_t t;
 		char x[PATH_MAX];
 		const char *new_name = name;
@@ -1020,11 +1019,20 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 		vzctl2_env_get_param(h, "VEID", &veid);
 
 		if (vzctl2_get_envid_by_name(name, t) == 0 &&
-				CMP_CTID(t, veid))
+				veid != NULL && CMP_CTID(t, veid))
 		{
 			logger(-1, 0, "Name %s is in use by CT %s", name, t);
 			new_name = gen_uniq_name(name, x, sizeof(x));
-			vzctl2_env_set_param(h, "NAME", new_name);
+		}
+
+		vzctl2_env_set_param(h, "NAME", new_name);
+		if (h->env_param->name->name) {
+			struct stat st_n;
+
+			snprintf(buf, sizeof(buf), ENV_NAME_DIR "%s",
+					h->env_param->name->name);
+			if (stat(buf, &st_n) == 0 && st.st_dev == st_n.st_dev)
+				unlink(buf);
 		}
 
 		logger(0, 0, "Assign the name: %s", new_name);

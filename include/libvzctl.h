@@ -393,6 +393,7 @@ struct vzctl_switch_snapshot_param {
 struct vzctl_reg_param {
 	ctid_t ctid;
 	const char *uuid;
+	const char *name;
 	int dummy[32];
 };
 
