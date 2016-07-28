@@ -351,7 +351,7 @@ int vz_env_chkpnt(struct vzctl_env_handle *h, int cmd, struct vzctl_cpt_param *p
 	}
 	if (cmd == VZCTL_CMD_CHKPNT || cmd == VZCTL_CMD_FREEZE) {
 		/* Deny to enter on SUSPEND stage */
-		lfd = vzctl2_get_enter_lock(h, VZCTL_LOCK_EX);
+		lfd = get_enter_lock(h);
 		if (lfd < 0)
 			goto err;
 	}
@@ -430,8 +430,7 @@ err:
 		unlink(dumpfile);
 	if (cpt_fd != -1)
 		close(cpt_fd);
-	if (lfd >= 0)
-		vzctl2_release_enter_lock(lfd);
+	release_enter_lock(lfd);
 
 	free_ip(&ip);
 

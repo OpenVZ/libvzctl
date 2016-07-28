@@ -36,8 +36,9 @@ extern "C" {
 int vzctl_lock(const char *lockfile, int mode, unsigned int timeout);
 void vzctl_unlock(int fd, const char *lockfile);
 
-int vzctl2_get_enter_lock(struct vzctl_env_handle *h, int mode);
-void vzctl2_release_enter_lock(int lockfd);
+int get_enter_lock(struct vzctl_env_handle *h);
+void release_enter_lock(int lockfd);
+int is_enter_locked(struct vzctl_env_handle *h);
 int vzctl_env_conf_lock(struct vzctl_env_handle *h, int mode);
 int vzctl_env_conf_unlock(int fd);
 const char *get_dir_lock_file(const char *dir, char *buf, int size);

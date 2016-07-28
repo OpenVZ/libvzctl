@@ -51,6 +51,7 @@
 #include "config.h"
 #include "disk.h"
 #include "env_ops.h"
+#include "lock.h"
 
 #define GET_SNAPSHOT_XML_TMP(buf, ve_private) \
 	snprintf(buf, sizeof(buf), "%s/" SNAPSHOT_XML ".tmp", ve_private);
@@ -300,7 +301,7 @@ static int copy_snapshot_config(struct vzctl_env_handle *h, const char *from, co
 int vzctl2_env_create_snapshot(struct vzctl_env_handle *h,
 		struct vzctl_snapshot_param *param)
 {
-	int ret, run = 0;
+	int ret, run = 0, lfd = -1;
 	char guid[39];
 	char fname[MAXPATHLEN];
 	char tmp[MAXPATHLEN] = "";
@@ -356,6 +357,7 @@ int vzctl2_env_create_snapshot(struct vzctl_env_handle *h,
 
 	/* store dump & continue */
 	if (run) {
+		lfd = get_enter_lock(h);
 		ret = vzctl2_env_chkpnt(h, VZCTL_CMD_FREEZE, &cpt, 0);
 		if (ret)
 			goto err1;
@@ -382,6 +384,8 @@ int vzctl2_env_create_snapshot(struct vzctl_env_handle *h,
 		if (vzctl2_env_chkpnt(h, VZCTL_CMD_RESUME, &cpt, 0))
 			ret = vzctl_err(VZCTL_E_CREATE_SNAPSHOT, 0,
 					"Failed to resume Container");
+
+		release_enter_lock(lfd);
 	}
 
 	// move snapshot.xml to its place
@@ -399,6 +403,8 @@ err2:
 	if (run) {
 		if (get_env_ops()->env_chkpnt(h, VZCTL_CMD_RESUME, &cpt, 1))
 			vzctl_err(-1, 0, "Failed to resume Container");
+
+		release_enter_lock(lfd);
 	}
 
 err1:
@@ -475,7 +481,7 @@ static int restore_env_config(struct vzctl_env_handle *h, const char *guid,
 int vzctl2_env_switch_snapshot(struct vzctl_env_handle *h,
 		struct vzctl_switch_snapshot_param *param)
 {
-	int ret, run;
+	int ret, run, lfd = -1;;
 	char fname[MAXPATHLEN];
 	char snap_xml_tmp[MAXPATHLEN];
 	char ve_conf_tmp[MAXPATHLEN] = "";
@@ -543,6 +549,7 @@ int vzctl2_env_switch_snapshot(struct vzctl_env_handle *h,
 
 	/* freeze */
 	if (run) {
+		lfd = get_enter_lock(h);
 		ret = vzctl2_env_chkpnt(h, VZCTL_CMD_FREEZE, &cpt, 0);
 		if (ret)
 			goto err1;
@@ -590,6 +597,7 @@ int vzctl2_env_switch_snapshot(struct vzctl_env_handle *h,
 		vzctl2_delete_snapshot(h_env_snap, guid_tmp);
 
 	vzctl2_env_close(h_env_snap);
+	release_enter_lock(lfd);
 	logger(0, 0, "Container has been successfully switched "
 			"to %s snapshot", guid);
 
@@ -616,6 +624,7 @@ err1:
 	unlink(ve_conf_tmp);
 
 err:
+	release_enter_lock(lfd);
 	logger(-1, 0, "Failed to switch to snapshot %s", guid);
 	vzctl_free_snapshot_tree(tree);
 

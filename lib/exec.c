@@ -551,7 +551,7 @@ static int do_env_exec(struct vzctl_env_handle *h, exec_mode_e exec_mode,
 		execFn fn, void *data, int *data_fd, int timeout,
 		int flags, int stdfd[3])
 {
-	int ret, lfd;
+	int ret;
 	pid_t pid;
 	struct vzctl_cleanup_hook *hook;
 	struct exec_param param = {
@@ -570,8 +570,7 @@ static int do_env_exec(struct vzctl_env_handle *h, exec_mode_e exec_mode,
 		.timeout = timeout,
 	};
 
-	lfd = vzctl2_get_enter_lock(h, VZCTL_LOCK_SH);
-	if (lfd < 0)
+	if (is_enter_locked(h))
 		return VZCTL_E_LOCK;
 
 	ret = real_env_exec_init(&param);
@@ -588,7 +587,6 @@ static int do_env_exec(struct vzctl_env_handle *h, exec_mode_e exec_mode,
 	unregister_cleanup_hook(hook);
 err:
 	real_env_exec_close(&param);
-	vzctl2_release_enter_lock(lfd);
 
 	return ret;
 }
@@ -758,7 +756,7 @@ static int env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
 	int st[2] = {-1, -1};
 	int info[2] = {-1, -1};
 	struct sigaction act = {};
-	int i, lfd;
+	int i;
 	int fd_flags[2];
 
 	for (i = 0; i < 2; i++) {
@@ -768,8 +766,7 @@ static int env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
 					"Unable to get fd%d flags", i);
 	}
 
-	lfd = vzctl2_get_enter_lock(h, VZCTL_LOCK_SH);
-	if (lfd < 0)
+	if (is_enter_locked(h))
 		return VZCTL_E_LOCK;
 
 	if (pipe(in) < 0 || pipe(out) < 0 || pipe(st) < 0 || pipe(info) < 0) {
@@ -896,8 +893,6 @@ err:
 		raw_off();
 out:
 
-	vzctl2_release_enter_lock(lfd);
-
 	for (i = 0; i < 2; i++)
 		fcntl(i, F_SETFL, fd_flags[i]);
 
@@ -949,25 +944,21 @@ static int do_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 		int *data_fd, int timeout, int flags)
 {
 	pid_t pid;
-	int ret, lfd;
+	int ret;
 	struct vzctl_cleanup_hook *hook;
 
-	lfd = vzctl2_get_enter_lock(h, VZCTL_LOCK_SH);
-	if (lfd < 0)
+	if (is_enter_locked(h))
 		return VZCTL_E_LOCK;
 
 	ret = get_env_ops()->env_exec_fn(h, fn, data, data_fd, timeout, flags, &pid);
 	if (ret)
-		goto err;
+		return ret;;
 
 	hook = register_cleanup_hook(cleanup_kill_process, (void *) &pid);
 	ret = env_wait(pid, timeout, NULL);
 	unregister_cleanup_hook(hook);
 
-err:
-	vzctl2_release_enter_lock(lfd);
-
-	return ret;
+	return 0;
 }
 
 int vzctl2_env_exec_fn2(struct vzctl_env_handle *h, execFn fn, void *data,

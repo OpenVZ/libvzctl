@@ -1023,7 +1023,7 @@ err_pipe:
 int vzctl2_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 		struct vzctl_cpt_param *param, int flags)
 {
-	int ret;
+	int ret, lfd;
 
 	if (!is_env_run(h))
 		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
@@ -1032,6 +1032,8 @@ int vzctl2_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 		return vzctl2_cpt_cmd(h, VZCTL_CMD_CHKPNT, cmd, param, flags);
 
 	logger(0, 0, "Setting up checkpoint...");
+	/* Deny to enter on SUSPEND stage */
+	lfd = get_enter_lock(h);
 
 	if ((ret = get_env_ops()->env_chkpnt(h, cmd, param, flags)))
 		goto end;
@@ -1049,6 +1051,8 @@ end:
 		vzctl2_send_state_evt(EID(h), VZCTL_ENV_SUSPENDED);
 		logger(0, 0, "Checkpointing completed successfully");
 	}
+
+	release_enter_lock(lfd);
 
 	return ret;
 }

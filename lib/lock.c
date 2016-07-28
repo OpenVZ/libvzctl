@@ -427,7 +427,7 @@ void vzctl2_unlock(int fd, const char *lockfile)
 	}
 }
 
-int vzctl2_get_enter_lock(struct vzctl_env_handle *h, int mode)
+static int do_enter_lock(struct vzctl_env_handle *h, int mode)
 {
 	int fd;
 	char fname[PATH_MAX];
@@ -439,16 +439,37 @@ int vzctl2_get_enter_lock(struct vzctl_env_handle *h, int mode)
 		if (mkdir(VZCTL_ENTER_LOCK_DIR, 0755) && errno != EEXIST)
 			return vzctl_err(-1, errno, "failed to create "VZCTL_ENTER_LOCK_DIR);
 	}
-	fd = vzctl2_lock(get_enter_lock_fname(h, fname, sizeof(fname)), mode, VZCTL_ENTER_WAIT_TM);
+
+	get_enter_lock_fname(h, fname, sizeof(fname));
+	fd = vzctl2_lock(fname, mode, VZCTL_ENTER_WAIT_TM);
 	if (fd < 0)
 		logger(-1, 0, "Unable to lock ENTER operation");
+
 	return fd;
 }
 
-void vzctl2_release_enter_lock(int lockfd)
+void release_enter_lock(int lockfd)
 {
 	if (lockfd >= 0)
 		close(lockfd);
+}
+
+int get_enter_lock(struct vzctl_env_handle *h)
+{
+	return do_enter_lock(h, VZCTL_LOCK_EX);
+}
+
+int is_enter_locked(struct vzctl_env_handle *h)
+{
+	int fd;
+
+	fd = do_enter_lock(h, VZCTL_LOCK_SH | VZCTL_LOCK_NB);
+	if (fd < 0)
+		return 1;
+
+	release_enter_lock(fd);
+
+	return 0;
 }
 
 int vzctl_env_conf_lock(struct vzctl_env_handle *h, int mode)
