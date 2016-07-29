@@ -127,7 +127,9 @@ criu restore -v$CRIU_LOGLEVEL				\
 		$external
 
 if [ $? -eq 0 ]; then
-	echo Ok
+	mkdir -p ${VE_WORK_DIR}.restore
+	mv $VE_WORK_DIR/$VE_RESTORE_LOG_PATH ${VE_WORK_DIR}.restore
+	echo The log of successful restore was saved in ${VE_WORK_DIR}.restore/$VE_RESTORE_LOG_PATH
 else
 	echo The restore log was saved in $VE_WORK_DIR/$VE_RESTORE_LOG_PATH
 	exit 1
