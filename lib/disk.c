@@ -1402,6 +1402,9 @@ static int get_ploop_disk_stats(const struct vzctl_disk *disk, struct vzctl_disk
 	char buf[PATH_MAX];
 	struct ploop_info info;
 
+	if (disk->use_device)
+		return VZCTL_E_INVAL;
+
 	ret = vzctl2_get_ploop_dev(disk->path, dev, sizeof(dev));
 	if (ret == 0) {
 		ret = ploop_get_mnt_by_dev(dev, buf, sizeof(buf));
