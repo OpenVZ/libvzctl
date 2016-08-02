@@ -28,7 +28,7 @@ exec 1>&2
 restore_devices()
 {
 	local s d t major minor old dir device
-	local pid=$(cat $VE_PIDFILE)
+	local pid=$CRTOOLS_INIT_PID
 
 	root=/proc/$pid/root
 
@@ -70,7 +70,7 @@ fi
 set -e
 case "$CRTOOLS_SCRIPT_ACTION" in
 "setup-namespaces")
-	pid=$(cat $VE_PIDFILE)
+	pid=$CRTOOLS_INIT_PID
 	ln -s /proc/$pid/ns/net $VE_NETNS_FILE
 
 	if [ -n "$VEID" ]; then
