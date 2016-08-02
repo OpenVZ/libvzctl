@@ -89,6 +89,23 @@ fi
 mkdir -p $dumpdir &&
 cg_dump_props $dumpdir &&
 
+#
+# There might be a number of other controllers created
+# on the host system, so specify which ones are to
+# be checkpointed.
+cg_controllers="--cgroup-dump-controller hugetlb \
+ --cgroup-dump-controller perf_event \
+ --cgroup-dump-controller net_cls \
+ --cgroup-dump-controller freezer \
+ --cgroup-dump-controller ve \
+ --cgroup-dump-controller devices \
+ --cgroup-dump-controller name=systemd \
+ --cgroup-dump-controller cpuset \
+ --cgroup-dump-controller cpuacct,cpu \
+ --cgroup-dump-controller beancounter \
+ --cgroup-dump-controller memory \
+ --cgroup-dump-controller blkio"
+
 CRIU_LOGLEVEL=4
 criu dump -v$CRIU_LOGLEVEL -o dump.log				\
 		--file-locks				\
@@ -103,6 +120,7 @@ criu dump -v$CRIU_LOGLEVEL -o dump.log				\
 		--action-script $action_script		\
 		-t $VE_PID				\
 		-D $dumpdir				\
+		$cg_controllers				\
 		$nfs_actions				\
 		$ext_mount_map				\
 		$external				\
