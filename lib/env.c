@@ -655,7 +655,7 @@ static int setup_devtmpfs()
 
 	logger(10, 0, "Setup devtmpfs");
 
-	if (mount("none", "/dev", "devtmpfs", 0, NULL))
+	if (mount("none", "/dev", "devtmpfs", MS_NOSUID|MS_STRICTATIME, "mode=755"))
 		return vzctl_err(-1, errno, "Failed to mount devtmpfs");
 
 	mode_t m = umask(000);
