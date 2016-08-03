@@ -64,6 +64,7 @@ ONBOOT=yes
 IPADDR=127.0.0.1
 NETMASK=255.255.255.255
 BROADCAST=0.0.0.0
+NM_CONTROLLED=\"no\"
 ARPCHECK=\"no\"" > $IFCFG || error "Can't write to file $IFCFG" $VZ_FS_NO_DISK_SPACE
 
 	if_restart=yes
@@ -127,6 +128,7 @@ function create_config()
 ONBOOT=yes
 IPADDR=${ip}
 ARPCHECK=\"no\"
+NM_CONTROLLED=\"no\"
 NETMASK=${mask}" > $file || \
 	error "Can't write to file $file" ${VZ_FS_NO_DISK_SPACE}
 }

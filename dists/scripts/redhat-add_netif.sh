@@ -50,6 +50,7 @@ function create_config()
 	cfg="DEVICE=${dev}
 ONBOOT=yes
 BOOTPROTO=static
+NM_CONTROLLED=\"no\"
 IPADDR=\"$ip\""
 	if [ -n "${mask}" ]; then
 		cfg="$cfg
