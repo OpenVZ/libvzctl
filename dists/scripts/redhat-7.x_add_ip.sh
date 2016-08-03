@@ -68,6 +68,7 @@ ONBOOT=yes
 IPADDR=127.0.0.1
 NETMASK=255.255.255.0
 NETWORK=${FAKEGATEWAYNET}
+NM_CONTROLLED=\"no\"
 BROADCAST=0.0.0.0" > $IFCFG || error "Can't write to file $IFCFG" $VZ_FS_NO_DISK_SPACE
 
 	# Set /etc/sysconfig/network
