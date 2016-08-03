@@ -98,13 +98,6 @@ if [ -f "$autofs_actions_path" ]; then
 	autofs_actions="--action-script $autofs_actions_path"
 fi
 
-# SPFS actions
-spfs_scripts="/usr/libexec/criu/scripts/spfs-change-mode.sh		\
-		/usr/libexec/criu/scripts/spfs-release-replace.sh"
-for script in $spfs_scripts; do
-	[ -f "$script" ] && spfs_actions=$spfs_actions"--action-script $script "
-done
-
 CRIU_LOGLEVEL=4
 criu restore -v$CRIU_LOGLEVEL				\
 		--file-locks				\
@@ -122,7 +115,6 @@ criu restore -v$CRIU_LOGLEVEL				\
 		$cgroup_root				\
 		$ext_mount_map				\
 		$autofs_actions				\
-		$spfs_actions				\
 		$veth_args				\
 		$external
 
