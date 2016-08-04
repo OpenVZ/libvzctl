@@ -1412,8 +1412,12 @@ static int get_ploop_disk_stats(const struct vzctl_disk *disk, struct vzctl_disk
 			strncpy(stats->device, dev, sizeof(stats->device) - 1);
 			stats->device[sizeof(stats->device) - 1] = '\0';
 		}
-	}
-	if (ret != 0 && ret != 1)
+	} else if (ret == 1) {
+		/* Precache data is not ready, avoid mount ploop */
+		snprintf(buf, sizeof(buf), "%s/.statfs", disk->path);
+		if (access(buf, F_OK))
+			return VZCTL_E_INVAL;
+	} else
 		return VZCTL_E_SYSTEM;
 	get_dd_path(disk, buf, sizeof(buf));
 	ret = ploop_get_info_by_descr(buf, &info);
