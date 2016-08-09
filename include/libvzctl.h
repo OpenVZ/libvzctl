@@ -1080,6 +1080,7 @@ void vzctl2_unregister_running_state(const char *ve_private);
 int vzctl2_env_set_ve_private_path(vzctl_env_param_ptr env, const char *path);
 int vzctl2_env_set_ve_root_path(struct vzctl_env_param *env, const char *ve_root);
 int vzctl2_get_vzctlfd(void);
+int vzctl2_unescapestr_eq(char *src, char *dst, int size);
 /* Compatibiity: mount root disk snapshot */
 int vzctl2_mount_snapshot(struct vzctl_env_handle *h, struct vzctl_mount_param *param);
 int vzctl2_env_create_tsnapshot(struct vzctl_env_handle *h, const char *guid,

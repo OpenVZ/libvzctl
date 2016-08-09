@@ -178,7 +178,7 @@ const char *vzctl_get_str(int id, struct vzctl_idstr_pair *map)
 	return NULL;
 }
 
-int vzctl_unescapestr_eq(char *src, char *dst, int size)
+int vzctl2_unescapestr_eq(char *src, char *dst, int size)
 {
 	long val;
 	char *tail;
@@ -268,7 +268,7 @@ char *get_description(char *desc)
 	if (dst == NULL)
 		return NULL;
 
-	vzctl_unescapestr_eq(desc, dst, len);
+	vzctl2_unescapestr_eq(desc, dst, len);
 
 	return dst;
 }
