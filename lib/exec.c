@@ -947,7 +947,7 @@ static int do_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 	int ret;
 	struct vzctl_cleanup_hook *hook;
 
-	if (is_enter_locked(h))
+	if (!(flags & VE_SKIPLOCK) && is_enter_locked(h))
 		return VZCTL_E_LOCK;
 
 	ret = get_env_ops()->env_exec_fn(h, fn, data, data_fd, timeout, flags, &pid);
