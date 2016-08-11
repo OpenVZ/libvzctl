@@ -84,25 +84,27 @@ delif()
 if [ -n "$EXTERNAL_SCRIPT" -a -x "$EXTERNAL_SCRIPT" ]; then
         export VEID
         exec "$EXTERNAL_SCRIPT" $@
-fi
+else
 
-case "$1" in
-	addif)
-		if test $# -ne 3; then
-			usage
+	case "$1" in
+		addif)
+			if test $# -ne 3; then
+				usage
+				exit 1
+			fi
+
+			delif "$2"
+			addif "$2" "$3"
+		;;
+		delif)
+			delif "$2"
+		;;
+		*)
+			echo "invalid action"
 			exit 1
-		fi
+		;;
+	esac
 
-		delif "$2"
-		addif "$2" "$3"
-	;;
-	delif)
-		delif "$2"
-	;;
-	*)
-		echo "invalid action"
-		exit 1
-	;;
-esac
+fi
 
 exit 0
