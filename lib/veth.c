@@ -180,7 +180,7 @@ static void generate_mac(char **mac, int fix)
 
 	uuid_generate(u);
 
-	memcpy(&hash, u, sizeof(hash)); 
+	memcpy(&hash, u, sizeof(hash));
 	hash ^= hash << 3;
 	hash += hash >> 5;
 	hash ^= hash << 4;
@@ -239,6 +239,8 @@ static void fill_empty_veth_dev_param(ctid_t ctid, struct vzctl_veth_dev *dev)
 static int run_vznetcfg(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
 {
 	char fname[PATH_MAX];
+	char *env[2];
+	char buf[43];
 	char *arg[] = {
 		fname,
 		dev->network[0] == '\0' ? "delif" : "addif",
@@ -246,12 +248,16 @@ static int run_vznetcfg(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
 		dev->network,
 		NULL
 	};
-		
+
+	snprintf(buf, sizeof(buf), "VEID=%s", h->ctid);
+	env[0] = buf;
+	env[1] = NULL;
+
 	get_script_path("vznetcfg", fname, sizeof(fname));
 	if (access(fname, F_OK))
 		return 0;
 
-	if (vzctl2_wrap_exec_script(arg, NULL, 0))
+	if (vzctl2_wrap_exec_script(arg, env, 0))
 		return vzctl_err(VZCTL_E_VETH, 0, "%s exited with error",
 				fname);
 	return 0;
