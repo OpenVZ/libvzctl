@@ -239,8 +239,9 @@ static void fill_empty_veth_dev_param(ctid_t ctid, struct vzctl_veth_dev *dev)
 static int run_vznetcfg(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
 {
 	char fname[PATH_MAX];
-	char *env[2];
-	char buf[43];
+	char veid[sizeof(ctid_t) + sizeof("VEID=")];
+	char *env[2] = {veid, NULL};
+
 	char *arg[] = {
 		fname,
 		dev->network[0] == '\0' ? "delif" : "addif",
@@ -249,9 +250,8 @@ static int run_vznetcfg(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
 		NULL
 	};
 
-	snprintf(buf, sizeof(buf), "VEID=%s", h->ctid);
-	env[0] = buf;
-	env[1] = NULL;
+	snprintf(veid, sizeof(veid), "VEID=%s", h->ctid);
+	env[0] = veid;
 
 	get_script_path("vznetcfg", fname, sizeof(fname));
 	if (access(fname, F_OK))
