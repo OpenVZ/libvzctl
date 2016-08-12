@@ -760,6 +760,19 @@ void test_netstat()
 	vzctl2_env_close(h);
 }
 
+void test_set_limits()
+{
+	struct vzctl_env_handle *h = vzctl2_alloc_env_handle();
+
+	TEST()
+
+	vzctl2_env_set_iolimit(vzctl2_get_env_param(h), 10000);
+	vzctl2_env_set_iopslimit(vzctl2_get_env_param(h), 10000);
+
+	CHECK_RET(vzctl2_set_limits(h, 0))
+	CHECK_RET(vzctl2_set_limits(h, 1))
+}
+
 void test_vzctl()
 {
         int err;
@@ -767,6 +780,8 @@ void test_vzctl()
 	struct vzctl_env_param *env = vzctl2_alloc_env_param();
         struct vzctl_env_create_param param = {};
 	SET_CTID(param.ctid, ctid)
+
+	test_set_limits();
 
 	test_ctid();
 	test_misc();

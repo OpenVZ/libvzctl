@@ -464,7 +464,7 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 	};
 
 	logger(10, 0, "* init Container cgroup");
-	if (cg_set_veid(EID(h), h->veid) == -1)
+	if (h->veid && cg_set_veid(EID(h), h->veid) == -1)
 		return vzctl_err(VZCTL_E_RESOURCE, 0,
 				"Failed to set VEID=%u", h->veid);
 
@@ -1612,6 +1612,48 @@ static int ns_get_runtime_param(struct vzctl_env_handle *h, int flags)
 	}
 
 	return 0;
+}
+
+int vzctl2_set_limits(struct vzctl_env_handle *h, int release)
+{
+	int ret;
+
+	if (release) {
+		cg_set_ul("", CG_UB, "tasks", getpid());
+		return cg_destroy_cgroup(EID(h));
+	}
+
+	if (EMPTY_CTID(h->ctid))
+		vzctl2_generate_ctid(EID(h));
+
+	ret = create_cgroup(h, 0);
+	if (ret)
+		goto err;
+
+	if (h->env_param->io->limit != UINT_MAX ||
+			h->env_param->io->iopslimit != UINT_MAX) {
+		if (h->env_param->io->limit != UINT_MAX) {
+			ret = ns_set_iolimit(h, h->env_param->io->limit);
+			if (ret)
+				goto err;
+		}
+
+		if (h->env_param->io->iopslimit != UINT_MAX) {
+			ret = ns_set_iopslimit(h, h->env_param->io->iopslimit);
+			if (ret)
+				goto err;
+		}
+
+		ret = cg_set_ul(EID(h), CG_UB, "tasks", getpid());
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	cg_destroy_cgroup(EID(h));
+	return ret;
 }
 
 static struct vzctl_env_ops env_nsops = {
