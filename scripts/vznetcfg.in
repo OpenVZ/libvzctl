@@ -18,6 +18,9 @@
 #
 # Our contact details: Parallels IP Holdings GmbH, Vordergasse 59, 8200
 # Schaffhausen, Switzerland.
+VZNETCFG='/etc/vz/vznet.conf'
+
+[ -f "$VZNETCFG" ] && . "$VZNETCFG"
 
 usage()
 {
@@ -76,6 +79,12 @@ delif()
 		brctl show $br | grep -w $iface && brctl delif $br $iface
 	done
 }
+
+# Call the external script if defined
+if [ -n "$EXTERNAL_SCRIPT" -a -x "$EXTERNAL_SCRIPT" ]; then
+        export VEID
+        exec "$EXTERNAL_SCRIPT" $@
+fi
 
 case "$1" in
 	addif)
