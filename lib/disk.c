@@ -73,6 +73,9 @@ void free_disk(struct vzctl_disk *disk)
 	free(disk->mnt);
 	free(disk->mnt_opts);
 	free(disk->storage_url);
+	free(disk->devname);
+	free(disk->partname);
+	free(disk->dmname);
 	free(disk);
 }
 
@@ -556,9 +559,19 @@ static int get_real_device(const char *device, char *out, int size)
 	if (realpath(device, x) == NULL)
 		return vzctl_err(-1, errno, "Failed to get realpath %s", device);
 
-	snprintf(out, size, "%s", x);	
+	snprintf(out, size, "%s", x);
 
 	return 0;
+}
+
+const char *get_fs_partname(struct vzctl_disk *disk)
+{
+	return disk->dmname ? disk->dmname : disk->partname;
+}
+
+dev_t get_fs_partdev(struct vzctl_disk *disk)
+{
+	return disk->dmname ? disk->dm_dev : disk->part_dev;
 }
 
 static int get_part_device(const char *device, char *out, int size)
@@ -573,7 +586,6 @@ static int get_part_device(const char *device, char *out, int size)
 				devname, devname, sfx[i]);
 		if (access(x, F_OK) == 0) {
 			snprintf(out, size, "/dev/%s%s", devname, sfx[i]);
-			logger(10, 0, "* partname %s", out);
 			return 0;
 		}
 	}
@@ -656,9 +668,6 @@ int mount_disk_device(struct vzctl_env_handle *h, struct vzctl_disk *d, int flag
 	if (mount(part, param.target, "ext4", 0, NULL))
 		return vzctl_err(VZCTL_E_SYSTEM, errno,
 				"Failed to mount device %s", part);
-
-	d->dev = st.st_rdev;
-
 	return 0;
 }
 
@@ -667,7 +676,6 @@ int mount_disk_image(struct vzctl_env_handle *h, struct vzctl_disk *d, int flags
 	int ret;
 	char buf[PATH_MAX];
 	struct vzctl_mount_param param = {};
-	struct stat st;
 
 	ret = get_disk_mount_param(h, d, &param, flags, buf, sizeof(buf));
 	if (ret)
@@ -677,12 +685,63 @@ int mount_disk_image(struct vzctl_env_handle *h, struct vzctl_disk *d, int flags
 	if (ret)
 		return ret;
 
-	if (stat(param.device, &st))
-		return vzctl_err(VZCTL_E_SYSTEM, errno, "Cannot stat %s",
-				param.device);
+	return 0;
+}
 
-	d->dev = st.st_rdev;
+int update_disk_info(struct vzctl_disk *disk)
+{
+	char devname[STR_SIZE];
+	char partname[STR_SIZE];
+	int ret;
+	struct stat st;
 
+	if (disk->use_device) {
+		snprintf(devname, sizeof(devname), "%s", disk->path);
+		ret = get_part_device(devname, partname, sizeof(partname));
+		if (ret)
+			return ret;
+	} else {
+		char x[STR_SIZE];
+
+		ret = get_ploop_dev(disk->path, devname, sizeof(devname),
+					partname, sizeof(partname));
+		if (ret == -1)
+			return VZCTL_E_DISK_CONFIGURE;
+		else if (ret)
+			return 0;
+
+		ret = get_part_device(devname, x, sizeof(x));
+		if (ret)
+			return ret;
+
+		if (strcmp(partname, x)) {
+			if (stat(partname, &st))
+				return vzctl_err(VZCTL_E_SYSTEM, errno, "stat %s", partname);
+			disk->dm_dev = st.st_rdev;
+			free(disk->dmname);
+			disk->dmname = strdup(partname);
+			strcpy(partname, x);
+		}
+	}
+
+	ret = get_real_device(devname, devname, sizeof(devname));
+	if (ret)
+		return ret;
+
+	if (stat(devname, &st))
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "stat %s", devname);
+	disk->dev = st.st_rdev;
+	free(disk->devname);
+	disk->devname = strdup(devname);
+
+	if (stat(partname, &st))
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "stat %s", partname);
+	disk->part_dev = st.st_rdev;
+	free(disk->partname);
+	disk->partname = strdup(partname);
+
+	logger(5, 0, "Disk info dev=%s part=%s %s",
+			disk->devname, disk->partname, disk->dmname ?: "");
 	return 0;
 }
 
@@ -709,6 +768,9 @@ int vzctl2_mount_disk(struct vzctl_env_handle *h,
 				goto err;
 			}
 		}
+		ret = update_disk_info(disk);
+		if (ret)
+			goto err;
 	}
 
 	return 0;
@@ -810,12 +872,12 @@ int vzctl2_umount_disk(const struct vzctl_env_disk *env_disk)
 	return 0;
 }
 
-int configure_mount_opts(struct vzctl_env_handle *h, struct vzctl_disk *disk,
-		 dev_t dev)
+int configure_mount_opts(struct vzctl_env_handle *h, struct vzctl_disk *disk)
 {
 	int ret;
 	char buf[4096];
 	char mnt_opts[4096];
+	dev_t dev = get_fs_partdev(disk);
 
 	ret = get_mount_opts(disk->mnt_opts, disk->user_quota,
 			mnt_opts, sizeof(mnt_opts));
@@ -831,50 +893,77 @@ int configure_mount_opts(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 }
 
 int configure_disk_perm(struct vzctl_env_handle *h, struct vzctl_disk *disk,
-		dev_t dev, int del)
+		int del)
 {
+	int ret;
 	struct vzctl_dev_perm devperms = {
-		.dev = dev,
 		.mask = S_IROTH | (is_root_disk(disk) ? 0 : S_IXUSR),
 		.type = S_IFBLK | VE_USE_MINOR,
 	};
 
+	logger(0, 0, "Setting permissions for image=%s", disk->path);
 	if (del)
 		devperms.mask = 0;
 
-	logger(0, 0, "Setting permissions for image=%s", disk->path);
-	return get_env_ops()->env_set_devperm(h, &devperms);
+	devperms.dev = disk->dev;
+	ret = get_env_ops()->env_set_devperm(h, &devperms);
+	if (ret)
+		return ret;
+
+	devperms.dev = disk->part_dev;
+	ret = get_env_ops()->env_set_devperm(h, &devperms);
+	if (ret)
+		return ret;
+
+	if (disk->dmname != NULL) {
+		devperms.dev = disk->dm_dev;
+		ret = get_env_ops()->env_set_devperm(h, &devperms);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
-static int configure_sysfsperm(struct vzctl_env_handle *h, const char *device,
+static int configure_sysfsperm(struct vzctl_env_handle *h, struct vzctl_disk *d,
 		int del)
 {
 	char buf[STR_SIZE];
-	char part[STR_SIZE];
-	char sysfs[PATH_MAX];
+	char sys_dev[PATH_MAX];
+	char sys_part[PATH_MAX];
+	char sys_dm[PATH_MAX];
 	int ret;
-	const char *devname, *partname;
 
-	ret = get_part_device(device, part, sizeof(part));
+	ret = get_sysfs_device_path("block", get_devname(d->devname), sys_dev,
+			sizeof(sys_dev));
+	if (ret)
+		return ret;
+	ret = get_sysfs_device_path("block", get_devname(d->partname), sys_part,
+			sizeof(sys_part));
 	if (ret)
 		return ret;
 
-	devname = get_devname(device);
-	partname = get_devname(part);
-
-	ret = get_sysfs_device_path("block", devname, sysfs, sizeof(sysfs));
-	if (ret)
-		return ret;
+	if (d->dmname != NULL) {
+		ret = get_sysfs_device_path("block", get_devname(d->dmname), sys_dm,
+				sizeof(sys_dm));
+		if (ret)
+			return ret;
+	}
 
 	if (del) {
-		snprintf(buf, sizeof(buf), "%s/%s -", sysfs, devname);
+		snprintf(buf, sizeof(buf), "%s -", sys_dev);
 		if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
 			return VZCTL_E_DISK_CONFIGURE;
 
-		snprintf(buf, sizeof(buf), "%s/%s/%s -",
-				sysfs, devname, partname);
+		snprintf(buf, sizeof(buf), "%s -", sys_part);
 		if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
 			return VZCTL_E_DISK_CONFIGURE;
+
+		if (d->dmname) {
+			snprintf(buf, sizeof(buf), "%s -", sys_dm);
+			if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
+				return VZCTL_E_DISK_CONFIGURE;
+		}
 
 		return 0;
 	}
@@ -882,19 +971,27 @@ static int configure_sysfsperm(struct vzctl_env_handle *h, const char *device,
 	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", "block rx"))
 		return VZCTL_E_DISK_CONFIGURE;
 
-	if (add_sysfs_dir(h, sysfs, devname, "rx"))
+	if (add_sysfs_dir(h, sys_dev, NULL, "rx"))
 		return VZCTL_E_DISK_CONFIGURE;
 
-	snprintf(buf, sizeof(buf), "%s/%s", sysfs, devname);
-	ret = add_sysfs_entry(h, buf);
+	ret = add_sysfs_entry(h, sys_dev);
 	if (ret)
 		return ret;
 
-	snprintf(buf, sizeof(buf), "%s/%s/%s",
-			sysfs, devname, partname);
-	ret = add_sysfs_entry(h, buf);
+	ret = add_sysfs_entry(h, sys_part);
 	if (ret)
 		return ret;
+
+	if (d->dmname != NULL) {
+		ret = add_sysfs_entry(h, sys_dm);
+		if (ret)
+			return ret;
+
+		strcat(sys_dm, "/dm");
+		ret = add_sysfs_entry(h, sys_dm);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -903,65 +1000,37 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 		int flags, int automount)
 {
 	int ret;
-	struct stat st;
-	char device[STR_SIZE];
-	char part[STR_SIZE];
-	dev_t dev, part_dev;
 	int root = is_root_disk(disk);
 	int skip_configure = (flags & VZCTL_SKIP_CONFIGURE);
 
-	if (disk->use_device) {
-		ret = get_real_device(disk->path, device, sizeof(device));
+	if (disk->dev == 0) {
+		ret = update_disk_info(disk);
 		if (ret)
 			return ret;
-	} else {
-		ret = vzctl2_get_ploop_dev(disk->path, device, sizeof(device));
-		if (ret == -1)
-			return VZCTL_E_DISK_CONFIGURE;
-		else if (ret)
-			return 0;
 	}
 
-	ret = get_part_device(device, part, sizeof(part));
-	if (ret)
-		return ret;
-
-	if (stat(device, &st))
-		return vzctl_err(VZCTL_E_SYSTEM, errno, "Unable to stat %s",
-				device);
-	dev = st.st_rdev;
-
-	if (stat(part, &st))
-		return vzctl_err(VZCTL_E_SYSTEM, errno, "Unable to stat %s",
-				part);
-	part_dev = st.st_rdev;
-
 	if (!skip_configure) {
-		ret = get_fs_uuid(part, disk->fsuuid);
+		ret = get_fs_uuid(get_fs_partname(disk), disk->fsuuid);
 		if (ret)
 			return ret;
 	}
 
 	if (!root) {
-		ret = configure_mount_opts(h, disk, part_dev);
+		ret = configure_mount_opts(h, disk);
 		if (ret)
 			return ret;
 	}
 
-	ret = configure_disk_perm(h, disk, dev, 0);
-	if (ret)
-		return ret;
-	ret = configure_disk_perm(h, disk, part_dev, 0);
+	ret = configure_disk_perm(h, disk, 0);
 	if (ret)
 		return ret;
 
-	ret = configure_sysfsperm(h, device, 0);
+	ret = configure_sysfsperm(h, disk, 0);
 	if (ret)
 		return ret;
 
 	if (!skip_configure) {
-		ret = configure_disk(h, disk, dev, device, part_dev, part,
-				flags, automount);
+		ret = configure_disk(h, disk, flags, automount);
 		if (ret)
 			return ret;
 	}
@@ -999,7 +1068,9 @@ int vzctl2_add_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param,
 		int flags)
 {
 	int ret, rc;
-	struct vzctl_create_image_param create_param = {};
+	struct vzctl_create_image_param create_param = {
+		.enc_keyid = param->enc_keyid,
+	};
 	struct vzctl_disk *d;
 	int created = 0;
 	char fname[PATH_MAX];
@@ -1151,40 +1222,21 @@ static int env_umount(void *data)
 static int del_disk(struct vzctl_env_handle *h, struct vzctl_disk *d)
 {
 	char dev[STR_SIZE];
-	struct stat st;
 	int ret;
 
-	if (d->use_device) {
-		ret = get_real_device(d->path, dev, sizeof(dev));
-		if (ret)
-			return ret;
-	} else {
-		ret = vzctl2_get_ploop_dev(d->path, dev, sizeof(dev));
-		if (ret == -1)
-			return vzctl_err(VZCTL_E_DEL_IMAGE, 0,
-				"Unable to get ploop image %s mounted state",
-				d->path);
-		else if (ret == 1)
-			return 0;
-	}
-
-	if (stat(dev, &st))
-		return vzctl_err(VZCTL_E_SYSTEM, errno,	"Unable to stat %s",
-				dev);
+	ret = update_disk_info(d);
+	if (ret)
+		return ret;
 
 	if (is_env_run(h)) {
 		if (vzctl2_env_exec_fn2(h, env_umount, dev, 0, 0))
 			vzctl_err(-1, 0, "Failed to unmount %s", dev);
 
-		ret = configure_disk_perm(h, d, st.st_rdev, 1);
+		ret = configure_disk_perm(h, d, 1);
 		if (ret)
 			return ret;
 
-		ret = configure_disk_perm(h, d, st.st_rdev + 1, 1);
-		if (ret)
-			return ret;
-
-		ret = configure_sysfsperm(h, dev, 1);
+		ret = configure_sysfsperm(h, d, 1);
 		if (ret)
 			return ret;
 	}
@@ -1395,22 +1447,25 @@ int check_external_disk(const char *basedir, struct vzctl_env_disk *env_disk)
 	return 0;
 }
 
-static int get_ploop_disk_stats(const struct vzctl_disk *disk, struct vzctl_disk_stats *stats)
+static int get_ploop_disk_stats(const struct vzctl_disk *disk,
+		struct vzctl_disk_stats *stats)
 {
 	int ret;
-	char dev[64];
 	char buf[PATH_MAX];
+	char devname[STR_SIZE];
+	char partname[STR_SIZE];
 	struct ploop_info info;
 
 	if (disk->use_device)
 		return VZCTL_E_INVAL;
 
-	ret = vzctl2_get_ploop_dev(disk->path, dev, sizeof(dev));
+	ret = get_ploop_dev(disk->path, devname, sizeof(devname),
+			partname, sizeof(partname));
 	if (ret == 0) {
-		ret = ploop_get_mnt_by_dev(dev, buf, sizeof(buf));
+		ret = ploop_get_mnt_by_dev(partname, buf, sizeof(buf));
 		if (ret == 0) {
-			strncpy(stats->device, dev, sizeof(stats->device) - 1);
-			stats->device[sizeof(stats->device) - 1] = '\0';
+			snprintf(stats->device, sizeof(*stats->device), "%s",
+					partname);
 		}
 	} else if (ret == 1) {
 		/* Precache data is not ready, avoid mount ploop */
@@ -1419,12 +1474,14 @@ static int get_ploop_disk_stats(const struct vzctl_disk *disk, struct vzctl_disk
 			return VZCTL_E_INVAL;
 	} else
 		return VZCTL_E_SYSTEM;
+
 	get_dd_path(disk, buf, sizeof(buf));
 	ret = ploop_get_info_by_descr(buf, &info);
 	if (ret == 0) {
 		stats->total = info.fs_bsize * info.fs_blocks / 1024;
 		stats->free = info.fs_bsize * info.fs_bfree / 1024;
 	}
+
 	return (ret == 0 || ret == 1) ? 0 : VZCTL_E_SYSTEM;
 }
 

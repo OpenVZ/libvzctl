@@ -328,8 +328,9 @@ struct vzctl_mount_param {
 };
 
 struct vzctl_create_image_param {
-        int mode;
-        unsigned long size;
+	int mode;
+	unsigned long size;
+	char *enc_keyid;
 };
 
 struct vzctl_cpuinfo {
@@ -348,6 +349,7 @@ struct vzctl_disk_param {
 	int autocompact;
 	char *storage_url;
 	int use_device;
+	char *enc_keyid;
 	int dummy[32];
 };
 
@@ -459,6 +461,7 @@ struct vzctl_env_create_param {
 	char *name;
 	int layout;
 	int no_root_disk;
+	char *enc_keyid;
 	int dummy[32];
 };
 

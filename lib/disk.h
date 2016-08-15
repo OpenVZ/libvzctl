@@ -46,7 +46,12 @@ struct vzctl_disk {
 	char fsuuid[39];
 	char *storage_url;
 	int use_device;
+	char *devname;
 	dev_t dev;
+	char *partname;
+	dev_t part_dev;
+	char *dmname;
+	dev_t dm_dev;
 	disk_mount mount;
 	disk_umount umount;
 };
@@ -57,16 +62,17 @@ struct vzctl_env_disk {
 };
 
 int is_root_disk(struct vzctl_disk *disk);
-int configure_mount_opts(struct vzctl_env_handle *h, struct vzctl_disk *disk,
-		dev_t dev);
+const char *get_fs_partname(struct vzctl_disk *disk);
+dev_t get_fs_partdev(struct vzctl_disk *disk);
+int configure_mount_opts(struct vzctl_env_handle *h, struct vzctl_disk *disk);
 int configure_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
-		dev_t dev, const char *device, dev_t part_dev, const char *part,
 		int flags, int automount);
 void free_disk_param(struct vzctl_disk_param *disk);
 void free_disk(struct vzctl_disk *disk);
 void free_env_disk(struct vzctl_env_disk *env_disk);
-int configure_disk_perm(struct vzctl_env_handle *h,
-		struct vzctl_disk *disk, dev_t dev, int del);
+int configure_disk_perm(struct vzctl_env_handle *h, struct vzctl_disk *disk,
+		int del);
+int update_disk_info(struct vzctl_disk *disk);
 struct vzctl_env_disk *alloc_env_disk(void);
 struct vzctl_disk *find_root_disk(const struct vzctl_env_disk *env_disk);
 int is_secondary_disk_present(const struct vzctl_env_disk *env_disk);

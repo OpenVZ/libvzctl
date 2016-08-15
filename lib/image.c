@@ -221,6 +221,7 @@ int vzctl2_create_disk_image(const char *path, struct vzctl_create_image_param *
 	create_param.fstype = DEFAULT_FSTYPE;
 	create_param.size = param->size * 2; /* 1K to sectors */
 	create_param.image = image;
+	create_param.keyid = param->enc_keyid;
 
 	ret = ploop_create_image(&create_param);
 	if (ret)
@@ -352,6 +353,41 @@ int vzctl2_get_ploop_dev(const char *path, char *dev, int len)
 		vzctl_err(-1, 0, "ploop_get_dev path=%s: %s",
 				path, ploop_get_last_error());
 
+	ploop_close_dd(di);
+
+	return ret;
+}
+
+int get_ploop_dev(const char *path, char *dev, int dlen, char *part, int plen)
+{
+	struct ploop_disk_images_data *di;
+	int ret;
+	char buf[STR_SIZE];
+	char *p;
+
+	if (path == NULL)
+		return vzctl_err(-1, 0, "Failed to get ploop device: "
+				"the image path is not specified");
+
+	if (open_dd(path, &di))
+		return -1;
+
+	ret = ploop_get_dev(di, dev, dlen);
+	if (ret) {
+		ret = vzctl_err(VZCTL_E_SYSTEM, 0, "ploop_get_dev path=%s: %s",
+				path, ploop_get_last_error());
+		goto err;
+	}
+
+	ret = ploop_get_part(di, dev, buf, sizeof(buf));
+	if (ret)
+		goto err;
+
+	p = realpath(buf, NULL);
+	snprintf(part, plen, "%s", p ?: buf);
+	free(p);
+
+err:
 	ploop_close_dd(di);
 
 	return ret;
@@ -844,4 +880,23 @@ int vzctl2_umount_snapshot(struct vzctl_env_handle *h, const char *guid, const c
 	}
 
 	return 0;
+}
+
+int vzctl_encrypt_disk_image(const char *path, const char *keyid)
+{
+	int ret;
+	struct ploop_disk_images_data *di;
+
+	ret = open_dd(path, &di);
+	if (ret)
+		return ret;
+
+	ret = ploop_encrypt_image(di, keyid, 0);
+	if (ret)
+		ret = vzctl_err(-1, 0, "ploop_encrypt_image: %s",
+				ploop_get_last_error());
+
+	ploop_close_dd(di);
+
+	return ret;
 }

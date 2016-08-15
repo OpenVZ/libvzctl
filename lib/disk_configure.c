@@ -48,9 +48,6 @@
 struct exec_disk_param {
 	const char *fsuuid;
 	const char *device;
-	dev_t dev;
-	const char *part;
-	dev_t part_dev;
 	struct vzctl_disk *disk;
 	int automount;
 };
@@ -357,20 +354,21 @@ int send_uevent(const char *part)
 static int env_configure_disk(struct exec_disk_param *param)
 {
 	struct vzctl_disk *disk = param->disk;
+	const char *partname = get_fs_partname(disk);
+	dev_t partdev = get_fs_partdev(disk);
 
 	unlink(param->device);
-	if (mknod(param->device, S_IFBLK | S_IRUSR | S_IWUSR,
-				param->dev))
+	if (mknod(disk->devname, S_IFBLK | S_IRUSR | S_IWUSR,
+				disk->dev))
 		return -1;
-	unlink(param->part);
-	if (mknod(param->part, S_IFBLK | S_IRUSR | S_IWUSR,
-				param->part_dev))
-		return -1;
-
-	if (send_uevent(param->device))
+	unlink(partname);
+	if (mknod(partname, S_IFBLK | S_IRUSR | S_IWUSR, partdev))
 		return -1;
 
-	if (send_uevent(param->part))
+	if (send_uevent(disk->devname))
+		return -1;
+
+	if (send_uevent(partname))
 		return -1;
 
 	env_configure_udev_rules();
@@ -386,24 +384,19 @@ static int env_configure_disk(struct exec_disk_param *param)
 			return -1;
 
 		if (param->automount &&
-				mount(param->part, disk->mnt, "ext4", 0, NULL))
+				mount(partname, disk->mnt, "ext4", 0, NULL))
 			return vzctl_err(-1, errno, "Failed to mount %s %s",
-					param->part, disk->mnt);
+					partname, disk->mnt);
 	}
 
 	return 0;
 }
 
 int configure_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
-		dev_t dev, const char *device, dev_t part_dev, const char *part,
 		int flags, int automount)
 {
 	struct exec_disk_param param = {
 		.fsuuid = disk->fsuuid,
-		.device = device,
-		.dev = dev,
-		.part = part,
-		.part_dev = part_dev,
 		.disk = disk,
 		.automount = automount
 	};
