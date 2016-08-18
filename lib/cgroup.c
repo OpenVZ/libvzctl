@@ -953,8 +953,6 @@ static int get_cgroups(list_head_t *head)
                if (buf[0] == '#')
                        continue;
 
-		printf("****** %s\n", buf);
-
                if (add_str_param(head, buf) == NULL) {
                        ret = VZCTL_E_NOMEM;
                        break;
