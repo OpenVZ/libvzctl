@@ -757,8 +757,12 @@ int vzctl2_mount_disk(struct vzctl_env_handle *h,
 			continue;
 
 		ret = disk->mount(h, disk, flags);
-		if (ret && is_permanent_disk(disk))
-			goto err;
+		if (ret) {
+			if (is_permanent_disk(disk))
+				goto err;
+			disk->enabled = VZCTL_PARAM_OFF;
+			continue;
+		}
 
 		if (is_root_disk(disk)) {
 			const char *target = h->env_param->fs->ve_root;
