@@ -953,9 +953,12 @@ static int ns_env_kill(struct vzctl_env_handle *h)
 	list_for_each(it, &pids, list) {
 		unsigned long pid;
 
-		if (parse_ul(it->str, &pid))
+		if (parse_ul(it->str, &pid)) {
+			vzctl_err(-1, 0, "ns_env_kill: invalid pid %s", it->str);
 			continue;
+		}
 
+		logger(5, 0, "kill CT process pid %lu", pid);
 		if (kill(pid, SIGKILL))
 			vzctl_err(-1, errno, "Failed to kill CT pid=%lu", pid);
 	}
