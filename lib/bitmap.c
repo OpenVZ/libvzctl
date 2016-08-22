@@ -217,6 +217,7 @@ static int parse_range(const char *str, unsigned *a, unsigned *b,
 	if (!isdigit(*str))
 		return -1;
 
+	errno = 0;
 	*a = *b = strtoul(str, endptr, 10);
 	if (errno == ERANGE)
                 return -1;
