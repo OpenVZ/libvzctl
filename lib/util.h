@@ -232,6 +232,7 @@ int clear_init_pid(const ctid_t ctid);
 char *get_netns_path(struct vzctl_env_handle *h, char *buf, int size);
 int get_bindmnt_target(const char *dir, char *out, int size);
 int fs_is_mounted_check_by_target(const char *target);
+int vzctl_get_mount_opts(struct vzctl_disk *d, char *out, int size);
 #ifdef __cplusplus
 }
 #endif

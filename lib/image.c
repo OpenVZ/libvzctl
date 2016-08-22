@@ -791,8 +791,7 @@ int vzctl2_mount_snap(struct vzctl_env_handle *h, const char *mnt, const char *g
 
 	list_for_each(disk, &env_disk->disks, list) {
 		param.target = (char *)get_snap_target(disk, mnt, target, sizeof(target));
-		vzctl2_get_mount_opts(disk->mnt_opts, disk->user_quota,
-				mnt_opts, sizeof(mnt_opts));
+		vzctl_get_mount_opts(disk, mnt_opts, sizeof(mnt_opts));
 		ret = vzctl2_mount_disk_snapshot(disk->path, &param);
 		if (ret)
 			goto err;

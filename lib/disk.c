@@ -607,8 +607,7 @@ static int get_disk_mount_param(struct vzctl_env_handle *h, struct vzctl_disk *d
 			return vzctl_err(VZCTL_E_INVAL, 0,
 					"Unable to mount root image: VE_ROOT is not set");
 
-		ret = vzctl2_get_mount_opts(d->mnt_opts, d->user_quota,
-				mnt_opts, mnt_opts_size);
+		ret = vzctl_get_mount_opts(d, mnt_opts, mnt_opts_size);
 		if (ret)
 			return ret;
 

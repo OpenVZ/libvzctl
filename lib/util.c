@@ -2359,6 +2359,38 @@ int vzctl2_get_mount_opts(const char *opts, int user_quota, char *out, int size)
 	return 0;
 }
 
+int vzctl_get_mount_opts(struct vzctl_disk *d, char *out, int size)
+{
+	int ret;
+	struct ploop_disk_images_data *di;
+
+	if (get_mount_opts(d->mnt_opts, d->user_quota, out, size))
+		return vzctl_err(VZCTL_E_INVAL, 0,
+			"Not enough buffer size to store mnt_ops result");
+
+	ret = open_dd(d->path, &di);
+	if (ret)
+		return ret;
+
+	ret = ploop_read_dd(di);
+	if (ret) {
+		ploop_close_dd(di);
+		return vzctl_err(VZCTL_E_INVAL, 0, "Cant read %s: %s",
+					d->path, ploop_get_last_error());
+	}
+
+	if (di->enc == NULL && strstr(out, "nopfcache_csum") == NULL) {
+		int len = strlen(out);
+
+		get_pfcache_opts(out + len,  size - len);
+	}
+
+	ploop_close_dd(di);
+
+	return 0;
+}
+
+
 int configure_sysctl(const char *var, const char *val)
 {
 	int fd, len, ret;
