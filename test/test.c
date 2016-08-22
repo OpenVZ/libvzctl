@@ -65,7 +65,9 @@ int main(int argc, char **argv)
 			usage();
 	}
 
-	cleanup();
+	if (create(ctid))
+		return -1;
+
 	if (mode & 0x1)
 		test_vzctl();
 	if (mode & 0x2)

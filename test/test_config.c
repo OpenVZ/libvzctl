@@ -34,6 +34,7 @@
 #include "vzctl_param.h"
 #include "test.h"
 #include "cap.h"
+#include "vzerror.h"
 
 
 extern ctid_t ctid;
@@ -146,7 +147,7 @@ void test_config_CPUMASK(vzctl_env_handle_ptr h)
 {
 	int err, i;
 	vzctl_env_handle_ptr h_res = NULL;
-	vzctl_env_param_ptr new_param;
+	vzctl_env_param_ptr new_param, env;
 	const char *str = "0,3,5-100,4095";
 	const char *bad[] = {"abc", "1-sdc", "0-1024000", NULL};
 	char data[1024];
@@ -161,30 +162,32 @@ void test_config_CPUMASK(vzctl_env_handle_ptr h)
 	}
 
 	printf("(info) test_config_CPUMASK=%s\n", str);
-	CHECK_RET(vzctl2_env_set_cpumask(new_param, str))
-	CHECK_RET(vzctl2_env_set_cpumask(new_param, str))
-	CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
+	CHECK_VZRET(vzctl2_env_set_cpumask(new_param, str))
+	CHECK_VZRET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
 
+	env = new_param;
 	for (i = 0; i < 2; i++) {
-		CHECK_RET(vzctl2_env_get_cpumask(vzctl2_get_env_param(h), data, sizeof(data)))
+		CHECK_RET(vzctl2_env_get_cpumask(env, data, sizeof(data)))
 		if (strcmp(data, str)) {
 			printf("\t(err) %s != %s\n", str, data);
 			TEST_ERR("vzctl2_env_get_cpumask");
 		}
 
-		vzctl2_free_env_param(new_param);
-
-		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
-		CHECK_PTR(new_param, vzctl2_get_env_param(h_res))
+		vzctl2_env_close(h_res);
+		CHECK_PTR(h_res, vzctl2_env_open(ctid, 0, &err))
+		env = vzctl2_get_env_param(h_res);
 	}
 
 	vzctl2_env_close(h_res);
+	h_res = NULL;
+	vzctl2_free_env_param(new_param);
+
 	printf("(info) test_config_CPUMASK=all\n");
 	CHECK_PTR(new_param, vzctl2_alloc_env_param())
 	CHECK_RET(vzctl2_env_set_cpumask(new_param, "all"))
-
 	CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
 
+	env = new_param;
 	for (i = 0; i < 2; i++) {
 		CHECK_RET(vzctl2_env_get_cpumask(vzctl2_get_env_param(h), data, sizeof(data)))
 		if (strcmp(data, "")) {
@@ -192,20 +195,20 @@ void test_config_CPUMASK(vzctl_env_handle_ptr h)
 			TEST_ERR("vzctl2_env_get_cpumask");
 		}
 
-		vzctl2_free_env_param(new_param);
-
-		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
-		CHECK_PTR(new_param, vzctl2_get_env_param(h_res))
+		vzctl2_env_close(h_res);
+		CHECK_PTR(h_res, vzctl2_env_open(ctid, 0, &err))
+		env = vzctl2_get_env_param(h_res);
 	}
 
 	vzctl2_env_close(h_res);
+	vzctl2_free_env_param(new_param);
 }
 
 void test_config_NODEMASK(vzctl_env_handle_ptr h)
 {
 	int ret, err, i;
 	vzctl_env_handle_ptr h_res = NULL;
-	vzctl_env_param_ptr new_param;
+	vzctl_env_param_ptr new_param, env;
 	const char *str = "0,3,5-100,4095";
 	const char *bad[] = {"abc", "1-sdc", "0-1024000", NULL};
 	char data[1024];
@@ -222,49 +225,51 @@ void test_config_NODEMASK(vzctl_env_handle_ptr h)
 
 	printf("(info) test_config_NODEMASK=%s\n", str);
 	CHECK_RET(vzctl2_env_set_nodemask(new_param, str))
-	CHECK_RET(vzctl2_env_set_nodemask(new_param, str))
 	CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
 
+	env = new_param;
 	for (i = 0; i < 2; i++) {
-		CHECK_RET(vzctl2_env_get_nodemask(vzctl2_get_env_param(h), data, sizeof(data)))
+		CHECK_RET(vzctl2_env_get_nodemask(env, data, sizeof(data)))
 		if (strcmp(data, str)) {
 			printf("\t(err) %s != %s\n", str, data);
 			TEST_ERR("vzctl2_env_get_nodemask");
 		}
 
-		vzctl2_free_env_param(new_param);
-
-		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
-		CHECK_PTR(new_param, vzctl2_get_env_param(h_res))
+		vzctl2_env_close(h_res);
+		CHECK_PTR(h_res, vzctl2_env_open(ctid, 0,&err))
+		env = vzctl2_get_env_param(h_res);
 	}
 
 	vzctl2_env_close(h_res);
+	h_res = NULL;
+	vzctl2_free_env_param(new_param);
 	printf("(info) test_config_NODEMASK=all\n");
 	CHECK_PTR(new_param, vzctl2_alloc_env_param())
 	CHECK_RET(vzctl2_env_set_nodemask(new_param, "all"))
-	CHECK_RET(vzctl2_apply_param(h, new_param, 0))
+	CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
 
+	env = new_param;
 	for (i = 0; i < 2; i++) {
-		CHECK_RET(vzctl2_env_get_nodemask(vzctl2_get_env_param(h), data, sizeof(data)))
+		CHECK_RET(vzctl2_env_get_nodemask(env, data, sizeof(data)))
 		if (strcmp(data, "")) {
 			printf("\t(err) "" != %s\n", data);
-			TEST_VZERR("vzctl2_env_get_nodemask");
+			TEST_ERR("vzctl2_env_get_nodemask");
 		}
 
-		vzctl2_free_env_param(new_param);
-
-		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
-		CHECK_PTR(new_param, vzctl2_get_env_param(h_res))
+		vzctl2_env_close(h_res);
+		CHECK_PTR(h_res, vzctl2_env_open(ctid, 0, &err))
+		env = vzctl2_get_env_param(h_res);
 	}
 
 	vzctl2_env_close(h_res);
+	vzctl2_free_env_param(new_param);
 }
 
 void test_config_DISK(vzctl_env_handle_ptr h)
 {
 	int err, i;
 	vzctl_env_handle_ptr h_res = NULL;
-	vzctl_env_param_ptr new_param;
+	vzctl_env_param_ptr new_param, env;
 	struct vzctl_2UL_res res;
 	unsigned long limit;
 
@@ -281,15 +286,16 @@ void test_config_DISK(vzctl_env_handle_ptr h)
 	CHECK_RET(vzctl2_env_set_quotaugidlimit(new_param, limit))
 	CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
 
+	env = vzctl2_get_env_param(h);
 	for (i = 0; i < 2; i++) {
-		CHECK_RET(vzctl2_env_get_diskspace(vzctl2_get_env_param(h), &res))
+		CHECK_RET(vzctl2_env_get_diskspace(env, &res))
 		if (res.b != ul_res.b || res.l != ul_res.l) {
 			printf("\t(err) %lu:%lu %lu:%lu\n",
 					ul_res.b, ul_res.l, res.b, res.l);
 			TEST_ERR("vzctl2_env_get_diskspace")
 		}
 
-		CHECK_RET(vzctl2_env_get_diskinodes(vzctl2_get_env_param(h), &res))
+		CHECK_RET(vzctl2_env_get_diskinodes(env, &res))
 		if (res.b != ul_res.b || res.l != ul_res.l) {
 			printf("\t(err) %lu:%lu %lu:%lu\n",
 					ul_res.b, ul_res.l, res.b, res.l);
@@ -297,25 +303,25 @@ void test_config_DISK(vzctl_env_handle_ptr h)
 		}
 
 		unsigned long _limit;
-		CHECK_RET(vzctl2_env_get_quotaugidlimit(vzctl2_get_env_param(h), &_limit))
+		CHECK_RET(vzctl2_env_get_quotaugidlimit(env, &_limit))
 		if (limit != _limit) {
 			printf("\t(err) %lu %lu\n", limit, _limit);
 			TEST_ERR("vzctl2_env_get_quotaugidlimit")
 		}
 
-		vzctl2_free_env_param(new_param);
-
+		vzctl2_env_close(h_res);
 		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
-		CHECK_PTR(new_param, vzctl2_get_env_param(h_res))
+		env = vzctl2_get_env_param(h_res);
 	}
 	vzctl2_env_close(h_res);
+	vzctl2_free_env_param(new_param);
 }
 
 void test_config_UB(vzctl_env_handle_ptr h)
 {
 	int err, i, j;
 	vzctl_env_handle_ptr h_res = NULL;
-	vzctl_env_param_ptr new_param;
+	vzctl_env_param_ptr new_param, env;
 	struct vzctl_2UL_res res;
 
 	TEST()
@@ -327,15 +333,21 @@ void test_config_UB(vzctl_env_handle_ptr h)
 			ul_res.b, ul_res.l);
 
 	for (i = 0; i < 2; i++) {
-		for (i = VZCTL_PARAM_KMEMSIZE; i <= VZCTL_PARAM_SWAPPAGES; i++) {
-			CHECK_RET(vzctl2_env_set_ub_resource(new_param, i, &ul_res))
+		for (i = VZCTL_PARAM_LOCKEDPAGES; i <= VZCTL_PARAM_SWAPPAGES; i++) {
+			err = vzctl2_env_set_ub_resource(new_param, i, &ul_res);
+			if (err == VZCTL_E_INVAL)
+				continue;
 		}
 	}
 	CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
 
+	env = new_param;
 	for (i = 0; i < 2; i++) {
-		for (j = VZCTL_PARAM_KMEMSIZE; j <= VZCTL_PARAM_SWAPPAGES; j++) {
-			CHECK_RET(vzctl2_env_get_ub_resource(new_param, j, &res))
+		for (j = VZCTL_PARAM_LOCKEDPAGES; j <= VZCTL_PARAM_SWAPPAGES; j++) {
+			err = vzctl2_env_get_ub_resource(env, j, &res);
+			if (err == VZCTL_E_INVAL)
+				continue;
+
 			if (res.b != ul_res.b || res.l != ul_res.l) {
 				printf("\t(err) resid %d %lu:%lu %lu:%lud\n",
 					j, ul_res.b, ul_res.l, res.b, res.l);
@@ -343,19 +355,19 @@ void test_config_UB(vzctl_env_handle_ptr h)
 			}
 		}
 
-		vzctl2_free_env_param(new_param);
-
+		vzctl2_env_close(h_res);
 		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
-		CHECK_PTR(new_param, vzctl2_get_env_param(h_res))
+		env = vzctl2_get_env_param(h_res);
 	}
 	vzctl2_env_close(h_res);
+	vzctl2_free_env_param(new_param);
 }
 
 void test_config_IO(vzctl_env_handle_ptr h)
 {
 	int err, i;
 	vzctl_env_handle_ptr h_res = NULL;
-	vzctl_env_param_ptr new_param;
+	vzctl_env_param_ptr new_param, env;
 	unsigned int res;
 
 	TEST()
@@ -366,19 +378,23 @@ void test_config_IO(vzctl_env_handle_ptr h)
 
 	CHECK_RET(vzctl2_env_set_iolimit(new_param, ul))
 	CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
+
+	env = new_param;
 	for (i = 0; i < 2; i++) {
-		CHECK_RET(vzctl2_env_get_iolimit(new_param, &res))
+		CHECK_RET(vzctl2_env_get_iolimit(env, &res))
 		if (ul != res) {
 			printf("\t(err) %lu/%d\n", ul, res);
 			TEST_ERR("vzctl2_env_get_iolimit")
 		}
 
-		vzctl2_free_env_param(new_param);
 
+		vzctl2_env_close(h_res);
 		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
-		CHECK_PTR(new_param, vzctl2_get_env_param(h_res))
+		env = vzctl2_get_env_param(h_res);
 	}
 	vzctl2_env_close(h_res);
+	h_res = NULL;
+	vzctl2_free_env_param(new_param);
 
 	CHECK_PTR(new_param, vzctl2_alloc_env_param())
 	ul = rand_ul();
@@ -387,19 +403,21 @@ void test_config_IO(vzctl_env_handle_ptr h)
 	CHECK_RET(vzctl2_env_set_iopslimit(new_param, ul))
 	CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
 
+	env = new_param;
 	for (i = 0; i < 2; i++) {
-		CHECK_RET(vzctl2_env_get_iopslimit(new_param, &res))
+		CHECK_RET(vzctl2_env_get_iopslimit(env, &res))
 		if (ul != res) {
 			printf("\t(err) %lu/%d\n", ul, res);
 			TEST_ERR("vzctl2_env_get_iopslimit")
 		}
 
-		vzctl2_free_env_param(new_param);
-
+		vzctl2_env_close(h_res);
 		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
-		CHECK_PTR(new_param, vzctl2_get_env_param(h_res))
+		env = vzctl2_get_env_param(h_res);
 	}
 	vzctl2_env_close(h_res);
+	h_res = NULL;
+	vzctl2_free_env_param(new_param);
 
 	CHECK_PTR(new_param, vzctl2_alloc_env_param())
 	ul = rand_ul() % 7;
@@ -408,27 +426,28 @@ void test_config_IO(vzctl_env_handle_ptr h)
 	CHECK_RET(vzctl2_env_set_ioprio(new_param, ul))
 	CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
 
+	env = new_param;
 	for (i = 0; i < 2; i++) {
 		int i;
-		CHECK_RET(vzctl2_env_get_ioprio(new_param, &i))
+		CHECK_RET(vzctl2_env_get_ioprio(env, &i))
 		if (ul != i) {
 			printf("\t(err) %lu != %d\n", ul, i);
 			TEST_ERR("vzctl2_env_get_ioprio")
 		}
 
-		vzctl2_free_env_param(new_param);
-
+		vzctl2_env_close(h_res);
 		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
-		CHECK_PTR(new_param, vzctl2_get_env_param(h_res))
+		env = vzctl2_get_env_param(h_res);
 	}
 	vzctl2_env_close(h_res);
+	vzctl2_free_env_param(new_param);
 }
 
 void test_config_IP(vzctl_env_handle_ptr h)
 {
 	int err, i;
 	vzctl_env_handle_ptr h_res = NULL;
-	vzctl_env_param_ptr new_param;
+	vzctl_env_param_ptr new_param, env;
 	vzctl_ip_iterator it;
 	int cnt, total;
 	char buf[128];
@@ -453,21 +472,24 @@ void test_config_IP(vzctl_env_handle_ptr h)
 	CHECK_RET(vzctl2_env_del_ipaddress(new_param, "all"))
 	CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
 
+	env = new_param;
 	for (i = 0; i < 2; i++) {
 		cnt = 0;
 		it = NULL;
-		while ((it = vzctl2_env_get_ipaddress(new_param, it)) != NULL) {
+		while ((it = vzctl2_env_get_ipaddress(env, it)) != NULL) {
 			vzctl2_env_get_ipstr(it, buf, sizeof(buf));
 			cnt++;
 		}
 		if (cnt != total)
 			TEST_ERR("\t vzctl2_env_get_ipaddress: cnt != total");
 
-		vzctl2_free_env_param(new_param);
 
+		vzctl2_env_close(h_res);
 		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
-		CHECK_PTR(new_param, vzctl2_get_env_param(h_res))
+		env = vzctl2_get_env_param(h_res);
 	}
+
+	vzctl2_free_env_param(new_param);
 	// TEST DELALL
 	CHECK_PTR(new_param, vzctl2_alloc_env_param())
 
@@ -498,14 +520,14 @@ void test_config_VETH_dev(vzctl_env_handle_ptr h, int allow_mac_spoof, int allow
 {
 	int i, err;
 	vzctl_env_handle_ptr h_res = NULL;
-	vzctl_env_param_ptr new_param;
+	vzctl_env_param_ptr new_param, env;
 	vzctl_veth_dev_iterator it_dev;
 	struct vzctl_veth_dev_param dev = {};
 	char dev_name[64];
 	const char *p = NULL;
 
 	TEST()
-	snprintf(dev_name, sizeof(dev_name), "xeth.%s.0", ctid);
+	snprintf(dev_name, sizeof(dev_name), "xeth.%c.0", ctid[0]);
 
 	CHECK_PTR(new_param, vzctl2_alloc_env_param())
 	dev.dev_name_ve = "eth0";
@@ -523,9 +545,10 @@ void test_config_VETH_dev(vzctl_env_handle_ptr h, int allow_mac_spoof, int allow
 
 	CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
 
+	env = new_param;
 	for (i = 0; i < 2; i++) {
 		it_dev = NULL;
-		while ((it_dev = vzctl2_env_get_veth(new_param, it_dev)) != NULL) {
+		while ((it_dev = vzctl2_env_get_veth(env, it_dev)) != NULL) {
 			struct vzctl_veth_dev_param _p;
 			vzctl2_env_get_veth_param(it_dev, &_p, sizeof(_p));
 			if (strcmp(dev.dev_name, _p.dev_name)) {
@@ -547,27 +570,28 @@ void test_config_VETH_dev(vzctl_env_handle_ptr h, int allow_mac_spoof, int allow
 			}
 		}
 
+		vzctl2_env_close(h_res);
 		CHECK_PTR(h_res, vzctl2_env_open(ctid, 0, &err))
 
 		p = NULL;
 		vzctl2_env_get_param(h_res, "NETIF", &p);
 		printf("\tNETIF=%s\n", p);
 
-		vzctl2_free_env_param(new_param);
-		CHECK_PTR(new_param, vzctl2_get_env_param(h_res))
+		env = vzctl2_get_env_param(h_res);
 	}
 
 	vzctl2_env_get_param(h_res, "NETIF", &p);
 	printf("\tNETIF=%s\n", p);
 
 	vzctl2_env_close(h_res);
+	vzctl2_free_env_param(new_param);
 }
 
 void test_config_VETH_gw(vzctl_env_handle_ptr h, const char *gw, const char *gw6)
 {
 	int err, i;
 	vzctl_env_handle_ptr h_res = NULL;
-	vzctl_env_param_ptr new_param;
+	vzctl_env_param_ptr new_param, env;
 	vzctl_veth_dev_iterator it_dev;
 	struct vzctl_veth_dev_param dev = {};
 	const char *p;
@@ -587,9 +611,10 @@ void test_config_VETH_gw(vzctl_env_handle_ptr h, const char *gw, const char *gw6
 
 	CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
 
+	env = new_param;
 	for (i = 0; i < 2; i++) {
 		it_dev = NULL;
-		while ((it_dev = vzctl2_env_get_veth(new_param, it_dev)) != NULL) {
+		while ((it_dev = vzctl2_env_get_veth(env, it_dev)) != NULL) {
 			struct vzctl_veth_dev_param _p;
 
 			vzctl2_env_get_veth_param(it_dev, &_p, sizeof(struct vzctl_veth_dev_param));
@@ -605,24 +630,25 @@ void test_config_VETH_gw(vzctl_env_handle_ptr h, const char *gw, const char *gw6
 			}
 		}
 
+		vzctl2_env_close(h_res);
 		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
 
 		p = NULL;
 		vzctl2_env_get_param(h_res, "NETIF", &p);
 		printf("\tNETIF=%s\n", p);
 
-		vzctl2_free_env_param(new_param);
-		CHECK_PTR(new_param, vzctl2_get_env_param(h_res))
+		env = vzctl2_get_env_param(h_res);
 	}
 
 	vzctl2_env_close(h_res);
+	vzctl2_free_env_param(new_param);
 }
 
 void test_config_VETH_dhcp(vzctl_env_handle_ptr h, int dhcp, int dhcp6)
 {
 	int err, i;
 	vzctl_env_handle_ptr h_res = NULL;
-	vzctl_env_param_ptr new_param;
+	vzctl_env_param_ptr new_param, env;
 	vzctl_veth_dev_iterator it_dev;
 	struct vzctl_veth_dev_param dev = {};
 	const char *p;
@@ -643,9 +669,10 @@ void test_config_VETH_dhcp(vzctl_env_handle_ptr h, int dhcp, int dhcp6)
 
 	CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
 
+	env = new_param;
 	for (i = 0; i < 2; i++) {
 		it_dev = NULL;
-		while ((it_dev = vzctl2_env_get_veth(new_param, it_dev)) != NULL) {
+		while ((it_dev = vzctl2_env_get_veth(env, it_dev)) != NULL) {
 			struct vzctl_veth_dev_param _p;
 			vzctl2_env_get_veth_param(it_dev, &_p, sizeof(struct vzctl_veth_dev_param));
 			if (_p.dhcp != dhcp) {
@@ -662,18 +689,18 @@ void test_config_VETH_dhcp(vzctl_env_handle_ptr h, int dhcp, int dhcp6)
 		if (i == 1)
 			break;
 
-		vzctl2_free_env_param(new_param);
-
+		vzctl2_env_close(h_res);
 		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
 
 		p = NULL;
 		vzctl2_env_get_param(h_res, "NETIF", &p);
 		printf("\tNETIF=%s\n", p);
 
-		CHECK_PTR(new_param, vzctl2_get_env_param(h_res))
+		env = vzctl2_get_env_param(h_res);
 	}
 
 	vzctl2_env_close(h_res);
+	vzctl2_free_env_param(new_param);
 }
 
 
@@ -681,7 +708,7 @@ void test_config_VETH_ip(vzctl_env_handle_ptr h)
 {
 	int err, i;
 	vzctl_env_handle_ptr h_res = NULL;
-	vzctl_env_param_ptr new_param;
+	vzctl_env_param_ptr new_param, env;
 	vzctl_env_param_ptr param;
 	vzctl_ip_iterator it_ip;
 	vzctl_veth_dev_iterator it_dev;
@@ -718,9 +745,10 @@ void test_config_VETH_ip(vzctl_env_handle_ptr h)
 
 	CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
 
+	env = new_param;
 	for (i = 0; i < 2; i++) {
 		it_dev = NULL;
-		while ((it_dev = vzctl2_env_get_veth(new_param, it_dev)) != NULL) {
+		while ((it_dev = vzctl2_env_get_veth(env, it_dev)) != NULL) {
 			struct vzctl_veth_dev_param _p;
 			vzctl2_env_get_veth_param(it_dev, &_p, sizeof(struct vzctl_veth_dev_param));
 			printf("\t host_mac=%s mac=%s\n",
@@ -734,18 +762,19 @@ void test_config_VETH_ip(vzctl_env_handle_ptr h)
 			}
 		}
 
-		vzctl2_free_env_param(new_param);
-
+		vzctl2_env_close(h_res);
 		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
 
 		p = NULL;
 		CHECK_RET(vzctl2_env_get_param(h_res, "NETIF", &p))
 		printf("\tNETIF=%s\n", p);
 
-		CHECK_PTR(new_param, vzctl2_get_env_param(h_res))
+		env = vzctl2_get_env_param(h_res);
 	}
 
 	vzctl2_env_close(h_res);
+	h_res = NULL;
+	vzctl2_free_env_param(new_param);
 
 	// Del ip all
 	dev.ip_apply_mode = 1;
@@ -815,7 +844,7 @@ void test_config_VETH_configure(vzctl_env_handle_ptr h, int mode)
 {
 	int err, i;
 	vzctl_env_handle_ptr h_res = NULL;
-	vzctl_env_param_ptr new_param;
+	vzctl_env_param_ptr new_param, env;
 	vzctl_veth_dev_iterator it_dev;
 	struct vzctl_veth_dev_param dev = {};
 	const char *p;
@@ -835,9 +864,10 @@ void test_config_VETH_configure(vzctl_env_handle_ptr h, int mode)
 
 	CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
 
+	env = new_param;
 	for (i = 0; i < 2; i++) {
 		it_dev = NULL;
-		while ((it_dev = vzctl2_env_get_veth(new_param, it_dev)) != NULL) {
+		while ((it_dev = vzctl2_env_get_veth(env, it_dev)) != NULL) {
 			struct vzctl_veth_dev_param _p;
 			vzctl2_env_get_veth_param(it_dev, &_p, sizeof(struct vzctl_veth_dev_param));
 			if (_p.configure_mode != mode) {
@@ -847,17 +877,18 @@ void test_config_VETH_configure(vzctl_env_handle_ptr h, int mode)
 			}
 		}
 
+		vzctl2_env_close(h_res);
 		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
 
 		p = NULL;
 		vzctl2_env_get_param(h_res, "NETIF", &p);
 		printf("\tNETIF=%s\n", p);
 
-		vzctl2_free_env_param(new_param);
-		CHECK_PTR(new_param, vzctl2_get_env_param(h_res))
+		env = vzctl2_get_env_param(h_res);
 	}
 
 	vzctl2_env_close(h_res);
+	vzctl2_free_env_param(new_param);
 }
 
 void test_config_VETH(vzctl_env_handle_ptr h)
@@ -962,7 +993,7 @@ void test_config_MISC(vzctl_env_handle_ptr h)
 	char *uuid = "00000000-0000-0000-0000-000000001030";
 	char buf[256];
 	vzctl_env_handle_ptr h_res = NULL;
-	vzctl_env_param_ptr new_param;
+	vzctl_env_param_ptr new_param, env;
 
 	TEST()
 	CHECK_PTR(new_param, vzctl2_alloc_env_param())
@@ -983,22 +1014,23 @@ void test_config_MISC(vzctl_env_handle_ptr h)
 	CHECK_RET(vzctl2_env_set_uuid(new_param, uuid))
 	CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
 
+	env = new_param;
 	for (i = 0; i < 2; i++) {
 		vzctl_str_iterator it;
 
-		CHECK_RET(vzctl2_env_get_description(new_param, &res))
+		CHECK_RET(vzctl2_env_get_description(env, &res))
 		if (strcmp(res, desc) != 0) {
 			printf("\t %s != %s\n", desc, res);
 			TEST_ERR("vzctl_env_get_decription")
 		}
-		CHECK_RET(vzctl2_env_get_hostname(new_param, &res))
+		CHECK_RET(vzctl2_env_get_hostname(env, &res))
 		if (strcmp(res, hostname) != 0) {
 			printf("\t %s != %s\n", hostname, res);
 			TEST_ERR("vzctl2_env_get_hostname")
 		}
 		it = NULL;
 		cnt = 0;
-		while ((it = vzctl2_env_get_nameserver(new_param, it)) != NULL) {
+		while ((it = vzctl2_env_get_nameserver(env, it)) != NULL) {
 			cnt++;
 		}
 		if (cnt != 3) {
@@ -1008,24 +1040,25 @@ void test_config_MISC(vzctl_env_handle_ptr h)
 
 		it = NULL;
 		cnt = 0;
-		while ((it = vzctl2_env_get_searchdomain(new_param, it)) != NULL) {
+		while ((it = vzctl2_env_get_searchdomain(env, it)) != NULL) {
 			cnt++;
 		}
 		if (cnt != 3) {
 			printf("\t earchdomain nt==%d\n", cnt);
 			TEST_ERR("vzctl2_env_get_searchdomain")
 		}
-		CHECK_RET(vzctl2_env_get_uuid(new_param, &res))
+		CHECK_RET(vzctl2_env_get_uuid(env, &res))
 		if (strcmp(res, uuid) != 0) {
 			printf("\t %s != %s\n", uuid, res);
 			TEST_ERR("vzctl2_env_get_uuid")
 		}
 
+		vzctl2_env_close(h_res);
 		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
-		vzctl2_free_env_param(new_param);
-		new_param = vzctl2_get_env_param(h_res);
+		env = vzctl2_get_env_param(h_res);
 	}
 	vzctl2_env_close(h_res);
+	vzctl2_free_env_param(new_param);
 }
 
 void test_config_RATE(vzctl_env_handle_ptr h)
@@ -1080,6 +1113,7 @@ void test_config_RATE(vzctl_env_handle_ptr h)
 			TEST_ERR("(rb != orig_rb")
 		}
 
+		vzctl2_env_close(h_res);
 		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
 
 		p = NULL;
@@ -1180,7 +1214,7 @@ void test_config_ramsize(vzctl_env_handle_ptr h)
 {
 	int err;
 	vzctl_env_handle_ptr h_res = NULL;
-	vzctl_env_param_ptr new_param;
+	vzctl_env_param_ptr new_param, env;
 	int i;
 	unsigned long size, new_size;
 
@@ -1190,19 +1224,23 @@ void test_config_ramsize(vzctl_env_handle_ptr h)
 	CHECK_PTR(new_param, vzctl2_alloc_env_param())
 	CHECK_RET(vzctl2_env_set_ramsize(new_param, size))
 	CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
+
+	env = new_param;
 	for (i = 0; i < 2; i++) {
-		CHECK_RET(vzctl2_env_get_ramsize(vzctl2_get_env_param(h), &new_size))
+		CHECK_RET(vzctl2_env_get_ramsize(env, &new_size))
 		if (size != new_size) {
 			printf("\t(err) %lu != %lu\n", size, new_size);
 			TEST_ERR("vzctl2_env_get_ramsize");
 		}
 
+
+		vzctl2_env_close(h_res);
 		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
-		vzctl2_free_env_param(new_param);
-		CHECK_PTR(new_param, vzctl2_get_env_param(h_res))
+		env = vzctl2_get_env_param(h_res);
 	}
 
 	vzctl2_env_close(h_res);
+	vzctl2_free_env_param(new_param);
 }
 
 void test_config_memguarantee(vzctl_env_handle_ptr h)
@@ -1234,6 +1272,8 @@ void test_config_memguarantee(vzctl_env_handle_ptr h)
 			TEST_ERR("vzctl2_env_get_memguarantee");
 		}
 
+
+		vzctl2_env_close(h_res);
 		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
 		vzctl2_free_env_param(new_param);
 		CHECK_PTR(new_param, vzctl2_get_env_param(h_res))
@@ -1448,6 +1488,7 @@ void test_config_netfilter(vzctl_env_handle_ptr h)
 
 		vzctl2_free_env_param(new_param);
 
+		vzctl2_env_close(h_res);
 		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
 		CHECK_RET(vzctl2_env_get_netfilter(vzctl2_get_env_param(h_res), &res))
 		if (res != i) {

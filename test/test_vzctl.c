@@ -658,8 +658,10 @@ int cleanup(void)
 		return 0;
 	vzctl2_get_env_status_info(h, &status, ENV_STATUS_ALL);
 
-	if (!(status.mask & ENV_STATUS_EXISTS))
+	if (!(status.mask & ENV_STATUS_EXISTS)) {
+		vzctl2_env_close(h);
 		return 0;
+	}
 
 	if (status.mask & ENV_STATUS_RUNNING)
 		vzctl2_env_stop(h, M_KILL, 0);
@@ -670,6 +672,25 @@ int cleanup(void)
 
 	vzctl2_env_close(h);
 
+	return 0;
+}
+
+int create(ctid_t id)
+{
+	struct vzctl_env_create_param param = {};
+	struct vzctl_env_param *env = vzctl2_alloc_env_param();
+	SET_CTID(param.ctid, id)
+
+	cleanup();
+
+	/* CREATE TEST CT */
+	if (vzctl2_env_create(env, &param, 0)) {
+		fprintf(stderr, "vzctl2_get_last_error: %s",
+				vzctl2_get_last_error());
+		return -1;
+	}
+
+	vzctl2_free_env_param(env);
 	return 0;
 }
 
@@ -777,17 +798,11 @@ void test_vzctl()
 {
         int err;
         vzctl_env_handle_ptr h;
-	struct vzctl_env_param *env = vzctl2_alloc_env_param();
-        struct vzctl_env_create_param param = {};
-	SET_CTID(param.ctid, ctid)
 
 	test_set_limits();
 
 	test_ctid();
 	test_misc();
-
-	/* CREATE TEST CT */
-	CHECK_RET(vzctl2_env_create(env, &param, 0));
 
 //	test_create();
 	test_get_total_meminfo();

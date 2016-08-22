@@ -51,6 +51,12 @@ do { \
 	if (func) TEST_ERR(#func)   \
 } while (0);
 
+#define CHECK_VZRET(func) \
+do { \
+	if (func) TEST_VZERR(#func)   \
+} while (0);
+
+
 #define CHECK_PTR(res, func) \
 do { \
 	if ((res = (func)) == NULL) TEST_ERR(#func) \
@@ -68,5 +74,6 @@ void test_config();
 void inc_failed();
 void inc_test();
 int cleanup(void);
+int create(ctid_t ctid);
 
 #endif
