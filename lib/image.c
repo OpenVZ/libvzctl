@@ -887,13 +887,19 @@ int vzctl2_umount_snapshot(struct vzctl_env_handle *h, const char *guid, const c
 int vzctl_encrypt_disk_image(const char *path, const char *keyid)
 {
 	int ret;
+	char mnt_opts[PATH_MAX] = "";
 	struct ploop_disk_images_data *di;
+	struct ploop_encrypt_param enc_param = {
+		.keyid = keyid,
+		.mnt_opts = mnt_opts,
+	};
 
+	vzctl2_get_mount_opts(NULL, 0, mnt_opts, sizeof(mnt_opts));
 	ret = open_dd(path, &di);
 	if (ret)
 		return ret;
 
-	ret = ploop_encrypt_image(di, keyid, 0);
+	ret = ploop_encrypt_image(di, &enc_param);
 	if (ret)
 		ret = vzctl_err(-1, 0, "ploop_encrypt_image: %s",
 				ploop_get_last_error());
