@@ -2571,7 +2571,12 @@ void vzctl2_generate_ctid(ctid_t ctid)
 
 const char *get_devname(const char *device)
 {
-	const char *p = strrchr(device, '/');
+	const char *p;
+
+	if (device == NULL)
+		return NULL;
+
+	p = strrchr(device, '/');
 
 	return p == NULL ? device : ++p;
 }

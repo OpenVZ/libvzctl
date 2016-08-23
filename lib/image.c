@@ -374,14 +374,17 @@ int get_ploop_dev(const char *path, char *dev, int dlen, char *part, int plen)
 
 	ret = ploop_get_dev(di, dev, dlen);
 	if (ret) {
-		ret = vzctl_err(VZCTL_E_SYSTEM, 0, "ploop_get_dev path=%s: %s",
+		if (ret == -1)
+			vzctl_err(-1, 0, "ploop_get_dev path=%s: %s",
 				path, ploop_get_last_error());
 		goto err;
 	}
 
-	ret = ploop_get_part(di, dev, buf, sizeof(buf));
-	if (ret)
+	if (ploop_get_part(di, dev, buf, sizeof(buf))) {
+		ret = vzctl_err(-1, 0, "loop_get_part devs: %s: %s",
+				dev, ploop_get_last_error());
 		goto err;
+	}
 
 	p = realpath(buf, NULL);
 	snprintf(part, plen, "%s", p ?: buf);

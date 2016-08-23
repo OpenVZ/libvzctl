@@ -707,7 +707,7 @@ int update_disk_info(struct vzctl_disk *disk)
 		if (ret == -1)
 			return VZCTL_E_DISK_CONFIGURE;
 		else if (ret)
-			return 0;
+			return VZCTL_E_FS_NOT_MOUNTED;
 
 		ret = get_part_device(devname, x, sizeof(x));
 		if (ret)
@@ -801,7 +801,7 @@ static int get_mnt_by_dev(const char *device, char *out, int size)
 	struct stat st;
 
 	if (stat(device, &st))
-		return vzctl_err(-1, errno, "Faile dto stat %s", device);
+		return vzctl_err(-1, errno, "Can't stat %s", device);
 
 	major = gnu_dev_major(st.st_rdev);
 	minor = gnu_dev_minor(st.st_rdev);
@@ -1224,16 +1224,18 @@ static int env_umount(void *data)
 
 static int del_disk(struct vzctl_env_handle *h, struct vzctl_disk *d)
 {
-	char dev[STR_SIZE];
 	int ret;
 
 	ret = update_disk_info(d);
-	if (ret)
+	if (ret == VZCTL_E_FS_NOT_MOUNTED)
+		return 0;
+	else if (ret)
 		return ret;
 
 	if (is_env_run(h)) {
-		if (vzctl2_env_exec_fn2(h, env_umount, dev, 0, 0))
-			vzctl_err(-1, 0, "Failed to unmount %s", dev);
+		if (vzctl2_env_exec_fn2(h, env_umount, (void *)get_fs_partname(d), 0, 0))
+			vzctl_err(-1, 0, "Failed to unmount %s",
+					get_fs_partname(d));
 
 		ret = configure_disk_perm(h, d, 1);
 		if (ret)
