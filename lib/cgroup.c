@@ -32,6 +32,7 @@
 #include <fcntl.h>
 #include <sys/mount.h>
 #include <math.h>
+#include <dirent.h>
 
 #include "list.h"
 #include "cgroup.h"
@@ -359,8 +360,7 @@ static int cg_create(const char *ctid, struct cg_ctl *ctl)
 	return make_dir(path, 1);
 }
 
-
-static int do_rmdir(const char *dir)
+static int rmdir_retry(int fd, const char *name)
 {
 	useconds_t total = 0;
 	useconds_t wait = 10000;
@@ -368,11 +368,10 @@ static int do_rmdir(const char *dir)
 	const useconds_t timeout = 30 * 1000000;
 
 	do {
-		if (rmdir(dir) == 0)
+		if (unlinkat(fd, name, AT_REMOVEDIR) == 0)
 			return 0;
 		if (errno != EBUSY)
 			break;
-
 		usleep(wait);
 		total += wait;
 		wait *= 2;
@@ -380,35 +379,138 @@ static int do_rmdir(const char *dir)
 			wait = maxwait;
 	} while (total < timeout);
 
-	return vzctl_err(-1, errno, "Cannot remove dir %s", dir);
+	return vzctl_err(-1, errno, "Cannot remove dir %s", name);
+}
+
+/* change fd to first found dir
+ * retrun: 0 - fd sucesfully chnaged
+ *	   1 - fd not changed (no dirs)
+ *	  -1 - error
+ */
+static int goto_next_dir(int *parentfd, int *fd, char *out, int size)
+{
+	DIR *dir;
+	struct stat st;
+	struct dirent *ent;
+
+	dir = fdopendir(*fd);
+	if (dir == NULL)
+		return vzctl_err(-1, errno, "Can't opendir");
+
+	rewinddir(dir);
+
+	while ((ent = readdir(dir)) != NULL) {
+		if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, ".."))
+			continue;
+
+		if (fstatat(*fd, ent->d_name, &st, AT_SYMLINK_NOFOLLOW) &&
+				errno != ENOENT)
+		{
+			vzctl_err(-1, errno, "goto_next_dir fstatat %s",
+					ent->d_name);
+			continue;
+		}
+
+		if (S_ISDIR(st.st_mode)) {
+			int next = openat(*fd, ent->d_name, O_DIRECTORY);
+			if (next == -1) {
+				if (errno == ENOENT)
+					continue;
+
+				return vzctl_err(-1, errno, "openat %s",
+						ent->d_name);
+			}
+
+			if (*parentfd != -1)
+				close(*parentfd);
+			*parentfd = *fd;
+			*fd = next;
+
+			snprintf(out, size, "%s", ent->d_name);
+
+			return 0;
+		}
+	}
+
+	/* do not release fd */
+	return 1;
+}
+
+static int rm_tree(const char *path)
+{
+	int ret;
+	int parentfd = -1, fd = -1;
+	struct stat st, pst;
+	char name[PATH_MAX] = "";
+	int level = 0;
+
+	fd = open(path, O_DIRECTORY);
+	if (fd == -1) {
+		if (errno == ENOENT)
+			return 0;
+		return vzctl_err(-1, errno, "Can't open %s", path);
+	}
+
+	if (fstat(fd, &st)) {
+		vzctl_err(-1, errno, "fstat %s", path);
+		close(fd);
+		return -1;
+	}
+
+	do {
+		ret = goto_next_dir(&parentfd, &fd, name, sizeof(name));
+		if (ret == 0) {
+			level++;
+			continue;
+		} else if (ret == -1)
+			break;
+
+		if (fstat(fd, &pst)) {
+			ret = vzctl_err(-1, errno, "rm_tree fstat()");
+			break;
+		}
+		if (st.st_ino == pst.st_ino)
+			break;
+
+		int pfd = openat(parentfd, "..", O_DIRECTORY);
+		if (pfd == -1) {
+			ret = vzctl_err(-1, errno, "openad ..");
+			break;
+		}
+
+		close(fd);
+		fd = parentfd;
+		parentfd = pfd;
+
+		if (name[0] != '\0' && rmdir_retry(fd, name)) {
+			ret = -1;
+			break;
+		}
+
+		name[0] = '\0';
+		level--;
+	} while (level >= 0);
+
+	if (fd != -1)
+		close(fd);
+	if (parentfd != -1)
+		close(parentfd);
+
+	rmdir(path);
+
+	return ret;
 }
 
 static int cg_destroy(const char *ctid, struct cg_ctl *ctl)
 {
 	char path[PATH_MAX];
-	struct stat st;
-	struct vzctl_str_param *it;
-	LIST_HEAD(dirs);
-	int ret = 0;
 
 	if (ctl->mount_path == NULL)
 		return 0;
 
 	get_cgroup_name(ctid, ctl, path, sizeof(path));
 
-	if (stat(path, &st) && errno == ENOENT)
-		return 0;
-
-	logger(3, 0, "Destroy cgroup %s", path);
-	if (get_dir_list(&dirs, path, -1))
-		return -1;
-
-	list_for_each_prev(it, &dirs, list) {
-		do_rmdir(it->str);
-	}
-
-	free_str(&dirs);
-	return ret;
+	return rm_tree(path);
 }
 
 int cg_get_cgroup_env_param(const char *ctid, char *out, int size)
