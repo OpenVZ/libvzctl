@@ -438,7 +438,7 @@ static int goto_next_dir(int *parentfd, int *fd, char *out, int size)
 
 static int rm_tree(const char *path)
 {
-	int ret;
+	int ret = 0;
 	int parentfd = -1, fd = -1;
 	struct stat st, pst;
 	char name[PATH_MAX] = "";
@@ -458,11 +458,11 @@ static int rm_tree(const char *path)
 	}
 
 	do {
-		ret = goto_next_dir(&parentfd, &fd, name, sizeof(name));
-		if (ret == 0) {
+		int rc = goto_next_dir(&parentfd, &fd, name, sizeof(name));
+		if (rc == 0) {
 			level++;
 			continue;
-		} else if (ret == -1)
+		} else if (rc == -1)
 			break;
 
 		if (fstat(fd, &pst)) {
@@ -510,7 +510,10 @@ static int cg_destroy(const char *ctid, struct cg_ctl *ctl)
 
 	get_cgroup_name(ctid, ctl, path, sizeof(path));
 
-	return rm_tree(path);
+	if (rm_tree(path))
+		return VZCTL_E_SYSTEM;
+
+	return 0;
 }
 
 int cg_get_cgroup_env_param(const char *ctid, char *out, int size)
