@@ -462,8 +462,10 @@ static int rm_tree(const char *path)
 		if (rc == 0) {
 			level++;
 			continue;
-		} else if (rc == -1)
+		} else if (rc == -1) {
+			ret = -1;
 			break;
+		}
 
 		if (fstat(fd, &pst)) {
 			ret = vzctl_err(-1, errno, "rm_tree fstat()");
