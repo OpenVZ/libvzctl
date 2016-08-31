@@ -150,6 +150,8 @@ static int fill_veth_dev(struct vzctl_veth_dev *dst,
 	if (!list_empty(&src->ip_del_list))
 		copy_ip_param(&dst->ip_del_list, &src->ip_del_list);
 	dst->ip_delall = src->ip_delall;
+	if (src->nettype)
+		dst->nettype = src->nettype;
 
 	return 0;
 }
@@ -240,7 +242,7 @@ static int run_vznetcfg(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
 {
 	char fname[PATH_MAX];
 	char veid[sizeof(ctid_t) + sizeof("VEID=")];
-	char *env[2] = {veid, NULL};
+	char *env[3] = {};
 
 	char *arg[] = {
 		fname,
@@ -252,6 +254,8 @@ static int run_vznetcfg(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
 
 	snprintf(veid, sizeof(veid), "VEID=%s", h->ctid);
 	env[0] = veid;
+	if (dev->nettype == VZCTL_NETTYPE_BRIDGE)
+		env[1] = "NETWORK_TYPE=bridge";
 
 	get_script_path("vznetcfg", fname, sizeof(fname));
 	if (access(fname, F_OK))
@@ -842,6 +846,11 @@ char *veth2str(struct vzctl_env_param *env, struct vzctl_veth_param *new)
 			if (sp >= ep)
 				break;
 		}
+		if (it->nettype == VZCTL_NETTYPE_BRIDGE) {
+			sp += snprintf(sp, ep - sp, "type=bridge,");
+			if (sp >= ep)
+				break;
+		}
 		if (it->gw != NULL && it->gw[0] != 0) {
 			sp += snprintf(sp, ep - sp, "gw=%s,", it->gw);
 			if (sp >= ep)
@@ -947,6 +956,16 @@ char *veth2str(struct vzctl_env_param *env, struct vzctl_veth_param *new)
 	if (phead == &merged)
 		free_veth(&merged);
 	return strdup(buf);
+}
+
+static int get_nettype(const char *str, int *type)
+{
+	if (strcmp("bridge", str) == 0)
+		*type = VZCTL_NETTYPE_BRIDGE;
+	else
+		return VZCTL_E_INVAL;
+
+	return 0;
 }
 
 static int parse_netif_str(struct vzctl_env_handle *h, const char *str,
@@ -1110,6 +1129,14 @@ static int parse_netif_str(struct vzctl_env_handle *h, const char *str,
 				return vzctl_err(VZCTL_E_INVAL, 0,
 						"Incorrect veth network '%s' parameter",
 						dev->network);
+		} else if (!strncmp("type=", p, 5)) {
+			p += 5;
+			len = next - p;
+			strncpy(tmp, p, len);
+			tmp[len] = 0;
+			if (get_nettype(tmp, &dev->nettype))
+				return vzctl_err(VZCTL_E_INVAL,	0, "Incorrect"
+					" veth network type '%s'", tmp);
 		} else if (!strncmp("ip=", p, 3)) {
 			p += 3;
 			do {
@@ -1169,7 +1196,6 @@ int parse_netif_ifname(struct vzctl_veth_param *veth, const char *str, int op)
 			return VZCTL_E_NOMEM;
 	}
 	dev = veth->ifname;
-	len = strlen(str);
 	switch (op) {
 	case VZCTL_PARAM_NETIF_IFNAME:
 		if (dev->dev_name_ve[0] != 0) {
@@ -1177,6 +1203,7 @@ int parse_netif_ifname(struct vzctl_veth_param *veth, const char *str, int op)
 				" allowed");
 			return VZCTL_E_INVAL;
 		}
+		len = strlen(str);
 		if (len > IFNAMSIZE)
 			return VZCTL_E_INVAL;
 		strcpy(dev->dev_name_ve, str);
@@ -1186,6 +1213,7 @@ int parse_netif_ifname(struct vzctl_veth_param *veth, const char *str, int op)
 			return VZCTL_E_INVAL;
 		break;
 	case VZCTL_PARAM_NETIF_HOST_IFNAME:
+		len = strlen(str);
 		if (len > IFNAMSIZE)
 			return VZCTL_E_INVAL;
 		strcpy(dev->dev_name, str);
@@ -1255,6 +1283,11 @@ int parse_netif_ifname(struct vzctl_veth_param *veth, const char *str, int op)
 			if (ret)
 				return ret;
 		}
+		break;
+	case VZCTL_PARAM_NETIF_NETTYPE:
+		ret = get_nettype(str, &dev->nettype);
+		if (ret)
+			return ret;
 		break;
 	default :
 		debug(DBG_CFG, "parse_netif_ifname: unhandled op %d", op);

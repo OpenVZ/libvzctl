@@ -189,6 +189,10 @@ enum {
 #define VZCTL_VETH_CONFIGURE_ALL        0x01
 #define VZCTL_VETH_CONFIGURE_NONE       0x02
 
+enum vzctl_veth_nettype {
+	VZCTL_NETTYPE_BRIDGE	= 1,
+};
+
 struct vzctl_veth_dev_param {
 	const char *mac;		/**< device MAC address. */
 	const char *dev_name;		/**< device name. */
@@ -196,7 +200,8 @@ struct vzctl_veth_dev_param {
 	const char *dev_name_ve;	/**< device name in VE. */
 	const char *gw;                 /**< gateway ip */
 	const char *network;		/**< connect virtual interface to
-					  virtual network. */
+					  virtual network or bridge.
+					  (depends on nettype) */
 	int dhcp;                       /**< DHCP4 2 - on 1 - off. */
 	int allow_mac_spoof;
 	int mac_renew;
@@ -205,6 +210,7 @@ struct vzctl_veth_dev_param {
 	int ip_apply_mode;              /***< 1 - set 0 - add */
 	int configure_mode;
 	int allow_ip_spoof;
+	int nettype;
 };
 
 struct vzctl_rate_param {

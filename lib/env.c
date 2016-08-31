@@ -2137,7 +2137,8 @@ struct vzctl_ip_param *vzctl2_env_get_veth_ipaddress(struct vzctl_veth_dev *dev,
 	return entry;
 }
 
-int vzctl2_env_set_veth_param(struct vzctl_veth_dev *dev, struct vzctl_veth_dev_param *param, int size)
+int vzctl2_env_set_veth_param(struct vzctl_veth_dev *dev,
+		struct vzctl_veth_dev_param *param, int size)
 {
 	int ret;
 	struct vzctl_ip_param *ip = NULL;
@@ -2200,6 +2201,12 @@ int vzctl2_env_set_veth_param(struct vzctl_veth_dev *dev, struct vzctl_veth_dev_
 	}
 	if (tmp.configure_mode)
 		dev->configure_mode = tmp.configure_mode;
+
+	if (tmp.nettype) {
+		if (dev->nettype != VZCTL_NETTYPE_BRIDGE)
+			return VZCTL_E_INVAL;
+		dev->nettype = tmp.nettype;
+	}
 
 	dev->dhcp = tmp.dhcp ? VZCTL_PARAM_ON : VZCTL_PARAM_OFF;
 	dev->dhcp6 = tmp.dhcp6 ? VZCTL_PARAM_ON : VZCTL_PARAM_OFF;
