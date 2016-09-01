@@ -598,7 +598,9 @@ int vzctl2_env_switch_snapshot(struct vzctl_env_handle *h,
 
 	vzctl2_env_close(h_env_snap);
 	release_enter_lock(lfd);
-	logger(0, 0, "Container has been successfully switched "
+
+	if (ret == 0)
+		logger(0, 0, "Container has been successfully switched "
 			"to %s snapshot", guid);
 
 	vzctl_free_snapshot_tree(tree);
