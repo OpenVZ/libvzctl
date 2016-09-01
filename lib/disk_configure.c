@@ -357,13 +357,15 @@ static int env_configure_disk(struct exec_disk_param *param)
 	const char *partname = get_fs_partname(disk);
 	dev_t partdev = get_fs_partdev(disk);
 
-	unlink(param->device);
+	unlink(disk->devname);
 	if (mknod(disk->devname, S_IFBLK | S_IRUSR | S_IWUSR,
-				disk->dev))
-		return -1;
+				disk->dev) && errno != EEXIST)
+		return vzctl_err(-1, errno, "mknod %s", disk->devname);
+
 	unlink(partname);
-	if (mknod(partname, S_IFBLK | S_IRUSR | S_IWUSR, partdev))
-		return -1;
+	if (mknod(partname, S_IFBLK | S_IRUSR | S_IWUSR, partdev) &&
+				errno != ENOENT)
+		return vzctl_err(-1, errno, "mknod %s", partname);
 
 	if (send_uevent(disk->devname))
 		return -1;
