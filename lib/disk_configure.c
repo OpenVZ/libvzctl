@@ -385,10 +385,11 @@ static int env_configure_disk(struct exec_disk_param *param)
 		if (env_configure_systemd_unit(param->fsuuid, disk->mnt, disk->mnt_opts))
 			return -1;
 
-		if (param->automount &&
-				mount(partname, disk->mnt, "ext4", 0, NULL))
-			return vzctl_err(-1, errno, "Failed to mount %s %s",
+		if (param->automount || disk->dmname) {
+			if (mount(partname, disk->mnt, "ext4", 0, NULL))
+				return vzctl_err(-1, errno, "Failed to mount %s %s",
 					partname, disk->mnt);
+		}
 	}
 
 	return 0;
