@@ -372,6 +372,18 @@ static void fix_cpu_param(struct vzctl_cpu_param *cpu)
 	}
 }
 
+static void fix_param(struct vzctl_env_param *env)
+{
+	fix_numiptent(env->res->ub);
+	fix_cpu_param(env->cpu);
+
+	/* enable bridge by default #PSBM-50520 */
+	if (!(env->features->known & VE_FEATURE_BRIDGE)) {
+		env->features->known |= VE_FEATURE_BRIDGE;
+		env->features->mask |= VE_FEATURE_BRIDGE;
+	}
+}
+
 #define INITTAB_FILE		"/etc/inittab"
 #define INITTAB_VZID		"vz:"
 #define INITTAB_ACTION		INITTAB_VZID "12345:once:touch " VZFIFO_FILE
@@ -918,8 +930,7 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 			goto err_pipe;
 	}
 
-	fix_numiptent(env->res->ub);
-	fix_cpu_param(env->cpu);
+	fix_param(env);
 
 	h->ctx->state = VZCTL_STATE_STARTING;
 	if ((ret = get_env_ops()->env_create(h, &param)))
@@ -1139,8 +1150,7 @@ int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param
 			goto err_pipe;
 	}
 
-	fix_numiptent(env->res->ub);
-	fix_cpu_param(env->cpu);
+	fix_param(env);
 
 	h->ctx->state = VZCTL_STATE_STARTING;
 	if ((ret = get_env_ops()->env_restore(h, &start_param, param, flags)))
