@@ -2286,6 +2286,7 @@ int vzctl2_env_get_veth_param(struct vzctl_veth_dev *dev, struct vzctl_veth_dev_
 	tmp.dhcp6 = dev->dhcp6 == VZCTL_PARAM_ON ? 1 : 0;
 	tmp.gw6 = dev->gw6;
 	tmp.configure_mode = dev->configure_mode;
+	tmp.nettype = dev->nettype;
 
 	memcpy(res, &tmp, size);
 
