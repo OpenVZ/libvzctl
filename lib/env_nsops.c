@@ -19,10 +19,10 @@
  * Our contact details: Parallels IP Holdings GmbH, Vordergasse 59, 8200
  * Schaffhausen, Switzerland.
  */
-
+#define	_GNU_SOURCE
+#include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <signal.h>
 #include <errno.h>
 #include <string.h>
@@ -39,7 +39,6 @@
 #include <linux/veth.h>
 #include <sys/ioctl.h>
 
-#define __USE_GNU /* for CLONE_XXX */
 #include <sched.h>
 
 #include "env.h"
@@ -216,7 +215,8 @@ static int real_ns_env_create(void *arg)
 	fcntl(param->h->ctx->wait_p[0], F_SETFD, FD_CLOEXEC);
 
 	/* Wait while user id mappings have been configuraed */
-	if (read(param->init_p[0], &ret, sizeof(ret)))
+	ret = TEMP_FAILURE_RETRY(read(param->init_p[0], &ret, sizeof(ret)));
+	if (ret)
 		return VZCTL_E_SYSTEM;
 
 	if (setuid(0) || setgid(0) || setgroups(0, NULL)) {
@@ -573,7 +573,7 @@ static int wait_on_pipe(const char *msg, int status_p)
 	int ret, errcode = 0;
 
 	logger(10, 0, "* Wait status pid=%d", getpid());
-	ret = read(status_p, &errcode, sizeof(errcode));
+	ret = TEMP_FAILURE_RETRY(read(status_p, &errcode, sizeof(errcode)));
 	logger(10, 0, "* Done wait status ret=%d errcode=%d", ret, errcode);
 	if (ret == -1)
 		return vzctl_err(VZCTL_E_SYSTEM, errno, "Failed tp %s the Container,"
