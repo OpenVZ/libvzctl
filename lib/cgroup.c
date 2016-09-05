@@ -860,7 +860,7 @@ int cg_env_get_pids(const char *ctid, list_head_t *list)
 	char *p;
 	int ret = 0;
 
-	ret = cg_get_path(ctid, CG_MEMORY, "cgroup.procs", path, sizeof(path));
+	ret = cg_get_path(ctid, CG_VE, "tasks", path, sizeof(path));
 	if (ret)
 		return ret;
 
