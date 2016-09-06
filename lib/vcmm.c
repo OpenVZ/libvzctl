@@ -110,6 +110,9 @@ static int get_vcmm_config(const char *id, struct vcmmd_ve_config *c,
 	};
 
 	if (init) {
+		if (ub->physpages == NULL)
+			return vzctl_err(VZCTL_E_INVAL, 0,
+				"physpages parameter is not set");
 		/* use default garanty if not set */
 		if (guar == NULL)
 			guar = &guar_def;
