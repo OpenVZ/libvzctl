@@ -490,6 +490,11 @@ struct vzctl_mem_guarantee {
 	int dummy[32];
 };
 
+enum {
+	VZCTL_AUTOSTOP_SHUTDOWN	= 1,
+	VZCTL_AUTOSTOP_SUSPEND
+};
+
 typedef int (* execFn)(void *data);
 
 /* Internal data representattion */
@@ -727,6 +732,8 @@ int vzctl2_env_get_apptemplates(vzctl_env_param_ptr env, const char **names);
 
 int vzctl2_env_set_autostart(vzctl_env_param_ptr env, int enable);
 int vzctl2_env_get_autostart(vzctl_env_param_ptr env, int *enable);
+int vzctl2_env_set_autostop(vzctl_env_param_ptr env, int mode);
+int vzctl2_env_get_autostop(vzctl_env_param_ptr env, int *mode);
 
 int vzctl2_env_get_ipstr(vzctl_ip_iterator it, char *buf, int len);
 

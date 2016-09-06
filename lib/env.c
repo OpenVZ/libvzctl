@@ -2483,6 +2483,23 @@ int vzctl2_env_get_autostart(struct vzctl_env_param *env, int *enable)
 	return 0;
 }
 
+int vzctl2_env_set_autostop(struct vzctl_env_param *env, int mode)
+{
+	if (mode > VZCTL_AUTOSTOP_SUSPEND)
+		return VZCTL_E_INVAL;
+
+	env->opts->autostop = mode;
+
+	return 0;
+}
+
+int vzctl2_env_get_autostop(struct vzctl_env_param *env, int *mode)
+{
+	*mode = env->opts->autostop;
+
+	return 0;
+}
+
 int vzctl2_env_set_apply_iponly(struct vzctl_env_param *env, int enable)
 {
 	env->opts->apply_iponly = enable ? VZCTL_PARAM_ON : VZCTL_PARAM_OFF;

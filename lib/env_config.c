@@ -143,6 +143,7 @@ static struct vzctl_config_param config_param_map[] = {
 {"MEMINFO",	VZCTL_PARAM_MEMINFO},
 
 {"ONBOOT",	VZCTL_PARAM_ONBOOT},
+{"AUTOSTOPSTOP",VZCTL_PARAM_AUTOSTOP},
 {"DESCRIPTION",	VZCTL_PARAM_DESCRIPTION},
 {"HOSTNAME",	VZCTL_PARAM_HOSTNAME},
 {"SEARCHDOMAIN",VZCTL_PARAM_SEARCHDOMAIN},
@@ -575,6 +576,14 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 		if ((n = yesno2id(str)) == -1)
 			goto err_inval;
 		env->opts->onboot = n;
+		break;
+	case VZCTL_PARAM_AUTOSTOP:
+		if (strcmp(str, "suspend") == 0)
+			env->opts->autostop = VZCTL_AUTOSTOP_SUSPEND;
+		else if (strcmp(str, "stop") == 0)
+			env->opts->autostop = VZCTL_AUTOSTOP_SHUTDOWN;
+		else
+			goto err_inval;
 		break;
 	case VZCTL_PARAM_BOOTORDER:
 		if (parse_ul(str, &ul))
@@ -1132,6 +1141,14 @@ static char *env_param2str(struct vzctl_env_handle *h,
 			str = id2yesno(env->opts->onboot);
 			if (str != NULL)
 				return strdup(str);
+		}
+		break;
+	case VZCTL_PARAM_AUTOSTOP:
+		if (env->opts->autostop) {
+			snprintf(buf, sizeof(buf),"%s",
+				env->opts->autostop == VZCTL_AUTOSTOP_SUSPEND ?
+							"suspend" : "stop");
+			return strdup(buf);
 		}
 		break;
 	case VZCTL_PARAM_BOOTORDER:
