@@ -69,6 +69,8 @@ static int _initialized = 0;
 static unsigned int __global_flags;
 static char _g_hostname[STR_SIZE];
 static pthread_mutex_t _g_hostname_mtx = PTHREAD_MUTEX_INITIALIZER;
+static int vzctl_check_owner_quiet(const char *ve_private, char *host,
+		size_t hsize, char *ve_host, size_t ve_hsize);
 
 unsigned int vzctl2_get_flags(void)
 {
@@ -265,18 +267,24 @@ static int get_env_ids_exists(vzctl_ids_t *ctids)
 
 		vzctl2_get_env_conf_path(ctid, path, sizeof(path));
 		if (vzctl_parse_conf_simple(ctid, path, &l_conf) == 0) {
+			char ve_host[STR_SIZE] = "";
+			char host[STR_SIZE] = "";
+
 			if (l_conf.ve_private == NULL) {
 				l_conf.ve_private = subst_VEID(ctid,
 							g_conf.ve_private_orig);
 			}
-			if (l_conf.ve_private != NULL &&
-				stat_file(l_conf.ve_private))
-			{
+			if (l_conf.ve_private == NULL ||
+					stat_file(l_conf.ve_private) != 1)
+				continue;
 
-				if (add_eids(ctids, ctid, ++cnt)) {
-					cnt = -1;
-					break;
-				}
+			if (vzctl_check_owner_quiet(l_conf.ve_private, host,
+					sizeof(host), ve_host, sizeof(ve_host)))
+				continue;
+
+			if (add_eids(ctids, ctid, ++cnt)) {
+				cnt = -1;
+				break;
 			}
 		}
 		vzctl_free_conf_simple(&l_conf);
@@ -718,10 +726,10 @@ int vzctl2_get_free_env_id(unsigned *neweid)
 	return vzctl2_get_free_envid(neweid, NULL, NULL);
 }
 
-static int vzctl_check_owner_quiet(
-		const char *ve_private, char *host, size_t hsize, char *ve_host, size_t ve_hsize)
+static int vzctl_check_owner_quiet(const char *ve_private, char *host,
+		size_t hsize, char *ve_host, size_t ve_hsize)
 {
-	char file[STR_SIZE];
+	char file[PATH_MAX];
 	char *p;
 	int len;
 	FILE *fp;
@@ -734,15 +742,6 @@ static int vzctl_check_owner_quiet(
 		return VZCTL_E_SYSTEM;
 	} else if (ret == 0)
 		return 0;
-
-	ret = vzctl2_env_layout_version(ve_private);
-	if (ret == -1)
-		return VZCTL_E_SYSTEM;
-	else if (ret < VZCTL_LAYOUT_4) {
-		logger(0, 0, "Owner check skipped for thr CT with %d layout",
-				ret);
-		return 0;
-	}
 
 	snprintf(file, sizeof(file), "%s/" VZCTL_VE_OWNER, ve_private);
 	if ((fp = fopen(file, "r")) == NULL) {
