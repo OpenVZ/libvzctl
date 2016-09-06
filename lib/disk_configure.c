@@ -416,7 +416,7 @@ static struct vzctl_disk *find_disk_by_fsuuid(struct vzctl_env_disk *env_disk, c
 	struct vzctl_disk *disk;
 
 	list_for_each(disk, &env_disk->disks, list)
-		if (disk->fsuuid != NULL && !strcmp(disk->fsuuid, fsuuid))
+		if (!strcmp(disk->fsuuid, fsuuid))
 			return disk;
 
 	return NULL;
