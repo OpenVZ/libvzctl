@@ -60,7 +60,6 @@ function wait_service()
 			ret_code=$?
 			if [[ $ret_code != 0  && $retry < $MAX_RETRIES ]]; then
 				(( retry=$retry+1 ))
-				echo "TEST: $ret_code : $retry"
 			else
 				try_rerun=false
 			fi
