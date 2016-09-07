@@ -67,15 +67,14 @@ function restart_network()
 	local dev
 
 	if is_wicked; then
-		systemctl restart wickedd
+		systemctl stop wickedd
+		systemctl start wickedd
 		# It is possble that we called wickedd restart too quickly and it refused to start
-		if ! systemctl is-active -q wickedd; then
-			wait_service "wickedd" "start"
-		fi
+		wait_service "wickedd" "start"
 
 		# Just for case - let's wait a little for all dependent services to start
 		for service in wickedd-nanny wickedd-dhcp6 wickedd-dhcp4 wickedd-auto4; do
-			if systemctl is-enabled -q $service && ! systemctl is-active -q $service ; then
+			if systemctl is-enabled -q $service; then
 				wait_service $service
 			fi
 		done
