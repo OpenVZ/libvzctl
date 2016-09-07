@@ -51,7 +51,6 @@ function wait_service()
 	retry=0
 	while ! systemctl is-active -q $service && [[ $retry < $MAX_RETRIES ]]
 		sleep $WAIT_TIMEOUT
-		systemctl is-active -q $service && break
 		(( retry=$retry+1 ))
 	done
 
