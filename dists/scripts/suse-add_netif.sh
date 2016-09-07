@@ -40,6 +40,7 @@ DEV=
 IFNUMLIST=
 IFRMLIST=
 IFNUM=
+WICKEDD_TIMEOUT=30
 
 function restart_network()
 {
@@ -47,6 +48,19 @@ function restart_network()
 
 	if is_wicked; then
 		systemctl restart wickedd
+		# It is possble that we called wickedd restart too quickly and it refused to start
+		if ! systemctl is-active -q wickedd; then
+			sleep $WICKEDD_TIMEOUT
+			systemctl start wickedd
+		fi
+
+		# Just for case - let's wait a little for all dependent services to start
+		for service in wickedd-nanny wickedd-dhcp6 wickedd-dhcp4 wickedd-auto4; do
+			if ! systemctl is-active -q $service ; then
+				sleep $WICKEDD_TIMEOUT
+			fi
+		done
+
 		# Flush all devices, wicked don't clean DHCP addresses
 		for dev in `ip a l 2>/dev/null | grep ^[0-9] | sed -e "s,^[0-9]*: ,,g" -e "s,:.*,,g"`; do
 			ip addr flush $dev
