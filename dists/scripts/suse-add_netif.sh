@@ -50,19 +50,16 @@ function wait_service()
 
 	if ! systemctl is-active -q $service; then
 		retry=0
-		try_rerun=true
-		while $try_rerun; do
+		while [[ $retry < $MAX_RETRIES ]]; do
 			sleep $WAIT_TIMEOUT
 			if [[ $restart != 0 ]]; then
 				systemctl start $service
 			fi
-			systemctl is-active -q $service
-			ret_code=$?
-			if [[ $ret_code != 0  && $retry < $MAX_RETRIES ]]; then
-				(( retry=$retry+1 ))
-			else
-				try_rerun=false
+
+			if systemctl is-active -q $service; then
+				break
 			fi
+			(( retry=$retry+1 ))
 		done
 	fi
 }
