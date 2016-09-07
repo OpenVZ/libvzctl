@@ -40,13 +40,42 @@ DEV=
 IFNUMLIST=
 IFRMLIST=
 IFNUM=
+WAIT_TIMEOUT=5
+MAX_RETRIES=5
+
+function wait_service()
+{
+	local service=$1
+	local action=$2
+
+	retry=0
+	while ! systemctl is-active -q $service && [[ $retry < $MAX_RETRIES ]]
+		sleep $WAIT_TIMEOUT
+		(( retry=$retry+1 ))
+	done
+
+	if ! systemctl is-active -q $service && [ ! -z "$action" ]; then
+		systemctl $action $service
+	fi
+}
 
 function restart_network()
 {
 	local dev
 
 	if is_wicked; then
-		systemctl restart wickedd
+		systemctl stop wickedd
+		systemctl start wickedd
+		# It is possble that we called wickedd restart too quickly and it refused to start
+		wait_service "wickedd" "start"
+
+		# Just for case - let's wait a little for all dependent services to start
+		for service in wickedd-nanny wickedd-dhcp6 wickedd-dhcp4 wickedd-auto4; do
+			if systemctl is-enabled -q $service; then
+				wait_service $service
+			fi
+		done
+
 		# Flush all devices, wicked don't clean DHCP addresses
 		for dev in `ip a l 2>/dev/null | grep ^[0-9] | sed -e "s,^[0-9]*: ,,g" -e "s,:.*,,g"`; do
 			ip addr flush $dev
