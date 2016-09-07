@@ -48,17 +48,15 @@ function wait_service()
 	local service=$1
 	local action=$2
 
-	if ! systemctl is-active -q $service; then
-		retry=0
-		while [[ $retry < $MAX_RETRIES ]]; do
-			sleep $WAIT_TIMEOUT
-			systemctl is-active -q $service && break
-			(( retry=$retry+1 ))
-		done
+	retry=0
+	while ! systemctl is-active -q $service && [[ $retry < $MAX_RETRIES ]]
+		sleep $WAIT_TIMEOUT
+		systemctl is-active -q $service && break
+		(( retry=$retry+1 ))
+	done
 
-		if ! systemctl is-active -q $service && [ ! -z "$action" ]; then
-			systemctl $action $service
-		fi
+	if ! systemctl is-active -q $service && [ ! -z "$action" ]; then
+		systemctl $action $service
 	fi
 }
 
