@@ -40,7 +40,8 @@ DEV=
 IFNUMLIST=
 IFRMLIST=
 IFNUM=
-WICKEDD_TIMEOUT=30
+WICKEDD_TIMEOUT=5
+MAX_RETRIES=5
 
 function restart_network()
 {
@@ -50,13 +51,25 @@ function restart_network()
 		systemctl restart wickedd
 		# It is possble that we called wickedd restart too quickly and it refused to start
 		if ! systemctl is-active -q wickedd; then
-			sleep $WICKEDD_TIMEOUT
-			systemctl start wickedd
+			retry=0
+			try_rerun=true
+			while $try_rerun; do
+				sleep $WICKEDD_TIMEOUT
+				systemctl start wickedd
+				systemctl is-active -q wickedd
+				ret_code=$?
+				if [[ $ret_code != 0  && $retry < $MAX_RETRIES ]]; then
+					(( retry=$retry+1 ))
+					echo "TEST: $ret_code : $retry"
+				else
+					try_rerun=false
+				fi
+			done
 		fi
 
 		# Just for case - let's wait a little for all dependent services to start
 		for service in wickedd-nanny wickedd-dhcp6 wickedd-dhcp4 wickedd-auto4; do
-			if ! systemctl is-active -q $service ; then
+			if systemctl is-enabled -q $service && ! systemctl is-active -q $service ; then
 				sleep $WICKEDD_TIMEOUT
 			fi
 		done
