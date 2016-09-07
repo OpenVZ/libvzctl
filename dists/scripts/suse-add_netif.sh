@@ -52,15 +52,15 @@ function wait_service()
 		retry=0
 		while [[ $retry < $MAX_RETRIES ]]; do
 			sleep $WAIT_TIMEOUT
-			if [ ! -z "$action" ]; then
-				systemctl $action $service
-			fi
-
 			if systemctl is-active -q $service; then
 				break
 			fi
 			(( retry=$retry+1 ))
 		done
+
+		if ! systemctl is-active -q $service && [ ! -z "$action" ]; then
+			systemctl $action $service
+		fi
 	fi
 }
 
