@@ -362,8 +362,6 @@ int get_ploop_dev(const char *path, char *dev, int dlen, char *part, int plen)
 {
 	struct ploop_disk_images_data *di;
 	int ret;
-	char buf[STR_SIZE];
-	char *p;
 
 	if (path == NULL)
 		return vzctl_err(-1, 0, "Failed to get ploop device: "
@@ -380,15 +378,11 @@ int get_ploop_dev(const char *path, char *dev, int dlen, char *part, int plen)
 		goto err;
 	}
 
-	if (ploop_get_part(di, dev, buf, sizeof(buf))) {
+	if (ploop_get_part(di, dev, part, plen)) {
 		ret = vzctl_err(-1, 0, "loop_get_part devs: %s: %s",
 				dev, ploop_get_last_error());
 		goto err;
 	}
-
-	p = realpath(buf, NULL);
-	snprintf(part, plen, "%s", p ?: buf);
-	free(p);
 
 err:
 	ploop_close_dd(di);

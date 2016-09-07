@@ -47,9 +47,10 @@
 
 struct exec_disk_param {
 	const char *fsuuid;
-	const char *device;
 	struct vzctl_disk *disk;
 	int automount;
+	char *partname;
+	dev_t partdev;
 };
 
 int get_fs_uuid(const char *device, char *uuid)
@@ -265,6 +266,7 @@ SYSTEMD_UNIT_DESC "%s mount unit\n" \
 	snprintf(systemd_link_path, sizeof(systemd_link_path),
 		SYSTEMD_TARGET_DIR "/%s", systemd_unit_name);
 
+	unlink(systemd_link_path);
 	if (symlink(systemd_unit_path, systemd_link_path))
 		logger(-1, errno, "Failed to create link %s", systemd_link_path);
 
@@ -354,14 +356,17 @@ int send_uevent(const char *part)
 static int env_configure_disk(struct exec_disk_param *param)
 {
 	struct vzctl_disk *disk = param->disk;
-	const char *partname = get_fs_partname(disk);
-	dev_t partdev = get_fs_partdev(disk);
+	const char *partname = param->partname;
+	dev_t partdev = param->partdev;
 
 	unlink(disk->devname);
 	if (mknod(disk->devname, S_IFBLK | S_IRUSR | S_IWUSR,
 				disk->dev) && errno != EEXIST)
 		return vzctl_err(-1, errno, "mknod %s", disk->devname);
 
+	if (make_dir(partname, 0))
+		return -1;
+		
 	unlink(partname);
 	if (mknod(partname, S_IFBLK | S_IRUSR | S_IWUSR, partdev) &&
 				errno != ENOENT)
@@ -398,11 +403,17 @@ static int env_configure_disk(struct exec_disk_param *param)
 int configure_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 		int flags, int automount)
 {
+	char partname[PATH_MAX + 1];
 	struct exec_disk_param param = {
 		.fsuuid = disk->fsuuid,
 		.disk = disk,
-		.automount = automount
+		.automount = automount,
+		.partname = partname,
+		.partdev = get_fs_partdev(disk),
 	};
+
+	if (realpath(get_fs_partname(disk), partname) == NULL)
+		snprintf(partname, sizeof(partname), "%s", get_fs_partname(disk));
 
 	if (vzctl2_env_exec_fn2(h, (execFn) env_configure_disk, &param, VZCTL_SCRIPT_EXEC_TIMEOUT,
 				(flags & VZCTL_RESTORE ? VE_SKIPLOCK : 0)))

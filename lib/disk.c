@@ -937,17 +937,17 @@ static int configure_sysfsperm(struct vzctl_env_handle *h, struct vzctl_disk *d,
 	char sys_dm[PATH_MAX];
 	int ret;
 
-	ret = get_sysfs_device_path("block", get_devname(d->devname), sys_dev,
+	ret = get_sysfs_device_path("block", d->devname, sys_dev,
 			sizeof(sys_dev));
 	if (ret)
 		return ret;
-	ret = get_sysfs_device_path("block", get_devname(d->partname), sys_part,
+	ret = get_sysfs_device_path("block", d->partname, sys_part,
 			sizeof(sys_part));
 	if (ret)
 		return ret;
 
 	if (d->dmname != NULL) {
-		ret = get_sysfs_device_path("block", get_devname(d->dmname), sys_dm,
+		ret = get_sysfs_device_path("block", d->dmname, sys_dm,
 				sizeof(sys_dm));
 		if (ret)
 			return ret;

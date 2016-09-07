@@ -33,6 +33,7 @@
 #include "list.h"
 #include "cgroup.h"
 #include "vzerror.h"
+#include "util.h"
 
 int add_sysfs_dir(struct vzctl_env_handle *h, const char *sysfs,
 		const char *devname, const char *mode)
@@ -105,8 +106,11 @@ int get_sysfs_device_path(const char *class, const char *devname, char *out,
 	int n;
 	char x[STR_SIZE];
 	char buf[PATH_MAX];
+	char *p = realpath(devname, NULL);
 
-	snprintf(x, sizeof(x), "/sys/class/%s/%s", class, devname);
+	snprintf(x, sizeof(x), "/sys/class/%s/%s", class,
+			get_devname(p ?: devname));
+	free(p);
 
 	n = readlink(x, buf, sizeof(buf) -1);
 	if (n == -1)
