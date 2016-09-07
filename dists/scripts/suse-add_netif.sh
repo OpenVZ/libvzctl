@@ -40,8 +40,33 @@ DEV=
 IFNUMLIST=
 IFRMLIST=
 IFNUM=
-WICKEDD_TIMEOUT=5
+WAIT_TIMEOUT=5
 MAX_RETRIES=5
+
+function wait_service()
+{
+	local service=$1
+	local restart=$2
+
+	if ! systemctl is-active -q $service; then
+		retry=0
+		try_rerun=true
+		while $try_rerun; do
+			sleep $WAIT_TIMEOUT
+			if [[ $restart != 0 ]]; then
+				systemctl start $service
+			fi
+			systemctl is-active -q $service
+			ret_code=$?
+			if [[ $ret_code != 0  && $retry < $MAX_RETRIES ]]; then
+				(( retry=$retry+1 ))
+				echo "TEST: $ret_code : $retry"
+			else
+				try_rerun=false
+			fi
+		done
+	fi
+}
 
 function restart_network()
 {
@@ -51,26 +76,13 @@ function restart_network()
 		systemctl restart wickedd
 		# It is possble that we called wickedd restart too quickly and it refused to start
 		if ! systemctl is-active -q wickedd; then
-			retry=0
-			try_rerun=true
-			while $try_rerun; do
-				sleep $WICKEDD_TIMEOUT
-				systemctl start wickedd
-				systemctl is-active -q wickedd
-				ret_code=$?
-				if [[ $ret_code != 0  && $retry < $MAX_RETRIES ]]; then
-					(( retry=$retry+1 ))
-					echo "TEST: $ret_code : $retry"
-				else
-					try_rerun=false
-				fi
-			done
+			wait_service "wickedd" "1"
 		fi
 
 		# Just for case - let's wait a little for all dependent services to start
 		for service in wickedd-nanny wickedd-dhcp6 wickedd-dhcp4 wickedd-auto4; do
 			if systemctl is-enabled -q $service && ! systemctl is-active -q $service ; then
-				sleep $WICKEDD_TIMEOUT
+				wait_service $service "0"
 			fi
 		done
 
