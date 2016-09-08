@@ -1467,7 +1467,7 @@ static int get_ploop_disk_stats(const struct vzctl_disk *disk,
 	ret = get_ploop_dev(disk->path, devname, sizeof(devname),
 			partname, sizeof(partname));
 	if (ret == 0) {
-		ret = ploop_get_mnt_by_dev(partname, buf, sizeof(buf));
+		ret = ploop_get_mnt_by_dev(devname, buf, sizeof(buf));
 		if (ret == 0) {
 			snprintf(stats->device, sizeof(stats->device), "%s",
 					partname);
