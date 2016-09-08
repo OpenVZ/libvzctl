@@ -84,7 +84,6 @@ static int make_ploop_dev_args(struct vzctl_env_handle *h, char *out, int size)
 	ep = pbuf + size;
 	pbuf += snprintf(pbuf, size, "VE_PLOOP_DEVS=");
 	list_for_each(d, &h->env_param->disk->disks, list) {
-		const char *partname = get_fs_partname(d);
 		dev_t part_dev = get_fs_partdev(d);
 
 		if (d->enabled == VZCTL_PARAM_OFF)
@@ -92,7 +91,7 @@ static int make_ploop_dev_args(struct vzctl_env_handle *h, char *out, int size)
 
 		pbuf += snprintf(pbuf, ep - pbuf, "%s@%s:%d:%d:%s\n",
 				d->uuid,
-				get_devname(partname),
+				get_fs_partname(d),
 				gnu_dev_major(part_dev),
 				gnu_dev_minor(part_dev),
 				is_root_disk(d) ? "root" : "");

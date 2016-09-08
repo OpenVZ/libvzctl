@@ -47,14 +47,14 @@ restore_devices()
 		old=$(readlink $root/dev/$uuid)
 		[ -z "$old" ] && continue
 
-		for d in "${old}" "/dev/${device}"; do
-			rm -f $root/$d
-			mknod -m 660 $root/$d b $major $minor
-		done
-
-		minor=$((minor+1))
-		for d in "${old}p1" "/dev/${device}p1"; do
-			rm -f $root/$d
+		for d in "${old}" "${device}"; do
+			dir=$root/$d
+			dir=${dir%/*}
+			if [ -e "$dir" ]; then
+				rm -f $root/$d
+			else
+				mkdir -p $dir
+			fi
 			mknod -m 660 $root/$d b $major $minor
 		done
 
