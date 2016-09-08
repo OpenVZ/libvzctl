@@ -49,7 +49,7 @@ function wait_service()
 	local action=$2
 
 	retry=0
-	while ! systemctl is-active -q $service && [[ $retry < $MAX_RETRIES ]]
+	while ! systemctl is-active -q $service && [[ $retry < $MAX_RETRIES ]]; do
 		sleep $WAIT_TIMEOUT
 		(( retry=$retry+1 ))
 	done
