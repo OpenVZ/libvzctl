@@ -35,6 +35,7 @@
 #include "vzerror.h"
 #include "util.h"
 #include "vzctl_param.h"
+#include "vcmm.h"
 
 void free_res_param(struct vzctl_res_param *res)
 {
@@ -96,7 +97,7 @@ int dump_resources_failcnt(ctid_t ctid)
 
 //----------------------------------------------------
 
-static int get_ub_resources(ctid_t ctid, unsigned long *ram, unsigned long *swap)
+static int get_ub_resources_proc(ctid_t ctid, unsigned long *ram, unsigned long *swap)
 {
 	FILE *fd;
 	char str[STR_SIZE];
@@ -128,6 +129,25 @@ static int get_ub_resources(ctid_t ctid, unsigned long *ram, unsigned long *swap
 	return 0;
 }
 
+static int get_ub_resources(ctid_t ctid, unsigned long *ram,
+		unsigned long *swap)
+{
+	int ret;
+	unsigned long ram_bytes, swap_bytes, x;
+
+	if (!is_managed_by_vcmmd())
+		return get_ub_resources_proc(ctid, ram, swap);
+
+	ret = vcmm_get_param(ctid, &ram_bytes, &swap_bytes, &x);
+	if (ret)
+		return ret;
+
+	ram[0] = ram[1] = ram_bytes / get_pagesize();
+	swap[0] = swap[1] = swap_bytes / get_pagesize();
+
+	return 0;
+}
+
 int vzctl2_get_env_total_meminfo(unsigned long *limit_bytes, unsigned long *usage_bytes)
 {
 	int ret, i;
@@ -146,7 +166,7 @@ int vzctl2_get_env_total_meminfo(unsigned long *limit_bytes, unsigned long *usag
 	}
 
 	for (i = 0; i < ret; i++) {
-		if (get_ub_resources(ids->ids[i], ram, swap) == 0) {
+		if (get_ub_resources_proc(ids->ids[i], ram, swap) == 0) {
 			limit += ram[1];
 			usage += ram[2];
 		}

@@ -28,4 +28,6 @@ int vcmm_register(struct vzctl_env_handle *h, struct vzctl_ub_param *ub,
 		struct vzctl_mem_guarantee *guar);
 int vcmm_update(struct vzctl_env_handle *h, struct vzctl_ub_param *ub,
 		struct vzctl_mem_guarantee *guar);
+int vcmm_get_param(const char *id, unsigned long *mem,
+		unsigned long *swap, unsigned long *guar);
 #endif

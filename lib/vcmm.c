@@ -73,8 +73,8 @@ static struct vcmmd_ve_config *vcmm_get_config(struct vcmmd_ve_config *c,
 	return c;
 }
 
-static int vcmm_get_param(const char *id, unsigned long *mem,
-		unsigned long *guar)
+int vcmm_get_param(const char *id, unsigned long *mem,
+		unsigned long *swap, unsigned long *guar)
 {
 	int rc;
 	struct vcmmd_ve_config c;
@@ -88,10 +88,14 @@ static int vcmm_get_param(const char *id, unsigned long *mem,
 		return vzctl_err(VZCTL_E_VCMM, 0,
 			"Unable to get VCMMD_VE_CONFIG_LIMIT parameter");
 
+	if (!vcmmd_ve_config_extract(&c, VCMMD_VE_CONFIG_SWAP, swap))
+		*swap = 0;
+
 	if (!vcmmd_ve_config_extract(&c, VCMMD_VE_CONFIG_GUARANTEE, guar))
 		*guar = 0;
 
-	logger(5, 0, "vcmmd CT configuration mem=%lu guar=%lu",	*mem, *guar);
+	logger(5, 0, "vcmmd CT configuration mem=%lu swap=%lu guar=%lu",
+			*mem, *swap, *guar);
 
 	return 0;
 }
@@ -117,7 +121,7 @@ static int get_vcmm_config(const char *id, struct vcmmd_ve_config *c,
 		if (guar == NULL)
 			guar = &guar_def;
 	} else if (ub->physpages == NULL || guar == NULL) {
-		ret = vcmm_get_param(id, &mem_cur, &guar_bytes_cur);
+		ret = vcmm_get_param(id, &mem_cur, &x, &guar_bytes_cur);
 		if (ret)
 			return ret;
 		if (ub->physpages == NULL)
