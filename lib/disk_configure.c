@@ -353,30 +353,45 @@ int send_uevent(const char *part)
 	return write_data(path, "add");
 }
 
+static int do_mknod(const char *devname, dev_t dev)
+{
+	if (make_dir(devname, 0))
+		return -1;
+
+	unlink(devname);
+	if (mknod(devname, S_IFBLK | S_IRUSR | S_IWUSR,dev) && errno != EEXIST)
+		return vzctl_err(-1, errno, "mknod %s", devname);
+
+	return 0;
+}
+
 static int env_configure_disk(struct exec_disk_param *param)
 {
+	int ret;
 	struct vzctl_disk *disk = param->disk;
-	const char *partname = param->partname;
-	dev_t partdev = param->partdev;
 
-	unlink(disk->devname);
-	if (mknod(disk->devname, S_IFBLK | S_IRUSR | S_IWUSR,
-				disk->dev) && errno != EEXIST)
-		return vzctl_err(-1, errno, "mknod %s", disk->devname);
-
-	if (make_dir(partname, 0))
-		return -1;
-		
-	unlink(partname);
-	if (mknod(partname, S_IFBLK | S_IRUSR | S_IWUSR, partdev) &&
-				errno != ENOENT)
-		return vzctl_err(-1, errno, "mknod %s", partname);
-
+	ret = do_mknod(disk->devname, disk->dev);
+	if (ret)
+		return ret;
 	if (send_uevent(disk->devname))
 		return -1;
 
-	if (send_uevent(partname))
+	ret = do_mknod(disk->partname, disk->part_dev);
+	if (ret)
+		return ret;
+	if (send_uevent(disk->partname))
 		return -1;
+
+	if (disk->dmname) {
+		ret = do_mknod(disk->dmname, disk->dm_dev);
+		if (ret)
+			return ret;
+		ret = do_mknod(param->partname, disk->dm_dev);
+		if (ret)
+			return ret;
+		if (send_uevent(param->partname))
+			return -1;
+	}
 
 	env_configure_udev_rules();
 
@@ -391,6 +406,7 @@ static int env_configure_disk(struct exec_disk_param *param)
 			return -1;
 
 		if (param->automount || disk->dmname) {
+			const char *partname = get_fs_partname(disk);
 			if (mount(partname, disk->mnt, "ext4", 0, NULL))
 				return vzctl_err(-1, errno, "Failed to mount %s %s",
 					partname, disk->mnt);
