@@ -2329,6 +2329,7 @@ int vzctl2_env_get_disk_param(struct vzctl_disk *disk, struct vzctl_disk_param *
 	tmp.autocompact = disk->autocompact;
 	tmp.storage_url = disk->storage_url;
 	tmp.use_device = disk->use_device;
+	tmp.enc_keyid = disk->enc_keyid;
 
 	memcpy(out, &tmp, size);
 
