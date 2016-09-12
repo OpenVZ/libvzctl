@@ -415,7 +415,7 @@ int make_dir(const char *path, int full)
 		snprintf(buf, len, "%s", path);
 		ps = p + 1;
 		if (!stat_file(buf)) {
-			if (mkdir(buf, 0755) && errno != EEXIST)
+			if (mkdir(buf, 0700) && errno != EEXIST)
 				return vzctl_err(VZCTL_E_CREATE_DIR, errno,
 					"Can't create directory %s", buf);
 		}
@@ -423,7 +423,7 @@ int make_dir(const char *path, int full)
 	if (!full)
 		return 0;
 	if (!stat_file(path)) {
-		if (mkdir(path, 0755) && errno != EEXIST)
+		if (mkdir(path, 0700) && errno != EEXIST)
 			return vzctl_err(VZCTL_E_CREATE_DIR, errno,
 				"Can't create directory %s", path);
 	}
