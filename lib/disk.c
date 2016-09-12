@@ -286,7 +286,7 @@ static int load_disk_info(struct vzctl_env_param *env)
 			continue;
 		}
 
-		if (di->enc->keyid != NULL) {
+		if (di->enc != NULL && di->enc->keyid != NULL) {
 			ret = xstrdup(&disk->enc_keyid, di->enc->keyid);
 			if (ret)
 				break;
