@@ -162,6 +162,7 @@ enum vzctl_config_flags {
 	VZCTL_CONF_SKIP_PARAM_ERRORS	= 0x20,
 	VZCTL_CONF_SKIP_PARSE		= 0x40,
 	VZCTL_CONF_RUNTIME_PARAM	= 0x80,
+	VZCTL_CONF_LOAD_DISK_INFO	= 0x100,
 };
 
 /** Exec modes.

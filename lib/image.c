@@ -62,6 +62,13 @@ int open_dd(const char *path, struct ploop_disk_images_data **di)
 	return 0;
 }
 
+int read_dd(struct ploop_disk_images_data *di)
+{
+	if (ploop_read_dd(di))
+		return vzctl_err(VZCTL_E_PARSE_DD, 0, "Failed to read %s : %s",
+				DISKDESCRIPTOR_XML, ploop_get_last_error());
+	return 0;
+}
 static int read_root_dd(const char *ve_private, struct ploop_disk_images_data **di)
 {
 	char fname[PATH_MAX];

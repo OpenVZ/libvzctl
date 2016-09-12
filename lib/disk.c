@@ -76,6 +76,7 @@ void free_disk(struct vzctl_disk *disk)
 	free(disk->devname);
 	free(disk->partname);
 	free(disk->dmname);
+	free(disk->enc_keyid);
 	free(disk);
 }
 
@@ -259,6 +260,48 @@ const char *get_root_disk(struct vzctl_env_handle *h)
 	return NULL;
 }
 
+static int load_disk_info(struct vzctl_env_param *env)
+{
+	struct vzctl_disk *disk;
+	struct ploop_disk_images_data *di = NULL;
+	int ret = 0;
+	char path[PATH_MAX];
+
+	if (env->fs->layout < VZCTL_LAYOUT_5)
+		return 0;
+
+	list_for_each(disk, &env->disk->disks, list) {
+		if (disk->use_device)
+			continue;
+
+		get_abs_path(env->fs->ve_private, disk->path, path, sizeof(path));
+		if ((ret = open_dd(path, &di)) ||	(ret = read_dd(di))) {
+			if (!is_permanent_disk(disk))
+				break;
+
+			if (di != NULL) {
+				ploop_close_dd(di);
+				di = NULL;
+			}
+			continue;
+		}
+
+		if (di->enc->keyid != NULL) {
+			ret = xstrdup(&disk->enc_keyid, di->enc->keyid);
+			if (ret)
+				break;
+		}
+
+		ploop_close_dd(di);
+		di = NULL;
+	}
+
+	if (di)
+		ploop_close_dd(di);
+
+	return ret;
+}
+
 int set_disk_param(struct vzctl_env_param *env, int flags)
 {
 	int ret;
@@ -275,15 +318,13 @@ int set_disk_param(struct vzctl_env_param *env, int flags)
 		ret = xstrdup(&env->fs->ve_private_fs, path);
 		if (ret)
 			return ret;
-	} else if (env->disk->root != VZCTL_PARAM_OFF &&	
+	} else if (env->disk->root != VZCTL_PARAM_OFF &&
 			find_root_disk(env->disk) == NULL)
 	{
 		/* build default root disk: VE_PRIVATE/root.hdd */
 		root = calloc(1, sizeof(struct vzctl_disk));
-		if (root == NULL) {
-			ret = vzctl_err(VZCTL_E_NOMEM, ENOMEM, "set_disk_param");
-			goto err;
-		}
+		if (root == NULL)
+			return vzctl_err(VZCTL_E_NOMEM, ENOMEM, "set_disk_param");
 
 		strncpy(root->uuid, DISK_ROOT_UUID, sizeof(root->uuid));
 		root->enabled = VZCTL_PARAM_ON;
@@ -291,9 +332,8 @@ int set_disk_param(struct vzctl_env_param *env, int flags)
 		if (env->dq->diskspace != NULL)
 			root->size = env->dq->diskspace->b;
 
-		ret = xstrdup(&root->path,
-				(flags & VZCTL_CONF_USE_RELATIVE_PATH) ? VZCTL_VE_ROOTHDD_DIR :
-					 get_root_disk_path(env->fs->ve_private, path, sizeof(path)));
+		ret = xstrdup(&root->path, get_root_disk_path(
+				env->fs->ve_private, path, sizeof(path)));
 		if (ret)
 			goto err;
 
@@ -318,6 +358,12 @@ int set_disk_param(struct vzctl_env_param *env, int flags)
 	root = find_root_disk(env->disk);
 	if (root != NULL)
 		root->user_quota = get_user_quota_mode(env->dq);
+
+	if (flags & VZCTL_CONF_LOAD_DISK_INFO) {
+		ret = load_disk_info(env);
+		if (ret)
+			return ret;
+	}
 
 	if (!(flags & VZCTL_CONF_USE_RELATIVE_PATH)) {
 		list_for_each(disk, &env->disk->disks, list) {
