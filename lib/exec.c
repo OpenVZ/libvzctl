@@ -1109,7 +1109,7 @@ static int do_wrap_env_exec_script(struct vzctl_env_handle *h,
 	argv_param[0] = VZCTL_EXEC_WRAP_BIN;
 	argv_param[1] = (h == NULL) ?  "" : EID(h);
 	argv_param[2] = (char *)fname;
-	argv_param[3] = NULL;
+	argv_param[3] = "";
 	snprintf(timeout_str, sizeof(timeout_str), "%d", timeout);
 	argv_param[4] = timeout_str;
 	argv_param[5] = use_vz_func ? "1" : "0";
