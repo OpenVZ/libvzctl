@@ -244,8 +244,6 @@ static int do_env_post_stop(struct vzctl_env_handle *h, int flags)
 int vzctl2_env_stop(struct vzctl_env_handle *h, stop_mode_e stop_mode, int flags)
 {
 	int ret;
-	struct vzctl_env_param *env = h->env_param;
-	const char *ve_root = env->fs->ve_root;
 	struct vzctl_env_status env_status = {};
 
 	vzctl2_get_env_status_info(h, &env_status, ENV_STATUS_RUNNING);
@@ -274,7 +272,7 @@ int vzctl2_env_stop(struct vzctl_env_handle *h, stop_mode_e stop_mode, int flags
 
 		get_action_script_path(h, VZCTL_STOP_PREFIX, buf, sizeof(buf));
 		if (stat_file(buf) &&
-		    vzctl2_wrap_env_exec_script(h, ve_root, NULL, NULL, buf, 0, EXEC_LOG_OUTPUT))
+		    vzctl2_wrap_env_exec_script(h, NULL, NULL, buf, 0, EXEC_LOG_OUTPUT))
 		{
 			return vzctl_err(VZCTL_E_ACTIONSCRIPT, 0,
 				"Error executing stop script %s", buf);
@@ -876,7 +874,6 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 {
 	int ret;
 	struct vzctl_env_param *env = h->env_param;
-	const char *ve_root;
 	struct start_param param = {
 		.h = h,
 		.pseudosuper_fd = -1,
@@ -899,8 +896,6 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 	ret = check_requires(env, flags);
 	if (ret)
 		return ret;
-
-	ve_root = env->fs->ve_root;
 
 	if (pipe(h->ctx->wait_p) < 0)
 		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
@@ -951,7 +946,7 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 
 		get_action_script_path(h, VZCTL_START_PREFIX, buf, sizeof(buf));
 		if (stat_file(buf) &&
-			vzctl2_wrap_env_exec_script(h, ve_root, NULL, NULL, buf, 0, EXEC_LOG_OUTPUT))
+			vzctl2_wrap_env_exec_script(h, NULL, NULL, buf, 0, EXEC_LOG_OUTPUT))
 		{
 			ret = vzctl_err(VZCTL_E_ACTIONSCRIPT, 0, "Error executing"
 					" start script %s", buf);
@@ -1103,7 +1098,6 @@ int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param
 {
 	int ret;
 	struct vzctl_env_param *env = h->env_param;
-	const char *ve_root = env->fs->ve_root;
 	struct start_param start_param = {
 		.h = h,
 		.pseudosuper_fd = -1,
@@ -1169,7 +1163,7 @@ int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param
 
 		get_action_script_path(h, VZCTL_START_PREFIX, buf, sizeof(buf));
 		if (stat_file(buf) &&
-			vzctl2_wrap_env_exec_script(h, ve_root, NULL, NULL, buf, 0, EXEC_LOG_OUTPUT))
+			vzctl2_wrap_env_exec_script(h, NULL, NULL, buf, 0, EXEC_LOG_OUTPUT))
 		{
 			ret = vzctl_err(VZCTL_E_ACTIONSCRIPT, 0, "Error executing"
 					" start script %s", buf);

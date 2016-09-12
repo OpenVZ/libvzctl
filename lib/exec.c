@@ -1095,7 +1095,7 @@ static char **build_arg(char **a, char *const *b)
 	return ar;
 }
 
-static int do_wrap_env_exec_script(struct vzctl_env_handle *h, const char *ve_root,
+static int do_wrap_env_exec_script(struct vzctl_env_handle *h,
 	char *const argv[], char *const envp[], const char *fname,
 	int timeout, int flags,  int use_vz_func, int *retcode)
 {
@@ -1109,7 +1109,7 @@ static int do_wrap_env_exec_script(struct vzctl_env_handle *h, const char *ve_ro
 	argv_param[0] = VZCTL_EXEC_WRAP_BIN;
 	argv_param[1] = (h == NULL) ?  "" : EID(h);
 	argv_param[2] = (char *)fname;
-	argv_param[3] = (char *)ve_root;
+	argv_param[3] = NULL;
 	snprintf(timeout_str, sizeof(timeout_str), "%d", timeout);
 	argv_param[4] = timeout_str;
 	argv_param[5] = use_vz_func ? "1" : "0";
@@ -1140,27 +1140,27 @@ static int do_wrap_env_exec_script(struct vzctl_env_handle *h, const char *ve_ro
 	return env_wait(pid, 0, retcode);
 }
 
-int vzctl2_wrap_env_exec_script(struct vzctl_env_handle *h, const char *ve_root,
+int vzctl2_wrap_env_exec_script(struct vzctl_env_handle *h,
 	char *const argv[], char *const envp[], const char *fname,
 	int timeout, int flags)
 {
-	return do_wrap_env_exec_script(h, ve_root, argv, envp, fname, timeout, flags, 0, NULL);
+	return do_wrap_env_exec_script(h, argv, envp, fname, timeout, flags, 0, NULL);
 }
 
-int vzctl2_wrap_env_exec_vzscript(struct vzctl_env_handle *h, const char *ve_root,
+int vzctl2_wrap_env_exec_vzscript(struct vzctl_env_handle *h,
 	char *const argv[], char *const envp[], const char *fname,
 	int timeout, int flags)
 {
 	if (vzctl2_get_flags() & VZCTL_FLAG_DONT_USE_WRAP)
 		return vzctl2_env_exec_script(h, argv, envp,
-				fname, DIST_FUNC, timeout, flags); 
-	return do_wrap_env_exec_script(h, ve_root, argv, envp, fname,
+				fname, DIST_FUNC, timeout, flags);
+	return do_wrap_env_exec_script(h, argv, envp, fname,
 			timeout, flags, 1, NULL);
 }
 
 int vzctl2_wrap_exec_script_rc(char *const argv[], char *const env[], int flags, int *retcode)
 {
-	return do_wrap_env_exec_script(NULL, "", argv, env, argv[0], 0, flags, 0, retcode);
+	return do_wrap_env_exec_script(NULL, argv, env, argv[0], 0, flags, 0, retcode);
 }
 
 int vzctl2_wrap_exec_script(char *const argv[], char *const env[], int flags)

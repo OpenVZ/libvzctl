@@ -86,10 +86,10 @@ int vzctl2_env_exec_script(struct vzctl_env_handle *h,
 	char *const argv[], char *const envp[], const char *fname,
 	const char *inc, int timeout, int flags);
 
-int vzctl2_wrap_env_exec_script(struct vzctl_env_handle *h, const char *ve_root,
+int vzctl2_wrap_env_exec_script(struct vzctl_env_handle *h,
         char *const argv[], char *const envp[], const char *fname, int timeout, int flags);
 
-int vzctl2_wrap_env_exec_vzscript(struct vzctl_env_handle *h, const char *ve_root,
+int vzctl2_wrap_env_exec_vzscript(struct vzctl_env_handle *h,
         char *const argv[], char *const envp[], const char *fname, int timeout, int flags);
 
 int vzctl2_wrap_exec_script_rc(char *const argv[], char *const env[], int flags, int *retcode);

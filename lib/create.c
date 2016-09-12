@@ -758,8 +758,7 @@ int custom_configure(struct vzctl_env_handle *h, const char *script)
 	logger(0, 0, "Running custom configuration script");
 	snprintf(buf, sizeof(buf), "VEID=%s", EID(h));
 
-	ret = vzctl2_wrap_env_exec_script(h, h->env_param->fs->ve_root,
-			arg, env, script, 0, 0);
+	ret = vzctl2_wrap_env_exec_script(h, arg, env, script, 0, 0);
 	if (ret)
 		logger(-1, 0, "Custom configuration script"
 				" returned with error");

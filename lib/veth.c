@@ -726,8 +726,8 @@ static int env_veth_configure(struct vzctl_env_handle *h, int add,
 			} else if (!changed)
 				break;
 
-			ret = vzctl2_wrap_env_exec_vzscript(h, h->env_param->fs->ve_root,
-					NULL, env, script, VZCTL_SCRIPT_EXEC_TIMEOUT, EXEC_LOG_OUTPUT);
+			ret = vzctl2_wrap_env_exec_vzscript(h, NULL, env,
+				script, VZCTL_SCRIPT_EXEC_TIMEOUT, EXEC_LOG_OUTPUT);
 			if (ret) {
 				logger(-1, 0, "veth network configuration"
 						" script exited with error %d", ret);

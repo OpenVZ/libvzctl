@@ -142,8 +142,8 @@ int env_hostnm_configure(struct vzctl_env_handle *h, struct vzctl_env_param *env
 	}
 	envp[i] = NULL;
 	logger(0, 0, "Set hostname: %s", hostname);
-	ret = vzctl2_wrap_env_exec_vzscript(h, h->env_param->fs->ve_root,
-			NULL, envp, script, VZCTL_SCRIPT_EXEC_TIMEOUT, EXEC_LOG_OUTPUT);
+	ret = vzctl2_wrap_env_exec_vzscript(h, NULL, envp, script,
+			VZCTL_SCRIPT_EXEC_TIMEOUT, EXEC_LOG_OUTPUT);
 
 	return ret;
 }
@@ -193,8 +193,8 @@ int env_dns_configure(struct vzctl_env_handle *h, struct vzctl_env_param *env, i
 			envp[i++] = str;
 	}
 	envp[i] = NULL;
-	ret = vzctl2_wrap_env_exec_vzscript(h, h->env_param->fs->ve_root,
-			NULL, envp, script, VZCTL_SCRIPT_EXEC_TIMEOUT, EXEC_LOG_OUTPUT);
+	ret = vzctl2_wrap_env_exec_vzscript(h, NULL, envp, script,
+			VZCTL_SCRIPT_EXEC_TIMEOUT, EXEC_LOG_OUTPUT);
 
 	logger(0, 0, "File resolv.conf was modified");
 	free_ar_str(envp);
@@ -229,8 +229,8 @@ int env_pw_configure(struct vzctl_env_handle *h, const char *user,
 		env[i++] = "IS_CRYPTED=1";
 	env[i] = NULL;
 
-	ret = vzctl2_wrap_env_exec_vzscript(h, h->env_param->fs->ve_root,
-			NULL, env, script, VZCTL_SCRIPT_EXEC_TIMEOUT, EXEC_LOG_OUTPUT);
+	ret = vzctl2_wrap_env_exec_vzscript(h, NULL, env, script,
+			VZCTL_SCRIPT_EXEC_TIMEOUT, EXEC_LOG_OUTPUT);
 
 	if (ret)
 		return vzctl_err(VZCTL_E_CHANGEPASS, 0,
@@ -335,8 +335,8 @@ static int env_quota_configure(struct vzctl_env_handle *h, unsigned long ugidlim
 	envp[i] = NULL;
 
 	logger(0, 0, "Setting quota ugidlimit: %lu", ugidlimit);
-	ret = vzctl2_wrap_env_exec_vzscript(h, h->env_param->fs->ve_root,
-			NULL, envp, h->dist_actions->set_ugid_quota,
+	ret = vzctl2_wrap_env_exec_vzscript(h, NULL, envp,
+			h->dist_actions->set_ugid_quota,
 			VZCTL_SCRIPT_EXEC_TIMEOUT, EXEC_LOG_OUTPUT);
 
 	free_ar_str(envp);
@@ -383,8 +383,8 @@ int env_console_configure(struct vzctl_env_handle *h, int flags)
 	if (h->dist_actions->set_console == NULL)
 		return 0;
 
-	if (vzctl2_wrap_env_exec_vzscript(h, h->env_param->fs->ve_root,
-				NULL, NULL, h->dist_actions->set_console,
+	if (vzctl2_wrap_env_exec_vzscript(h, NULL, NULL,
+				h->dist_actions->set_console,
 				VZCTL_SCRIPT_EXEC_TIMEOUT, EXEC_LOG_OUTPUT))
 		return vzctl_err(VZCTL_E_ACTIONSCRIPT, 0,
 				"Failed to configure Container console");
@@ -435,8 +435,8 @@ int env_ip_configure(struct vzctl_env_handle *h, int cmd,
 	env[i++] = ip_str;
 	env[i] = NULL;
 
-	ret = vzctl2_wrap_env_exec_vzscript(h, h->env_param->fs->ve_root,
-			NULL, env, script, VZCTL_SCRIPT_EXEC_TIMEOUT, EXEC_LOG_OUTPUT);
+	ret = vzctl2_wrap_env_exec_vzscript(h, NULL, env, script,
+			VZCTL_SCRIPT_EXEC_TIMEOUT, EXEC_LOG_OUTPUT);
 
 	free(ip_str);
 
