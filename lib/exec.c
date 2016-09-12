@@ -1038,40 +1038,28 @@ static char * const* make_bash_env(char * const *env)
 	return penv;
 }
 
-int vzctl2_env_exec_script(const ctid_t ctid, const char *ve_root,
+int vzctl2_env_exec_script(struct vzctl_env_handle *h,
 		char *const argv[], char *const envp[], const char *fname,
 		const char *inc, int timeout, int flags)
 {
-	struct vzctl_env_handle *h;
 	int ret, len;
 	char *script = NULL;
 	char *const *_envp = NULL;
 
-	h = vzctl2_env_open(ctid, 0, &ret);
-	if (h == NULL)
-		return ret;
-
-	if (!is_env_run(h)) {
-		ret = vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
-		goto err;
-	}
+	if (!is_env_run(h))
+		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
 
 	logger(1, 0, "Running the script: %s flags=%d", fname, flags);
-	if ((len = read_script(fname, inc, &script)) < 0) {
-		ret = VZCTL_E_NOSCRIPT;
-		goto err;
-	}
+	if ((len = read_script(fname, inc, &script)) < 0)
+		return VZCTL_E_NOSCRIPT;
 
 	_envp = make_bash_env(envp);
 
 	ret = do_env_exec(h, MODE_BASH_NOSTDIN, argv, _envp, script,
 			NULL, NULL, NULL, 0, flags, NULL);
 
-err:
 	free(script);
 	free((void*)_envp);
-
-	vzctl2_env_close(h);
 
 	return ret;
 }
@@ -1164,7 +1152,7 @@ int vzctl2_wrap_env_exec_vzscript(struct vzctl_env_handle *h, const char *ve_roo
 	int timeout, int flags)
 {
 	if (vzctl2_get_flags() & VZCTL_FLAG_DONT_USE_WRAP)
-		return vzctl2_env_exec_script(EID(h), ve_root, argv, envp,
+		return vzctl2_env_exec_script(h, argv, envp,
 				fname, DIST_FUNC, timeout, flags); 
 	return do_wrap_env_exec_script(h, ve_root, argv, envp, fname,
 			timeout, flags, 1, NULL);

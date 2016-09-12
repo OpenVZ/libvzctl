@@ -82,7 +82,7 @@ int vzctl2_env_exec_async(struct vzctl_env_handle *h, exec_mode_e exec_mode,
 
 int vzctl2_exec_script(char *const argv[], char *const env[], int flags);
 
-int vzctl2_env_exec_script(const ctid_t ctid, const char *ve_root,
+int vzctl2_env_exec_script(struct vzctl_env_handle *h,
 	char *const argv[], char *const envp[], const char *fname,
 	const char *inc, int timeout, int flags);
 

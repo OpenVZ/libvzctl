@@ -64,11 +64,11 @@ int main(int argc, char **argv)
 {
 	int ret;
 	int timeout = 0;
-	const char *ve_root;
 	const char *fname;
 	const char *inc = NULL;
 	int flags;
 	ctid_t ctid = {};
+	struct vzctl_env_handle *h;
 
 	if (argc < 6) {
 		usage();
@@ -81,7 +81,7 @@ int main(int argc, char **argv)
 	// SCRIPT
 	fname = argv[2];
 	// VE_ROOT
-	ve_root = argv[3];
+	//ve_root = argv[3];
 	// timeout
 	if (parse_int(argv[4], &timeout))
 		return VZCTL_E_INVAL;
@@ -101,5 +101,15 @@ int main(int argc, char **argv)
 
 	if (EMPTY_CTID(ctid))
 		return vzctl2_exec_script(argv, NULL, flags);
-	return vzctl2_env_exec_script(ctid, ve_root, argv, NULL, fname, inc, timeout, flags);
+
+	h = vzctl2_env_open(ctid, 0, &ret);
+	if (h == NULL)
+		return ret;
+
+	ret = vzctl2_env_exec_script(h, argv, NULL, fname, inc,
+			timeout, flags);
+
+	vzctl2_env_close(h);
+
+	return ret;
 }
