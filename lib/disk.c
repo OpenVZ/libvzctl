@@ -332,8 +332,7 @@ int set_disk_param(struct vzctl_env_param *env, int flags)
 		if (env->dq->diskspace != NULL)
 			root->size = env->dq->diskspace->b;
 
-		ret = xstrdup(&root->path, get_root_disk_path(
-				env->fs->ve_private, path, sizeof(path)));
+		ret = xstrdup(&root->path, VZCTL_VE_ROOTHDD_DIR);
 		if (ret)
 			goto err;
 
