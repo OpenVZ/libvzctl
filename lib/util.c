@@ -1454,10 +1454,12 @@ int read_script(const char *fname, const char *include, char **buf)
 	int fd = -1, len = 0;
 	char inc[PATH_LEN];
 
-	if (!fname) {
-		logger(-1, 0, "read_script: file name is not specified");
-		return -1;
-	}
+	if (!fname)
+		return vzctl_err(-1, 0, "read_script: file name is not specified");
+
+	if (stat(fname, &st))
+		return vzctl_err(-1, 0, "file %s not found", fname);
+
 	/* Read include file first */
 	if (include != NULL) {
 		if ((p = strrchr(fname, '/')) != NULL) {
@@ -1470,10 +1472,6 @@ int read_script(const char *fname, const char *include, char **buf)
 			len = read_script(inc, NULL, buf);
 		if (len < 0)
 			return -1;
-	}
-	if (stat(fname, &st)) {
-		logger(-1, 0, "file %s not found", fname);
-		return -1;
 	}
 	if ((fd = open(fname, O_RDONLY)) < 0) {
 		logger(-1, errno, "Unable to open %s", fname);
