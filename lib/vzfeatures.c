@@ -34,7 +34,6 @@
 #include "vztypes.h"
 #include "vzerror.h"
 #include "logger.h"
-#include "technologies.h"
 #include "libvzctl.h"
 #include "util.h"
 

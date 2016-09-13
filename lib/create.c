@@ -50,7 +50,6 @@
 #include "name.h"
 #include "destroy.h"
 #include "vz.h"
-#include "technologies.h"
 #include "env_config.h"
 #include "cluster.h"
 #include "image.h"

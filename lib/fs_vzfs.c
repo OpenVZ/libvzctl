@@ -33,7 +33,6 @@
 #include <sys/param.h>
 #include <stdio.h>
 
-#include "technologies.h"
 #include "fs.h"
 #include "logger.h"
 #include "vzerror.h"

@@ -54,7 +54,6 @@
 #include "readelf.h"
 #include "vz.h"
 #include "vzctl_param.h"
-#include "technologies.h"
 #include "veth.h"
 #include "ub.h"
 #include "dist.h"
