@@ -330,6 +330,14 @@ static int ns_apply_res_param(struct vzctl_env_handle *h,
 	} else
 		ret = ns_set_memory_param(h, ub);
 
+	if (env->res->ub->pagecache_isolation) {
+		ret = cg_env_set_memory(EID(h), "memory.disable_cleancache",
+			env->res->ub->pagecache_isolation == VZCTL_PARAM_ON ?
+				1 : 0);
+		if (ret)
+			return ret;
+	}
+
 err:
 	free_ub_param(ub);
 

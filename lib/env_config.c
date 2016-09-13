@@ -183,6 +183,7 @@ static struct vzctl_config_param config_param_map[] = {
 {"RATEBOUND",	VZCTL_PARAM_RATEBOUND},
 
 {"MEMGUARANTEE",VZCTL_PARAM_MEM_GUARANTEE},
+{"PAGECACHE_ISOLATION",VZCTL_PARAM_PAGECACHE_ISOLATION},
 
 
 /* TODO */
@@ -737,6 +738,10 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 		if (env->res->memguar != NULL && !replace)
 			break;
 		ret = parse_memguar(env->res, str);
+	case VZCTL_PARAM_PAGECACHE_ISOLATION:
+		if ((id = yesno2id(str)) == -1)
+			return VZCTL_E_INVAL;
+		env->res->ub->pagecache_isolation = id;
 		break;
 	default:
 		debug(DBG_CFG, "Unknown parameter id=%d", param_id);
@@ -1279,6 +1284,10 @@ static char *env_param2str(struct vzctl_env_handle *h,
 	case VZCTL_PARAM_MEM_GUARANTEE:
 		if (env->res->memguar != NULL)
 			return memguar2str(env->res->memguar);
+		break;
+	case VZCTL_PARAM_PAGECACHE_ISOLATION:
+		if (env->res->ub->pagecache_isolation)
+			return strdup(id2yesno(env->res->ub->pagecache_isolation));
 		break;
 	default:
 		break;
