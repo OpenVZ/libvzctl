@@ -496,6 +496,11 @@ enum {
 	VZCTL_AUTOSTOP_SUSPEND
 };
 
+enum {
+	VZCTL_ENC_REENCRYPT	= 0x01,
+	VZCTL_ENC_WIPE		= 0x02,
+};
+
 typedef int (* execFn)(void *data);
 
 /* Internal data representattion */
@@ -984,6 +989,8 @@ int vzctl2_resize_disk_image(const char *path, unsigned long long newsize, int o
 int vzctl2_resize_image(const char *ve_private, unsigned long long newsize, int offline);
 int vzctl2_env_resize_disk(struct vzctl_env_handle *h, const char *uuid,
 		unsigned long size, int offline);
+int vzctl2_env_encrypt_disk(struct vzctl_env_handle *h, const char *uuid,
+		const char *keyid, int flags);
 
 int vzctl2_env_get_disk_param(vzctl_disk_iterator it, struct vzctl_disk_param *out, int size);
 vzctl_disk_iterator vzctl2_env_get_disk(struct vzctl_env_param *env, vzctl_disk_iterator it);

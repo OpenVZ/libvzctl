@@ -39,5 +39,5 @@ int vzctl2_switch_snapshot(struct vzctl_env_handle *h, const char *guid,
 		const char *guid_old);
 int resize_disk_image(const char *path, unsigned long long newsize,
 		int offline, pid_t mntns_pid);
-int vzctl_encrypt_disk_image(const char *path, const char *keyid);
+int vzctl_encrypt_disk_image(const char *path, const char *keyid, int flags);
 #endif

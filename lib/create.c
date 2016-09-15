@@ -415,7 +415,7 @@ static int create_env_private(struct vzctl_env_handle *h, const char *ve_private
 		char path[PATH_MAX];
 
 		get_root_disk_path(dst_tmp, path, sizeof(path));
-		ret = vzctl_encrypt_disk_image(path, enc_keyid);
+		ret = vzctl_encrypt_disk_image(path, enc_keyid, 0);
 		if (ret)
 			goto err;
 	}
