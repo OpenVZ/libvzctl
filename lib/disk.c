@@ -1554,3 +1554,19 @@ int vzctl2_env_get_disk_stats(struct vzctl_env_handle *h, const char *uuid,
 		memcpy(stats, &st, size < sizeof(st) ? size : sizeof(st));
 	return ret;
 }
+
+int vzctl2_env_encrypt_disk(struct vzctl_env_handle *h, const char *uuid,
+		const char *keyid, int flags)
+{
+
+	struct vzctl_disk *d;
+
+	d = find_disk(h->env_param->disk, uuid);
+	if (d == NULL)
+		return vzctl_err(VZCTL_E_INVAL, 0,
+			"Unable to encrypt the disk with uuid %s: no such disk",
+			uuid);
+
+	return vzctl_encrypt_disk_image(d->path, keyid, flags);
+}
+

@@ -885,7 +885,7 @@ int vzctl2_umount_snapshot(struct vzctl_env_handle *h, const char *guid, const c
 	return 0;
 }
 
-int vzctl_encrypt_disk_image(const char *path, const char *keyid)
+int vzctl_encrypt_disk_image(const char *path, const char *keyid, int flags)
 {
 	int ret;
 	struct ploop_disk_images_data *di;
@@ -894,13 +894,18 @@ int vzctl_encrypt_disk_image(const char *path, const char *keyid)
 		.mnt_opts = "pfcache_csum",
 	};
 
+	if (flags & VZCTL_ENC_REENCRYPT)
+		enc_param.flags |= PLOOP_ENC_REENCRYPT;
+	if (flags & VZCTL_ENC_WIPE)
+		enc_param.flags |= PLOOP_ENC_WIPE;
+
 	ret = open_dd(path, &di);
 	if (ret)
 		return ret;
 
 	ret = ploop_encrypt_image(di, &enc_param);
 	if (ret)
-		ret = vzctl_err(-1, 0, "ploop_encrypt_image: %s",
+		ret = vzctl_err(VZCTL_E_ENCRYPT, 0, "ploop_encrypt_image: %s",
 				ploop_get_last_error());
 
 	ploop_close_dd(di);
