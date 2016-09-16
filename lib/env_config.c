@@ -738,6 +738,7 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 		if (env->res->memguar != NULL && !replace)
 			break;
 		ret = parse_memguar(env->res, str);
+		break;
 	case VZCTL_PARAM_PAGECACHE_ISOLATION:
 		if ((id = yesno2id(str)) == -1)
 			return VZCTL_E_INVAL;
