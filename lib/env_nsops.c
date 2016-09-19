@@ -335,7 +335,7 @@ static int ns_apply_res_param(struct vzctl_env_handle *h,
 			env->res->ub->pagecache_isolation == VZCTL_PARAM_ON ?
 				1 : 0);
 		if (ret)
-			return ret;
+			goto err;
 	}
 
 err:
