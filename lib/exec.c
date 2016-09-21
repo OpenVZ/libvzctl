@@ -1064,6 +1064,29 @@ int vzctl2_env_exec_script(struct vzctl_env_handle *h,
 	return ret;
 }
 
+int vzctl2_env_exec_action_script(struct vzctl_env_handle *h, const char *name,
+		char *const env[], int timeout, int flags)
+{
+	int ret;
+	const char *fname;
+
+	ret = read_dist_actions(h);
+	if (ret)
+		return ret;
+
+	fname = get_dist_action_script(h->dist_actions, name);
+	if (fname == NULL)
+		return vzctl_err(VZCTL_E_INVAL, 0, "Action %s is not found",
+				name);
+
+	if (vzctl2_wrap_env_exec_vzscript(h, NULL, env, fname,
+				VZCTL_SCRIPT_EXEC_TIMEOUT, EXEC_LOG_OUTPUT))
+		return vzctl_err(VZCTL_E_ACTIONSCRIPT, 0,
+				"Failed to exec action script %s", fname);
+
+	return 0;
+}
+
 static int get_ar_size(char * const *a)
 {
 	int i = 0;

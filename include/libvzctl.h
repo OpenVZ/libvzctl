@@ -1059,7 +1059,8 @@ int vzctl2_env_exec_fn_async(struct vzctl_env_handle *h, execFn fn,
 int vzctl2_env_exec_wait(int pid, int *retcode);
 
 int vzctl2_env_enter(struct vzctl_env_handle *h);
-
+int vzctl2_env_exec_action_script(struct vzctl_env_handle *h, const char *name,
+		char *const env[], int timeout, int flags);
 
 /*******************************************************/
 int vzctl2_lock(const char *lockfile, int mode, unsigned int timeout);

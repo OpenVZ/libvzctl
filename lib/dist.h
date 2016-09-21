@@ -58,5 +58,6 @@ struct vzctl_env_handle;
 
 int read_dist_actions(struct vzctl_env_handle *h);
 void free_dist_action(struct vzctl_dist_actions *dist_actions);
-
+const char *get_dist_action_script(struct vzctl_dist_actions *dist_actions,
+		const char *name);
 #endif /* _DIST_H_ */

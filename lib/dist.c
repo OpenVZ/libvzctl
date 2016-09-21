@@ -68,6 +68,28 @@ static int add_dist_action(struct vzctl_dist_actions *dist_actions,
 #undef ADD_DIST_SCRIPT
 }
 
+const char *get_dist_action_script(struct vzctl_dist_actions *dist,
+		const char *name)
+{
+#define GET_DIST_SCRIPT(n, f) \
+	if (!strcmp(name, n)) \
+		return dist->f;
+
+	GET_DIST_SCRIPT("ADD_IP", add_ip)
+	GET_DIST_SCRIPT("DEL_IP", del_ip)
+	GET_DIST_SCRIPT("SET_HOSTNAME", set_hostname)
+	GET_DIST_SCRIPT("SET_DNS", set_dns)
+	GET_DIST_SCRIPT("SET_USERPASS", set_userpass)
+	GET_DIST_SCRIPT("SET_UGID_QUOTA", set_ugid_quota)
+	GET_DIST_SCRIPT("POST_CREATE", post_create)
+	GET_DIST_SCRIPT("NETIF_ADD", netif_add)
+	GET_DIST_SCRIPT("NETIF_DEL", netif_del)
+	GET_DIST_SCRIPT("SET_CONSOLE", set_console)
+
+	return NULL;
+#undef GET_DIST_SCRIPT
+}
+
 void free_dist_action(struct vzctl_dist_actions *dist_actions)
 {
 	if (dist_actions == NULL)
