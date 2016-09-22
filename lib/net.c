@@ -850,3 +850,81 @@ int vzctl2_get_env_tc_netstat(struct vzctl_env_handle *h,
 
 	return 0;
 }
+
+void vzctl2_release_net_info(struct vzctl_net_info *info)
+{
+	if (info == NULL)
+		return;
+
+	free(info->if_ips);
+	free(info);
+}
+
+static int get_net_info(ctid_t ctid, const char *ifname,
+		struct vzctl_net_info *info)
+{
+	int ret = 0;
+	FILE *fp;
+	char ip[STR_SIZE];
+	char buf[STR_SIZE];
+	LIST_HEAD(ips);
+	char *arg[] = {"/usr/sbin/ip", "netns", "exec", ctid, "ip", "a", "l",
+			"dev", (char *) ifname, NULL};
+
+	fp = vzctl_popen(arg, NULL, 0);
+	if (fp == NULL)
+		return VZCTL_E_SYSTEM;
+
+	while (fgets(buf, sizeof(buf), fp)) {
+		int n;
+
+		if (sscanf(buf, "%d:", &n) == 1 && strstr(buf, ",UP")) {
+			info->if_up = 1;
+			continue;
+		} else if (sscanf(buf, "%*[\t ]inet%*[6 ] %s", ip) != 1)
+			continue;
+
+		if (strncmp(ip, "127.0.0.1/", 10) == 0 ||
+				strncmp(ip, "::1/", 4) == 0 ||
+				strncmp(ip, "::2/", 4) == 0 ||
+				strncmp(ip, "fe80:", 5) == 0)
+			continue;
+
+		if (add_str_param(&ips, ip) == NULL) {
+			ret = VZCTL_E_NOMEM;
+			goto err;
+		}
+	}
+
+	info->if_ips = list2str(NULL, &ips);
+
+err:
+	free_str(&ips);
+	vzctl_pclose(fp);
+
+	return ret;
+}
+
+int vzctl2_get_net_info(struct vzctl_env_handle *h, const char *ifname,
+		struct vzctl_net_info **info)
+{
+	int ret;
+
+	if (ifname == NULL)
+		return VZCTL_E_INVAL;
+
+	if (!is_env_run(h))
+		return VZCTL_E_ENV_NOT_RUN;
+
+	*info = calloc(1, sizeof(struct vzctl_net_info));
+	if (*info == NULL)
+		return VZCTL_E_NOMEM;
+
+	ret = get_net_info(EID(h), ifname, *info);
+	if (ret) {
+		vzctl2_release_net_info(*info);
+		*info = NULL;
+	}
+
+	return ret;
+}
