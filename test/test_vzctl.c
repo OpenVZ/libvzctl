@@ -781,6 +781,42 @@ void test_netstat()
 	vzctl2_env_close(h);
 }
 
+void test_net_info()
+{
+	int err;
+	vzctl_env_handle_ptr h;
+	vzctl_veth_dev_iterator it_dev;
+	struct vzctl_env_param *new_param;
+
+	TEST()
+
+	CHECK_PTR(h, vzctl2_env_open(ctid, 0, &err))
+
+	CHECK_PTR(new_param, vzctl2_alloc_env_param())
+
+	struct vzctl_veth_dev_param dev = {.dev_name_ve = "eth0"};
+	CHECK_PTR(it_dev, vzctl2_create_veth_dev(&dev, sizeof(struct vzctl_veth_dev_param)))
+	CHECK_RET(vzctl2_env_add_veth_ipaddress(it_dev, "1.1.1.1/16"))
+	CHECK_RET(vzctl2_env_add_veth_ipaddress(it_dev, "2000::1/64"))
+	CHECK_RET(vzctl2_env_add_veth(new_param, it_dev))
+	CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
+
+	CHECK_RET(vzctl2_env_start(h, VZCTL_WAIT))
+
+	it_dev = NULL;
+	while ((it_dev = vzctl2_env_get_veth(vzctl2_get_env_param(h), it_dev)) != NULL) {
+		struct vzctl_net_info *info;
+		vzctl2_env_get_veth_param(it_dev, &dev, sizeof(dev));
+
+		CHECK_RET(vzctl2_get_net_info(h, dev.dev_name_ve, &info))
+		printf("\tnet_net_info: ips=%s\n", info->if_ips);
+
+		vzctl2_release_net_info(info);
+	}
+
+	vzctl2_env_close(h);
+}
+
 void test_set_limits()
 {
 	struct vzctl_env_handle *h = vzctl2_alloc_env_handle();
@@ -799,6 +835,7 @@ void test_vzctl()
         int err;
         vzctl_env_handle_ptr h;
 
+	test_net_info();
 	test_set_limits();
 
 	test_ctid();

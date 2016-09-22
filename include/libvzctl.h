@@ -501,6 +501,11 @@ enum {
 	VZCTL_ENC_WIPE		= 0x02,
 };
 
+struct vzctl_net_info {
+	int if_up;
+	char *if_ips;
+};
+
 typedef int (* execFn)(void *data);
 
 /* Internal data representattion */
@@ -638,7 +643,9 @@ int vzctl2_get_env_iostat(const ctid_t ctid, struct vzctl_iostat *stat, int size
 
 int vzctl2_get_env_meminfo(const ctid_t ctid, struct vzctl_meminfo *meminfo, int size);
 int vzctl2_get_env_total_meminfo(unsigned long *limit_bytes, unsigned long *usage_bytes);
-
+void vzctl2_release_net_info(struct vzctl_net_info *info);
+int vzctl2_get_net_info(struct vzctl_env_handle *h, const char *ifname,
+		struct vzctl_net_info **info);
 
 /** Get Container cpu statisctics
  * @return		0 on success
