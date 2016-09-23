@@ -39,3 +39,9 @@ void init_env_ops(void)
 	env_vzops_init(get_env_ops());
 	env_nsops_init(get_env_ops());
 }
+
+__attribute__((constructor)) void __init_env_ops(void)
+{
+	init_env_ops();
+}
+
