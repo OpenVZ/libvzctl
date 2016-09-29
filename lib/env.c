@@ -1771,7 +1771,7 @@ int vzctl2_env_get_cpuunits(struct vzctl_env_param *env, unsigned long *units)
 	struct vzctl_cpu_param *cpu = env->cpu;
 
 	if (cpu->units == NULL)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
 
 	*units = *cpu->units;
 
@@ -1788,7 +1788,8 @@ int vzctl2_env_get_cpulimit(struct vzctl_env_param *env, struct vzctl_cpulimit_p
 	struct vzctl_cpu_param *cpu = env->cpu;
 
 	if (cpu->limit_res == NULL)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
+
 	memcpy(res, cpu->limit_res, sizeof(struct vzctl_cpulimit_param));
 
 	return 0;
@@ -1816,7 +1817,7 @@ int vzctl2_env_get_diskspace(struct vzctl_env_param *env, struct vzctl_2UL_res *
 	struct vzctl_dq_param *dq = env->dq;
 
 	if (dq->diskspace == NULL)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
 
 	res->b = dq->diskspace->b;
 	res->l = dq->diskspace->l;
@@ -1844,7 +1845,7 @@ int vzctl2_env_get_diskinodes(struct vzctl_env_param *env, struct vzctl_2UL_res 
 	struct vzctl_dq_param *dq = env->dq;
 
 	if (dq->diskinodes == NULL)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
 
 	res->b = dq->diskinodes->b;
 	res->l = dq->diskinodes->l;
@@ -1857,7 +1858,7 @@ int vzctl2_env_get_quotaugidlimit(struct vzctl_env_param *env, unsigned long *li
 	struct vzctl_dq_param *dq = env->dq;
 
 	if (dq->ugidlimit == NULL)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
 
 	*limits = *dq->ugidlimit;
 
@@ -1889,7 +1890,7 @@ int vzctl2_env_get_ub_resource(struct vzctl_env_param *env, int id, struct vzctl
 
 	_res = vzctl_get_ub_res(env->res->ub, id);
 	if (_res == NULL)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
 
 	memcpy(res, _res, sizeof(struct vzctl_2UL_res));
 
@@ -1952,7 +1953,7 @@ int vzctl2_env_get_ramsize(struct vzctl_env_param *env, unsigned long *ramsize)
 		}
 		break;
 	}
-	return -1;
+	return VZCTL_E_NOT_INITIALIZED;
 }
 
 int vzctl2_env_set_memguarantee(vzctl_env_param_ptr env,
@@ -1978,7 +1979,7 @@ int vzctl2_env_get_memguarantee(vzctl_env_param_ptr env,
 		struct vzctl_mem_guarantee *param)
 {
 	if (env->res->memguar == NULL)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
 
 	param->type = env->res->memguar->type;
 	param->value = env->res->memguar->value;
@@ -2003,7 +2004,7 @@ int vzctl2_env_get_iolimit(struct vzctl_env_param *env, unsigned int *limit)
 int vzctl2_env_set_ioprio(struct vzctl_env_param *env, int prio)
 {
 	if (prio < VE_IOPRIO_MIN || prio > VE_IOPRIO_MAX)
-		return -1;
+		return VZCTL_E_INVAL;
 
 	env->io->prio = prio;
 
@@ -2013,7 +2014,7 @@ int vzctl2_env_set_ioprio(struct vzctl_env_param *env, int prio)
 int vzctl2_env_get_ioprio(struct vzctl_env_param *env, int *prio)
 {
 	if (env->io->prio < 0)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
 
 	*prio = env->io->prio;
 
@@ -2040,7 +2041,8 @@ int vzctl2_env_add_ipaddress(struct vzctl_env_param *env, const char *ipstr)
 	struct vzctl_ip_param *ip;
 
 	if (ipstr == NULL)
-		return -1;
+		return VZCTL_E_INVAL;
+
 	if ((ret = parse_ip(ipstr, &ip)))
 		return ret;
 
@@ -2448,7 +2450,8 @@ int vzctl2_env_resize_disk(struct vzctl_env_handle *h, const char *uuid,
 int vzctl2_env_get_ostemplate(struct vzctl_env_param *env, const char **res)
 {
 	if (env->tmpl->ostmpl == NULL)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
+
 	*res = env->tmpl->ostmpl;
 
 	return 0;
@@ -2457,7 +2460,8 @@ int vzctl2_env_get_ostemplate(struct vzctl_env_param *env, const char **res)
 int vzctl2_env_get_apptemplates(struct vzctl_env_param *env, const char **res)
 {
 	if (env->tmpl->templates == NULL)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
+
 	*res = env->tmpl->templates;
 
 	return 0;
@@ -2530,7 +2534,7 @@ int vzctl2_env_set_param(struct vzctl_env_handle *h, const char *name, const cha
 int vzctl2_env_get_description(struct vzctl_env_param *env, const char **desc)
 {
 	if (env->misc->description_eq == NULL)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
 
 	free(env->misc->description);
 	env->misc->description = get_description(env->misc->description_eq);
@@ -2557,7 +2561,7 @@ int vzctl2_env_set_hostname(struct vzctl_env_param *env, const char *name)
 int vzctl2_env_get_hostname(struct vzctl_env_param *env, const char **name)
 {
 	if (env->misc->hostname == NULL)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
 
 	* name = env->misc->hostname;
 
@@ -2567,7 +2571,8 @@ int vzctl2_env_get_hostname(struct vzctl_env_param *env, const char **name)
 int vzctl2_env_get_ve_private_path(struct vzctl_env_param *env, const char **path)
 {
 	if (env->fs->ve_private == NULL)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
+
 	*path = env->fs->ve_private;
 
 	return 0;
@@ -2576,7 +2581,8 @@ int vzctl2_env_get_ve_private_path(struct vzctl_env_param *env, const char **pat
 int vzctl2_env_get_ve_private_orig_path(struct vzctl_env_param *env, const char **path)
 {
 	if (env->fs->ve_private_orig == NULL)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
+
 	*path = env->fs->ve_private_orig;
 
 	return 0;
@@ -2605,7 +2611,8 @@ int vzctl2_env_set_ve_private_path(struct vzctl_env_param *env,
 int vzctl2_env_get_ve_root_path(struct vzctl_env_param *env, const char **path)
 {
 	if (env->fs->ve_root == NULL)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
+
 	*path = env->fs->ve_root;
 
 	return 0;
@@ -2614,7 +2621,8 @@ int vzctl2_env_get_ve_root_path(struct vzctl_env_param *env, const char **path)
 int vzctl2_env_get_ve_root_orig_path(struct vzctl_env_param *env, const char **path)
 {
 	if (env->fs->ve_root_orig == NULL)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
+
 	*path = env->fs->ve_root_orig;
 
 	return 0;
@@ -2628,17 +2636,15 @@ int vzctl2_env_set_ve_root_path(struct vzctl_env_param *env,
 
 int vzctl2_get_name(struct vzctl_env_handle *h, const char **name)
 {
-	*name = h->env_param->name->name;
-
-	return *name != NULL ? 0 : -1;
+	return vzctl2_env_get_name(h, name);
 }
 
 int vzctl2_env_get_name(struct vzctl_env_handle *h, const char **name)
 {
 	*name = h->env_param->name->name;
-
 	if (*name == NULL)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
+
 	return 0;
 }
 
@@ -3072,7 +3078,7 @@ int vzctl2_env_set_uuid(struct vzctl_env_param *env, const char *uuid)
 int vzctl2_env_get_uuid(struct vzctl_env_param *env, const char **uuid)
 {
 	if (env->misc->uuid == NULL)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
 
 	*uuid = env->misc->uuid;
 
@@ -3099,10 +3105,11 @@ int vzctl2_env_get_cpumask(struct vzctl_env_param *env, char *buf, int buflen)
 	char *mask;
 
 	if (env->cpu->cpumask == NULL)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
+
 	mask = cpumask2str(env->cpu->cpumask);
 	if (mask == NULL)
-		return -1;
+		return VZCTL_E_NOMEM;
 
 	strncpy(buf, mask, buflen - 1);
 	buf[buflen - 1] = '\0';
@@ -3142,10 +3149,11 @@ int vzctl2_env_get_nodemask(struct vzctl_env_param *env, char *buf, int buflen)
 	char *mask;
 
 	if (env->cpu->nodemask == NULL)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
+
 	mask = nodemask2str(env->cpu->nodemask);
 	if (mask == NULL)
-		return -1;
+		return VZCTL_E_NOMEM;
 
 	strncpy(buf, mask, buflen - 1);
 	buf[buflen - 1] = '\0';
@@ -3213,7 +3221,7 @@ int vzctl2_env_set_ha_enable(vzctl_env_param_ptr env, int enable)
 int vzctl2_env_get_ha_prio(vzctl_env_param_ptr env, unsigned long *prio)
 {
 	if (env->opts->ha_prio == NULL)
-		return -1;
+		return VZCTL_E_NOT_INITIALIZED;
 
 	*prio = *env->opts->ha_prio;
 
