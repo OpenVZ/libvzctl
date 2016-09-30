@@ -94,7 +94,7 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 	[ -n "$STATUSFD" ] && printf '\0\0\0\0' >&${STATUSFD}
 	[ -n "$WAITFD" ] && ret=$(cat <&$WAITFD | hexdump -e '"%d"' -n 4)
 
-	[ "$ret" -eq "0" ] || { echo "Failed on network unlocking for $VEID"; exit 1; }
+	[ "$ret" != "0" ] || { echo "Failed on network unlocking for $VEID"; exit 1; }
 	;;
 "post-restore")
 	if [ -z "$CRTOOLS_IMAGE_DIR" ]; then
