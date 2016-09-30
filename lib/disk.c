@@ -740,7 +740,9 @@ int update_disk_info(struct vzctl_disk *disk)
 	struct stat st;
 
 	if (disk->use_device) {
-		snprintf(devname, sizeof(devname), "%s", disk->path);
+		ret = get_real_device(disk->path, devname, sizeof(devname));
+		if (ret)
+			return ret;
 		ret = get_part_device(devname, partname, sizeof(partname));
 		if (ret)
 			return ret;
@@ -767,10 +769,6 @@ int update_disk_info(struct vzctl_disk *disk)
 			strcpy(partname, x);
 		}
 	}
-
-	ret = get_real_device(devname, devname, sizeof(devname));
-	if (ret)
-		return ret;
 
 	if (stat(devname, &st))
 		return vzctl_err(VZCTL_E_SYSTEM, errno, "stat %s", devname);
