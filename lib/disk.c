@@ -58,6 +58,15 @@ static int mount_disk_image(struct vzctl_env_handle *h, struct vzctl_disk *d, in
 static int umount_disk_image(struct vzctl_disk *d);
 static int mount_disk_device(struct vzctl_env_handle *h, struct vzctl_disk *d, int flags);
 static int umount_disk_device(struct vzctl_disk *d);
+static int mount_disk_dummy(struct vzctl_env_handle *h, struct vzctl_disk *d,
+		 int flags)
+{
+	return 0;
+}
+static int umount_disk_dummy(struct vzctl_disk *d)
+{
+	return 0;
+}
 
 void free_disk_param(struct vzctl_disk_param *disk)
 {
@@ -477,6 +486,9 @@ static int parse_disk_str(const char *str, struct vzctl_disk *disk)
 	} else if (is_root_disk(disk)) {
 		disk->mount = mount_disk_device;
 		disk->umount =umount_disk_device;
+	} else {
+		disk->mount = mount_disk_dummy;
+		disk->umount = umount_disk_dummy;
 	}
 
 	return 0;
