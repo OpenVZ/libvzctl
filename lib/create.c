@@ -57,6 +57,7 @@
 #include "disk.h"
 #include "exec.h"
 #include "snapshot.h"
+#include "disk.h"
 
 #define REINSTALL_OLD_MNT	"/mnt"
 #define CUSTOM_SCRIPT_DIR	"/etc/vz/reinstall.d"
@@ -485,7 +486,7 @@ static void set_fs_uuid(struct vzctl_env_handle *h)
 {
 	struct vzctl_disk *d;
 	struct vzctl_mount_param param = {};
-	char *arg[] = {"/sbin/tune2fs", "-Urandom", param.device, NULL};
+	char *arg[] = {"/sbin/tune2fs", "-Urandom", NULL, NULL};
 
 	list_for_each(d, &h->env_param->disk->disks, list) {
 
@@ -495,7 +496,7 @@ static void set_fs_uuid(struct vzctl_env_handle *h)
 		if (vzctl2_mount_disk_image(d->path, &param))
 			continue;
 
-		strcat(param.device, "p1");
+		arg[2] = (char *)get_fs_partname(d);
 		vzctl2_wrap_exec_script(arg, NULL, 0);
 
 		vzctl2_umount_disk_image(d->path);
