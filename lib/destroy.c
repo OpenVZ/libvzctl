@@ -239,6 +239,9 @@ static int umount_all(const char *path)
 	int ret;
 	char **s, **devs = NULL;
 
+	if (stat_file(path) == 0)
+		return 0;
+
 	ret = vzctl2_get_ploop_devs(path, &devs);
 	if (ret) /* ignore error */
 		return 0;
