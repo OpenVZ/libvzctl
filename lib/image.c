@@ -891,7 +891,6 @@ int vzctl_encrypt_disk_image(const char *path, const char *keyid, int flags)
 	struct ploop_disk_images_data *di;
 	struct ploop_encrypt_param enc_param = {
 		.keyid = keyid,
-		.mnt_opts = "pfcache_csum",
 	};
 
 	if (flags & VZCTL_ENC_REENCRYPT)
