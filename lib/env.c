@@ -203,6 +203,9 @@ static int do_env_stop(struct vzctl_env_handle *h, int stop_mode)
 {
 	int ret;
 
+	/* Unregister before real stop to avoid races with vzevend */
+	vzctl2_unregister_running_state(h->env_param->fs->ve_private);
+
 	if (stop_mode == M_KILL)
 		goto kill;
 
@@ -229,8 +232,6 @@ kill_force:
 static int do_env_post_stop(struct vzctl_env_handle *h, int flags)
 {
 	int ret = 0;
-
-	vzctl2_unregister_running_state(h->env_param->fs->ve_private);
 
 	if (!(flags & VZCTL_SKIP_UMOUNT))
 		ret = vzctl2_env_umount(h, flags);
@@ -1045,6 +1046,7 @@ int vzctl2_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 
 	/* Dumped processes can live for a while after dump return success due to
 	criu bug. Wait some time for dumped processes termination. */
+	vzctl2_unregister_running_state(h->env_param->fs->ve_private);
 	wait_env_state(h, VZCTL_ENV_STOPPED, 5);
 
 	do_env_post_stop(h, flags);
