@@ -811,10 +811,13 @@ static int cg_env_check_init_pid(const char *ctid, pid_t pid)
 		}
 	}
 
-	free_str(&pids);
+	if (ret) {
+		logger(-1, 0, "Init pid %d is invalid: no such task", pid);
+		list_for_each(it, &pids, list)
+			logger(-1, 0, "%s", it->str);
+	}
 
-	if (ret)
-		logger(-1, 0, "Init pid is invalid: no such task");
+	free_str(&pids);
 
 	return ret;
 }
@@ -856,9 +859,10 @@ int cg_env_get_pids(const char *ctid, list_head_t *list)
 {
 	FILE *fp;
 	char path[PATH_MAX];
-	char str[64];
+	char *str;
+	size_t len;
 	char *p;
-	int ret = 0;
+	int n, ret = 0;
 
 	ret = cg_get_path(ctid, CG_VE, "tasks", path, sizeof(path));
 	if (ret)
@@ -867,10 +871,19 @@ int cg_env_get_pids(const char *ctid, list_head_t *list)
 	if ((fp = fopen(path, "r")) == NULL)
 		return vzctl_err(-1, errno, "Unable to open %s", path);
 
-	while (!feof(fp)) {
-		if (fgets(str, sizeof(str), fp) == NULL)
+	len = 10;
+	str = malloc(len + 1);
+	do {
+		n = getline(&str, &len, fp);
+		if (n == -1) {
+			if (errno == 0)
+				break;
+			vzctl_err(-1, errno, "Failed to read %s", path);
+			ret = -1;
 			break;
+		}
 
+		str[n] = '\0';
 		p = strrchr(str, '\n');
 		if (p != NULL)
 			*p = '\0';
@@ -880,8 +893,9 @@ int cg_env_get_pids(const char *ctid, list_head_t *list)
 			ret = -1;
 			break;
 		}
-	}
+	} while (n > 0);
 
+	free(str);
 	fclose(fp);
 
 	return ret;
