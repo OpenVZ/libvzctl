@@ -874,6 +874,7 @@ int cg_env_get_pids(const char *ctid, list_head_t *list)
 	len = 10;
 	str = malloc(len + 1);
 	do {
+		errno = 0;
 		n = getline(&str, &len, fp);
 		if (n == -1) {
 			if (errno == 0)
