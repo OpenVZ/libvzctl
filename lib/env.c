@@ -1199,6 +1199,9 @@ int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param
 
 err:
 	if (ret) {
+		if (dump_resources_failcnt(EID(h)))
+			ret = VZCTL_E_RESOURCE;
+
 		logger(10, 0, "* Failed to configure [%d]", ret);
 		/* report error to waiter */
 		if (h->ctx->wait_p[1] != -1) {
