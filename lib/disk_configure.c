@@ -105,7 +105,7 @@ static const char *get_fsuuid(const char *str, char *buf)
 #define SYSTEMD_UNIT_DESC "Description=ploop with UUID="
 #define SYSTEMD_MOUNT_UNIT_SUFFIX ".mount"
 
-static int check_systemd(void)
+static int is_systemd(void)
 {
 	char buf[PATH_MAX];
 	char *p;
@@ -224,9 +224,6 @@ static int env_configure_systemd_unit(const char *uuid, const char *mnt, const c
 	char systemd_link_path[PATH_MAX];
 	char options[PATH_MAX] = "";
 	FILE *wfp;
-
-	if (check_systemd() == 0)
-		return 0;
 
 	// Check that systemd started: exit if so, see #PSBM-33596
 	if (access("/run/systemd", F_OK) == 0)
@@ -399,11 +396,15 @@ static int env_configure_disk(struct exec_disk_param *param)
 		if (access(disk->mnt, F_OK))
 			make_dir(disk->mnt, 1);
 
-		if (env_configure_fstab(param->fsuuid, disk->mnt, disk->mnt_opts))
-			return -1;
-
-		if (env_configure_systemd_unit(param->fsuuid, disk->mnt, disk->mnt_opts))
-			return -1;
+		if (is_systemd()) {
+			if (env_configure_systemd_unit(param->fsuuid,
+						disk->mnt, disk->mnt_opts))
+				return -1;
+		} else {
+			if (env_configure_fstab(param->fsuuid, disk->mnt,
+						disk->mnt_opts))
+				return -1;
+		}
 
 		if (param->automount || disk->dmname) {
 			const char *partname = get_fs_partname(disk);
@@ -555,9 +556,6 @@ static int env_fin_configure_systemd_unit(struct vzctl_env_disk *env_disk)
 	char unit_link[PATH_MAX];
 	struct stat st;
 
-	if (check_systemd() == 0)
-		return 0;
-
 	/* scan directory with systemd units */
 	dir = opendir(SYSTEMD_DIR);
 	if (!dir) {
@@ -612,15 +610,15 @@ static int env_fin_configure_systemd_unit(struct vzctl_env_disk *env_disk)
 
 int env_fin_configure_disk(struct vzctl_env_disk *disk)
 {
-	int ret = 0;
+	if (is_systemd()) {
+		if (env_fin_configure_systemd_unit(disk))
+			return VZCTL_E_DISK_CONFIGURE;
+	} else {
+		if (env_fin_configure_fstab(disk))
+			return VZCTL_E_DISK_CONFIGURE;
+	}
 
-	if (env_fin_configure_fstab(disk))
-		ret = VZCTL_E_DISK_CONFIGURE;
-
-	if (env_fin_configure_systemd_unit(disk))
-		ret = VZCTL_E_DISK_CONFIGURE;
-
-	return ret;
+	return 0;
 }
 
 int fin_configure_disk(struct vzctl_env_handle *h, struct vzctl_env_disk *disk)
