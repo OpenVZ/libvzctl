@@ -84,9 +84,11 @@ int vcmm_get_param(const char *id, unsigned long *mem,
 	if (rc)
 		return vcmm_error(rc, "vcmmd_get_ve_config");
 
-	if (!vcmmd_ve_config_extract(&c, VCMMD_VE_CONFIG_LIMIT, mem))
+	if (!vcmmd_ve_config_extract(&c, VCMMD_VE_CONFIG_LIMIT, mem)) {
+		vcmmd_ve_config_deinit(&c);
 		return vzctl_err(VZCTL_E_VCMM, 0,
 			"Unable to get VCMMD_VE_CONFIG_LIMIT parameter");
+	}
 
 	if (!vcmmd_ve_config_extract(&c, VCMMD_VE_CONFIG_SWAP, swap))
 		*swap = 0;
@@ -97,6 +99,7 @@ int vcmm_get_param(const char *id, unsigned long *mem,
 	logger(5, 0, "vcmmd CT configuration mem=%lu swap=%lu guar=%lu",
 			*mem, *swap, *guar);
 
+	vcmmd_ve_config_deinit(&c);
 	return 0;
 }
 
@@ -198,6 +201,7 @@ int vcmm_register(struct vzctl_env_handle *h, struct vzctl_ub_param *ub,
 		vcmm_unregister(h);
 		rc = vcmmd_register_ve(EID(h), VCMMD_VE_CT, &c, 0);
 	}
+	vcmmd_ve_config_deinit(&c);
 	if (rc)
 		return vcmm_error(rc, "failed to register Container");
 
@@ -224,6 +228,7 @@ int vcmm_update(struct vzctl_env_handle *h, struct vzctl_ub_param *ub,
 		return rc;
 
 	rc = vcmmd_update_ve(EID(h), &c, 0);
+    vcmmd_ve_config_deinit(&c);
 	if (rc)
 		return vcmm_error(rc, "failed to update Container configuration");
 
