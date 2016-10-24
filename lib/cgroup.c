@@ -792,34 +792,34 @@ int cg_env_set_net_classid(const char *ctid, unsigned int classid)
 
 static int cg_env_check_init_pid(const char *ctid, pid_t pid)
 {
-	int ret;
-	pid_t task_pid;
-	LIST_HEAD(pids);
-	struct vzctl_str_param *it;
+	int ret, n;
+	FILE *fp;
+	char buf[4096];
 
-	if ((ret = cg_env_get_pids(ctid, &pids)))
-		return ret;
+	snprintf(buf, sizeof(buf), "/proc/%d/cgroup", pid);
+	fp = fopen(buf, "r");
+	if (fp == NULL) {
+		if (errno == ENOENT)
+			return vzctl_err(-1, 0, "Init pid %d is invalid:"
+					" no such task", pid);
+		return vzctl_err(-1, errno, "Unable to open %s", buf);
+	}
 
 	ret = 1;
-	list_for_each(it, &pids, list) {
-		if (parse_int(it->str, &task_pid))
+	while (fgets(buf, sizeof(buf), fp)) {
+		if (sscanf(buf, "%d:ve:/%s", &n, buf) != 2)
 			continue;
 
-		if (task_pid == pid) {
+		if (!strcmp(ctid, buf))
 			ret = 0;
-			break;
-		}
+		break;
 	}
+	fclose(fp);
 
-	if (ret) {
-		logger(-1, 0, "Init pid %d is invalid: no such task", pid);
-		list_for_each(it, &pids, list)
-			logger(-1, 0, "%s", it->str);
-	}
+	if (ret)
+		return vzctl_err(1, 0, "Init pid %d is invalid", pid);
 
-	free_str(&pids);
-
-	return ret;
+	return 0;
 }
 
 int cg_env_get_init_pid(const char *ctid, pid_t *pid)
