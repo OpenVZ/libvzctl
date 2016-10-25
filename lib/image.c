@@ -741,10 +741,17 @@ err:
 }
 
 
-static const char *generate_snapshot_component_name(ctid_t ctid,
-		const char *data, char *buf, int len)
+static const char *generate_snapshot_component_name(const char *guid,
+		char *buf, int len)
 {
-	snprintf(buf, len, "%s-%s-%s", ctid, SNAPSHOT_MOUNT_ID, data);
+	char u[37];
+
+	if (vzctl2_get_normalized_uuid(guid, u, sizeof(u)))
+		snprintf(u, sizeof(u), "%s", guid);
+
+	/* length limited by 'PLOOP_COOKIE_SIZE 64' */
+	snprintf(buf, len, SNAPSHOT_MOUNT_ID"-%s", u);
+
 	return buf;
 }
 
@@ -798,7 +805,7 @@ int vzctl2_mount_snap(struct vzctl_env_handle *h, const char *mnt, const char *g
 				"Failed to mount snapshot: root image is not configured");
 
 	if (component_name == NULL) {
-		generate_snapshot_component_name(EID(h), guid, cn, sizeof(cn));
+		generate_snapshot_component_name(guid, cn, sizeof(cn));
 		component_name = cn;
 	}
 
@@ -838,7 +845,7 @@ int vzctl2_mount_snapshot(struct vzctl_env_handle *h, struct vzctl_mount_param *
 	param->fsck = VZCTL_PARAM_OFF;
 
 	if (param->component_name == NULL) {
-		generate_snapshot_component_name(EID(h), param->guid, cn, sizeof(cn));
+		generate_snapshot_component_name(param->guid, cn, sizeof(cn));
 		param->component_name = cn;
 	}
 
@@ -883,7 +890,7 @@ int vzctl2_umount_snapshot(struct vzctl_env_handle *h, const char *guid, const c
 	struct vzctl_disk *disk;
 
 	if (component_name == NULL)
-		generate_snapshot_component_name(EID(h), guid, cn, sizeof(cn));
+		generate_snapshot_component_name(guid, cn, sizeof(cn));
 	else
 		snprintf(cn, sizeof(cn), "%s", component_name);
 
