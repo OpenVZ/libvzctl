@@ -40,6 +40,7 @@
 #include "vzerror.h"
 #include "vzctl.h"
 #include "disk.h"
+#include "cluster.h"
 
 #define DEFAULT_FSTYPE		"ext4"
 #define SNAPSHOT_MOUNT_ID	"snap"
@@ -177,13 +178,23 @@ int vzctl2_umount_disk_image(const char *path)
 {
 	int ret;
 	struct ploop_disk_images_data *di;
+	int i = 0;
+	int shared = -1;
 
 	logger(0, 0, "Unmount image: %s", path);
 	ret = open_dd(path, &di);
 	if (ret)
 		return ret;
 
+retry:
 	ret = ploop_umount_image(di);
+	if (ret == SYSEXIT_UMOUNT) {
+		if (shared == -1)
+			shared = is_shared_fs(path);
+		if (shared && i++ < 20 /* 6 * 20 = 120 sec */)
+			goto retry;
+	}
+
 	ploop_close_dd(di);
 	if (ret && ret != SYSEXIT_DEV_NOT_MOUNTED)
 		return vzctl_err(VZCTL_E_UMOUNT_IMAGE, 0,
