@@ -613,10 +613,10 @@ int env_fin_configure_disk(struct vzctl_env_disk *disk)
 	if (is_systemd()) {
 		if (env_fin_configure_systemd_unit(disk))
 			return VZCTL_E_DISK_CONFIGURE;
-	} else {
-		if (env_fin_configure_fstab(disk))
-			return VZCTL_E_DISK_CONFIGURE;
 	}
+
+	if (access("/etc/fstab", F_OK) == 0 && env_fin_configure_fstab(disk))
+		return VZCTL_E_DISK_CONFIGURE;
 
 	return 0;
 }
