@@ -387,6 +387,7 @@ int real_env_exec(struct vzctl_env_handle *h, struct exec_param *param, int flag
 	int ret;
 	int skip_fds[7];
 	int n, i = 0;
+	struct sigaction act = {.sa_handler = SIG_DFL};
 
 	if (param->stdfd != NULL) {
 		int fd = open("/dev/null", O_RDWR);
@@ -425,12 +426,15 @@ int real_env_exec(struct vzctl_env_handle *h, struct exec_param *param, int flag
 			ret = VZCTL_E_INVAL;
 			goto err;
 		}
+
+		sigaction(SIGPIPE, &act, NULL);
 		execvep(param->argv[0], param->argv,
 				param->envp != NULL ? param->envp : envp_bash);
 
 		ret = vzctl_err(VZCTL_E_BAD_TMPL, errno, "Failed to exec %s",
 				param->argv[0]);;
 	} else {
+		sigaction(SIGPIPE, &act, NULL);
 		if (flags & EXEC_NOENV) {
 			execv("/bin/bash", param->argv != NULL ? param->argv : argv_bash);
 			execv("/bin/sh", param->argv != NULL ? param->argv : argv_bash);
