@@ -752,12 +752,9 @@ int update_disk_info(struct vzctl_disk *disk)
 	struct stat st;
 
 	if (disk->use_device) {
-		ret = get_real_device(disk->path, devname, sizeof(devname));
-		if (ret)
-			return ret;
-		ret = get_part_device(devname, partname, sizeof(partname));
-		if (ret)
-			return ret;
+		if (get_real_device(disk->path, devname, sizeof(devname)) ||
+				get_part_device(devname, partname, sizeof(partname)))
+			return VZCTL_E_FS_NOT_MOUNTED;
 	} else {
 		char x[STR_SIZE];
 
