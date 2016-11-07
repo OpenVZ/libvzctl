@@ -440,19 +440,22 @@ err:
 static int merge_create_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 		struct vzctl_env_create_param *param)
 {
-	int ret;
-	char ostmpl[STR_SIZE];
+	int ret = 0;
 
 	if (param->config != NULL)
 		xstrdup(&env->opts->config, param->config);
 
-	/* Use DEF_OSTEMPLATE if ostemplate not specified */
-	if (param->ostmpl == NULL) {
+	if (param->ostmpl != NULL)
+		ret = xstrdup(&env->tmpl->ostmpl, param->ostmpl);
+	else if (env->tmpl->ostmpl != NULL)
+		ret = xstrdup(&env->tmpl->ostmpl, env->tmpl->ostmpl);
+	else if (h->env_param->tmpl->ostmpl == NULL) {
+		char ostmpl[STR_SIZE];
+		/* Use DEF_OSTEMPLATE if ostemplate not specified */
 		if (get_global_param("DEF_OSTEMPLATE", ostmpl, sizeof(ostmpl)))
 			return vzctl_err(VZCTL_E_NO_PARAM, 0, "The ostemplate is not specified");
 		ret = xstrdup(&env->tmpl->ostmpl, ostmpl);
-	} else
-		ret = xstrdup(&env->tmpl->ostmpl, param->ostmpl);
+	}
 
 	if (ret)
 		return ret;
