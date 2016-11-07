@@ -1095,7 +1095,8 @@ static int announce_ips(struct vzctl_env_handle *h)
 	return env_wait(pid, 0, NULL);
 }
 
-int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param, int flags)
+int vzctl2_env_restore(struct vzctl_env_handle *h,
+		struct vzctl_cpt_param *param, int flags)
 {
 	int ret;
 	struct vzctl_env_param *env = h->env_param;
@@ -1103,6 +1104,7 @@ int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param
 		.h = h,
 		.pseudosuper_fd = -1,
 	};
+	char dumpfile[PATH_MAX];
 
 	if (param->cmd != VZCTL_CMD_RESTORE)
 		return vzctl2_cpt_cmd(h, VZCTL_CMD_RESTORE, param->cmd, param, flags);
@@ -1111,7 +1113,11 @@ int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param
 	if (is_env_run(h))
 		return vzctl_err(VZCTL_E_ENV_RUN, 0,
 				"Container is already running");
-
+	vzctl2_get_dump_file(h, dumpfile, sizeof(dumpfile));
+	if (stat_file(param->dumpfile ?: dumpfile) != 1)
+			return vzctl_err(VZCTL_E_RESTORE, 0,
+					"Container is not suspnded");
+		
 	logger(0, 0, "Restoring the Container ...");
 
 	if (cpufeatures_sync())
