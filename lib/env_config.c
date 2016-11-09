@@ -53,6 +53,9 @@
 #include "bindmount.h"
 #include "env_ops.h"
 
+static const struct vzctl_config_param *vzctl_get_conf_param(
+	struct vzctl_data_param *data);
+
 static struct vzctl_config_param config_param_map[] = {
 /*	ip param	*/
 {"IP_ADDRESS",	VZCTL_PARAM_IP_ADDRESS},
@@ -264,16 +267,16 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 	unsigned long num, ul;
 	int id, n, ret = 0, param_id = -1;
 	int replace = flags & VZCTL_CONF_PARAM;
+	const struct vzctl_config_param *c = NULL;
 
 	if (data->name != NULL) {
-		const struct vzctl_config_param *param;
-		if ((param = param_get_by_name(config_param_map, data->name)) != NULL)
-			param_id = param->id;
+		c = vzctl_get_conf_param(data);
+		if (c != NULL)
+			param_id = c->id;
 
 		debug(DBG_CFG, "%s: %s=%s", __func__, data->name, data->data);
 	} else {
 		param_id = data->id;
-
 		debug(DBG_CFG, "%s: %d=%s", __func__, param_id, data->data);
 	}
 
@@ -692,7 +695,7 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 		break;
 	case VZCTL_PARAM_SLMMODE:
 		if ((id = slm_mode2id(str)) == -1)
-			return VZCTL_E_INVAL;
+			goto err_inval;
 		env->res->slm->mode = id;
 		break;
 	case VZCTL_PARAM_SLMMEMORYLIMIT:
@@ -720,7 +723,7 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 		break;
 	case VZCTL_PARAM_TRAFFIC_SHAPING:
 		if ((id = yesno2id(str)) == -1)
-			return VZCTL_E_INVAL;
+			goto err_inval;
 		env->vz->tc->traffic_shaping = id;
 		break;
 	case VZCTL_PARAM_TOTALRATE:
@@ -731,7 +734,7 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 		break;
 	case VZCTL_PARAM_RATEBOUND:
 		if ((id = yesno2id(str)) == -1)
-			return VZCTL_E_INVAL;
+			goto err_inval;
 		env->vz->tc->ratebound = id;
 		break;
 	case VZCTL_PARAM_MEM_GUARANTEE:
@@ -741,7 +744,7 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 		break;
 	case VZCTL_PARAM_PAGECACHE_ISOLATION:
 		if ((id = yesno2id(str)) == -1)
-			return VZCTL_E_INVAL;
+			goto err_inval;
 		env->res->ub->pagecache_isolation = id;
 		break;
 	default:
@@ -755,8 +758,12 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 	return ret;
 
 err_inval:
-	logger(-1, 0, "Invalid parameter %s: %s",
-			data->name != NULL ? data->name : "", str);
+	if (c == NULL)
+		c = vzctl_get_conf_param(data);
+	if (c)
+		logger((flags & VZCTL_CONF_QUIET) ? INT_MAX : -1, 0,
+				"Invalid parameter %s: '%s'", c->name, str);
+
 	return VZCTL_E_INVAL;
 }
 
@@ -767,7 +774,7 @@ int vzctl2_add_env_param_by_name(struct vzctl_env_param *env, const char *name, 
 		.data = (char*) str,
 	};
 
-	return add_env_param(NULL, env, &data, 0);
+	return add_env_param(NULL, env, &data, VZCTL_CONF_QUIET);
 }
 
 int vzctl2_add_env_param_by_id(struct vzctl_env_param *env, unsigned id, const char *str)
@@ -777,7 +784,7 @@ int vzctl2_add_env_param_by_id(struct vzctl_env_param *env, unsigned id, const c
 		.data = (char*) str,
 	};
 
-	return add_env_param(NULL, env, &data, 0);
+	return add_env_param(NULL, env, &data, VZCTL_CONF_QUIET);
 }
 
 const struct vzctl_config_param *vzctl_get_conf_param(
