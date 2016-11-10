@@ -956,7 +956,7 @@ static int do_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 
 	ret = get_env_ops()->env_exec_fn(h, fn, data, data_fd, timeout, flags, &pid);
 	if (ret)
-		return ret;;
+		return ret;
 
 	hook = register_cleanup_hook(cleanup_kill_process, (void *) &pid);
 	ret = env_wait(pid, timeout, NULL);
@@ -977,23 +977,23 @@ int vzctl2_env_exec_fn2(struct vzctl_env_handle *h, execFn fn, void *data,
 int vzctl2_env_exec_fn_async(struct vzctl_env_handle *h, execFn fn,
 		void *data, int *data_fd, int timeout, int flags, int *err)
 {
-	int pid, ret;
+	int pid;
 
 	if (!is_env_run(h)) {
 		*err = vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");;
 		return -1;
 	}
-	fflush(stderr);
-	fflush(stdout);
-	/* Extra fork to skip UBC limit applying to the current process */
-	if ((pid = fork()) < 0) {
-		*err = vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
-		return -1;
-	} else if (pid == 0) {
-		ret = do_env_exec_fn(h, fn, data, data_fd, timeout, flags);
 
-		_exit(ret);
+        if (!(flags & VE_SKIPLOCK) && is_enter_locked(h)) {
+		*err = VZCTL_E_LOCK;
+                return -1;
 	}
+
+	*err = get_env_ops()->env_exec_fn(h, fn, data, data_fd, timeout,
+								flags, &pid);
+	if (*err)
+		return -1;
+
 	return pid;
 }
 
