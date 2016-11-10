@@ -321,29 +321,31 @@ static int exec_fn(void *data)
 	return 0;
 }
 
-int test_env_exec_fn(execFn fn,  char *fname)
+void test_env_exec_fn(execFn fn,  char *fname)
 {
 	int err, pid, ret;
+	char path[PATH_MAX];
+	const char *p;
 	vzctl_env_handle_ptr h;
 
-	h = vzctl2_env_open(ctid, 0, &err);
-	if (h == NULL) {
-		return -1;
-	}
+	CHECK_PTR(h, vzctl2_env_open(ctid, 0, &err))
 
 	printf("* test_env_exec_fn\n");
 	pid = vzctl2_env_exec_fn_async(h, fn, (void *) fname, NULL, 0, 0, &err);
 	if (pid == -1) {
-		ret = err;
-		goto err;
+		vzctl2_env_close(h);
+		TEST_VZERR("vzctl2_env_exec_fn_async")
 	}
 
-	err = vzctl2_env_exec_wait(pid, &ret);
+	CHECK_RET(vzctl2_env_exec_wait(pid, &ret))
+	CHECK_RET(ret)
 
-err:
-	vzctl2_env_close(h);
+	vzctl2_env_get_ve_root_path(vzctl2_get_env_param(h), &p);
+	snprintf(path, sizeof(path), "%s/%s", p, fname);
+	if (access(path, F_OK))
+		TEST_VZERR("test_env_exec_fn");
 
-	return ret;
+	unlink(path);
 }
 
 void test_exec()
