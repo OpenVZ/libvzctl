@@ -606,9 +606,14 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 			(ret = check_var(fs->ve_root, "VE_ROOT is not set")))
 		goto free_conf;
 
-	ret = xstrdup(&applist, h->env_param->tmpl->templates);
-	if (ret)
-		goto err;
+	if (h->env_param->tmpl->templates != NULL &&
+			h->env_param->tmpl->templates[0] != '\0')
+	{
+		ret = xstrdup(&applist, h->env_param->tmpl->templates);
+		if (ret)
+			goto err;
+	}
+
 	if ((ret = create_env_private(h, fs->ve_private, ostmpl, vzpkg_src_conf,
 				&applist, layout, 0, param->enc_keyid, flags)))
 		goto err;
