@@ -364,6 +364,8 @@ struct vzctl_disk_stats {
 	char device[64];
 	unsigned long long total; // in kilobytes
 	unsigned long long free; // in kilobytes
+	unsigned long long inodes;
+	unsigned long long ifree;
 };
 
 struct vzctl_meminfo {
