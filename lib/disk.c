@@ -1537,6 +1537,8 @@ static int get_ploop_disk_stats(const struct vzctl_disk *disk,
 	if (ret == 0) {
 		stats->total = info.fs_bsize * info.fs_blocks / 1024;
 		stats->free = info.fs_bsize * info.fs_bfree / 1024;
+		stats->inodes = info.fs_inodes;
+		stats->ifree = info.fs_ifree;
 	}
 
 	return (ret == 0 || ret == 1) ? 0 : VZCTL_E_SYSTEM;
