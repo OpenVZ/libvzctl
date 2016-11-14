@@ -21,6 +21,12 @@
  */
 
 #include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <string.h>
 
 #include "env_ops.h"
 
@@ -40,8 +46,34 @@ void init_env_ops(void)
 	env_nsops_init(get_env_ops());
 }
 
+static const char *get_cmdname(char *out, int size)
+{
+	int fd, n;
+	const char *p;
+	char x[64];
+
+	snprintf(x, sizeof(x), "/proc/%d/cmdline", getpid());
+	fd = open(x, O_RDONLY);
+	if (fd != -1 && (n = read(fd, x, sizeof(x) - 1)) != -1) {
+		x[n] = '\0';
+		p = strrchr(x, '/');
+		snprintf(out, size, "%s", p ? ++p : x);
+	} else
+		snprintf(out, size, "%d", getpid());
+
+	if (fd != -1)
+		close(fd);
+
+	return out;
+}
+
 __attribute__((constructor)) void __init_env_ops(void)
 {
+	char cmdnamep[64];
+
 	init_env_ops();
+
+	vzctl2_init_log(get_cmdname(cmdnamep, sizeof(cmdnamep)));
+	vzctl2_set_log_quiet(1);
 }
 
