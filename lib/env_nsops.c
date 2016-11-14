@@ -920,6 +920,9 @@ static int ns_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 	int ret;
 	pid_t pid2;
 
+	fflush(stderr);
+	fflush(stdout);
+
 	*pid = fork();
 	if (*pid < 0) {
 		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
