@@ -86,6 +86,7 @@ struct vzctl_misc_param {
 	char *description;
 	char *description_eq;
 	int ve_type;
+	char *ve_type_custom;
 	char *uuid;
 	int start_disabled;
 	int autocompact;
