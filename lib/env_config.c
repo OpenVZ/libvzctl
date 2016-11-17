@@ -612,9 +612,8 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 		ret = parse_str_param(&env->misc->ve_env, str);
 		break;
 	case VZCTL_PARAM_VE_TYPE:
-		if ((n = str2env_type(str)) == -1)
+		if (str2env_type(env->misc, str))
 			goto err_inval;
-		env->misc->ve_type = n;
 		break;
 	case VZCTL_PARAM_VE_UUID: {
 		char uuid[40];
@@ -1182,7 +1181,7 @@ static char *env_param2str(struct vzctl_env_handle *h,
 		break;
 	case VZCTL_PARAM_VE_TYPE:
 		if (env->misc->ve_type) {
-			str = env_type2str(env->misc->ve_type);
+			str = env_type2str(env->misc);
 			if (str != NULL)
 				return strdup(str);
 		}

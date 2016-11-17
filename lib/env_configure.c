@@ -85,6 +85,7 @@ void free_misc_param(struct vzctl_misc_param *param)
 	free(param->description);
 	free(param->description_eq);
 	free(param->uuid);
+	free(param->ve_type_custom);
 	free(param);
 }
 

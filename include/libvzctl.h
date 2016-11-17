@@ -296,6 +296,7 @@ typedef enum {
         VZCTL_ENV_TYPE_REGULAR = 1,
         VZCTL_ENV_TYPE_TEMPORARY = 2,
         VZCTL_ENV_TYPE_TEMPLATE = 3,
+        VZCTL_ENV_TYPE_CUSTOM = 4,
 
 	VZCTL_ENV_TYPE_MAX = VZCTL_ENV_TYPE_TEMPLATE,
 } vzctl_env_type;

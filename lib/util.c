@@ -887,26 +887,32 @@ const char *id2onoff(int id)
 	return NULL;
 }
 
-int str2env_type(const char *str)
+int str2env_type(struct vzctl_misc_param *p, const char *str)
 {
 	if (!strcmp(str, "regular"))
-		return VZCTL_ENV_TYPE_REGULAR;
+		p->ve_type = VZCTL_ENV_TYPE_REGULAR;
 	else if (!strcmp(str, "temporary"))
-		 return VZCTL_ENV_TYPE_TEMPORARY;
+		p->ve_type = VZCTL_ENV_TYPE_TEMPORARY;
 	else if (!strcmp(str, "template"))
-		 return VZCTL_ENV_TYPE_TEMPLATE;
+		p->ve_type = VZCTL_ENV_TYPE_TEMPLATE;
+	else {
+		p->ve_type = VZCTL_ENV_TYPE_CUSTOM;
+		return xstrdup(&p->ve_type_custom, str);
+	}
 
-	return -1;
+	return 0;
 }
 
-const char* env_type2str(int type)
+const char* env_type2str(struct vzctl_misc_param *p)
 {
-	if (type == VZCTL_ENV_TYPE_REGULAR)
+	if (p->ve_type == VZCTL_ENV_TYPE_REGULAR)
 		return "regular";
-	else if (type == VZCTL_ENV_TYPE_TEMPORARY)
+	else if (p->ve_type == VZCTL_ENV_TYPE_TEMPORARY)
 		 return "temporary";
-	else if (type == VZCTL_ENV_TYPE_TEMPLATE)
+	else if (p->ve_type == VZCTL_ENV_TYPE_TEMPLATE)
 		 return "template";
+	else if (p->ve_type == VZCTL_ENV_TYPE_CUSTOM)
+		 return p->ve_type_custom;
 
 	return NULL;
 }
