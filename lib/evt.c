@@ -89,9 +89,6 @@ int vzctl2_send_umount_evt(const ctid_t ctid, dev_t dev)
 	int ret;
 	struct vzctl_state_evt evt = {};
 
-	if (vzctl2_get_flags() & VZCTL_FLAG_DONT_SEND_EVT)
-		return 0;
-
 	evt.type = VZCTL_STATE_EVT;
 	memcpy(evt.ctid, ctid, sizeof(ctid_t));
 	evt.state = VZCTL_ENV_UMOUNT;
