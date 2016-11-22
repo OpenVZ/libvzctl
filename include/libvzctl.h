@@ -1101,6 +1101,7 @@ int vzctl2_set_tc_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 		int flags);
 int vzctl2_env_set_setmode(struct vzctl_env_param *env, vzctl_setmode_t mode);
 int vzctl2_set_limits(struct vzctl_env_handle *h, int release);
+int vzctl2_get_def_ostemplate_name(char *out, int size);
 
 /************** Depricated *****************************/
 struct vzctl_config *vzctl2_conf_open(const char *fname, int flags, int *err);
