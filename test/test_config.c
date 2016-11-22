@@ -1594,6 +1594,15 @@ void test_config_del_param(vzctl_env_handle_ptr h)
 	vzctl2_env_close(h_res);
 }
 
+void test_def_ostemplate()
+{
+	char x[512];
+
+	TEST()
+	CHECK_RET(vzctl2_get_def_ostemplate_name(x, sizeof(x)))
+	printf("* %s\n", x);
+}
+
 void test_config()
 {
 	int err;
@@ -1609,6 +1618,7 @@ void test_config()
 	test_config_UPTIME(h);
 #endif
 
+	test_def_ostemplate();
 	test_open();
 	test_config_CPUUNITS(h);
 	test_config_CPUMASK(h);

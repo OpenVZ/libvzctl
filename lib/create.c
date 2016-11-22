@@ -76,6 +76,30 @@ struct pwd_s {
 	char *other;
 };
 
+int vzctl2_get_def_ostemplate_name(char *out, int size)
+{
+	char x[STR_SIZE];
+	char *s = x;
+	char *p;
+
+	if (get_global_param("DEF_OSTEMPLATE", x, sizeof(x) - 7))
+		return vzctl_err(VZCTL_E_NO_PARAM, 0,
+		 			"The ostemplate is not specified");
+	if (s[0] == '.')
+		s++;
+
+	p = strrchr(s, '-');
+	if (p == NULL || (strcmp(p, "-x86_64") && strcmp(p, "-x86")))
+		strcat(x, "-x86_64");
+
+	if (strlen(s) >= size)
+		return VZCTL_E_INVAL;
+
+	strcpy(out, s);
+
+	return 0;
+}
+
 static int is_ploop_cache(const char *name)
 {
 	return strstr(name, ".plain.ploop") != NULL ? 1 : 0;
