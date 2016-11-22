@@ -125,6 +125,7 @@ enum {
 
 	/* internal */
 	VZCTL_CONF_PARAM	= 0x20000,
+	VZCTL_CONF_QUIET	= 0x40000,
 };
 
 enum {
