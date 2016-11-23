@@ -446,6 +446,7 @@ int vzctl2_get_env_status(const ctid_t ctid, vzctl_env_status_t *status, int mas
 	int ret;
 	struct vzctl_env_handle *h;
 	ctid_t id;
+	int flags = mask == ENV_STATUS_RUNNING ? VZCTL_CONF_SKIP_PARSE : 0;
 
 	if (vzctl2_parse_ctid(ctid, id))
 		return vzctl_err(VZCTL_E_INVAL, 0, "Invalid CTID: %s", ctid);
@@ -456,7 +457,7 @@ int vzctl2_get_env_status(const ctid_t ctid, vzctl_env_status_t *status, int mas
 	if (stat_file(path) == 0)
 		return 0;
 
-	h = vzctl2_env_open(ctid, 0, &ret);
+	h = vzctl2_env_open(ctid, flags, &ret);
 	if (h == NULL)
 		return ret;
 
