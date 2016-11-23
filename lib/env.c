@@ -1593,13 +1593,12 @@ struct vzctl_env_handle *vzctl2_env_open_conf(const ctid_t ctid,
 		*err = ctid2veid(EID(h), &h->veid);
 		if (*err)
 			goto err;
-
-		lckfd = vzctl_env_conf_lock(h, VZCTL_LOCK_SH);
 	}
 
 	if (flags & VZCTL_CONF_SKIP_PARSE)
 		goto out;
 
+	lckfd = vzctl_env_conf_lock(h, VZCTL_LOCK_SH);
 	*err = conf_parse(h->conf, fname, flags);
 	if (*err)
 		goto err;
