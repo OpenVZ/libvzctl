@@ -368,6 +368,7 @@ struct vzctl_disk_stats {
 	unsigned long long free; // in kilobytes
 	unsigned long long inodes;
 	unsigned long long ifree;
+	struct vzctl_iostat io;
 };
 
 struct vzctl_meminfo {

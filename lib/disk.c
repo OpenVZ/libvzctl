@@ -1504,6 +1504,45 @@ int check_external_disk(const char *basedir, struct vzctl_env_disk *env_disk)
 	return 0;
 }
 
+static int get_disk_iostat(const char *device, struct vzctl_iostat *stat)
+{
+	FILE *f;
+	char fname[STR_SIZE];
+
+	if (memcmp(device, "/dev/", 5) == 0)
+		device += 5;
+	snprintf(fname, sizeof(fname), "/sys/block/%s/stat", device);
+	f = fopen(fname, "rt");
+	if (f == NULL) {
+		if (errno == ENOENT)
+			return 0;
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "Cant open %s", fname);
+	}
+	/*
+	   /sys/block/ploop/stat fields: 
+	   1 - reads completed successfully
+	   2 - reads merged
+	   3 - sectors read
+	   4 - time spent reading (ms)
+	   5 - writes completed
+	   6 - writes merged
+	   7 - sectors written
+	   8 - time spent writing (ms)
+	   9 - I/Os currently in progress
+	   10 - time spent doing I/Os (ms)
+	   11 - weighted time spent doing I/Os (ms)
+	   */
+	if (fscanf(f, "%*s %*s %llu  %*s %*s %*s %llu",
+				&stat->read, &stat->write) == 2) {
+		stat->read *= 512;
+		stat->write *= 512;
+	}
+
+	fclose(f);
+
+	return 0;
+}
+
 static int get_ploop_disk_stats(const struct vzctl_disk *disk,
 		struct vzctl_disk_stats *stats)
 {
@@ -1519,6 +1558,10 @@ static int get_ploop_disk_stats(const struct vzctl_disk *disk,
 	ret = get_ploop_dev(disk->path, devname, sizeof(devname),
 			partname, sizeof(partname));
 	if (ret == 0) {
+		ret = get_disk_iostat(devname, &stats->io);
+		if (ret)
+			return ret;
+
 		ret = ploop_get_mnt_by_dev(devname, buf, sizeof(buf));
 		if (ret == 0) {
 			snprintf(stats->device, sizeof(stats->device), "%s",
@@ -1561,6 +1604,7 @@ int vzctl2_env_get_disk_stats(struct vzctl_env_handle *h, const char *uuid,
 	ret = get_ploop_disk_stats(d, &st);
 	if (ret == 0)
 		memcpy(stats, &st, size < sizeof(st) ? size : sizeof(st));
+
 	return ret;
 }
 
