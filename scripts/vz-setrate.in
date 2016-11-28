@@ -683,7 +683,8 @@ vzcreate_qdisc()
 	local maxburst;
 
 	eval $(. /etc/vz/vz.conf && echo TRAFFIC_SHAPING=\"$TRAFFIC_SHAPING\" \
-			BANDWIDTH=\"$BANDWIDTH\" TOTALRATE=\"$TOTALRATE\" )
+			BANDWIDTH=\"$BANDWIDTH\" TOTALRATE=\"$TOTALRATE\" \
+			RATEMPU=\"$RATEMPU\" )
 	[ "X$TRAFFIC_SHAPING" != "Xyes" ] && return;
 
 	vzcheck_TOTALRATE
