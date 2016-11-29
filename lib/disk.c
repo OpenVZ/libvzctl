@@ -1364,6 +1364,12 @@ int vzctl2_del_disk(struct vzctl_env_handle *h, const char *guid, int flags)
 	return 0;
 }
 
+unsigned long get_disk_size(unsigned long size)
+{
+	/* treat size > 9223372036854775807 as unlimited = 16Tbytes */
+	return size >= LONG_MAX ? PLOOP_MAX_FS_SIZE >> 10 : size;
+}
+
 int vzctl2_resize_disk(struct vzctl_env_handle *h, const char *guid,
 		unsigned long size, int offline)
 {
@@ -1383,6 +1389,7 @@ int vzctl2_resize_disk(struct vzctl_env_handle *h, const char *guid,
 			return ret;
 	}
 
+	size = get_disk_size(size);
 	ret = resize_disk_image(d->path, size, offline, pid);
 	if (ret)
 		return ret;
