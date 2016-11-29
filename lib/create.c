@@ -296,8 +296,8 @@ static int update_param(struct vzctl_env_handle *h)
 	return 0;
 }
 
-static int create_private_ploop(struct vzctl_env_handle *h, const char *dst, const char *tarball,
-		int layout, int flags)
+static int create_private_ploop(struct vzctl_env_handle *h, const char *dst,
+		const char *tarball, int layout, int flags)
 {
 	char buf[PATH_MAX];
 	char script[PATH_MAX];
@@ -354,9 +354,11 @@ static int create_private_ploop(struct vzctl_env_handle *h, const char *dst, con
 	}
 
 	if (h->env_param->dq->diskspace != NULL) {
-		ret = vzctl2_resize_disk_image(data_root, h->env_param->dq->diskspace->l, 0);
+		unsigned long size = get_disk_size(h->env_param->dq->diskspace->l);
+		ret = vzctl2_resize_disk_image(data_root, size, 0);
 		if (ret)
 			return ret;
+		h->env_param->dq->diskspace->b = h->env_param->dq->diskspace->l = size;
 	}
 
 	return 0;
