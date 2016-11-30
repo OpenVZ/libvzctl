@@ -224,6 +224,7 @@ int vzctl2_set_log_enable(int enable)
 
 	tmp = _g_log.enable;
 	_g_log.enable = enable;
+	ploop_set_verbose_level(enable ? _g_log.level : PLOOP_LOG_NOCONSOLE);
 	return tmp;
 }
 
