@@ -174,7 +174,7 @@ int add_veth_param(list_head_t *head, struct vzctl_veth_dev *dev)
 	return 0;
 }
 
-static void generate_mac(char **mac, int fix)
+void generate_mac(char **mac, int fix)
 {
 	unsigned int hash;
 	char hwaddr[ETH_ALEN];
@@ -204,7 +204,7 @@ static void generate_mac(char **mac, int fix)
 	*mac = hwaddr2str(hwaddr);
 }
 
-static void generate_veth_name(struct vzctl_veth_dev *dev)
+void generate_veth_name(struct vzctl_veth_dev *dev)
 {
 	char s[9], o[9];
 

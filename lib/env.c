@@ -2162,12 +2162,18 @@ int vzctl2_env_set_veth_param(struct vzctl_veth_dev *dev,
 	if (tmp.dev_name && strlen(tmp.dev_name) >= IFNAMSIZE)
 		return VZCTL_E_INVAL;
 
-	if (tmp.mac_ve != NULL) {
+	if (tmp.mac_renew)
+		generate_mac(&dev->mac_ve, 0);
+	else if (tmp.mac_ve != NULL) {
 		ret = set_hwaddr(tmp.mac_ve, &dev->mac_ve);
 		if (ret)
 			return ret;
 	}
-	if (tmp.mac != NULL) {
+
+	if (tmp.mac_renew) {
+		generate_mac(&dev->mac, 1);
+		generate_veth_name(dev);
+	} else if (tmp.mac != NULL) {
 		ret = set_hwaddr(tmp.mac, &dev->mac);
 		if (ret)
 			return ret;
