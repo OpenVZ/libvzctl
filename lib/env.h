@@ -56,6 +56,11 @@
 #define EID(h)		(h->ctid)
 #define IS_OLD_EID(a)	(strlen(a) < 11)
 
+/* internal  flags */
+enum {
+	VZCTL_CONF_PARAM        = 0x20000,
+	VZCTL_CONF_QUIET        = 0x40000,
+};
 
 struct vzctl_opts {
 	int wait;
