@@ -208,11 +208,12 @@ static int real_ns_env_create(void *arg)
 {
 	int ret;
 	struct start_param *param = (struct start_param *) arg;
+	struct vzctl_runtime_ctx *ctx = param->h->ctx;	
 
 	close(param->init_p[1]);
-	fcntl(param->status_p[1], F_SETFD, FD_CLOEXEC);
-	fcntl(param->h->ctx->err_p[1], F_SETFD, FD_CLOEXEC);
-	fcntl(param->h->ctx->wait_p[0], F_SETFD, FD_CLOEXEC);
+	fcntl(ctx->status_p[1], F_SETFD, FD_CLOEXEC);
+	fcntl(ctx->err_p[1], F_SETFD, FD_CLOEXEC);
+	fcntl(ctx->wait_p[0], F_SETFD, FD_CLOEXEC);
 
 	/* Wait while user id mappings have been configuraed */
 	ret = TEMP_FAILURE_RETRY(read(param->init_p[0], &ret, sizeof(ret)));
@@ -243,7 +244,7 @@ static int real_ns_env_create(void *arg)
 	return 0;
 
 err:
-	if (write(param->status_p[1], &ret, sizeof(ret)) == -1 && errno != EPIPE)
+	if (write(ctx->status_p[1], &ret, sizeof(ret)) == -1 && errno != EPIPE)
 		logger(-1, errno, "real_ns_env_create write(param->status_p[1]");
 
 	return ret;
@@ -580,9 +581,9 @@ static int wait_on_pipe(const char *msg, int status_p)
 {
 	int ret, errcode = 0;
 
-	logger(10, 0, "* Wait status pid=%d", getpid());
+	logger(10, 0, "* Wait status %s pid=%d", msg, getpid());
 	ret = TEMP_FAILURE_RETRY(read(status_p, &errcode, sizeof(errcode)));
-	logger(10, 0, "* Done wait status ret=%d errcode=%d", ret, errcode);
+	logger(10, 0, "* Done wait status %s ret=%d errcode=%d", msg, ret, errcode);
 	if (ret == -1)
 		return vzctl_err(VZCTL_E_SYSTEM, errno, "Failed tp %s the Container,"
 				" read from status pipe is failed", msg);
@@ -745,41 +746,26 @@ err:
 static int ns_env_create(struct vzctl_env_handle *h, struct start_param *param)
 {
 	int ret;
-	int status_p[2];
-
-	if (pipe(status_p) < 0)
-		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
-
-	param->status_p = status_p;
+	struct vzctl_runtime_ctx *ctx = param->h->ctx;
 
 	param->pid = fork();
 	if (param->pid < 0) {
-		ret = vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
-		goto err;
+		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
 	} else if (param->pid == 0) {
-		close(param->status_p[0]); param->status_p[0] = -1;
-		close(param->h->ctx->err_p[0]); param->h->ctx->err_p[0] = -1;
-		close(param->h->ctx->wait_p[1]); param->h->ctx->wait_p[1] = -1;
+		close(ctx->status_p[0]); ctx->status_p[0] = -1;
+		close(ctx->err_p[0]); ctx->err_p[0] = -1;
+		close(ctx->wait_p[1]); ctx->wait_p[1] = -1;
 		ret = do_env_create(h, param);
-		if (ret && write(param->status_p[1], &ret, sizeof(ret)) == -1)
+		if (ret && write(ctx->status_p[1], &ret, sizeof(ret)) == -1)
 			vzctl_err(-1, errno, "ns_env_create: failed to write to the status pipe");
 		_exit(ret);
 	}
 
-	close(status_p[1]); status_p[1] = -1;
-	close(param->h->ctx->err_p[1]); param->h->ctx->err_p[1] = -1;
-	close(param->h->ctx->wait_p[0]); param->h->ctx->wait_p[0] = -1;
+	close(ctx->status_p[1]); ctx->status_p[1] = -1;
+	close(ctx->err_p[1]); ctx->err_p[1] = -1;
+	close(ctx->wait_p[0]);ctx->wait_p[0] = -1;
 
-	ret = wait_on_pipe("start", status_p[0]);
-	if (ret)
-		goto err;
-
-err:
-	close(status_p[0]);
-	if (status_p[1] != -1)
-		close(status_p[1]);
-
-	return ret;
+	return wait_on_pipe("start", ctx->status_p[0]);
 }
 
 static int ns_is_env_run(struct vzctl_env_handle *h)
@@ -1131,6 +1117,9 @@ static int ns_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param
 {
 	int ret;
 
+	if (flags & VZCTL_CPT_POST_RESUME)
+		return ns_apply_res_param(h, env);
+
 	if (ns_is_env_run(h)) {
 		if (h->ctx->state == VZCTL_STATE_STARTING) {
 			ret = set_net_classid(h);
@@ -1138,9 +1127,12 @@ static int ns_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param
 				return ret;
 		}
 
-		ret = ns_apply_res_param(h, env);
-		if (ret)
-			return ret;
+		if (!(flags & VZCTL_RESTORE)) {
+			ret = ns_apply_res_param(h, env);
+			if (ret)
+				return ret;
+		}
+
 		ret = vzctl_setup_disk(h, env->disk, flags);
 		if (ret)
 			return ret;
@@ -1171,6 +1163,7 @@ static int ns_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param
 		if (ret)
 			return ret;
 
+
 		if (h->ctx->state == VZCTL_STATE_STARTING) {
 			ret = env_console_configure(h, flags);
 			if (ret)
@@ -1195,42 +1188,39 @@ static int env_dump(struct vzctl_env_handle *h, int cmd,
 		struct vzctl_cpt_param *param)
 {
 	int ret;
-	int status_p[2];
 	struct start_param data = {
-		.status_p = status_p,
 		.pseudosuper_fd = -1,
 	};
+	struct vzctl_runtime_ctx *ctx = h->ctx;
 
 	logger(0, 0, "Dumping CT to %s", param->dumpfile);
-	if (pipe(status_p))
-		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
-
-	p_close(h->ctx->wait_p);
-	if (pipe(h->ctx->wait_p)) {
-		p_close(status_p);
-		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
+	p_close(ctx->status_p);
+	p_close(ctx->wait_p);
+	if (pipe(ctx->status_p) || pipe(ctx->wait_p)) {
+		ret = vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
+		goto err;
 	}
 
 	h->ctx->pid = fork();
-	if (h->ctx->pid == -1) {
-		p_close(status_p);
-		p_close(h->ctx->wait_p);
-		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
-	} else if (h->ctx->pid == 0) {
-		close(status_p[0]);
-		close(h->ctx->wait_p[1]); h->ctx->wait_p[1] = -1;
+	if (ctx->pid == -1) {
+		ret =  vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
+		goto err;
+	} else if (ctx->pid == 0) {
+		close(ctx->status_p[0]); ctx->wait_p[0] = -1;
+		close(ctx->wait_p[1]); ctx->wait_p[1] = -1;
 
 		ret = criu_cmd(h, cmd, param, &data);
 		_exit(ret);
 	}
 
-	close(status_p[1]);
-	close(h->ctx->wait_p[0]); h->ctx->wait_p[0] = -1;
+	close(ctx->status_p[1]); ctx->status_p[1] = -1;
+	close(ctx->wait_p[0]); ctx->wait_p[0] = -1;
 
-	ret = wait_on_pipe("dump", status_p[0]);
-	close(status_p[0]);
-
-	h->ctx->state = VZCTL_STATE_CHECKPOINTING;
+	ret = wait_on_pipe("dump", ctx->status_p[0]);
+	ctx->state = VZCTL_STATE_CHECKPOINTING;
+err:
+	p_close(ctx->status_p);
+	p_close(ctx->wait_p);
 
 	return ret;
 }

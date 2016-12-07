@@ -140,7 +140,7 @@ static int do_dump(struct vzctl_env_handle *h, int cmd,
 
 	if (cmd == VZCTL_CMD_DUMP) {
 		if (data != NULL) {
-			snprintf(buf, sizeof(buf), "STATUSFD=%d", data->status_p[1]);
+			snprintf(buf, sizeof(buf), "STATUSFD=%d", h->ctx->status_p[1]);
 			env[i++] = strdup(buf);
 			snprintf(buf, sizeof(buf), "WAITFD=%d", h->ctx->wait_p[0]);
 			env[i++] = strdup(buf);
@@ -236,7 +236,7 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 	snprintf(buf, sizeof(buf), "VZCTL_PID=%d", getpid());
 	env[i++] = strdup(buf);
 	if (data != NULL) {
-		snprintf(buf, sizeof(buf), "STATUSFD=%d", data->status_p[1]);
+		snprintf(buf, sizeof(buf), "STATUSFD=%d", h->ctx->status_p[1]);
 		env[i++] = strdup(buf);
 		snprintf(buf, sizeof(buf), "WAITFD=%d", h->ctx->wait_p[0]);
 		env[i++] = strdup(buf);

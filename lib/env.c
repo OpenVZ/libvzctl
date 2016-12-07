@@ -745,7 +745,7 @@ int pre_setup_env(struct start_param *param)
 
 	logger(10, 0, "* Report env_created");
 	/* report that environment is created. */
-	if (write(param->status_p[1], &errcode, sizeof(errcode)) == -1)
+	if (write(param->h->ctx->status_p[1], &errcode, sizeof(errcode)) == -1)
 		 vzctl_err(-1, errno, "Failed write(param->status_p[1])");
 
 	logger(10, 0, "* Wait parent");
@@ -897,11 +897,12 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 	if (ret)
 		return ret;
 
-	if (pipe(h->ctx->wait_p) < 0)
-		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
-
-	if (pipe(h->ctx->err_p) < 0) {
+	if (pipe(h->ctx->wait_p) || pipe(h->ctx->err_p) ||
+			pipe(h->ctx->status_p) < 0)
+	{
 		p_close(h->ctx->wait_p);
+		p_close(h->ctx->err_p);
+		p_close(h->ctx->status_p);
 		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
 	}
 
@@ -1022,6 +1023,7 @@ err:
 err_pipe:
 	p_close(h->ctx->wait_p);
 	p_close(h->ctx->err_p);
+	p_close(h->ctx->status_p);
 
 	return ret;
 }
@@ -1128,11 +1130,12 @@ int vzctl2_env_restore(struct vzctl_env_handle *h,
 	if (ret)
 		return ret;
 
-	if (pipe(h->ctx->wait_p) < 0)
-		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
-
-	if (pipe(h->ctx->err_p) < 0) {
+	if (pipe(h->ctx->wait_p) || pipe(h->ctx->err_p) ||
+			pipe(h->ctx->status_p))
+	{
 		p_close(h->ctx->wait_p);
+		p_close(h->ctx->err_p);
+		p_close(h->ctx->status_p);
 		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
 	}
 
@@ -1179,13 +1182,34 @@ int vzctl2_env_restore(struct vzctl_env_handle *h,
 	}
 
 	ret = 0;
-	logger(10, 0, "* Report to parent to continue");
+	logger(10, 0, "* Continue resume");
 	if (write(h->ctx->wait_p[1], &ret, sizeof(ret)) == -1)
-		ret = vzctl_err(VZCTL_E_SYSTEM, errno,
-			"Unable to write to the wait file descriptor when starting the Container");
+		ret = vzctl_err(VZCTL_E_SYSTEM, errno, "Unable to write to"
+			" the wait fd when restore the Container");
 	if (ret)
 		goto err;
+
+
+	logger(10, 0, "* Wait for post-resume");
+	ret = read_p(h->ctx->status_p[0]);
+	if (ret) {
+		logger(-1, 0, "Error %d reported from post-resume", ret);
+		goto err;
+	}
+	logger(10, 0, "* Continue post-resume");
+	if (write(h->ctx->wait_p[1], &ret, sizeof(ret)) == -1)
+		ret = vzctl_err(VZCTL_E_SYSTEM, errno, "Unable to write to the"
+				" wait fd when post-resume the Container");
+	if (ret)
+		goto err;
+
 	close(h->ctx->wait_p[1]); h->ctx->wait_p[1] = -1;
+
+	if (!(flags & VZCTL_SKIP_SETUP)) {
+		ret = vzctl2_apply_param(h, env, VZCTL_CPT_POST_RESUME);
+		if (ret)
+			goto err;
+	}
 
 	h->ctx->state = 0;
 
@@ -1233,6 +1257,7 @@ err:
 err_pipe:
 	p_close(h->ctx->wait_p);
 	p_close(h->ctx->err_p);
+	p_close(h->ctx->status_p);
 
 	return ret;
 }

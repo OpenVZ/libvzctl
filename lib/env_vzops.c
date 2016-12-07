@@ -540,6 +540,7 @@ static int real_env_create(struct vzctl_env_handle *h, struct start_param *param
 {
 	int ret, pid;
 	struct vzctl_env_param *env = h->env_param;
+	struct vzctl_runtime_ctx *ctx = param->h->ctx;
 
 	if ((ret = vzctl_chroot(env->fs->ve_root)))
 		goto err;
@@ -556,7 +557,7 @@ static int real_env_create(struct vzctl_env_handle *h, struct start_param *param
 			ret = _env_create(h, param);
 		else
 			ret = param->fn(h, param);
-		if (write(param->status_p[1], &ret, sizeof(ret)) != sizeof(ret))
+		if (write(ctx->status_p[1], &ret, sizeof(ret)) != sizeof(ret))
 			_exit(ret);
 		_exit(ret);
 	}
@@ -564,7 +565,7 @@ static int real_env_create(struct vzctl_env_handle *h, struct start_param *param
 	return 0;
 
 err:
-	if (write(param->status_p[1], &ret, sizeof(ret)) == -1)
+	if (write(ctx->status_p[1], &ret, sizeof(ret)) == -1)
 		logger(-1, errno, "Failed write()param->status_p[1] real_env_create");
 	return ret;
 }
@@ -572,25 +573,20 @@ err:
 static int vz_env_create(struct vzctl_env_handle *h, struct start_param *param)
 {
 	int ret, rc, pid, errcode = 0;
-	int status_p[2];
 	struct sigaction act;
-
-	if (pipe(status_p) < 0)
-		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
-	param->status_p = status_p;
+	struct vzctl_runtime_ctx *ctx = param->h->ctx;
 
 	sigemptyset(&act.sa_mask);
 	act.sa_handler = SIG_IGN;
 	act.sa_flags = SA_NOCLDSTOP;
 	sigaction(SIGPIPE, &act, NULL);
 	if ((pid = fork()) < 0) {
-		ret = vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
-		goto err;
+		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
 	} else if (pid == 0) {
 		sigaction(SIGCHLD, &act, NULL);
 
-		fcntl(status_p[1], F_SETFD, FD_CLOEXEC);
-		close(status_p[0]);
+		fcntl(ctx->status_p[1], F_SETFD, FD_CLOEXEC);
+		close(ctx->status_p[0]);
 		fcntl(param->h->ctx->err_p[1], F_SETFD, FD_CLOEXEC);
 		close(param->h->ctx->err_p[0]);
 		fcntl(param->h->ctx->wait_p[0], F_SETFD, FD_CLOEXEC);
@@ -603,9 +599,9 @@ static int vz_env_create(struct vzctl_env_handle *h, struct start_param *param)
 	/* Wait for environment created */
 	close(param->h->ctx->wait_p[0]); param->h->ctx->wait_p[0] = -1;
 	close(param->h->ctx->err_p[1]); param->h->ctx->err_p[1] = -1;
-	close(status_p[1]); status_p[1] = -1;
+	close(ctx->status_p[1]); ctx->status_p[1] = -1;
 	ret = 0;
-	rc = read(status_p[0], &errcode, sizeof(errcode));
+	rc = read(ctx->status_p[0], &errcode, sizeof(errcode));
 	if (rc == -1) {
 		ret = vzctl_err(VZCTL_E_SYSTEM, errno, "Failed tp start the Container,"
 				" read from status pipe is failed");
@@ -656,9 +652,6 @@ static int vz_env_create(struct vzctl_env_handle *h, struct start_param *param)
 	logger(10, 0, "* Done wait status [%d]", ret);
 
 	env_wait(pid, 0, NULL);
-err:
-	close(status_p[1]);
-	close(status_p[0]);
 
 	return ret;
 }

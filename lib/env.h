@@ -56,10 +56,11 @@
 #define EID(h)		(h->ctid)
 #define IS_OLD_EID(a)	(strlen(a) < 11)
 
-/* internal  flags */
+/* internal flags */
 enum {
 	VZCTL_CONF_PARAM        = 0x20000,
 	VZCTL_CONF_QUIET        = 0x40000,
+	VZCTL_CPT_POST_RESUME	= 0x80000,
 };
 
 struct vzctl_opts {
@@ -107,7 +108,6 @@ struct vzctl_dq_param {
 	int journaled_quota;
 };
 
-
 struct vzctl_dev_param;
 struct vzctl_meminfo_param;
 
@@ -141,6 +141,7 @@ struct vzctl_runtime_ctx {
 	pid_t pid;
 	int wait_p[2];
 	int err_p[2];
+	int status_p[2];
 };
 
 struct vzctl_env_handle {
@@ -155,7 +156,6 @@ struct vzctl_env_handle {
 struct start_param {
 	struct vzctl_env_handle *h;
 	int *init_p;
-	int *status_p;
 	int pseudosuper_fd;
 	pid_t pid;
 	vzctl_env_create_FN fn;
