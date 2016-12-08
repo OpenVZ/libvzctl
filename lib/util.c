@@ -2763,3 +2763,43 @@ int fs_is_mounted_check_by_target(const char *target)
 
 	return ret;
 }
+
+void deinit_runtime_ctx(struct vzctl_runtime_ctx *ctx)
+{
+	if (ctx->wait_p[0] != -1) {
+		close(ctx->wait_p[0]);
+		ctx->wait_p[0] = -1;
+	}
+	if (ctx->wait_p[1] != -1) {
+		close(ctx->wait_p[1]);
+		ctx->wait_p[1] = -1;
+	}
+
+	if (ctx->status_p[0] != -1) {
+		close(ctx->status_p[0]);
+		ctx->status_p[0] = -1;
+	}
+	if (ctx->status_p[1] != -1) {
+		close(ctx->status_p[1]);
+		ctx->status_p[1] = -1;
+	}
+
+	if (ctx->err_p[0] != -1) {
+		close(ctx->err_p[0]);
+		ctx->err_p[0] = -1;
+	}
+	if (ctx->err_p[1] != -1) {
+		close(ctx->err_p[1]);
+		ctx->err_p[1] = -1;
+	}
+}
+
+int init_runtime_ctx(struct vzctl_runtime_ctx *ctx)
+{
+	deinit_runtime_ctx(ctx);
+	if (pipe(ctx->wait_p) || pipe(ctx->err_p) || pipe(ctx->status_p)) {
+		deinit_runtime_ctx(ctx);
+		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
+	}
+	return 0;
+}

@@ -897,14 +897,9 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 	if (ret)
 		return ret;
 
-	if (pipe(h->ctx->wait_p) || pipe(h->ctx->err_p) ||
-			pipe(h->ctx->status_p) < 0)
-	{
-		p_close(h->ctx->wait_p);
-		p_close(h->ctx->err_p);
-		p_close(h->ctx->status_p);
-		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
-	}
+	ret = init_runtime_ctx(h->ctx);
+	if (ret)
+		return ret;
 
         ret = get_virt_osrelease(h);
         if (ret)
@@ -1021,9 +1016,7 @@ err:
 		env_wait(param.pid, 0, NULL);
 
 err_pipe:
-	p_close(h->ctx->wait_p);
-	p_close(h->ctx->err_p);
-	p_close(h->ctx->status_p);
+	deinit_runtime_ctx(h->ctx);
 
 	return ret;
 }
@@ -1130,14 +1123,9 @@ int vzctl2_env_restore(struct vzctl_env_handle *h,
 	if (ret)
 		return ret;
 
-	if (pipe(h->ctx->wait_p) || pipe(h->ctx->err_p) ||
-			pipe(h->ctx->status_p))
-	{
-		p_close(h->ctx->wait_p);
-		p_close(h->ctx->err_p);
-		p_close(h->ctx->status_p);
-		return vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
-	}
+	ret = init_runtime_ctx(h->ctx);
+	if (ret)
+		return ret;
 
 	/* If Container mounted umount first to cleanup mount state */
 	if (vzctl2_env_is_mounted(h))
@@ -1255,9 +1243,7 @@ err:
 		env_wait(start_param.pid, 0, NULL);
 
 err_pipe:
-	p_close(h->ctx->wait_p);
-	p_close(h->ctx->err_p);
-	p_close(h->ctx->status_p);
+	deinit_runtime_ctx(h->ctx);
 
 	return ret;
 }
@@ -1477,12 +1463,10 @@ static int env_set_userpasswd(struct vzctl_env_handle *h, const char *user,
 				return ret;
 			was_mounted = 1;
 		}
-		if (pipe(h->ctx->wait_p)|| pipe(h->ctx->err_p) ||
-				pipe(h->ctx->status_p))
-		{
-			ret = vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
+
+		ret = init_runtime_ctx(h->ctx);
+		if (ret)
 			goto out;
-		}
 		if ((ret = get_env_ops()->env_create(h, &param)))
 			goto out;
 		close(h->ctx->wait_p[0]); h->ctx->wait_p[0] = -1;
@@ -1503,9 +1487,7 @@ out:
 		if (was_mounted)
 			vzctl2_env_umount(h, 0);
 
-		p_close(h->ctx->wait_p);
-		p_close(h->ctx->err_p);
-		p_close(h->ctx->status_p);
+		deinit_runtime_ctx(h->ctx);
 	}
 
 	return ret;
@@ -1538,9 +1520,7 @@ static struct vzctl_runtime_ctx *alloc_runtime_ctx(void)
 
 static void free_runtime_ctx(struct vzctl_runtime_ctx *ctx)
 {
-	p_close(ctx->wait_p);
-	p_close(ctx->err_p);
-
+	deinit_runtime_ctx(ctx);
 	free(ctx);
 }
 
