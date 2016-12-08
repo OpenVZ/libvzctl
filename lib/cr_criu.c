@@ -102,8 +102,8 @@ static int make_ploop_dev_args(struct vzctl_env_handle *h, char *out, int size)
 	return 0;
 }
 
-static int do_dump(struct vzctl_env_handle *h, int cmd,
-		struct vzctl_cpt_param *param, struct start_param *data)
+static int dump(struct vzctl_env_handle *h, int cmd,
+		struct vzctl_cpt_param *param)
 {
 	char path[PATH_MAX];
 	char buf[PATH_MAX];
@@ -138,14 +138,18 @@ static int do_dump(struct vzctl_env_handle *h, int cmd,
 	snprintf(buf, sizeof(buf), "VE_FREEZE_CG=%s", path);
 	env[i++] = strdup(buf);
 
-	if (cmd == VZCTL_CMD_DUMP) {
-		if (data != NULL) {
-			snprintf(buf, sizeof(buf), "STATUSFD=%d", h->ctx->status_p[1]);
-			env[i++] = strdup(buf);
-			snprintf(buf, sizeof(buf), "WAITFD=%d", h->ctx->wait_p[0]);
-			env[i++] = strdup(buf);
-		}
+	if (cmd == VZCTL_CMD_DUMP_LEAVE_FROZEN) {
+		if (h->ctx->status_p[1] == -1 || h->ctx->wait_p[0] == -1)
+			return vzctl_err(VZCTL_E_INVAL, 0,
+					"dump: pipe ctx not initialized status[%d] wait[%d]", h->ctx->status_p[1], h->ctx->wait_p[0]);
 
+		snprintf(buf, sizeof(buf), "STATUSFD=%d", h->ctx->status_p[1]);
+		env[i++] = strdup(buf);
+		snprintf(buf, sizeof(buf), "WAITFD=%d", h->ctx->wait_p[0]);
+		env[i++] = strdup(buf);
+	}
+
+	if (cmd == VZCTL_CMD_DUMP_LEAVE_FROZEN || cmd == VZCTL_CMD_DUMP) {
 		snprintf(buf, sizeof(buf), "CRIU_EXTRA_ARGS=--leave-running");
 		env[i++] = strdup(buf);
 	}
@@ -177,19 +181,13 @@ err:
 	return ret;
 }
 
-static int dump(struct vzctl_env_handle *h, int cmd,
-		struct vzctl_cpt_param *param, struct start_param *data)
-{
-	return do_dump(h, cmd, param, data);
-}
-
 static int chkpnt(struct vzctl_env_handle *h, int cmd,
 		struct vzctl_cpt_param *param)
 {
 	int ret;
 	char buf[PATH_MAX];
 
-	ret = do_dump(h, cmd, param, NULL);
+	ret = dump(h, cmd, param);
 	if (ret)
 		return ret;
 
@@ -305,7 +303,10 @@ int criu_cmd(struct vzctl_env_handle *h, int cmd,
 		return chkpnt(h, cmd, param);
 	case VZCTL_CMD_DUMP:
 		logger(0, 0, "\tdump");
-		return dump(h, cmd, param, data);
+		return dump(h, cmd, param);
+	case VZCTL_CMD_DUMP_LEAVE_FROZEN:
+		logger(0, 0, "\tdump leave frozen");
+		return dump(h, cmd, param);
 	/* rst */
 	case VZCTL_CMD_RESTORE:
 		return restore(h, param, data);

@@ -48,7 +48,7 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 	fi
 	ret=0
 	[ -n "$STATUSFD" ] && printf '\0\0\0\0' >&${STATUSFD}
-	[ -n "$WAITFD" ] && ret=$(cat <&$WAITFD | hexdump -e '"%d"' -n 4)
+	[ -n "$WAITFD" ] && ret=$(head -c 4 <&$WAITFD | hexdump -e '"%d"' -n 4)
 
 	[ "$ret" = "0" ]
 	;;

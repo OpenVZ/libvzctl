@@ -363,11 +363,18 @@ int vzctl2_env_create_snapshot(struct vzctl_env_handle *h,
 			goto err1;
 
 		if (!(param->flags & VZCTL_SNAPSHOT_SKIP_DUMP)) {
+			if (pipe(h->ctx->wait_p) || pipe(h->ctx->err_p) ||
+					pipe(h->ctx->status_p))
+			{
+				ret = vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
+				goto err;
+			}
+
 			vzctl_get_snapshot_dumpfile(ve_private, guid, fname,
 					sizeof(fname));
 			cpt.dumpfile = fname;
 
-			if (get_env_ops()->env_chkpnt(h, VZCTL_CMD_DUMP, &cpt, 0)) {
+			if (vzctl2_env_chkpnt(h, VZCTL_CMD_DUMP_LEAVE_FROZEN, &cpt, 0)) {
 				logger(-1, 0, "Failed to dump Container");
 				goto err2;
 			}
@@ -397,6 +404,10 @@ int vzctl2_env_create_snapshot(struct vzctl_env_handle *h,
 			guid);
 
 	vzctl_free_snapshot_tree(tree);
+	p_close(h->ctx->wait_p);
+	p_close(h->ctx->status_p);
+	p_close(h->ctx->err_p);
+
 	return ret;
 
 err2:
@@ -414,6 +425,9 @@ err1:
 err:
 	logger(-1, 0, "Failed to create snapshot");
 	vzctl_free_snapshot_tree(tree);
+	p_close(h->ctx->wait_p);
+	p_close(h->ctx->status_p);
+	p_close(h->ctx->err_p);
 
 	return VZCTL_E_CREATE_SNAPSHOT;
 }

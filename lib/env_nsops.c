@@ -1188,28 +1188,17 @@ static int env_dump(struct vzctl_env_handle *h, int cmd,
 		struct vzctl_cpt_param *param)
 {
 	int ret;
-	struct start_param data = {
-		.pseudosuper_fd = -1,
-	};
 	struct vzctl_runtime_ctx *ctx = h->ctx;
 
 	logger(0, 0, "Dumping CT to %s", param->dumpfile);
-	p_close(ctx->status_p);
-	p_close(ctx->wait_p);
-	if (pipe(ctx->status_p) || pipe(ctx->wait_p)) {
-		ret = vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
-		goto err;
-	}
-
-	h->ctx->pid = fork();
+	ctx->pid = fork();
 	if (ctx->pid == -1) {
-		ret =  vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
-		goto err;
+		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
 	} else if (ctx->pid == 0) {
 		close(ctx->status_p[0]); ctx->status_p[0] = -1;
 		close(ctx->wait_p[1]); ctx->wait_p[1] = -1;
 
-		ret = criu_cmd(h, cmd, param, &data);
+		ret = criu_cmd(h, cmd, param, NULL);
 		_exit(ret);
 	}
 
@@ -1218,9 +1207,6 @@ static int env_dump(struct vzctl_env_handle *h, int cmd,
 
 	ret = wait_on_pipe("dump", ctx->status_p[0]);
 	ctx->state = VZCTL_STATE_CHECKPOINTING;
-err:
-	p_close(ctx->status_p);
-	p_close(ctx->wait_p);
 
 	return ret;
 }
@@ -1260,6 +1246,7 @@ static int ns_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 			return env_resume(h, flags);
 		return cg_freezer_cmd(EID(h), cmd);
 	case VZCTL_CMD_DUMP:
+	case VZCTL_CMD_DUMP_LEAVE_FROZEN:
 		return env_dump(h, cmd, param);
 	case VZCTL_CMD_CHKPNT:
 		return criu_cmd(h, cmd, param, NULL);

@@ -444,6 +444,7 @@ struct vzctl_snapshot_tree {
 
 #define VZCTL_CMD_KILL                10
 #define VZCTL_CMD_RESUME              11
+#define VZCTL_CMD_DUMP_LEAVE_FROZEN	13
 
 enum {
 	VZCTL_MEMINFO_NONE	= 1,
