@@ -1514,6 +1514,8 @@ static struct vzctl_runtime_ctx *alloc_runtime_ctx(void)
 	x->wait_p[1] = -1;
 	x->err_p[0] = -1;
 	x->err_p[1] = -1;
+	x->status_p[0] = -1;
+	x->status_p[1] = -1;
 
 	return x;
 }
