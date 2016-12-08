@@ -1477,7 +1477,9 @@ static int env_set_userpasswd(struct vzctl_env_handle *h, const char *user,
 				return ret;
 			was_mounted = 1;
 		}
-		if (pipe(h->ctx->wait_p) < 0 || pipe(h->ctx->err_p) < 0) {
+		if (pipe(h->ctx->wait_p)|| pipe(h->ctx->err_p) ||
+				pipe(h->ctx->status_p))
+		{
 			ret = vzctl_err(VZCTL_E_PIPE, errno, "Cannot create pipe");
 			goto out;
 		}
@@ -1503,6 +1505,7 @@ out:
 
 		p_close(h->ctx->wait_p);
 		p_close(h->ctx->err_p);
+		p_close(h->ctx->status_p);
 	}
 
 	return ret;
