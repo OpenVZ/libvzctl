@@ -1206,7 +1206,7 @@ static int env_dump(struct vzctl_env_handle *h, int cmd,
 		ret =  vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
 		goto err;
 	} else if (ctx->pid == 0) {
-		close(ctx->status_p[0]); ctx->wait_p[0] = -1;
+		close(ctx->status_p[0]); ctx->status_p[0] = -1;
 		close(ctx->wait_p[1]); ctx->wait_p[1] = -1;
 
 		ret = criu_cmd(h, cmd, param, &data);
