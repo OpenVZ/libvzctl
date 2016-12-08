@@ -177,8 +177,8 @@ int vzctl_env_create_ioctl(unsigned veid, int flags);
 
 int set_personality32(void);
 int real_env_stop(int stop_mode);
-int pre_setup_env(struct start_param *param);
-int exec_init(struct start_param *param);
+int pre_setup_env(const struct start_param *param);
+int exec_init(const struct start_param *param);
 int wait_env_state(struct vzctl_env_handle *h, int state, unsigned int timeout);
 int get_cid_uuid_pair(const char *ctid, const char *uuid,
 		ctid_t ctid_out, ctid_t uuid_out);

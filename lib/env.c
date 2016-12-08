@@ -684,7 +684,7 @@ static int setup_devtmpfs()
 	return ret;
 }
 
-int pre_setup_env(struct start_param *param)
+int pre_setup_env(const struct start_param *param)
 {
 	struct vzctl_env_param *env = param->h->env_param;
 	int fd;
@@ -812,7 +812,7 @@ err:
 
 }
 
-int exec_init(struct start_param *param)
+int exec_init(const struct start_param *param)
 {
 	char cid[STR_SIZE];
 	char *argv[] = {"init", "-z", "      ", NULL};
