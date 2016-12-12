@@ -55,7 +55,7 @@ restore_devices()
 			else
 				mkdir -p $dir
 			fi
-			mknod -m 660 $root/$d b $major $minor
+			mknod -m 600 $root/$d b $major $minor
 		done
 
 		rm -f $root/dev/$uuid
