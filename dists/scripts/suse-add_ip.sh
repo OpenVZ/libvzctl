@@ -73,7 +73,7 @@ VENET_CONF="/etc/sysconfig/network/ifroute-\$VENET"
 # With old wicked, this script is invoked with two arguments - device name and action
 # Newer wicked doesn't pass interface name to netconfig extension which in turn
 # calls this script with only one argument instead of two.
-if [ "x\$DEVICE" == "xadd" -o "x\$DEVICE" == "xdel" ]; then
+if [ "x\$DEVICE" = "xadd" -o "x\$DEVICE" = "xdel" ]; then
     ACTION=\$DEVICE
     DEVICE=\$VENET
 fi
