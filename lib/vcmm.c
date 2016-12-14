@@ -205,11 +205,17 @@ int vcmm_register(struct vzctl_env_handle *h, struct vzctl_ub_param *ub,
 	if (rc)
 		return vcmm_error(rc, "failed to register Container");
 
+	return 0;
+}
+
+int vcmm_activate(struct vzctl_env_handle *h)
+{
+	int rc;
+
 	logger(1, 0, "vcmmd: activate");
 	rc = vcmmd_activate_ve(EID(h), 0);
 	if (rc)
 		return vcmm_error(rc, "failed to activate Container");
-
 	return 0;
 }
 

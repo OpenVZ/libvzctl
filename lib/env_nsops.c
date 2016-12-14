@@ -1171,6 +1171,12 @@ static int ns_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param
 		}
 	}
 
+	if (is_managed_by_vcmmd() && h->ctx->state == VZCTL_STATE_STARTING) {
+		ret = vcmm_activate(h);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
