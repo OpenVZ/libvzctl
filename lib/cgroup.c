@@ -677,7 +677,7 @@ static int cg_env_set_mask(const char *ctid, const char *name,  unsigned long *c
 		return vzctl_err(VZCTL_E_CPUMASK, 0,
 				"Unable to get active %s mask", cg_name);
 
-	mask = malloc(size * sizeof(unsigned));
+	mask = malloc(size);
 	if (mask == NULL)
 		return vzctl_err(VZCTL_E_NOMEM, ENOMEM, "cg_env_set_mask");
 
@@ -688,8 +688,7 @@ static int cg_env_set_mask(const char *ctid, const char *name,  unsigned long *c
 	}
 
 	/* Autocorrect mask */
-	bitmap_and(mask, cpumask, mask, size);
-	if (*mask == 0)
+	if (!bitmap_and(mask, cpumask, mask, size))
 	{
 		free(mask);
 
