@@ -212,6 +212,9 @@ int vcmm_activate(struct vzctl_env_handle *h)
 {
 	int rc;
 
+	if (!is_managed_by_vcmmd())
+		return 0;
+
 	logger(1, 0, "vcmmd: activate");
 	rc = vcmmd_activate_ve(EID(h), 0);
 	if (rc)

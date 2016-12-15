@@ -1113,12 +1113,24 @@ static int ns_set_nodemask(struct vzctl_env_handle *h, struct vzctl_nodemask *no
 	return cg_env_set_nodemask(h->ctid, nodemask->mask, sizeof(nodemask->mask));
 }
 
+static int env_apply_param_post_resume(struct vzctl_env_handle *h,
+		struct vzctl_env_param *env)
+{
+	int ret;
+
+	ret = ns_apply_res_param(h, env);
+	if (ret)
+		return ret;
+
+	return vcmm_activate(h);
+}
+
 static int ns_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags)
 {
 	int ret;
 
 	if (flags & VZCTL_CPT_POST_RESUME)
-		return ns_apply_res_param(h, env);
+		return env_apply_param_post_resume(h, env);
 
 	if (ns_is_env_run(h)) {
 		if (h->ctx->state == VZCTL_STATE_STARTING) {
@@ -1163,18 +1175,17 @@ static int ns_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param
 		if (ret)
 			return ret;
 
-
 		if (h->ctx->state == VZCTL_STATE_STARTING) {
 			ret = env_console_configure(h, flags);
 			if (ret)
 				return ret;
-		}
-	}
 
-	if (is_managed_by_vcmmd() && h->ctx->state == VZCTL_STATE_STARTING) {
-		ret = vcmm_activate(h);
-		if (ret)
-			return ret;
+			if (!(flags & VZCTL_RESTORE)) {
+				ret = vcmm_activate(h);
+				if (ret)
+					return ret;
+			}
+		}
 	}
 
 	return 0;
