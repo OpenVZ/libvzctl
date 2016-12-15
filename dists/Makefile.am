@@ -47,6 +47,8 @@ SLES_VER = 9 10 11
 centos:
 	$(INSTALL_DATA) $(srcdir)/redhat.conf \
 		$(DESTDIR)$(distconfdir)/centos.conf
+	$(INSTALL_DATA) $(srcdir)/redhat.conf \
+		$(DESTDIR)$(distconfdir)/vzlinux.conf
 	for ver in $(CENTOS_VER); do \
 		$(INSTALL_DATA) $(srcdir)/redhat.conf \
 			$(DESTDIR)$(distconfdir)/centos-$$ver.conf; \
