@@ -320,9 +320,16 @@ static int ns_apply_res_param(struct vzctl_env_handle *h,
 	}
 
 	if (is_managed_by_vcmmd()) {
-		if (h->ctx->state == VZCTL_STATE_STARTING)
+		if (h->ctx->state == VZCTL_STATE_STARTING) {
+			/* apply parameters to avoid running with
+			 * unlimited memory resources until 
+			 * configuration was activated by vcmmd
+			 */
+			ret = ns_set_memory_param(h, ub);
+			if (ret)
+				goto err;
 			ret = vcmm_register(h, ub, env->res->memguar);
-		else
+		} else
 			ret = vcmm_update(h, ub, env->res->memguar);
 		if (ret) {
 			free(env->res->memguar);
