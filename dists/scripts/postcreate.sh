@@ -95,10 +95,21 @@ function disableroot()
 	fi
 }
 
+function set_screenrc()
+{
+	local file=${VE_ROOT}"/root/.screenrc"
+
+	[ -f "$file" ] && return 0
+
+	echo "defshell -/bin/bash" > ${VE_ROOT}"/root/.screenrc"
+}
+
 umask 0022
 randcrontab /etc/crontab
 randcrontab /etc/cron.d/dailyjobs
 set_localhost
 disableroot
+
+[ -f ${VE_ROOT}/etc/debian_version ] && set_screenrc
 
 exit 0
