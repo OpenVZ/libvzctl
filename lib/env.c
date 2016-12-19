@@ -2241,7 +2241,7 @@ int vzctl2_env_set_veth_param(struct vzctl_veth_dev *dev,
 
 	if (dev->dhcp != -1)
 		dev->dhcp = tmp.dhcp ? VZCTL_PARAM_ON : VZCTL_PARAM_OFF;
-	if (dev->dhcp != -1)
+	if (dev->dhcp6 != -1)
 		dev->dhcp6 = tmp.dhcp6 ? VZCTL_PARAM_ON : VZCTL_PARAM_OFF;
 
 	dev->ip_delall = tmp.ip_apply_mode;
