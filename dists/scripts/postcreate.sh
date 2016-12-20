@@ -99,9 +99,11 @@ function set_screenrc()
 {
 	local file=${VE_ROOT}"/root/.screenrc"
 
-	[ -f "$file" ] && return 0
+	if [ -f "$file" ] ; then
+		grep -q '^defshell' "$file" && return 0
+	fi
 
-	echo "defshell -/bin/bash" > "$file"
+	echo "defshell -/bin/bash" >> "$file"
 }
 
 umask 0022

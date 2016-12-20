@@ -65,9 +65,11 @@ function set_screenrc()
 	local user=${userpw/:*/}
 	local file="/home/${user}/.screenrc"
 
-	[ -f "$file" ] && return 0
+	if [ -f "$file" ] ; then
+		grep -q '^defshell' "$file" && return 0
+	fi
 
-	echo "defshell -/bin/bash" > "$file"
+	echo "defshell -/bin/bash" >> "$file"
 }
 
 [ -z "${USERPW}" ] && exit 1
