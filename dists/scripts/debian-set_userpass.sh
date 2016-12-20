@@ -59,21 +59,7 @@ function set_serrpasswd()
 	fi
 }
 
-function set_screenrc()
-{
-	local userpw="$1"
-	local user=${userpw/:*/}
-	local file="/home/${user}/.screenrc"
-
-	if [ -f "$file" ] ; then
-		grep -q '^defshell' "$file" && return 0
-	fi
-
-	echo "defshell -/bin/bash" >> "$file"
-}
-
 [ -z "${USERPW}" ] && exit 1
 set_serrpasswd "${USERPW}" "${IS_CRYPTED}"
-set_screenrc "${USERPW}"
 
 exit 0
