@@ -101,7 +101,7 @@ function set_screenrc()
 
 	[ -f "$file" ] && return 0
 
-	echo "defshell -/bin/bash" > ${VE_ROOT}"/root/.screenrc"
+	echo "defshell -/bin/bash" > "$file"
 }
 
 umask 0022
