@@ -676,9 +676,18 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 	if (ret && errno != ENOENT)
 		goto err;
 
-	ret = cg_attach_task(h->ctid, getpid());
-	if (ret)
-		goto err;
+	/*
+	 * When plain container start we should
+	 * exec init from inside of VE and other
+	 * cgroups, in turn restore procedure
+	 * always start on VE0 and criu moves
+	 * children into appropriate cgroups.
+	 */
+	if (!param->fn) {
+		ret = cg_attach_task(h->ctid, getpid());
+		if (ret)
+			goto err;
+	}
 
 #if 0
 	ret = systemd_start_ve_scope(h, getpid());
