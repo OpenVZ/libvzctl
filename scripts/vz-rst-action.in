@@ -105,11 +105,11 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 		[ -f "$CRTOOLS_IMAGE_DIR/vz_memory_limit_in_bytes.img" ] && \
 			{ echo `cat $CRTOOLS_IMAGE_DIR/vz_memory_limit_in_bytes.img` > \
 				/sys/fs/cgroup/memory/machine.slice/$VEID/memory.limit_in_bytes || \
-				{ echo "Failed to restore core_pattern"; exit 1; } }
+				{ echo "Failed to restore memory.limit_in_bytes"; exit 1; } }
 		[ -f "$CRTOOLS_IMAGE_DIR/vz_memory_memsw_limit_in_bytes.img" ] && \
 			{ echo `cat $CRTOOLS_IMAGE_DIR/vz_memory_memsw_limit_in_bytes.img` > \
 				/sys/fs/cgroup/memory/machine.slice/$VEID/memory.memsw.limit_in_bytes || \
-				{ echo "Failed to restore core_pattern"; exit 1; } }
+				{ echo "Failed to restore memory.memsw.limit_in_bytes"; exit 1; } }
 	fi
 	;;
 "post-restore")
