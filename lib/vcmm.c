@@ -35,6 +35,7 @@
 #include "vzerror.h"
 #include "exec.h"
 #include "util.h"
+#include "bitmap.h"
 
 #define VCMMCTL_BIN     "/usr/sbin/vcmmdctl"
 #define DEFAULT_MEM_GUARANTEE_PCT	0
@@ -47,28 +48,40 @@ static int vcmm_error(int rc, const char *msg)
 }
 
 static struct vcmmd_ve_config *vcmm_get_config(struct vcmmd_ve_config *c,
-		unsigned long *mem, unsigned long *swap, unsigned long *guar)
+		unsigned long *mem, unsigned long *swap, unsigned long *guar,
+		struct vzctl_env_param *env)
 {
 	vcmmd_ve_config_init(c);
-	char s[STR_SIZE] = "";
-	char *sp = s;
+	char s[STR_SIZE];
 
 	if (mem != NULL) {
 		vcmmd_ve_config_append(c, VCMMD_VE_CONFIG_LIMIT, *mem);
-		sp += sprintf(sp, "memlimit=%lubytes ", *mem);
+		logger(1, 0, "Configure memlimit: %lubytes", *mem);
 	}
 
 	if (swap != NULL) {
 		vcmmd_ve_config_append(c, VCMMD_VE_CONFIG_SWAP, *swap);
-		sp += sprintf(sp, "swaplimit=%lubytes ", *swap);
+		logger(1, 0, "Configure swaplimit: %lubytes", *swap);
 	}
 
 	if (guar != NULL) {
 		vcmmd_ve_config_append(c, VCMMD_VE_CONFIG_GUARANTEE, *guar);
-		sp += sprintf(sp, "guarantee=%lubytes", *guar);
+		logger(1, 0, "Configure guarantee: %lubytes", *guar);
 	}
 
-	logger(1, 0, "Configure %s", s);
+	if (env->cpu->cpumask != NULL) {
+		bitmap_snprintf(s, sizeof(s), env->cpu->cpumask->mask, 
+				sizeof(env->cpu->cpumask->mask));
+		vcmmd_ve_config_append_string(c, VCMMD_VE_CONFIG_CPU_LIST, s);
+		logger(1, 0, "Configure cpumask: %s", s);
+	}
+
+	if (env->cpu->nodemask != NULL) {
+		bitmap_snprintf(s, sizeof(s), env->cpu->nodemask->mask, 
+				sizeof(env->cpu->nodemask->mask));
+		vcmmd_ve_config_append_string(c, VCMMD_VE_CONFIG_CPU_LIST, s);
+		logger(1, 0, "Configure nodemask: %s", s);
+	}
 
 	return c;
 }
@@ -154,11 +167,11 @@ static int get_vcmm_config(const char *id, struct vcmmd_ve_config *c,
 
 		guar_bytes = ((float)mem * x) / 100;
 
-		logger(0, 0, "Configure memguarantee %lu%%", x);
+		logger(0, 0, "Configure memguarantee: %lu%%", x);
 		guar_p = &guar_bytes;
 	}
 
-	vcmm_get_config(c, mem_p, swap_p, guar_p);
+	vcmm_get_config(c, mem_p, swap_p, guar_p, env);
 
 	return 0;
 }
@@ -229,7 +242,9 @@ int vcmm_update(struct vzctl_env_handle *h, struct vzctl_env_param *env)
 
 	if (env->res->ub->physpages == NULL &&
 			env->res->ub->swappages == NULL &&
-			env->res->memguar == NULL)
+			env->res->memguar == NULL &&
+			env->cpu->cpumask == NULL &&
+			env->cpu->nodemask == NULL)
 		return 0;
 
 	logger(1, 0, "vcmmd: update");
