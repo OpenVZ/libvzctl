@@ -104,14 +104,15 @@ int vcmm_get_param(const char *id, unsigned long *mem,
 }
 
 static int get_vcmm_config(const char *id, struct vcmmd_ve_config *c,
-		struct vzctl_ub_param *ub, struct vzctl_mem_guarantee *guar,
-		int init)
+		struct vzctl_env_param *env, int init)
 {
 	int ret;
 	unsigned long *mem_p = NULL, *swap_p = NULL, *guar_p = NULL;
 	unsigned long mem, swap, guar_bytes;
 	unsigned long mem_cur, guar_bytes_cur;
 	unsigned long x;
+	struct vzctl_ub_param *ub = env->res->ub;
+	struct vzctl_mem_guarantee *guar = env->res->memguar;
 	struct vzctl_mem_guarantee guar_def = {
 		.type = VZCTL_MEM_GUARANTEE_AUTO
 	};
@@ -182,8 +183,7 @@ int vcmm_unregister(struct vzctl_env_handle *h)
 	return 0;
 }
 
-int vcmm_register(struct vzctl_env_handle *h, struct vzctl_ub_param *ub,
-		struct vzctl_mem_guarantee *guar)
+int vcmm_register(struct vzctl_env_handle *h, struct vzctl_env_param *env)
 {
 	int rc;
 	struct vcmmd_ve_config c;
@@ -191,7 +191,7 @@ int vcmm_register(struct vzctl_env_handle *h, struct vzctl_ub_param *ub,
 	if (!is_managed_by_vcmmd())
 		return 0;
 
-	rc = get_vcmm_config(EID(h), &c, ub, guar, 1);
+	rc = get_vcmm_config(EID(h), &c, env, 1);
 	if (rc)
 		return rc;
 
@@ -222,22 +222,23 @@ int vcmm_activate(struct vzctl_env_handle *h)
 	return 0;
 }
 
-int vcmm_update(struct vzctl_env_handle *h, struct vzctl_ub_param *ub,
-		struct vzctl_mem_guarantee *guar)
+int vcmm_update(struct vzctl_env_handle *h, struct vzctl_env_param *env)
 {
 	int rc;
 	struct vcmmd_ve_config c = {};
 
-	if (ub->physpages == NULL && ub->swappages == NULL && guar == NULL)
+	if (env->res->ub->physpages == NULL &&
+			env->res->ub->swappages == NULL &&
+			env->res->memguar == NULL)
 		return 0;
 
 	logger(1, 0, "vcmmd: update");
-	rc = get_vcmm_config(EID(h), &c, ub, guar, 0);
+	rc = get_vcmm_config(EID(h), &c, env, 0);
 	if (rc)
 		return rc;
 
 	rc = vcmmd_update_ve(EID(h), &c, 0);
-    vcmmd_ve_config_deinit(&c);
+	vcmmd_ve_config_deinit(&c);
 	if (rc)
 		return vcmm_error(rc, "failed to update Container configuration");
 
