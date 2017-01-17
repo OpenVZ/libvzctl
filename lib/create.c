@@ -1192,6 +1192,7 @@ int vzctl2_env_reinstall(struct vzctl_env_handle *h,
 	char tmp[PATH_MAX];
 	char old_disk[PATH_MAX];
 	char old_root[PATH_MAX];
+	char new_disk[PATH_MAX];
 	char new_prvt[PATH_MAX];
 	struct vzctl_mount_param mount_param = {};
 	char vzpkg_src_conf[STR_SIZE];
@@ -1199,6 +1200,7 @@ int vzctl2_env_reinstall(struct vzctl_env_handle *h,
 	int c_configure = 0, flags;
 	struct vzctl_env_param *env = h->env_param;
 	char *ve_private = env->fs->ve_private;
+	char *root_disk_orig;
 	struct vzctl_disk *root_disk;
 	LIST_HEAD(app_list);
 	LIST_HEAD(reinstall_scripts_list);
@@ -1223,7 +1225,7 @@ int vzctl2_env_reinstall(struct vzctl_env_handle *h,
 		return vzctl_err(VZCTL_E_ENV_RUN, 0,
 				"Container is running; stop it before proceeding.");
 
-	if (vzctl2_is_image_mounted(ve_private))
+	if (vzctl2_env_is_mounted(h))
 		return vzctl_err(VZCTL_E_FS_MOUNTED, 0,
 				"Container is mounted; unmount it before proceeding.");
 
@@ -1240,17 +1242,20 @@ int vzctl2_env_reinstall(struct vzctl_env_handle *h,
 
 	snprintf(old_disk, sizeof(old_disk), "%s", root_disk->path);
 	snprintf(new_prvt, sizeof(new_prvt), "%s.reinstall", root_disk->path);
+	get_root_disk_path(new_prvt, new_disk, sizeof(new_disk));
 	if (stat_file(new_prvt) == 1) {
 		logger(1, 0, "Temporary Container private area %s already"
-				" exists and will be deleted.", new_prvt);
-		vzctl2_umount_disk_image(new_prvt);
+				" exists and will be deleted.", new_disk);
+		ret = vzctl2_umount_disk_image(new_disk);
+		if (ret)
+			return ret;
+
 		destroydir(new_prvt);
 	}
 
 	/* Custom reinstall */
 	get_script_path(VZCTL_REINSTALL_SCRIPT, buf, sizeof(buf));
 	if (stat_file(buf)) {
-		snprintf(new_prvt, sizeof(new_prvt), "%s.reinstall", ve_private);
 		ret = custom_reinstall(h, buf, ve_private, new_prvt);
 		if (ret == 0) {
 			if (stat_file(new_prvt) == 0) {
@@ -1267,7 +1272,6 @@ int vzctl2_env_reinstall(struct vzctl_env_handle *h,
 			logger(-1, 0, "The %s failed", VZCTL_REINSTALL_SCRIPT);
 			return VZCTL_E_CUSTOM_REINSTALL;
 		}
-
 	}
 
 	// Create new Container
@@ -1282,8 +1286,9 @@ int vzctl2_env_reinstall(struct vzctl_env_handle *h,
 		goto err;
 
 skip_create:
-	mount_param.target = h->env_param->fs->ve_root;
-	ret = vzctl2_mount_image(new_prvt, &mount_param);
+	root_disk_orig = root_disk->path;
+	root_disk->path = new_disk;
+	ret = vzctl2_env_mount(h, 0); 
 	if (ret)
 		goto err;
 
@@ -1373,9 +1378,8 @@ skip_create:
 	if (vzctl2_is_image_mounted(old_disk))
 		vzctl2_umount_disk_image(old_disk);
 
-	get_root_disk_path(new_prvt, buf, sizeof(buf));
-	if (vzctl2_is_image_mounted(buf))
-		vzctl2_umount_image(new_prvt);
+	if (vzctl2_is_image_mounted(new_disk))
+		vzctl2_umount_disk_image(new_disk);
 
 	// Move VEID/root.hdd -> VEID/root.hdd.tmp
 	snprintf(tmp, sizeof(tmp), "%s.tmp", old_disk);
@@ -1383,16 +1387,13 @@ skip_create:
 		destroydir(tmp);
 	logger(5, 0, "%s -> %s", old_disk, tmp);
 	if (rename(old_disk, tmp)) {
-		logger(-1, errno, "rename %s -> %s", buf, tmp);
+		logger(-1, errno, "rename %s -> %s", old_disk, tmp);
 		goto err1;
 	}
 
-	// Move VEID.reinstall/root.hdd -> VEID/root.hdd
-	snprintf(buf, sizeof(buf), "%s/root.hdd", new_prvt);
-
-	logger(5, 0, "%s -> %s", buf, old_disk);
-	if (rename(buf, old_disk)) {
-		logger(-1, errno, "rename %s -> %s", tmp, buf);
+	logger(5, 0, "%s -> %s", new_disk, old_disk);
+	if (rename(new_disk, old_disk)) {
+		logger(-1, errno, "rename %s -> %s", new_disk, old_disk);
 		if (rename(tmp, old_disk))
 			logger(-1, errno, "rolback failed %s -> %s", tmp, old_disk);
 		goto err1;
@@ -1412,6 +1413,8 @@ skip_create:
 	free_str(&ve0_scripts_list);
 	free_str(&scripts_list);
 
+	root_disk->path = root_disk_orig;
+
 	return 0;
 
 err:
@@ -1419,9 +1422,8 @@ err:
 		vzctl2_env_stop(h, M_HALT, 0);
 	if (vzctl2_is_image_mounted(old_disk))
 		vzctl2_umount_disk_image(old_disk);
-	get_root_disk_path(new_prvt, buf, sizeof(buf));
-	if (vzctl2_is_image_mounted(buf))
-		vzctl2_umount_image(new_prvt);
+	if (vzctl2_is_image_mounted(new_prvt))
+		vzctl2_umount_disk_image(new_prvt);
 err1:
 	destroydir(new_prvt);
 
@@ -1429,6 +1431,8 @@ err1:
 	free_str(&reinstall_scripts_list);
 	free_str(&ve0_scripts_list);
 	free_str(&scripts_list);
+
+	root_disk->path = root_disk_orig;
 
 	logger(-1, 0, "Container reinstall failed");
 	return VZCTL_E_REINSTALL;
