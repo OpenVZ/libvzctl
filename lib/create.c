@@ -1200,6 +1200,7 @@ int vzctl2_env_reinstall(struct vzctl_env_handle *h,
 	int c_configure = 0, flags;
 	struct vzctl_env_param *env = h->env_param;
 	char *ve_private = env->fs->ve_private;
+	char *ostmpl = param->ostemplate ?: env->tmpl->ostmpl;
 	char *root_disk_orig;
 	struct vzctl_disk *root_disk;
 	LIST_HEAD(app_list);
@@ -1212,7 +1213,7 @@ int vzctl2_env_reinstall(struct vzctl_env_handle *h,
 
 	if ((ret = check_var(ve_private, "VE_PRIVATE is not set")) ||
 	    (ret = check_var(env->fs->ve_root, "VE_ROOT is not set")) ||
-	    (ret = check_var(env->tmpl->ostmpl, "OSTEMPLATE is not set."
+	    (ret = check_var(ostmpl, "OSTEMPLATE is not set."
 		" Container is not based on ostemplate. Reinstall is not supported.")) ||
 	    (ret = check_var(env->dq->diskspace, "DISKSPACE is not set")))
 		return ret;
@@ -1280,8 +1281,8 @@ int vzctl2_env_reinstall(struct vzctl_env_handle *h,
 	if (ret)
 		goto err;
 
-	ret = do_create_private(h, new_prvt, h->env_param->tmpl->ostmpl,
-			vzpkg_src_conf, NULL, h->env_param->fs->layout, 1, 0);
+	ret = do_create_private(h, new_prvt, ostmpl, vzpkg_src_conf, NULL,
+			h->env_param->fs->layout, 1, 0);
 	if (ret)
 		goto err;
 
