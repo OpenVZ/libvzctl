@@ -601,6 +601,7 @@ int real_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 	int ret;
 
 	_close_fds(data_fd != NULL ? VZCTL_CLOSE_STD : 0, data_fd);
+	vzctl2_set_log_file(NULL);
 
 	ret = fn(data);
 
