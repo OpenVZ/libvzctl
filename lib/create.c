@@ -1201,7 +1201,7 @@ int vzctl2_env_reinstall(struct vzctl_env_handle *h,
 	struct vzctl_env_param *env = h->env_param;
 	char *ve_private = env->fs->ve_private;
 	char *ostmpl = param->ostemplate ?: env->tmpl->ostmpl;
-	char *root_disk_orig;
+	char *root_disk_orig = NULL;
 	struct vzctl_disk *root_disk;
 	LIST_HEAD(app_list);
 	LIST_HEAD(reinstall_scripts_list);
@@ -1433,7 +1433,8 @@ err1:
 	free_str(&ve0_scripts_list);
 	free_str(&scripts_list);
 
-	root_disk->path = root_disk_orig;
+	if (root_disk_orig != NULL)
+		root_disk->path = root_disk_orig;
 
 	logger(-1, 0, "Container reinstall failed");
 	return VZCTL_E_REINSTALL;
