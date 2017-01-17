@@ -480,6 +480,8 @@ struct vzctl_reinstall_param {
 	int skipscripts;
 	char *reinstall_scripts;
 	char *reinstall_opts;
+	char *ostemplate;
+	void *pad[32];
 };
 
 enum {
