@@ -1307,7 +1307,7 @@ skip_create:
 		goto err;
 
 	/* Start Container */
-	if (!param->resetpwdb || c_configure) {
+	if (!param->resetpwdb || c_configure || !list_empty(&app_list)) {
 		flags = VZCTL_SKIP_MOUNT | (list_empty(&app_list) ?
 					VZCTL_SKIP_CONFIGURE : VZCTL_WAIT);
 		ret = vzctl2_env_start(h, flags);
