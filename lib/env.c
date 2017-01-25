@@ -823,7 +823,6 @@ int exec_init(const struct start_param *param)
 	logger(1, 0, "Starting init");
 
 	if (stat_file("/sbin/init") == 0 &&
-			stat_file("/ertc/init") == 0  &&
 			stat_file("/bin/init") == 0)
 		errcode = VZCTL_E_BAD_TMPL;
 
@@ -838,7 +837,6 @@ int exec_init(const struct start_param *param)
 	setsid();
 
 	execve("/sbin/init", argv, env);
-	execve("/etc/init", argv, env);
 	execve("/bin/init", argv, env);
 	free_ar_str(env);
 	free(env);
