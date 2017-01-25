@@ -657,6 +657,7 @@ static struct devnode {
 	{1, 0x8, "/dev/random", S_IFCHR|0666},
 	{1, 0x9, "/dev/urandom", S_IFCHR|0666},
 	{10, 235, "/dev/autofs", S_IFCHR|0600},
+	{1, 11, "/dev/kmsg", S_IFCHR|0644},
 };
 
 static int setup_devtmpfs()
