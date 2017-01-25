@@ -860,7 +860,11 @@ static int ns_env_enter(struct vzctl_env_handle *h, int flags)
 	}
 
 	/* Clear supplementary group IDs */
-	setgroups(getuid(), NULL);
+	if (setgroups(0, NULL)) {
+		ret = vzctl_err(-1, errno, "ns_env_enter: setgroups()");
+		goto err;
+	}
+	
 	ret = set_personality32();
 
 err:
