@@ -941,6 +941,7 @@ int vzctl2_env_create(struct vzctl_env_param *env, struct vzctl_env_create_param
 int vzctl2_env_reinstall(struct vzctl_env_handle *h,
 		struct vzctl_reinstall_param *param);
 int vzctl2_env_start(struct vzctl_env_handle *h, int flags);
+int vzctl2_env_pause(struct vzctl_env_handle *h, int flags);
 int vzctl2_env_restart(struct vzctl_env_handle *h, int flags);
 int vzctl2_env_stop(struct vzctl_env_handle *h, stop_mode_e stop_mode, int flags);
 int vzctl2_env_mount(struct vzctl_env_handle *h, int flags);

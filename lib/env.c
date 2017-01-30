@@ -289,6 +289,31 @@ force:
 	return do_env_post_stop(h, flags);
 }
 
+int vzctl2_env_pause(struct vzctl_env_handle *h, int flags)
+{
+	int ret;
+	struct vzctl_cpt_param cpt = {};
+	struct vzctl_env_status env_status = {};
+
+	vzctl2_get_env_status_info(h, &env_status, ENV_STATUS_RUNNING);
+	if (!(env_status.mask & ENV_STATUS_RUNNING))
+		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0,
+				"Container is not running");
+
+	if (env_status.mask & ENV_STATUS_CPT_SUSPENDED)
+		return vzctl_err(VZCTL_E_ENV_RUN, 0,
+				"Container is already paused");
+
+	logger(0, 0, "Pause the Container ...");
+	ret = vzctl2_cpt_cmd(h, 0, VZCTL_CMD_SUSPEND, &cpt, flags);
+	if (ret)
+		return vzctl_err(ret, 0, "Unable to pause the Container");
+
+	logger(0, 0, "The Container has been successfully paused");
+
+	return 0;
+}
+
 #define K_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
 static int get_virt_osrelease(struct vzctl_env_handle *h)
 {
@@ -873,6 +898,7 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 {
 	int ret;
 	struct vzctl_env_param *env = h->env_param;
+	struct vzctl_env_status env_status = {};
 	struct start_param param = {
 		.h = h,
 		.pseudosuper_fd = -1,
@@ -882,9 +908,23 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 	if (flags & VZCTL_WAIT)
 		env->opts->wait = VZCTL_PARAM_ON;
 
-	if (is_env_run(h))
-		return vzctl_err(VZCTL_E_ENV_RUN, 0,
+	vzctl2_get_env_status_info(h, &env_status, ENV_STATUS_RUNNING);
+	if (env_status.mask & ENV_STATUS_RUNNING) {
+		if (!(env_status.mask & ENV_STATUS_CPT_SUSPENDED))
+			return vzctl_err(VZCTL_E_ENV_RUN, 0,
 				"Container is already running");
+
+		logger(0, 0, "Unpause the Container");
+
+		struct vzctl_cpt_param cpt = {};
+		ret = vzctl2_cpt_cmd(h, 0, VZCTL_CMD_RESUME, &cpt, flags);
+		if (ret)
+			logger(-1, 0, "Unable to unpause the Container");
+		else
+			logger(0, 0, "The Container has been successfully unpaused");
+	
+		return ret;
+	}
 
 	logger(0, 0, "Starting Container ...");
 
