@@ -1120,9 +1120,6 @@ static int ns_set_cpumask(struct vzctl_env_handle *h, struct vzctl_cpumask *cpum
 
 static int ns_set_nodemask(struct vzctl_env_handle *h, struct vzctl_nodemask *nodemask)
 {
-	if (is_managed_by_vcmmd())
-		return 0;
-
 	return cg_env_set_nodemask(h->ctid, nodemask->mask, sizeof(nodemask->mask));
 }
 
