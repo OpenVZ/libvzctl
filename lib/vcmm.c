@@ -47,8 +47,9 @@ static int vcmm_error(int rc, const char *msg)
 			msg, vcmmd_strerror(rc, buf, sizeof(buf)));
 }
 
-static struct vcmmd_ve_config *vcmm_get_config(struct vcmmd_ve_config *c,
-		unsigned long *mem, unsigned long *swap, unsigned long *guar,
+static struct vcmmd_ve_config *vcmm_get_config(struct vzctl_env_handle *h,
+		struct vcmmd_ve_config *c, unsigned long *mem,
+		unsigned long *swap, unsigned long *guar,
 		struct vzctl_env_param *env)
 {
 	vcmmd_ve_config_init(c);
@@ -69,17 +70,29 @@ static struct vcmmd_ve_config *vcmm_get_config(struct vcmmd_ve_config *c,
 		logger(1, 0, "Configure guarantee: %lubytes", *guar);
 	}
 
-	if (env->cpu->cpumask != NULL) {
-		bitmap_snprintf(s, sizeof(s), env->cpu->cpumask->mask, 
+	struct vzctl_cpumask *cpumask = env->cpu->cpumask ?:
+					h->env_param->cpu->cpumask;
+	if (cpumask != NULL) {
+		if (bitmap_all_bit_set(cpumask->mask,
+				sizeof(env->cpu->cpumask->mask)))
+			s[0] = '\0';
+		else
+			bitmap_snprintf(s, sizeof(s), cpumask->mask, 
 				sizeof(env->cpu->cpumask->mask));
 		vcmmd_ve_config_append_string(c, VCMMD_VE_CONFIG_CPU_LIST, s);
 		logger(1, 0, "Configure cpumask: %s", s);
 	}
 
-	if (env->cpu->nodemask != NULL) {
-		bitmap_snprintf(s, sizeof(s), env->cpu->nodemask->mask, 
+	struct vzctl_nodemask *nodemask = env->cpu->nodemask ?:
+					h->env_param->cpu->nodemask;
+	if (nodemask != NULL) {
+		if (bitmap_all_bit_set(nodemask->mask,
+					sizeof(env->cpu->nodemask->mask)))
+			s[0] = '\0';
+		else
+			bitmap_snprintf(s, sizeof(s), nodemask->mask, 
 				sizeof(env->cpu->nodemask->mask));
-		vcmmd_ve_config_append_string(c, VCMMD_VE_CONFIG_CPU_LIST, s);
+		vcmmd_ve_config_append_string(c, VCMMD_VE_CONFIG_NODE_LIST, s);
 		logger(1, 0, "Configure nodemask: %s", s);
 	}
 
@@ -116,8 +129,8 @@ int vcmm_get_param(const char *id, unsigned long *mem,
 	return 0;
 }
 
-static int get_vcmm_config(const char *id, struct vcmmd_ve_config *c,
-		struct vzctl_env_param *env, int init)
+static int get_vcmm_config(struct vzctl_env_handle *h,
+		struct vcmmd_ve_config *c, struct vzctl_env_param *env, int init)
 {
 	int ret;
 	unsigned long *mem_p = NULL, *swap_p = NULL, *guar_p = NULL;
@@ -138,7 +151,7 @@ static int get_vcmm_config(const char *id, struct vcmmd_ve_config *c,
 		if (guar == NULL)
 			guar = &guar_def;
 	} else if (ub->physpages == NULL || guar == NULL) {
-		ret = vcmm_get_param(id, &mem_cur, &x, &guar_bytes_cur);
+		ret = vcmm_get_param(EID(h), &mem_cur, &x, &guar_bytes_cur);
 		if (ret)
 			return ret;
 		if (ub->physpages == NULL)
@@ -171,7 +184,7 @@ static int get_vcmm_config(const char *id, struct vcmmd_ve_config *c,
 		guar_p = &guar_bytes;
 	}
 
-	vcmm_get_config(c, mem_p, swap_p, guar_p, env);
+	vcmm_get_config(h, c, mem_p, swap_p, guar_p, env);
 
 	return 0;
 }
@@ -204,7 +217,7 @@ int vcmm_register(struct vzctl_env_handle *h, struct vzctl_env_param *env)
 	if (!is_managed_by_vcmmd())
 		return 0;
 
-	rc = get_vcmm_config(EID(h), &c, env, 1);
+	rc = get_vcmm_config(h, &c, env, 1);
 	if (rc)
 		return rc;
 
@@ -248,7 +261,7 @@ int vcmm_update(struct vzctl_env_handle *h, struct vzctl_env_param *env)
 		return 0;
 
 	logger(1, 0, "vcmmd: update");
-	rc = get_vcmm_config(EID(h), &c, env, 0);
+	rc = get_vcmm_config(h, &c, env, 0);
 	if (rc)
 		return rc;
 
