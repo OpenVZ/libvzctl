@@ -44,7 +44,7 @@ addif()
 			fi
 		done
 	else
-		br=`prlsrvctl net info $2`
+		br=`prlsrvctl net info "$2"`
 		if [ $? -ne 0 ]; then
 			exit 1
 		fi
