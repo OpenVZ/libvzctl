@@ -280,22 +280,26 @@ static int ns_set_memory_param(struct vzctl_env_handle *h, struct vzctl_ub_param
 {
 	int ret = 0;
 	int pagesize = get_pagesize();
-	unsigned long val;
+	unsigned long val = 0;
 
-	if (ub->physpages) {
-		val = ub->physpages->l * pagesize;
-		ret = cg_env_set_memory(h->ctid, CG_MEM_LIMIT, val);
+	if (ub->swappages) {
+		if (ub->physpages) {
+			val = ub->physpages->l * pagesize;
+		} else {
+			ret = cg_env_get_memory(h->ctid, CG_MEM_LIMIT, &val);
+			if (ret)
+				return ret;
+		}
+
+		val = (ub->swappages->l * pagesize) + val;
+		ret = cg_env_set_memory(h->ctid, CG_SWAP_LIMIT, val);
 		if (ret)
 			return ret;
 	}
 
-	if (ub->swappages) {
-		ret = cg_env_get_memory(h->ctid, CG_MEM_LIMIT, &val);
-		if (ret)
-			return ret;
-
-		val = (ub->swappages->l * pagesize) + val;
-		ret = cg_env_set_memory(h->ctid, CG_SWAP_LIMIT, val);
+	if (ub->physpages) {
+		val = ub->physpages->l * pagesize;
+		ret = cg_env_set_memory(h->ctid, CG_MEM_LIMIT, val);
 		if (ret)
 			return ret;
 	}
