@@ -280,7 +280,8 @@ static int ns_set_memory_param(struct vzctl_env_handle *h, struct vzctl_ub_param
 {
 	int ret = 0;
 	int pagesize = get_pagesize();
-	unsigned long cur_ms, cur_mem, new_ms;
+	unsigned long cur_ms, cur_mem, new_ms, new_mem;
+	float x;
 
 	if (ub->physpages == NULL && ub->swappages == NULL)
 		return 0;
@@ -293,11 +294,13 @@ static int ns_set_memory_param(struct vzctl_env_handle *h, struct vzctl_ub_param
 	if (ret)
 		return ret;
 
-	new_ms = ub->swappages ? ub->swappages->l * pagesize : cur_ms;
-	new_ms += ub->physpages ? ub->physpages->l * pagesize : cur_mem;
+	x = ub->swappages ? (float)pagesize * ub->swappages->l : cur_ms;
+	x += ub->physpages ? (float)pagesize * ub->physpages->l : cur_mem;
+	new_ms = x > ULONG_MAX ? ULONG_MAX : (unsigned long) x;
 
 	if (ub->physpages) {
-		unsigned long new_mem = ub->physpages->l * pagesize;
+		x = (float)pagesize * ub->physpages->l;
+		new_mem = x > ULONG_MAX ? ULONG_MAX : (unsigned long) x;
 
 		if (new_ms < cur_mem) {
 			ret = cg_env_set_memory(h->ctid, CG_MEM_LIMIT, new_mem);
