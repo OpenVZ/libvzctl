@@ -1257,7 +1257,7 @@ int vzctl2_env_reinstall(struct vzctl_env_handle *h,
 	/* Custom reinstall */
 	get_script_path(VZCTL_REINSTALL_SCRIPT, buf, sizeof(buf));
 	if (stat_file(buf)) {
-		ret = custom_reinstall(h, buf, ve_private, new_prvt);
+		ret = custom_reinstall(h, buf, old_disk, new_disk);
 		if (ret == 0) {
 			if (stat_file(new_prvt) == 0) {
 				logger(-1, 0, "Unable to continue reinstallation;"
