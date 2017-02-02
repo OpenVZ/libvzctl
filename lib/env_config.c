@@ -843,7 +843,7 @@ int vzctl_update_env_param(struct vzctl_env_handle *h, int flags)
 		if (conf->map.data[i].val != NULL) {
 			data.data = conf->map.data[i].val;
 			data.name = conf->map.data[i].name;
-			rc = add_env_param(h, h->env_param, &data, conf->flags);
+			rc = add_env_param(h, h->env_param, &data, flags);
 			if (rc != 0 && ret == 0)
 				ret = rc; // return first error
 		}

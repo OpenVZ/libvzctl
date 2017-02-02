@@ -62,7 +62,6 @@ struct vzctl_config {
 	time_t mtime;
 	unsigned veid;
 	char *fname;
-	int flags;			    /**< vzctl_config_flags	*/
 	struct vzctl_config_map map;	    /**< Data in the NAME=DATA format */
 };
 
