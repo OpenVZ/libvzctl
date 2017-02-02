@@ -280,31 +280,43 @@ static int ns_set_memory_param(struct vzctl_env_handle *h, struct vzctl_ub_param
 {
 	int ret = 0;
 	int pagesize = get_pagesize();
-	unsigned long val = 0;
+	unsigned long cur_ms, cur_mem, new_ms;
 
-	if (ub->swappages) {
-		if (ub->physpages) {
-			val = ub->physpages->l * pagesize;
-		} else {
-			ret = cg_env_get_memory(h->ctid, CG_MEM_LIMIT, &val);
-			if (ret)
-				return ret;
-		}
+	if (ub->physpages == NULL && ub->swappages == NULL)
+		return 0;
 
-		val = (ub->swappages->l * pagesize) + val;
-		ret = cg_env_set_memory(h->ctid, CG_SWAP_LIMIT, val);
-		if (ret)
-			return ret;
-	}
+	ret = cg_env_get_memory(h->ctid, CG_SWAP_LIMIT, &cur_ms);
+	if (ret)
+		return ret;
+
+	ret = cg_env_get_memory(h->ctid, CG_MEM_LIMIT, &cur_mem);
+	if (ret)
+		return ret;
+
+	new_ms = ub->swappages ? ub->swappages->l * pagesize : cur_ms;
+	new_ms += ub->physpages ? ub->physpages->l * pagesize : cur_mem;
 
 	if (ub->physpages) {
-		val = ub->physpages->l * pagesize;
-		ret = cg_env_set_memory(h->ctid, CG_MEM_LIMIT, val);
-		if (ret)
-			return ret;
+		unsigned long new_mem = ub->physpages->l * pagesize;
+
+		if (new_ms < cur_mem) {
+			ret = cg_env_set_memory(h->ctid, CG_MEM_LIMIT, new_mem);
+			if (ret)
+				return ret;
+
+			return cg_env_set_memory(h->ctid, CG_SWAP_LIMIT, new_ms);
+
+		} else {
+			ret = cg_env_set_memory(h->ctid, CG_SWAP_LIMIT, new_ms);
+			if (ret)
+				return ret;
+
+			return cg_env_set_memory(h->ctid, CG_MEM_LIMIT, new_mem);
+		}
+	
 	}
 
-	return ret;
+	return cg_env_set_memory(h->ctid, CG_SWAP_LIMIT, new_ms);
 }
 
 static int ns_apply_res_param(struct vzctl_env_handle *h,
