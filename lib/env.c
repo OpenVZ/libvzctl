@@ -718,7 +718,8 @@ int pre_setup_env(const struct start_param *param)
 	int errcode = 0;
 
 	/* Clear supplementary group IDs */
-	setgroups(0, NULL);
+	if (setgroups(0, NULL))
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "setgroups");
 
 	errcode = set_personality32();
 	if (errcode)
