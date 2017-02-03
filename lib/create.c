@@ -673,7 +673,10 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 	xstrdup(&h->conf->fname, conf);
 
 	if (layout >= VZCTL_LAYOUT_4) {
-		struct vzctl_reg_param reg_param = {.uuid = uuid};
+		struct vzctl_reg_param reg_param = {
+			.uuid = uuid,
+			.name = param->name,
+		};
 
 		SET_CTID(reg_param.ctid, ctid);
 
