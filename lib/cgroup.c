@@ -162,7 +162,8 @@ out:
 	return ret;
 }
 
-int do_write_data(const int fd, const char *data, const int len)
+int do_write_data(const int fd, const char *fname, const char *data,
+		const int len)
 {
 	int w;
 
@@ -170,10 +171,11 @@ int do_write_data(const int fd, const char *data, const int len)
 	if (w != len) {
 		int eno = errno;
 		if (w < 0)
-			logger(-1, errno, "Error writing to fd %d data='%s'",
-					fd, data);
+			logger(-1, errno, "Error writing to %s data='%s'",
+					fname ?: "", data);
 		else
-			logger(-1, 0, "Output truncated while writing to fd %d", fd);
+			logger(-1, 0, "Output truncated while writing to %s",
+					fname ?: "");
 		errno = eno;
 		return -1;
 	}
@@ -191,7 +193,7 @@ int write_data(const char *path, const char *data)
 		return vzctl_err(-1, errno, "Can't open %s for writing", path);
 
 	logger(3, 0, "Write %s <%s>", path, data);
-	ret = do_write_data(fd, data, strlen(data));
+	ret = do_write_data(fd, path, data, strlen(data));
 	if (ret == -1) {
 		int eno = errno;
 		close(fd);
@@ -613,7 +615,7 @@ int cg_pseudosuper_open(const char *ctid, int *fd)
 
 int cg_disable_pseudosuper(const int pseudosuper_fd)
 {
-	return do_write_data(pseudosuper_fd, "0", 1);
+	return do_write_data(pseudosuper_fd, NULL, "0", 1);
 }
 
 int cg_attach_task(const char *ctid, pid_t pid)
