@@ -192,6 +192,7 @@
 #define VZCTL_E_SYSFS_PERM		227
 #define VZCTL_E_ENCRYPT			228
 #define VZCTL_E_NOT_INITIALIZED		229
+#define VZCTL_E_AUTH_PSASHADOW		230
 
 #define debug(level, fmt, args...)      logger(level, 0, fmt, ##args)
 
