@@ -254,11 +254,10 @@ static int pleskauth(const char *user, const char *passwd)
 	FILE *fp;
 	char str[512] = "";
 	char *p;
-	int ret;
+	int ret = VZCTL_E_AUTH;
 
-	ret = VZCTL_E_AUTH;
 	if ((fp = openfile("/etc/psa/.psa.shadow")) == NULL)
-		return ret;
+		return VZCTL_E_AUTH_PSASHADOW;
 
 	if (fgets(str, sizeof(str), fp) != NULL) {
 		if ((p = strrchr(str, '\n')) != NULL)
