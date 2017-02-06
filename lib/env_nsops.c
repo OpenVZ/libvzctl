@@ -282,7 +282,8 @@ static int ns_set_memory_param(struct vzctl_env_handle *h, struct vzctl_ub_param
 {
 	int ret = 0;
 	int pagesize = get_pagesize();
-	unsigned long cur_ms, cur_mem, new_ms, new_mem, x;
+	float x;
+	unsigned long cur_ms, cur_mem, new_ms, new_mem;
 
 	if (ub->physpages == NULL && ub->swappages == NULL)
 		return 0;
