@@ -276,13 +276,13 @@ static int ns_set_ub(struct vzctl_env_handle *h,
 	return 0;
 }
 
+#define PAGE_COUNTER_MAX ((unsigned long)LONG_MAX)
+
 static int ns_set_memory_param(struct vzctl_env_handle *h, struct vzctl_ub_param *ub)
 {
 	int ret = 0;
 	int pagesize = get_pagesize();
-	unsigned long cur_ms, cur_mem, new_ms, new_mem;
-	unsigned long mem_max;
-	float x;
+	unsigned long cur_ms, cur_mem, new_ms, new_mem, x;
 
 	if (ub->physpages == NULL && ub->swappages == NULL)
 		return 0;
@@ -297,12 +297,11 @@ static int ns_set_memory_param(struct vzctl_env_handle *h, struct vzctl_ub_param
 
 	x = ub->swappages ? (float)pagesize * ub->swappages->l : cur_ms;
 	x += ub->physpages ? (float)pagesize * ub->physpages->l : cur_mem;
-	mem_max = ULONG_MAX / pagesize;
-	new_ms = x > mem_max ? mem_max : (unsigned long) x;
+	new_ms = x > PAGE_COUNTER_MAX ? PAGE_COUNTER_MAX : (unsigned long) x;
 
 	if (ub->physpages) {
 		x = (float)pagesize * ub->physpages->l;
-		new_mem = x > mem_max ? mem_max : (unsigned long) x;
+		new_mem = x > PAGE_COUNTER_MAX ? PAGE_COUNTER_MAX : (unsigned long) x;
 
 		if (new_ms < cur_mem) {
 			ret = cg_env_set_memory(h->ctid, CG_MEM_LIMIT, new_mem);
