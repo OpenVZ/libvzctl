@@ -31,5 +31,4 @@ int bitmap_and(unsigned long *dst, const unsigned long *map1,
 int bitmap_all_bit_set(const unsigned long *map, int size);
 int bitmap_snprintf(char *buf, unsigned int buflen,
 		const unsigned long *map, int size);
-int bitmap_parse(const char *str, unsigned long *maskp, int size);
 #endif

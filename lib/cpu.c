@@ -457,7 +457,7 @@ int parse_cpumask(const char *str, struct vzctl_cpumask **cpumask)
 	if (!strcmp(str, "auto")) {
 		(*cpumask)->auto_assigment = 1;
 	} else {
-		ret = bitmap_parse(str, (*cpumask)->mask, sizeof((*cpumask)->mask));
+		ret = vzctl2_bitmap_parse(str, (*cpumask)->mask, sizeof((*cpumask)->mask));
 		if (ret) {
 			free(*cpumask);
 			*cpumask = NULL;
@@ -480,7 +480,7 @@ int parse_nodemask(const char *str, struct vzctl_nodemask **nodemask)
 			return vzctl_err(VZCTL_E_NOMEM, ENOMEM, "parse_nodemask");
 	}
 
-	ret = bitmap_parse(str, (*nodemask)->mask, sizeof((*nodemask)->mask));
+	ret = vzctl2_bitmap_parse(str, (*nodemask)->mask, sizeof((*nodemask)->mask));
 	if (ret) {
 		free(*nodemask);
 		*nodemask = NULL;
@@ -551,7 +551,7 @@ int get_online_cpumask(struct vzctl_cpumask *cpumask)
 	if (p != NULL)
 		*p = '\0';
 
-	ret = bitmap_parse(buf, cpumask->mask, sizeof(cpumask->mask));
+	ret = vzctl2_bitmap_parse(buf, cpumask->mask, sizeof(cpumask->mask));
 	if (ret)
 		vzctl_err(-1, 0, "Failed to parse online cpumask '%s'", buf);
 out:

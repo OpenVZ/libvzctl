@@ -683,7 +683,7 @@ static int cg_env_set_mask(const char *ctid, const char *name,  unsigned long *c
 	if (mask == NULL)
 		return vzctl_err(VZCTL_E_NOMEM, ENOMEM, "cg_env_set_mask");
 
-	if (bitmap_parse(buf, mask, size)) {
+	if (vzctl2_bitmap_parse(buf, mask, size)) {
 		free(mask);
 		return vzctl_err(VZCTL_E_CPUMASK, 0,
 				"Can't parse active %s mask: %s", name, buf);

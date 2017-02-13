@@ -232,7 +232,7 @@ static int parse_range(const char *str, unsigned long *a, unsigned long *b,
 	return 0;
 }
 
-int bitmap_parse(const char *str, unsigned long *maskp, int size)
+int vzctl2_bitmap_parse(const char *str, unsigned long *maskp, int size)
 {
 	unsigned long a, b;
 	char *endptr;
