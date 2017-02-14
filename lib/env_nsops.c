@@ -331,11 +331,39 @@ static int ns_set_memory_param(struct vzctl_env_handle *h,
 		cg_env_set_memory(h->ctid, CG_SWAP_LIMIT, new_ms) : 0;
 }
 
-static int ns_apply_res_param(struct vzctl_env_handle *h,
-		struct vzctl_env_param *env)
+static int ns_apply_memory_param(struct vzctl_env_handle *h,
+		struct vzctl_env_param *env,
+		struct vzctl_ub_param *ub,
+		int mparam_mask)
 {
-	int ret;
+        int ret;
+
+        if (is_managed_by_vcmmd()) {
+                if (h->ctx->state == VZCTL_STATE_STARTING) {
+                        /* apply parameters to avoid running with
+                         * unlimited memory resources until
+                         * configuration was activated by vcmmd
+                         */
+                        ret = ns_set_memory_param(h, ub, mparam_mask);
+                        if (!ret)
+                                ret = vcmm_register(h, env);
+                } else
+                        ret = vcmm_update(h, env);
+                if (ret) {
+                        free(env->res->memguar);
+                        env->res->memguar = NULL;
+                }
+        } else
+                ret = ns_set_memory_param(h, ub, mparam_mask);
+        return ret;
+}
+
+static int ns_apply_res_param(struct vzctl_env_handle *h,
+		struct vzctl_env_param *env,
+		int mparam_mask)
+{
 	struct vzctl_ub_param *ub;
+	int ret;
 
 	ret = get_vswap_param(h, env, &ub);
 	if (ret)
@@ -347,28 +375,13 @@ static int ns_apply_res_param(struct vzctl_env_handle *h,
 			goto err;
 	}
 
-	if (is_managed_by_vcmmd()) {
-		if (h->ctx->state == VZCTL_STATE_STARTING) {
-			/* apply parameters to avoid running with
-			 * unlimited memory resources until 
-			 * configuration was activated by vcmmd
-			 */
-			ret = ns_set_memory_param(h, ub, MPARAM_ALL);
-			if (ret)
-				goto err;
-			ret = vcmm_register(h, env);
-		} else
-			ret = vcmm_update(h, env);
-		if (ret) {
-			free(env->res->memguar);
-			env->res->memguar = NULL;
-		}
-	} else
-		ret = ns_set_memory_param(h, ub, MPARAM_ALL);
+	ret = ns_apply_memory_param(h, env, ub, mparam_mask);
+	if (ret)
+		goto err;
 
 	if (env->res->ub->pagecache_isolation) {
 		ret = cg_env_set_memory(EID(h), "memory.disable_cleancache",
-			env->res->ub->pagecache_isolation == VZCTL_PARAM_ON ?
+				env->res->ub->pagecache_isolation == VZCTL_PARAM_ON ?
 				1 : 0);
 		if (ret)
 			goto err;
@@ -713,6 +726,10 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 	 */
 	if (!param->fn) {
 		ret = cg_attach_task(h->ctid, getpid(), NULL);
+		if (ret)
+			goto err;
+	} else {
+		ret = cg_attach_task(h->ctid, getpid(), CG_MEMORY);
 		if (ret)
 			goto err;
 	}
@@ -1164,12 +1181,12 @@ static int ns_set_nodemask(struct vzctl_env_handle *h, struct vzctl_nodemask *no
 	return cg_env_set_nodemask(h->ctid, nodemask->mask, sizeof(nodemask->mask));
 }
 
-static int env_apply_param_post_resume(struct vzctl_env_handle *h,
-		struct vzctl_env_param *env)
+static int env_apply_param_post_restore(struct vzctl_env_handle *h,
+		struct vzctl_env_param *env, int mparam_mask)
 {
 	int ret;
 
-	ret = ns_apply_res_param(h, env);
+	ret = ns_apply_res_param(h, env, mparam_mask);
 	if (ret)
 		return ret;
 
@@ -1180,8 +1197,8 @@ static int ns_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param
 {
 	int ret;
 
-	if (flags & VZCTL_CPT_POST_RESUME)
-		return env_apply_param_post_resume(h, env);
+	if (flags & VZCTL_CPT_POST_RESTORE)
+		return env_apply_param_post_restore(h, env, MPARAM_SWAPPAGES);
 
 	if (ns_is_env_run(h)) {
 		if (h->ctx->state == VZCTL_STATE_STARTING) {
@@ -1191,7 +1208,18 @@ static int ns_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param
 		}
 
 		if (!(flags & VZCTL_RESTORE)) {
-			ret = ns_apply_res_param(h, env);
+			ret = ns_apply_res_param(h, env, MPARAM_ALL);
+			if (ret)
+				return ret;
+		} else {
+			struct vzctl_ub_param *ub;
+
+			ret = get_vswap_param(h, env, &ub);
+			if (!ret) {
+				ret = ns_apply_memory_param(h, env, ub, MPARAM_PHYSPAGES);
+				free_ub_param(ub);
+			}
+
 			if (ret)
 				return ret;
 		}

@@ -1218,26 +1218,28 @@ int vzctl2_env_restore(struct vzctl_env_handle *h,
 		goto err;
 
 
-	logger(10, 0, "* Wait for post-resume");
+	logger(10, 0, "* Wait for post-restore action script");
 	ret = read_p(h->ctx->status_p[0]);
 	if (ret) {
-		logger(-1, 0, "Error %d reported from post-resume", ret);
+		logger(-1, 0, "Error %d reported from post-restore action script", ret);
 		goto err;
 	}
-	logger(10, 0, "* Continue post-resume");
+
+	if (!(flags & VZCTL_SKIP_SETUP)) {
+		logger(10, 0, "* Setting up parameters on container");
+		ret = vzctl2_apply_param(h, env, VZCTL_CPT_POST_RESTORE);
+		if (ret)
+			goto err;
+	}
+
+	logger(10, 0, "* Continue post-restore action script");
 	if (write(h->ctx->wait_p[1], &ret, sizeof(ret)) == -1)
 		ret = vzctl_err(VZCTL_E_SYSTEM, errno, "Unable to write to the"
-				" wait fd when post-resume the Container");
+				" wait fd when post-restore the Container");
 	if (ret)
 		goto err;
 
 	close(h->ctx->wait_p[1]); h->ctx->wait_p[1] = -1;
-
-	if (!(flags & VZCTL_SKIP_SETUP)) {
-		ret = vzctl2_apply_param(h, env, VZCTL_CPT_POST_RESUME);
-		if (ret)
-			goto err;
-	}
 
 	h->ctx->state = 0;
 
