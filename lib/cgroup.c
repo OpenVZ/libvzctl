@@ -618,11 +618,13 @@ int cg_disable_pseudosuper(const int pseudosuper_fd)
 	return do_write_data(pseudosuper_fd, NULL, "0", 1);
 }
 
-int cg_attach_task(const char *ctid, pid_t pid)
+int cg_attach_task(const char *ctid, pid_t pid, char *cg_subsys)
 {
 	int ret, i;
 
 	for (i = 0; i < sizeof(cg_ctl_map)/sizeof(cg_ctl_map[0]); i++) {
+		if (cg_subsys && strcmp(cg_ctl_map[i].subsys, cg_subsys))
+			continue;
 		ret = cg_set_ul(ctid, cg_ctl_map[i].subsys, "tasks", pid);
 		if (ret == -1)
 			return -1;
