@@ -278,7 +278,13 @@ static int ns_set_ub(struct vzctl_env_handle *h,
 
 #define PAGE_COUNTER_MAX ((unsigned long)LONG_MAX)
 
-static int ns_set_memory_param(struct vzctl_env_handle *h, struct vzctl_ub_param *ub)
+#define MPARAM_PHYSPAGES        1
+#define MPARAM_SWAPPAGES        2
+#define MPARAM_ALL              (MPARAM_PHYSPAGES | MPARAM_SWAPPAGES)
+
+static int ns_set_memory_param(struct vzctl_env_handle *h,
+			       struct vzctl_ub_param *ub,
+			       int mask)
 {
 	int ret = 0;
 	int pagesize = get_pagesize();
@@ -300,7 +306,7 @@ static int ns_set_memory_param(struct vzctl_env_handle *h, struct vzctl_ub_param
 	x += ub->physpages ? (float)pagesize * ub->physpages->l : cur_mem;
 	new_ms = x > PAGE_COUNTER_MAX ? PAGE_COUNTER_MAX : (unsigned long) x;
 
-	if (ub->physpages) {
+	if (ub->physpages && (mask & MPARAM_PHYSPAGES)) {
 		x = (float)pagesize * ub->physpages->l;
 		new_mem = x > PAGE_COUNTER_MAX ? PAGE_COUNTER_MAX : (unsigned long) x;
 
@@ -321,7 +327,8 @@ static int ns_set_memory_param(struct vzctl_env_handle *h, struct vzctl_ub_param
 	
 	}
 
-	return cg_env_set_memory(h->ctid, CG_SWAP_LIMIT, new_ms);
+	return (mask & MPARAM_SWAPPAGES) ?
+		cg_env_set_memory(h->ctid, CG_SWAP_LIMIT, new_ms) : 0;
 }
 
 static int ns_apply_res_param(struct vzctl_env_handle *h,
@@ -346,7 +353,7 @@ static int ns_apply_res_param(struct vzctl_env_handle *h,
 			 * unlimited memory resources until 
 			 * configuration was activated by vcmmd
 			 */
-			ret = ns_set_memory_param(h, ub);
+			ret = ns_set_memory_param(h, ub, MPARAM_ALL);
 			if (ret)
 				goto err;
 			ret = vcmm_register(h, env);
@@ -357,7 +364,7 @@ static int ns_apply_res_param(struct vzctl_env_handle *h,
 			env->res->memguar = NULL;
 		}
 	} else
-		ret = ns_set_memory_param(h, ub);
+		ret = ns_set_memory_param(h, ub, MPARAM_ALL);
 
 	if (env->res->ub->pagecache_isolation) {
 		ret = cg_env_set_memory(EID(h), "memory.disable_cleancache",
