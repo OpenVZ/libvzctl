@@ -226,12 +226,32 @@ void generate_veth_name(struct vzctl_veth_dev *dev)
 
 }
 
-static void fill_empty_veth_dev_param(ctid_t ctid, struct vzctl_veth_dev *dev)
+static struct vzctl_veth_dev *find_veth_by_ifname_ve(list_head_t *head,
+		const char *name)
 {
+	struct vzctl_veth_dev *it;
+
+	list_for_each(it, head, list) {
+		if (!strcmp(it->dev_name_ve, name))
+			return it;
+	}
+	return NULL;
+}
+
+static void fill_empty_veth_dev_param(struct vzctl_env_handle *h,
+		struct vzctl_veth_dev *dev)
+{
+	struct vzctl_veth_dev *d = NULL;
+
+	if (h)
+		d = find_veth_by_ifname_ve(&h->env_param->veth->dev_list,
+			dev->dev_name_ve);
+
 	if (dev->mac == NULL)
-		generate_mac(&dev->mac, 1);
+		d ? set_hwaddr(d->mac, &dev->mac) : generate_mac(&dev->mac, 1);
+
 	if (dev->mac_ve == NULL)
-		generate_mac(&dev->mac_ve, 0);
+		d ? set_hwaddr(d->mac_ve, &dev->mac_ve):  generate_mac(&dev->mac_ve, 0);
 	if (dev->dev_name[0] == '\0')
 		generate_veth_name(dev);
 	if (dev->mac_filter == 0)
@@ -353,18 +373,6 @@ int vz_veth_ctl(struct vzctl_env_handle *h, int op, struct vzctl_veth_dev *dev, 
 			ret = vz_veth_dev_remove(h, dev);
 	}
 	return ret;
-}
-
-static struct vzctl_veth_dev *find_veth_by_ifname_ve(list_head_t *head,
-		const char *name)
-{
-	struct vzctl_veth_dev *it;
-
-	list_for_each(it, head, list) {
-		if (!strcmp(it->dev_name_ve, name))
-			return it;
-	}
-	return NULL;
 }
 
 static void fill_veth_dev_name(struct vzctl_env_handle *h,
@@ -549,7 +557,7 @@ int merge_veth_ifname_param(struct vzctl_env_handle *h,
 	if (d != NULL) {
 		/* merge netif + ifname */
 		fill_veth_dev(d, veth);
-		fill_empty_veth_dev_param(EID(h), d);
+		fill_empty_veth_dev_param(h, d);
 		return 0;
 	}
 
@@ -1179,7 +1187,7 @@ static int parse_netif_str(struct vzctl_env_handle *h, const char *str,
 	if (dev->dev_name_ve[0] == 0)
 		return VZCTL_E_INVAL;
 	if (h)
-		fill_empty_veth_dev_param(EID(h), dev);
+		fill_empty_veth_dev_param(h, dev);
 
 	return 0;
 }
@@ -1363,12 +1371,9 @@ static int parse_netif_str_cmd(struct vzctl_env_handle *h, const char *str,
 	dev->mac_filter = VZCTL_PARAM_ON;
 	snprintf(dev->dev_name_ve, len + 1, "%s", str);
 	tmp = ch;
-	if (ch == ep) {
-		generate_mac(&dev->mac, 1);
-		generate_mac(&dev->mac_ve, 0);
-		generate_veth_name(dev);
+	if (ch == ep)
 		return 0;
-	}
+
 	/* Parsing veth MAC address in Container */
 	if ((ch = strchr(tmp, ',')) == NULL) {
 		ch = ep;
