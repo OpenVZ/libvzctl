@@ -278,13 +278,8 @@ static int ns_set_ub(struct vzctl_env_handle *h,
 
 #define PAGE_COUNTER_MAX ((unsigned long)LONG_MAX)
 
-#define MPARAM_PHYSPAGES        1
-#define MPARAM_SWAPPAGES        2
-#define MPARAM_ALL              (MPARAM_PHYSPAGES | MPARAM_SWAPPAGES)
-
 static int ns_set_memory_param(struct vzctl_env_handle *h,
-			       struct vzctl_ub_param *ub,
-			       int mask)
+		struct vzctl_ub_param *ub)
 {
 	int ret = 0;
 	int pagesize = get_pagesize();
@@ -306,7 +301,7 @@ static int ns_set_memory_param(struct vzctl_env_handle *h,
 	x += ub->physpages ? (float)pagesize * ub->physpages->l : cur_mem;
 	new_ms = x > PAGE_COUNTER_MAX ? PAGE_COUNTER_MAX : (unsigned long) x;
 
-	if (ub->physpages && (mask & MPARAM_PHYSPAGES)) {
+	if (ub->physpages) {
 		x = (float)pagesize * ub->physpages->l;
 		new_mem = x > PAGE_COUNTER_MAX ? PAGE_COUNTER_MAX : (unsigned long) x;
 
@@ -327,14 +322,12 @@ static int ns_set_memory_param(struct vzctl_env_handle *h,
 	
 	}
 
-	return (mask & MPARAM_SWAPPAGES) ?
-		cg_env_set_memory(h->ctid, CG_SWAP_LIMIT, new_ms) : 0;
+	return cg_env_set_memory(h->ctid, CG_SWAP_LIMIT, new_ms);
 }
 
 static int ns_apply_memory_param(struct vzctl_env_handle *h,
-		struct vzctl_env_param *env,
-		struct vzctl_ub_param *ub,
-		int mparam_mask)
+		struct vzctl_env_param *env, struct vzctl_ub_param *ub,
+		int flags)
 {
         int ret;
 
@@ -344,8 +337,8 @@ static int ns_apply_memory_param(struct vzctl_env_handle *h,
                          * unlimited memory resources until
                          * configuration was activated by vcmmd
                          */
-                        ret = ns_set_memory_param(h, ub, mparam_mask);
-                        if (!ret)
+                        ret = ns_set_memory_param(h, ub);
+                        if (!ret && !(flags & VZCTL_RESTORE))
                                 ret = vcmm_register(h, env);
                 } else
                         ret = vcmm_update(h, env);
@@ -354,13 +347,12 @@ static int ns_apply_memory_param(struct vzctl_env_handle *h,
                         env->res->memguar = NULL;
                 }
         } else
-                ret = ns_set_memory_param(h, ub, mparam_mask);
+                ret = ns_set_memory_param(h, ub);
         return ret;
 }
 
 static int ns_apply_res_param(struct vzctl_env_handle *h,
-		struct vzctl_env_param *env,
-		int mparam_mask)
+		struct vzctl_env_param *env, int flags)
 {
 	struct vzctl_ub_param *ub;
 	int ret;
@@ -369,19 +361,31 @@ static int ns_apply_res_param(struct vzctl_env_handle *h,
 	if (ret)
 		return ret;
 
+	if (flags & VZCTL_RESTORE) {
+		struct vzctl_2UL_res r = {.l = ULONG_MAX, .b = ULONG_MAX};
+
+		ret = vzctl_add_ub_param(ub, VZCTL_PARAM_SWAPPAGES, &r);
+		if (ret)
+			goto err;
+
+		ret = ns_apply_memory_param(h, env, ub, flags);
+		free_ub_param(ub);
+		return ret;
+	}
+
 	if (is_vz_kernel()) {
 		ret = ns_set_ub(h, ub);
 		if (ret)
 			goto err;
 	}
 
-	ret = ns_apply_memory_param(h, env, ub, mparam_mask);
+	ret = ns_apply_memory_param(h, env, ub, flags);
 	if (ret)
 		goto err;
 
 	if (env->res->ub->pagecache_isolation) {
 		ret = cg_env_set_memory(EID(h), "memory.disable_cleancache",
-				env->res->ub->pagecache_isolation == VZCTL_PARAM_ON ?
+			env->res->ub->pagecache_isolation == VZCTL_PARAM_ON ?
 				1 : 0);
 		if (ret)
 			goto err;
@@ -1181,24 +1185,18 @@ static int ns_set_nodemask(struct vzctl_env_handle *h, struct vzctl_nodemask *no
 	return cg_env_set_nodemask(h->ctid, nodemask->mask, sizeof(nodemask->mask));
 }
 
-static int env_apply_param_post_restore(struct vzctl_env_handle *h,
-		struct vzctl_env_param *env, int mparam_mask)
+static int ns_env_apply_param(struct vzctl_env_handle *h,
+		struct vzctl_env_param *env, int flags)
 {
 	int ret;
 
-	ret = ns_apply_res_param(h, env, mparam_mask);
-	if (ret)
-		return ret;
+	if (flags & VZCTL_CPT_POST_RESTORE) {
+		ret = ns_apply_res_param(h, env, flags);
+		if (ret)
+			return ret;
 
-	return vcmm_activate(h);
-}
-
-static int ns_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags)
-{
-	int ret;
-
-	if (flags & VZCTL_CPT_POST_RESTORE)
-		return env_apply_param_post_restore(h, env, MPARAM_SWAPPAGES);
+		return vcmm_activate(h);
+	}
 
 	if (ns_is_env_run(h)) {
 		if (h->ctx->state == VZCTL_STATE_STARTING) {
@@ -1207,22 +1205,9 @@ static int ns_env_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param
 				return ret;
 		}
 
-		if (!(flags & VZCTL_RESTORE)) {
-			ret = ns_apply_res_param(h, env, MPARAM_ALL);
-			if (ret)
-				return ret;
-		} else {
-			struct vzctl_ub_param *ub;
-
-			ret = get_vswap_param(h, env, &ub);
-			if (!ret) {
-				ret = ns_apply_memory_param(h, env, ub, MPARAM_PHYSPAGES);
-				free_ub_param(ub);
-			}
-
-			if (ret)
-				return ret;
-		}
+		ret = ns_apply_res_param(h, env, flags);
+		if (ret)
+			return ret;
 
 		ret = vzctl_setup_disk(h, env->disk, flags);
 		if (ret)
