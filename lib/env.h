@@ -130,7 +130,7 @@ struct vzctl_env_param {
 	struct vzctl_misc_param *misc;
 	struct vzctl_env_disk *disk;
 	struct vzctl_bindmount_param *bindmount;
-/* virtuozzo specific */
+/* vz specific */
 	struct vzctl_vz_env_param *vz;
 };
 
