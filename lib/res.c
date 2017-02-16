@@ -238,7 +238,9 @@ int get_conf_mm_mode(struct vzctl_res_param *res)
 		 * PHYSPAGES 0:LONG_MAX
 		 * PHYSPAGES LONG_MAX:LONG_MAX
 		 */
-		if (physpages->b == 0 || physpages->l == LONG_MAX) {
+		if ((physpages->b == 0 && physpages->l == LONG_MAX) ||
+			(physpages->b == LONG_MAX && physpages->l == LONG_MAX))
+		{
 			if (slmmemorylimit != NULL &&
 					(res->slm->mode == VZCTL_MODE_SLM ||
 					 res->slm->mode == VZCTL_MODE_ALL))
