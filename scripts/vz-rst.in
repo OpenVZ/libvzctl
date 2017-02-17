@@ -62,6 +62,12 @@ for s in $VE_CGROUP_MOUNT_MAP; do
 	cgroup_root="$cgroup_root --cgroup-root $ctl:/$root"
 done
 
+#
+# When migrating from vz7-u3 to vz7-u4 new cgroup net_prio
+# controller been introduced in kernel, thus add this special
+# mapping here.
+ext_mount_map="$ext_mount_map --ext-mount-map net_cls,net_prio:/sys/fs/cgroup/net_cls,net_prio"
+
 action_script=@SCRIPTDIR@/vz-rst-action
 
 d=$(dirname $VE_PIDFILE)
