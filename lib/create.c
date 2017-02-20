@@ -468,7 +468,7 @@ static int merge_create_param(struct vzctl_env_handle *h, struct vzctl_env_param
 {
 	int ret = 0;
 
-	if (param->config != NULL)
+	if (param->config != NULL && h->env_param->opts->config == NULL)
 		xstrdup(&env->opts->config, param->config);
 
 	if (param->ostmpl != NULL)
