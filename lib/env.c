@@ -1151,7 +1151,7 @@ int vzctl2_env_restore(struct vzctl_env_handle *h,
 	vzctl2_get_dump_file(h, dumpfile, sizeof(dumpfile));
 	if (stat_file(param->dumpfile ?: dumpfile) != 1)
 			return vzctl_err(VZCTL_E_RESTORE, 0,
-					"Container is not suspnded");
+					"Container is not suspended");
 		
 	logger(0, 0, "Restoring the Container ...");
 
