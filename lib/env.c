@@ -1765,7 +1765,6 @@ static void restore_config_link(struct vzctl_env_handle *h)
 	char conf[PATH_MAX];
 	char dst_tmp[PATH_MAX];
 	char dst[PATH_MAX];
-	char src_tmp[PATH_MAX];
 	const char *ve_private = h->env_param->fs->ve_private;
 
 	if (h->env_param->fs->layout < VZCTL_LAYOUT_4 ||
@@ -1780,30 +1779,22 @@ static void restore_config_link(struct vzctl_env_handle *h)
 	if (S_ISLNK(st.st_mode))
 		return;
 
-	logger(-1, 0, "Inconsistent Container configuration is detected;"
-			" restoring links...");
+	logger(-1, 0, "Inconsistent Container configuration is detected:"
+			" restoring link...");
 	snprintf(dst_tmp, sizeof(dst_tmp), "%s/"VZCTL_VE_CONF".tmp", ve_private);
 	unlink(dst_tmp);
 	if (cp_file(conf, dst_tmp))
 		return;
 
-	snprintf(src_tmp, sizeof(src_tmp), "%s.tmp", conf);
-	if (rename(conf, src_tmp)) {
-		logger(-1, errno, "Failed to rename %s %s",
-			conf, src_tmp);
+	snprintf(dst, sizeof(dst), "%s/"VZCTL_VE_CONF, ve_private);
+	if (rename(dst_tmp, dst)) {
+		unlink(dst_tmp);
 		return;
 	}
 
-	snprintf(dst, sizeof(dst), "%s/"VZCTL_VE_CONF".tmp", ve_private);
-	if (symlink(dst, conf)) {
+	unlink(conf);
+	if (symlink(dst, conf))
 		logger(-1, errno, "Unable to create symlink %s %s", dst, conf);
-		rename(src_tmp, conf);
-		return;
-	}
-
-	if (rename(dst_tmp, dst))
-		 logger(-1, errno, "Failed to rename %s -> %s", dst_tmp, dst);
-	unlink(src_tmp);
 }
 
 int vzctl2_env_save(struct vzctl_env_handle *h)
