@@ -315,6 +315,8 @@ int vzctl2_env_destroy(struct vzctl_env_handle *h, int flags)
 	logger(0, 0, "Destroying Container private area: %s", fs->ve_private);
 	if (h->env_param->fs->layout >= VZCTL_LAYOUT_5) {
 		list_for_each_safe(disk, disk_safe, &h->env_param->disk->disks, list) {
+			if (disk->use_device)
+				continue;
 			ret = umount_all(disk->path);
 			if (ret)
 				return ret;
