@@ -883,6 +883,10 @@ static int ns_env_enter(struct vzctl_env_handle *h, int flags)
 	char path[PATH_MAX];
 	int ret;
 
+	ret = reset_loginuid();
+	if (ret)
+		goto err;
+
 	ret = cg_env_get_init_pid(h->ctid, &pid);
 	if (ret)
 		return ret;
