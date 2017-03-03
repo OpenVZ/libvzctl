@@ -885,7 +885,7 @@ static int ns_env_enter(struct vzctl_env_handle *h, int flags)
 
 	ret = reset_loginuid();
 	if (ret)
-		goto err;
+		return ret;
 
 	ret = cg_env_get_init_pid(h->ctid, &pid);
 	if (ret)
