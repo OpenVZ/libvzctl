@@ -444,7 +444,6 @@ int parse_devnodes_str(struct vzctl_dev_perm *perm, const char *str)
 	char *ch;
 	int len;
 	char buf[PATH_MAX];
-	struct stat st;
 
 	if ((ch = strchr(str, ':')) == NULL)
 		return vzctl_err(VZCTL_E_INVAL, 0, "An incorrect device format: %s", str);
@@ -455,18 +454,8 @@ int parse_devnodes_str(struct vzctl_dev_perm *perm, const char *str)
 	bzero(perm, sizeof(struct vzctl_dev_perm));
 	snprintf(perm->name, len, "%s", str);
 	snprintf(buf, sizeof(buf), "/dev/%s", perm->name);
-	if (stat(buf, &st))
-		return vzctl_err(VZCTL_E_SET_DEVICES, errno, "An incorrect device name %s", buf);
-	if (S_ISCHR(st.st_mode))
-		perm->type = S_IFCHR;
-	else if (S_ISBLK(st.st_mode))
-		perm->type = S_IFBLK;
-	else
-		return vzctl_err(VZCTL_E_SET_DEVICES, 0, "The %s is not block or character device", buf);
-	perm->dev = st.st_rdev;
-	perm->type |= VE_USE_MINOR;
 
-	return parse_dev_perm(ch, &perm->mask);
+	return 0;
 }
 
 int parse_devnodes(struct vzctl_dev_param *dev, const char *val)
