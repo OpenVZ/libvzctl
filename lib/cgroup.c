@@ -60,6 +60,7 @@ static struct cg_ctl cg_ctl_map[] = {
 	{CG_VE, 1},
 	{CG_PERF_EVENT},
 	{CG_HUGETLB},
+	{CG_PIDS},
 	{"systemd"},
 };
 

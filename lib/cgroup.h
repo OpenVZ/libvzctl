@@ -34,6 +34,7 @@
 #define CG_FREEZER	"freezer"
 #define CG_PERF_EVENT	"perf_event"
 #define CG_HUGETLB	"hugetlb"
+#define CG_PIDS		"pids"
 
 #define CG_MEM_LIMIT	"memory.limit_in_bytes"
 #define CG_SWAP_LIMIT	"memory.memsw.limit_in_bytes"
