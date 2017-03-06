@@ -455,7 +455,7 @@ int parse_devnodes_str(struct vzctl_dev_perm *perm, const char *str)
 	snprintf(perm->name, len, "%s", str);
 	snprintf(buf, sizeof(buf), "/dev/%s", perm->name);
 
-	return 0;
+	return parse_dev_perm(ch, &perm->mask);
 }
 
 int parse_devnodes(struct vzctl_dev_param *dev, const char *val)
