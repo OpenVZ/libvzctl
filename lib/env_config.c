@@ -541,7 +541,7 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 		ret = parse_devices(env->dev, str);
 		break;
 	case VZCTL_PARAM_DEVNODES:
-		ret = parse_devnodes(env->dev, str);
+		ret = parse_devnodes(env->dev, str, replace);
 		break;
 	case VZCTL_PARAM_IPTABLES:
 		ret = parse_iptables(&env->features->ipt_mask, str);

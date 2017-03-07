@@ -439,7 +439,7 @@ int parse_devices(struct vzctl_dev_param *dev, const char *val)
 	return ret;
 }
 
-int parse_devnodes_str(struct vzctl_dev_perm *perm, const char *str)
+int parse_devnodes_str(struct vzctl_dev_perm *perm, const char *str, int check)
 {
 	char *ch;
 	int len;
@@ -453,12 +453,23 @@ int parse_devnodes_str(struct vzctl_dev_perm *perm, const char *str)
 		return VZCTL_E_INVAL;
 	bzero(perm, sizeof(struct vzctl_dev_perm));
 	snprintf(perm->name, len, "%s", str);
-	snprintf(buf, sizeof(buf), "/dev/%s", perm->name);
+
+	if (check) {
+		struct stat st;
+
+		snprintf(buf, sizeof(buf), "/dev/%s", perm->name);
+		if (stat(buf, &st))
+			return vzctl_err(VZCTL_E_SET_DEVICES, errno,
+				"An incorrect device name %s", buf);
+		if (!S_ISCHR(st.st_mode) && !S_ISBLK(st.st_mode))
+			return vzctl_err(VZCTL_E_SET_DEVICES, 0,
+				"The %s is not block or character device", buf);
+	}
 
 	return parse_dev_perm(ch, &perm->mask);
 }
 
-int parse_devnodes(struct vzctl_dev_param *dev, const char *val)
+int parse_devnodes(struct vzctl_dev_param *dev, const char *val, int replace)
 {
 	char *buf;
 	char *token;
@@ -469,7 +480,7 @@ int parse_devnodes(struct vzctl_dev_param *dev, const char *val)
 	buf = strdup(val);
 	if ((token = strtok_r(buf, LIST_DELIMITERS, &savedptr)) != NULL) {
 		do {
-			ret = parse_devnodes_str(&perm, token);
+			ret = parse_devnodes_str(&perm, token, !replace);
 			if (ret)
 				break;
 			ret = add_dev_param(&dev->dev, &perm);

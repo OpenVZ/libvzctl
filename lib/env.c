@@ -3371,7 +3371,7 @@ int vzctl2_env_add_devnodes(vzctl_env_param_ptr env, const char *dev)
 	int ret;
 	struct vzctl_dev_perm perm;
 
-	ret = parse_devnodes_str(&perm, dev);
+	ret = parse_devnodes_str(&perm, dev, 1);
 	if (ret)
 		return ret;
 	ret = add_dev_param(&env->dev->dev, &perm);
@@ -3385,7 +3385,7 @@ int vzctl2_env_del_devnodes(vzctl_env_param_ptr env, const char *dev)
 	int ret;
 	struct vzctl_dev_perm perm;
 
-	ret = parse_devnodes_str(&perm, dev);
+	ret = parse_devnodes_str(&perm, dev, 0);
 	if (ret)
 		return ret;
 	ret = add_dev_param(&env->dev->dev_del, &perm);
