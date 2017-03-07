@@ -152,9 +152,10 @@ static int cg_get_ctl(const char *subsys, struct cg_ctl **ctl)
 		goto out;
 	}
 
-	ret = xstrdup(&(*ctl)->mount_path, mount_path);
-	if (ret)
+	if (xstrdup(&(*ctl)->mount_path, mount_path)) {
+		ret = -1;
 		goto out;
+	}
 
 	debug(DBG_CG, "cgroup %s mount point: %s ", subsys, mount_path);
 out:
@@ -191,7 +192,8 @@ int write_data(const char *path, const char *data)
 
 	fd = open(path, O_WRONLY);
 	if (fd < 0)
-		return vzctl_err(-1, errno, "Can't open %s for writing", path);
+		return vzctl_err(errno == ENOENT ? 1 : -1, errno,
+					"Can't open %s for writing", path);
 
 	logger(3, 0, "Write %s <%s>", path, data);
 	ret = do_write_data(fd, path, data, strlen(data));
