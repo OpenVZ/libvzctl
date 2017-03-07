@@ -339,7 +339,7 @@ int set_disk_param(struct vzctl_env_param *env, int flags)
 		root->enabled = VZCTL_PARAM_ON;
 
 		if (env->dq->diskspace != NULL)
-			root->size = env->dq->diskspace->b;
+			root->size = env->dq->diskspace->l;
 
 		ret = xstrdup(&root->path, VZCTL_VE_ROOTHDD_DIR);
 		if (ret)
