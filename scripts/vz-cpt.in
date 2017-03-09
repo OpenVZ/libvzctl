@@ -103,6 +103,7 @@ cg_dump_props $dumpdir &&
 cg_controllers="--cgroup-dump-controller hugetlb \
  --cgroup-dump-controller perf_event \
  --cgroup-dump-controller net_cls \
+ --cgroup-dump-controller net_prio,net_cls \
  --cgroup-dump-controller pids \
  --cgroup-dump-controller freezer \
  --cgroup-dump-controller ve \
