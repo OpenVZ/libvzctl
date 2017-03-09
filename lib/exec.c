@@ -36,6 +36,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <poll.h>
 
 #include <termios.h>
 #include <pty.h>
@@ -108,16 +109,36 @@ int execvep(const char *path, char *const argv[], char *const envp[])
 		return execve(path, argv, envp);
 }
 
+static int is_fd_in_list(int *fds, int fd)
+{
+	int i;
+
+	if (fds == NULL)
+		return 0;
+
+	for (i = 0; fds[i] != -1; i++)
+		if (fds[i] == fd)
+			return 1;
+	return 0;
+}
+
 static void _close_fds(int close_mode, int *skip_fds)
 {
-	int fd, max, i;
+	int n, max, i;
 	struct stat st;
+	int delta;
+	struct pollfd *a = NULL;
+	struct pollfd fds[1024];
+	int nelem;
 
 	max = sysconf(_SC_OPEN_MAX);
 	if (max < NR_OPEN)
 		max = NR_OPEN;
+
+	delta = max > 102400 ? 102400 : max;
+
 	if (close_mode & VZCTL_CLOSE_STD) {
-		fd = open("/dev/null", O_RDWR);
+		int fd = open("/dev/null", O_RDWR);
 		if (fd != -1) {
 			dup2(fd, 0); dup2(fd, 1); dup2(fd, 2);
 			close(fd);
@@ -125,19 +146,40 @@ static void _close_fds(int close_mode, int *skip_fds)
 			close(0); close(1); close(2);
 		}
 	}
-	for (fd = 3; fd < max; fd++) {
-		if (skip_fds != NULL) {
-			for (i = 0; skip_fds[i] != fd && skip_fds[i] != -1; i++);
-			if (skip_fds[i] == fd) {
-				if (close_mode & VZCTL_CLOSE_NOCHECK)
-					continue;
-				/* Only the pipes allowed to be opened */
-				if (fstat(fd, &st) == 0 && S_ISFIFO(st.st_mode))
-					continue;
-			}
-		}
-		close(fd);
+
+	a = malloc(delta * sizeof(struct pollfd));
+	if (a == NULL) {
+		delta = sizeof(fds) / sizeof(fds[0]);
+		a = fds;
 	}
+	bzero(a, delta * sizeof(struct pollfd));
+
+	for (n = 0, nelem = delta; n < max; n += nelem) {
+		if (n + nelem > max)
+			nelem = max - n;
+
+		for (i = 0; i < nelem; i++)
+			a[i].fd = n == 0 ? i + 3 : n + i;
+
+		poll(a, nelem, 0);
+
+		for (i = 0; i < nelem; i++) {
+			if (a[i].revents == POLLNVAL)
+				continue;
+
+			if (close_mode & VZCTL_CLOSE_NOCHECK) {
+				close(a[i].fd);
+				continue;
+			}
+			/* Only the pipes allowed to be opened */
+			if (is_fd_in_list(skip_fds, a[i].fd) &&
+					fstat(a[i].fd, &st) == 0 && S_ISFIFO(st.st_mode))
+				continue;
+			close(a[i].fd);
+		}
+	}
+	if (a != fds)
+		free(a);
 }
 
 #define MAX_SKIP_FD	255
