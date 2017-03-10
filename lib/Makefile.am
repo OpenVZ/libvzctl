@@ -1,6 +1,5 @@
-#  Copyright (C) 2000-2010 Parallels. All rights reserved.
-#
-#
+#  Copyright (c) 2000-2017, Parallels International GmbH
+
 include $(top_srcdir)/paths.am
 
 AM_CPPFLAGS = -I. -I./include -I../include \
