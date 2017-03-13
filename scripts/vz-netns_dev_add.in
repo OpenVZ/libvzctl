@@ -1,5 +1,5 @@
 #!/bin/bash
-#  Copyright (C) 2012-2015 Parallels IP Holdings GmbH
+#  Copyright (c) 2012-2017, Parallels International GmbH
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
+#  Our contact details: Parallels International GmbH, Vordergasse 59, 8200
+#  Schaffhausen, Switzerland.
 #
 # Set up a new network device using the iproute2 package.
 # Useful for running in non-OpenVZ kernels.
