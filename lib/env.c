@@ -44,6 +44,7 @@
 #include <sys/utsname.h>
 #include <mntent.h>
 #include <uuid/uuid.h>
+#include <ext2fs/ext2_fs.h>
 
 #include "env.h"
 #include "cgroup.h"
@@ -1330,6 +1331,20 @@ static int is_quotaugidlimit_changed(struct vzctl_env_handle *h, unsigned long u
 	return (configured != (ugidlimit > 0));
 }
 
+static void drom_ext_attr(const char *fname)
+{
+	int fd, f = 0;
+
+	fd = open(fname, O_RDONLY);
+	if (fd == -1)
+		return;
+
+	if (ioctl(fd, EXT2_IOC_SETFLAGS, &f) && errno != ENOTSUP)
+		vzctl_err(-1, errno, "drom_ext_attr %s", fname);
+
+	close(fd);
+}
+
 static int drop_quotaugidlimit(struct vzctl_env_handle *h)
 {
 	int ret;
@@ -1345,10 +1360,12 @@ static int drop_quotaugidlimit(struct vzctl_env_handle *h)
 	}
 
 	snprintf(buf, sizeof(buf), "%s/"QUOTA_U, ve_root);
+	drom_ext_attr(buf);
 	if (unlink(buf) && errno != EEXIST)
 		logger(-1, errno, "Failed to unlink %s", buf);
 
 	snprintf(buf, sizeof(buf), "%s/"QUOTA_G, ve_root);
+	drom_ext_attr(buf);
 	if (unlink(buf) && errno != EEXIST)
 		logger(-1, errno, "Failed to unlink %s", buf);
 
