@@ -486,7 +486,7 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 		"c 4:* rmw",		/* tty{N} devices (virtual terminals} */
 		"c 1:8 rmw",		/* random */
 		"c 1:9 rmw",		/* urandom */
-		"c 1:11 mw",		/* kmsg */
+		"c 1:11 rmw",		/* kmsg */
 		"c 10:200 rmw",		/* tun */
 		"c 10:235 rwm",		/* autofs */
 		"c 10:229 rwm",		/* fuse */
