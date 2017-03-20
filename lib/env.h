@@ -45,6 +45,7 @@
  */
 #define MAX_SHTD_TM		60
 #define MIN_NUMIPTENT		16
+#define DEF_NUMIPTENT		2000
 /* default cpu units values */
 #define LHTCPUUNITS		250
 #define UNLCPUUNITS		1000

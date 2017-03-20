@@ -375,8 +375,13 @@ static void fix_numiptent(struct vzctl_ub_param *ub)
 {
 	unsigned long min_ipt;
 
-	if (ub->numiptent == NULL)
+	if (ub->numiptent == NULL) {
+		ub->numiptent = malloc(sizeof(struct vzctl_2UL_res));
+		if (ub->numiptent)
+			ub->numiptent->b = ub->numiptent->l = DEF_NUMIPTENT;
 		return;
+	}
+
 	min_ipt = min_ul(ub->numiptent->b, ub->numiptent->l);
 	if (min_ipt < MIN_NUMIPTENT) {
 		logger(0, 0, "Warning: NUMIPTENT %lu:%lu is less"
