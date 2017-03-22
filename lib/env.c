@@ -1989,10 +1989,6 @@ int vzctl2_env_set_ramsize(struct vzctl_env_param *env, unsigned long ramsize)
 			if (env->res->ub->swappages == NULL)
 				return VZCTL_E_NOMEM;
 		}
-		if (pages > 262144)
-			pages = 262144;
-		env->res->ub->swappages->b = pages;
-		env->res->ub->swappages->l = pages;
 	} else {
 		unsigned long bytes = ramsize << 20;
 		if (env->res->slm->memorylimit == NULL) {
