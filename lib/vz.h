@@ -24,5 +24,6 @@
 #define __VZ_H__
 
 int get_vzctlfd(void);
+char *get_running_state_fname(const char *ve_private, char *buf, int size);
 
 #endif

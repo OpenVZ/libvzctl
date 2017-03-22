@@ -32,6 +32,7 @@
 
 #include "vztypes.h"
 #include "fs.h"
+#include "vz.h"
 #include "util.h"
 #include "logger.h"
 #include "vzerror.h"
@@ -234,6 +235,7 @@ err:
 int vzctl2_env_umount(struct vzctl_env_handle *h, int flags)
 {
 	int ret;
+	char fname[PATH_MAX];
 	const struct vzctl_fs_param *fs = h->env_param->fs;
 
 	if (check_var(fs->ve_root, "VE_ROOT is not set"))
@@ -262,8 +264,11 @@ int vzctl2_env_umount(struct vzctl_env_handle *h, int flags)
 	logger(0, 0, "Container is unmounted");
 
 force:
-	get_env_ops()->env_cleanup(h, flags);
+	get_running_state_fname(fs->ve_private, fname, sizeof(fname));
+	if (access(fname, F_OK) == 0)
+		run_stop_script(h);
 
+	get_env_ops()->env_cleanup(h, flags);
 
 	return 0;
 }
