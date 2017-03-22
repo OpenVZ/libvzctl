@@ -1220,7 +1220,7 @@ int vzctl2_check_owner(const char *ve_private)
 	return ret;
 }
 
-static char *get_running_state_fname(const char *ve_private, char *buf, int size)
+char *get_running_state_fname(const char *ve_private, char *buf, int size)
 {
 	snprintf(buf, size, "%s/.running", ve_private);
 
