@@ -370,8 +370,7 @@ static int get_virt_osrelease(struct vzctl_env_handle *h)
 	return xstrdup(&h->env_param->tmpl->osrelease, osrelease);
 }
 
-
-static void fix_numiptent(struct vzctl_ub_param *ub)
+static void fix_ub(struct vzctl_ub_param *ub)
 {
 	unsigned long min_ipt;
 
@@ -379,7 +378,6 @@ static void fix_numiptent(struct vzctl_ub_param *ub)
 		ub->numiptent = malloc(sizeof(struct vzctl_2UL_res));
 		if (ub->numiptent)
 			ub->numiptent->b = ub->numiptent->l = DEF_NUMIPTENT;
-		return;
 	}
 
 	min_ipt = min_ul(ub->numiptent->b, ub->numiptent->l);
@@ -389,6 +387,12 @@ static void fix_numiptent(struct vzctl_ub_param *ub)
 			ub->numiptent->b, ub->numiptent->l,
 			MIN_NUMIPTENT, MIN_NUMIPTENT);
 		ub->numiptent->b = ub->numiptent->l =  MIN_NUMIPTENT;
+	}
+
+	if (ub->numproc == NULL) {
+		ub->numproc = malloc(sizeof(struct vzctl_2UL_res));
+		if (ub->numproc)
+			ub->numproc->b = ub->numproc->l = 131072;
 	}
 }
 
@@ -403,7 +407,7 @@ static void fix_cpu_param(struct vzctl_cpu_param *cpu)
 
 static void fix_param(struct vzctl_env_param *env)
 {
-	fix_numiptent(env->res->ub);
+	fix_ub(env->res->ub);
 	fix_cpu_param(env->cpu);
 
 	/* enable bridge by default #PSBM-50520 */

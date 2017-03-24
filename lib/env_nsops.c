@@ -391,6 +391,16 @@ static int ns_apply_res_param(struct vzctl_env_handle *h,
 			goto err;
 	}
 
+	if (env->res->ub->numproc) {
+		ret = cg_set_ull(EID(h), CG_PIDS, "pids.max",
+				env->res->ub->numproc->l);
+		if (ret == -1)
+			goto err;
+		/* ignore ENOENT */
+		else if (ret == 1)
+			ret = 0;
+	}
+
 err:
 	free_ub_param(ub);
 
