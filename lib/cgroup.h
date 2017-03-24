@@ -40,6 +40,10 @@
 #define CG_SWAP_LIMIT	"memory.memsw.limit_in_bytes"
 #define CG_NET_CLASSID	"net_cls.classid"
 
+/* For x86-64 kernels */
+#define PID_MAX_LIMIT		(4 * 1024 * 1024)
+#define PIDS_MAX		(PID_MAX_LIMIT + 1ULL)
+
 struct vzctl_env_handle;
 
 const char *cg_get_slice_name(void);
