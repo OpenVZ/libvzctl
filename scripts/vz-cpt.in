@@ -61,15 +61,6 @@ done
 
 [ -d $dumpdir ] && rm -rf $dumpdir
 
-#
-# FIXME
-#
-# Sometimes the container we're dumping has really a big
-# number of files opened, so while proper fix is to modify
-# CRIU logic and dump files in small chunks for temp solution
-# simply increase the number of file descriptors allowed.
-ulimit -n 8192
-
 function cg_dump_props {
 	if [ -n "$VEID" ]; then
 		# Save monotonic offsets for next restore
