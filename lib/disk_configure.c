@@ -46,6 +46,7 @@
 #include "dev.h"
 
 struct exec_disk_param {
+	struct vzctl_env_handle *h;
 	const char *fsuuid;
 	struct vzctl_disk *disk;
 	int automount;
@@ -225,10 +226,6 @@ static int env_configure_systemd_unit(const char *uuid, const char *mnt, const c
 	char options[PATH_MAX] = "";
 	FILE *wfp;
 
-	// Check that systemd started: exit if so, see #PSBM-33596
-	if (access("/run/systemd", F_OK) == 0)
-		return 0;
-
 	logger(1, 0, "Configure systemd mount unit uuid=%s %s", uuid, mnt);
 
 	// systemd requires that unit name equals mountpoint
@@ -397,7 +394,9 @@ static int env_configure_disk(struct exec_disk_param *param)
 			make_dir(disk->mnt, 1);
 
 		if (is_systemd()) {
-			if (env_configure_systemd_unit(param->fsuuid,
+			// skip unit configure for runing CT #PSBM-33596
+			if (param->h->ctx->state == VZCTL_STATE_STARTING &&
+			   	 env_configure_systemd_unit(param->fsuuid,
 						disk->mnt, disk->mnt_opts))
 				return -1;
 		} else {
@@ -422,6 +421,7 @@ int configure_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 {
 	char partname[PATH_MAX + 1];
 	struct exec_disk_param param = {
+		.h = h,
 		.fsuuid = disk->fsuuid,
 		.disk = disk,
 		.automount = automount,
