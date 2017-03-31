@@ -77,7 +77,7 @@ function restart_network()
 		done
 
 		# Flush all devices, wicked don't clean DHCP addresses
-		for dev in `ip a l 2>/dev/null | grep ^[0-9] | sed -e "s,^[0-9]*: ,,g" -e "s,:.*,,g"`; do
+		for dev in `ip a l 2>/dev/null | grep ^[0-9] | sed -e "s,^[0-9]*: ,,g" -e "s,[:@].*,,g"`; do
 			ip addr flush $dev
 			ip link set down $dev > /dev/null 2>&1
 			wicked ifup $dev > /dev/null 2>&1
