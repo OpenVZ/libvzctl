@@ -308,21 +308,32 @@ static int ns_set_memory_param(struct vzctl_env_handle *h,
 		if (new_ms < cur_mem) {
 			ret = cg_env_set_memory(h->ctid, CG_MEM_LIMIT, new_mem);
 			if (ret)
-				return ret;
+				goto err;
 
-			return cg_env_set_memory(h->ctid, CG_SWAP_LIMIT, new_ms);
+			ret = cg_env_set_memory(h->ctid, CG_SWAP_LIMIT, new_ms);
+			if (ret)
+				goto err;
 
 		} else {
 			ret = cg_env_set_memory(h->ctid, CG_SWAP_LIMIT, new_ms);
 			if (ret)
-				return ret;
+				goto err;
 
-			return cg_env_set_memory(h->ctid, CG_MEM_LIMIT, new_mem);
+			ret = cg_env_set_memory(h->ctid, CG_MEM_LIMIT, new_mem);
+			if (ret)
+				goto err;
 		}
-	
 	}
 
-	return cg_env_set_memory(h->ctid, CG_SWAP_LIMIT, new_ms);
+	ret = cg_env_set_memory(h->ctid, CG_SWAP_LIMIT, new_ms);
+	if (ret)
+		goto err;
+
+	return 0;
+
+err:
+	return vzctl_err(ret, 0, "Current/set memsw: %lu/%lu mem: %lu/%lu",
+			cur_ms, new_ms, cur_mem, new_mem);
 }
 
 static int ns_apply_memory_param(struct vzctl_env_handle *h,
