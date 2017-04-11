@@ -1084,7 +1084,7 @@ static int unregister_env_conf(struct vzctl_env_handle *h)
 	unlink(veconf);
 
 	vzctl2_get_env_conf_path(EID(h), veconf, sizeof(veconf));
-	if (unlink(veconf))
+	if (unlink(veconf) && errno != ENOENT)
 		return vzctl_err(VZCTL_E_SYSTEM, errno, "Failed to unlink %s", veconf);
 
 	return 0;
