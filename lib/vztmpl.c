@@ -318,6 +318,10 @@ err:
 #define VZT_TMPL_NOT_CACHED 23
 #endif
 
+#ifndef VZT_TMPL_NOT_FOUND
+#define VZT_TMPL_NOT_FOUND 24
+#endif
+
 int vztmpl_get_cache_tarball(const char *config, char **ostmpl,
 		const char *fstype, char **applist, int use_ostmpl,
 		char *tarball, int len)
@@ -335,8 +339,13 @@ int vztmpl_get_cache_tarball(const char *config, char **ostmpl,
 
 	if (ret != VZT_TMPL_NOT_CACHED) {
 		/* Other vztt errors are fatal, stop here */
-		logger(-1, 0, "Unable to get appcache tarball name for %s with "
-			"ostemplate %s", config_name, *ostmpl);
+		if (ret == VZT_TMPL_NOT_FOUND)
+			logger(-1, 0, "Error: Unable to find ostemplate: %s",
+					*ostmpl);
+		else 
+			logger(-1, 0, "Unable to get appcache tarball name"
+					" for %s with ostemplate %s",
+					config_name, *ostmpl);
 		goto err;
 	}
 
