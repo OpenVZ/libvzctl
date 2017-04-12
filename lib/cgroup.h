@@ -37,7 +37,9 @@
 #define CG_PIDS		"pids"
 
 #define CG_MEM_LIMIT	"memory.limit_in_bytes"
+#define CG_MEM_USAGE	"memory.usage_in_bytes"
 #define CG_SWAP_LIMIT	"memory.memsw.limit_in_bytes"
+#define CG_SWAP_USAGE	"memory.memsw.usage_in_bytes"
 #define CG_NET_CLASSID	"net_cls.classid"
 
 /* For x86-64 kernels */

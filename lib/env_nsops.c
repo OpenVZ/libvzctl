@@ -285,9 +285,16 @@ static int ns_set_memory_param(struct vzctl_env_handle *h,
 	int pagesize = get_pagesize();
 	float x;
 	unsigned long cur_ms, cur_mem, new_ms, new_mem = 0;
+	unsigned long cur_mem_usage = 0, cur_ms_usage = 0;
 
 	if (ub->physpages == NULL && ub->swappages == NULL)
 		return 0;
+
+	cg_env_get_memory(h->ctid, CG_MEM_USAGE, &cur_mem_usage);
+	cg_env_get_memory(h->ctid, CG_SWAP_USAGE, &cur_ms_usage);
+
+	logger(3, 0, "current mem %lu and swap %lu usage",
+	       cur_mem_usage, cur_ms_usage);
 
 	ret = cg_env_get_memory(h->ctid, CG_SWAP_LIMIT, &cur_ms);
 	if (ret)
