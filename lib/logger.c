@@ -234,6 +234,7 @@ int vzctl2_set_log_quiet(int quiet)
 
 	tmp = _g_log.quiet;
 	_g_log.quiet = quiet;
+	ploop_set_verbose_level(PLOOP_LOG_NOCONSOLE);
 	return tmp;
 }
 
