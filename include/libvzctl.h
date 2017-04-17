@@ -184,6 +184,13 @@ enum {
 	VZCTL_NF_FULL,
 };
 
+typedef enum {
+	VZCTL_AUTOSTART_NONE	= -1,
+	VZCTL_AUTOSTART_OFF	= 0,
+	VZCTL_AUTOSTART_ON 	= 1,
+	VZCTL_AUTOSTART_AUTO	= 2,
+} autostart_mode_t;
+
 #define VZCTL_VETH_CONFIGURE_ALL        0x01
 #define VZCTL_VETH_CONFIGURE_NONE       0x02
 
@@ -747,8 +754,8 @@ int vzctl2_env_get_ve_root_orig_path(vzctl_env_param_ptr env, const char **path)
 int vzctl2_env_get_ostemplate(vzctl_env_param_ptr env, const char **name);
 int vzctl2_env_get_apptemplates(vzctl_env_param_ptr env, const char **names);
 
-int vzctl2_env_set_autostart(vzctl_env_param_ptr env, int enable);
-int vzctl2_env_get_autostart(vzctl_env_param_ptr env, int *enable);
+int vzctl2_env_set_autostart(vzctl_env_param_ptr env, int mode);
+int vzctl2_env_get_autostart(vzctl_env_param_ptr env, int *mode);
 int vzctl2_env_set_autostop(vzctl_env_param_ptr env, int mode);
 int vzctl2_env_get_autostop(vzctl_env_param_ptr env, int *mode);
 

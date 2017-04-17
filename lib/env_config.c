@@ -577,7 +577,13 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 		ret = parse_meminfo(env->meminfo, str);
 		break;
 	case VZCTL_PARAM_ONBOOT:
-		if ((n = yesno2id(str)) == -1)
+		if (!strcmp(str, "auto"))
+			n = VZCTL_AUTOSTART_AUTO;
+		else if (!strcmp(str, "yes"))
+			n = VZCTL_AUTOSTART_ON;
+		else if (!strcmp(str, "no"))
+			n = VZCTL_AUTOSTART_OFF;
+		else
 			goto err_inval;
 		env->opts->onboot = n;
 		break;
@@ -1149,10 +1155,15 @@ static char *env_param2str(struct vzctl_env_handle *h,
 			return meminfo2str(env->meminfo);
 		break;
 	case VZCTL_PARAM_ONBOOT:
-		if (env->opts->onboot) {
-			str = id2yesno(env->opts->onboot);
-			if (str != NULL)
-				return strdup(str);
+		if (env->opts->onboot != VZCTL_AUTOSTART_NONE) {
+			switch (env->opts->onboot) {
+			case VZCTL_AUTOSTART_OFF:
+				return strdup("no");
+			case VZCTL_AUTOSTART_ON:
+				return strdup("yes");
+			case VZCTL_AUTOSTART_AUTO:
+				return strdup("auto");
+			}
 		}
 		break;
 	case VZCTL_PARAM_AUTOSTOP:
@@ -1437,6 +1448,7 @@ struct vzctl_env_param *vzctl2_alloc_env_param()
 
 	if ((env->opts = calloc(1, sizeof(struct vzctl_opts))) == NULL)
 		goto err;
+	env->opts->onboot = VZCTL_AUTOSTART_NONE;
 	if ((env->tmpl = calloc(1, sizeof(struct vzctl_tmpl_param))) == NULL)
 		goto err;
 	if ((env->features = calloc(1,
