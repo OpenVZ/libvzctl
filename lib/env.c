@@ -2546,16 +2546,19 @@ int vzctl2_env_get_apptemplates(struct vzctl_env_param *env, const char **res)
 	return 0;
 }
 
-int vzctl2_env_set_autostart(struct vzctl_env_param *env, int enable)
+int vzctl2_env_set_autostart(struct vzctl_env_param *env, int mode)
 {
-	env->opts->onboot = enable ? VZCTL_PARAM_ON : VZCTL_PARAM_OFF;
-
+	env->opts->onboot = mode > VZCTL_AUTOSTART_AUTO ?
+			VZCTL_AUTOSTART_ON : mode;
 	return 0;
 }
 
-int vzctl2_env_get_autostart(struct vzctl_env_param *env, int *enable)
+int vzctl2_env_get_autostart(struct vzctl_env_param *env, int *mode)
 {
-	*enable = (env->opts->onboot == VZCTL_PARAM_ON) ? 1 : 0;
+	if (env->opts->onboot == VZCTL_AUTOSTART_NONE)
+		return VZCTL_E_NOT_INITIALIZED;
+
+	*mode = env->opts->onboot;
 
 	return 0;
 }
