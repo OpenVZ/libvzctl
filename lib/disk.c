@@ -1155,7 +1155,7 @@ int vzctl2_add_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param,
 
 	get_rel_path(h->env_param->fs->ve_private, d->path, fname, sizeof(fname));
 	if (is_external_disk(fname) && is_pcs(h->env_param->fs->ve_private) &&
-			shaman_is_configured()) {
+			(h->env_param->disk->root != VZCTL_PARAM_OFF) && shaman_is_configured()) {
 		logger(-1, 0, "External disks cannot be added to Containers in a"
 				" High Availability cluster");
 		goto err;
