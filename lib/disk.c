@@ -1372,6 +1372,17 @@ unsigned long get_disk_size(unsigned long size)
 	return size >= LONG_MAX ? PLOOP_MAX_FS_SIZE >> 10 : size;
 }
 
+int set_max_diskspace(struct vzctl_2UL_res **diskspace)
+{
+	if (*diskspace != NULL)
+		return 0;
+	if ((*diskspace = (struct vzctl_2UL_res *)malloc(sizeof(struct vzctl_2UL_res))) == NULL)
+		return VZCTL_E_NOMEM;
+	(*diskspace)->b = LONG_MAX;
+	(*diskspace)->l = LONG_MAX;
+	return 0;
+}
+
 int vzctl2_resize_disk(struct vzctl_env_handle *h, const char *guid,
 		unsigned long size, int offline)
 {
