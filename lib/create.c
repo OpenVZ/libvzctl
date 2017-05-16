@@ -632,9 +632,12 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 			(ret = check_var(fs->ve_root, "VE_ROOT is not set")))
 		goto free_conf;
 
-	if (!param->no_root_disk &&
-			(ret = check_var(h->env_param->dq->diskspace, "DISKSPACE is not set")))
-		goto free_conf;
+	if (h->env_param->dq->diskspace == NULL)
+	{
+		ret = set_max_diskspace(&h->env_param->dq->diskspace);
+		if (ret)
+			goto free_conf;
+	}
 
 	if (h->env_param->tmpl->templates != NULL &&
 			h->env_param->tmpl->templates[0] != '\0')
