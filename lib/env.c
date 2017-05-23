@@ -886,7 +886,7 @@ int read_p(int fd)
 
 	rc = read(fd, &errcode, sizeof(errcode));
 	if (rc == -1)
-		return vzctl_err(VZCTL_E_SYSTEM, 0, "Read from pipe failed");
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "Read from pipe failed");
 	else if (rc == 0)
 		return vzctl_err(VZCTL_E_SYSTEM, 0, "Error pipe unexpectedly closed");
 	else if (errcode != 0)
