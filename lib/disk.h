@@ -77,7 +77,6 @@ int update_disk_info(struct vzctl_disk *disk);
 struct vzctl_env_disk *alloc_env_disk(void);
 struct vzctl_disk *find_root_disk(const struct vzctl_env_disk *env_disk);
 int is_secondary_disk_present(const struct vzctl_env_disk *env_disk);
-const char *get_root_disk(struct vzctl_env_handle *h);
 int set_disk_param(struct vzctl_env_param *env, int flags);
 int parse_disk(struct vzctl_env_disk *env_disk, const char *str);
 char *disk2str(struct vzctl_env_handle *h, struct vzctl_env_disk *env_disk);

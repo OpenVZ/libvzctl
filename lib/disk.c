@@ -256,19 +256,6 @@ static int get_user_quota_mode(const struct vzctl_dq_param *dq)
 			 VZCTL_QUOTA_MODE : VZCTL_JQUOTA_MODE);
 }
 
-const char *get_root_disk(struct vzctl_env_handle *h)
-{
-	struct vzctl_disk *d;
-
-	if (h->env_param->disk) {
-		d = find_root_disk(h->env_param->disk);
-		if (d)
-			return d->path;
-	}
-
-	return NULL;
-}
-
 static int load_disk_info(struct vzctl_env_param *env)
 {
 	struct vzctl_disk *disk;
