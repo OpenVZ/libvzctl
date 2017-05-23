@@ -116,9 +116,14 @@ static void add_disk(struct vzctl_env_disk *env_disk, struct vzctl_disk *disk)
 	list_add_tail(&disk->list, &env_disk->disks);
 }
 
+static int is_root_mnt(const char *mnt)
+{
+	return (mnt != NULL && strcmp(mnt, "/") == 0);
+}
+
 int is_root_disk(struct vzctl_disk *disk)
 {
-	return (disk->mnt != NULL && strcmp(disk->mnt, "/") == 0);
+	return is_root_mnt(disk->mnt);
 }
 
 struct vzctl_disk *find_root_disk(const struct vzctl_env_disk *env_disk)
@@ -542,7 +547,7 @@ char *disk2str(struct vzctl_env_handle *h, struct vzctl_env_disk *env_disk)
 	ep = sp + sizeof(buf) -1;
 
 	list_for_each(it, &env_disk->disks, list) {
-		if (strcmp(it->uuid, DISK_ROOT_UUID) == 0)
+		if (strcmp(it->uuid, DISK_ROOT_UUID) == 0 && !it->updated)
 			continue;
 
 		assert(it->uuid[0]);
@@ -1416,7 +1421,8 @@ int vzctl2_set_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param)
 		return vzctl_err(VZCTL_E_INVAL, 0,
 				"Unable to configure the disk with uuid %s: no such disk",
 				param->uuid);
-
+	
+	d->updated = 1;
 	if (param->size) {
 		ret = vzctl2_resize_disk(h, param->uuid, param->size,
 				param->offline_resize);
@@ -1425,6 +1431,11 @@ int vzctl2_set_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param)
 	}
 
 	if (param->mnt != NULL) {
+		if (is_root_disk(d) && !is_root_mnt(param->mnt))
+			h->env_param->disk->root = VZCTL_PARAM_OFF;
+	 	else if (!is_root_disk(d) && is_root_mnt(param->mnt))
+			h->env_param->disk->root = VZCTL_PARAM_ON;
+
 		ret = xstrdup(&d->mnt, param->mnt);
 		if (ret)
 			return ret;

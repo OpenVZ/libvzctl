@@ -53,6 +53,7 @@ struct vzctl_disk {
 	char *dmname;
 	dev_t dm_dev;
 	char *enc_keyid;
+	int updated;
 	disk_mount mount;
 	disk_umount umount;
 };
