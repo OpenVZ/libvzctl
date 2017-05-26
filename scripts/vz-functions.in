@@ -264,7 +264,7 @@ function vzgetnetdev()
 	tmp_list=""
 	for dev in $NETDEVICES; do
 		local tmp=`${IP_CMD} a l $dev | awk -v dev=$dev \
-			'/^^[\ \t]+inet6? / { print(dev); exit; }'`
+			'/^^[\ \t]+inet6? / && !/scope link/ { print(dev); exit; }'`
 		[ -n "$tmp" ] && tmp_list="$tmp_list $tmp"
 	done
 	NETDEVICES="$tmp_list"
