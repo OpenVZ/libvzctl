@@ -917,9 +917,8 @@ static int ns_env_enter(struct vzctl_env_handle *h, int flags)
 	if (ret)
 		return ret;
 
-	ret = cg_env_get_init_pid(h->ctid, &pid);
-	if (ret)
-		return ret;
+	if (cg_env_get_init_pid(h->ctid, &pid))
+		return vzctl_err(VZCTL_E_SYSTEM, 0, "Unable to get init pid");
 
 	logger(10, 0, "* Attach by pid %d", pid);
 
@@ -1226,6 +1225,10 @@ static int ns_env_apply_param(struct vzctl_env_handle *h,
 
 	if (flags & VZCTL_CPT_POST_RESTORE) {
 		ret = ns_apply_res_param(h, env, flags);
+		if (ret)
+			return ret;
+
+		ret = vzctl_setup_disk(h, env->disk, flags);
 		if (ret)
 			return ret;
 

@@ -1055,6 +1055,9 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	int root = is_root_disk(disk);
 	int skip_configure = (flags & VZCTL_SKIP_CONFIGURE);
 
+	if (flags & VZCTL_CPT_POST_RESTORE)
+		return configure_disk(h, disk, flags, 0);
+
 	if (disk->dev == 0) {
 		ret = update_disk_info(disk);
 		if (ret)
