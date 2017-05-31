@@ -350,7 +350,8 @@ int apply_quota_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, i
 	struct quota_param qparam = {.ve_layout = h->env_param->fs->layout};
 	unsigned long ugidlimit;
 
-	if (h->env_param->dq->enable == VZCTL_PARAM_OFF ||
+	if ((flags & VZCTL_RESTORE) ||
+			h->env_param->dq->enable == VZCTL_PARAM_OFF ||
 			env->dq->ugidlimit == NULL)
 		return 0;
 
@@ -365,10 +366,7 @@ int apply_quota_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, i
 		}
 	}
 
-	if (!(flags & VZCTL_RESTORE))
-		return env_quota_configure(h, ugidlimit, &qparam, flags);
-
-	return 0;
+	return env_quota_configure(h, ugidlimit, &qparam, flags);
 }
 
 int env_console_configure(struct vzctl_env_handle *h, int flags)

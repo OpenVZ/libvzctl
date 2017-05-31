@@ -1005,7 +1005,7 @@ static int do_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 	ret = env_wait(pid, timeout, NULL);
 	unregister_cleanup_hook(hook);
 
-	return 0;
+	return ret;
 }
 
 int vzctl2_env_exec_fn2(struct vzctl_env_handle *h, execFn fn, void *data,

@@ -125,7 +125,8 @@ static int is_systemd(void)
 
 	return 0;
 }
-static int env_configure_udev_rules(void)
+
+int env_configure_udev_rules(void)
 {
 	const char *fname = "/lib/udev/rules.d/60-persistent-storage.rules";
 	const char *fname_tmp = "/lib/udev/rules.d/60-persistent-storage.rules.tmp";
@@ -387,8 +388,6 @@ static int env_configure_disk(struct exec_disk_param *param)
 			return -1;
 	}
 
-	env_configure_udev_rules();
-
 	if (disk->mnt != NULL && param->fsuuid != NULL) {
 		if (access(disk->mnt, F_OK))
 			make_dir(disk->mnt, 1);
@@ -422,7 +421,7 @@ int configure_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	char partname[PATH_MAX + 1];
 	struct exec_disk_param param = {
 		.h = h,
-		.fsuuid = disk->fsuuid,
+		.fsuuid = flags & VZCTL_CPT_POST_RESTORE ? NULL : disk->fsuuid,
 		.disk = disk,
 		.automount = automount,
 		.partname = partname,
