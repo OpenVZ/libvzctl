@@ -778,6 +778,9 @@ int pre_setup_env(const struct start_param *param)
 			replace_reach_runlevel_mark())
 		return VZCTL_E_WAIT;
 
+	if (env_configure_udev_rules())
+		return VZCTL_E_SYSTEM;
+
 	configure_sysctl("/proc/sys/net/ipv6/conf/all/forwarding", "0");
 
 	logger(10, 0, "* Report env_created");

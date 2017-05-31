@@ -98,4 +98,5 @@ int is_external_disk(const char *path);
 int check_external_disk(const char *basedir, struct vzctl_env_disk *env_disk);
 unsigned long get_disk_size(unsigned long size);
 int set_max_diskspace(struct vzctl_2UL_res **diskspace);
+int env_configure_udev_rules(void);
 #endif

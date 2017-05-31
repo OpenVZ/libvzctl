@@ -125,7 +125,8 @@ static int is_systemd(void)
 
 	return 0;
 }
-static int env_configure_udev_rules(void)
+
+int env_configure_udev_rules(void)
 {
 	const char *fname = "/lib/udev/rules.d/60-persistent-storage.rules";
 	const char *fname_tmp = "/lib/udev/rules.d/60-persistent-storage.rules.tmp";
@@ -386,8 +387,6 @@ static int env_configure_disk(struct exec_disk_param *param)
 		if (send_uevent(param->partname))
 			return -1;
 	}
-
-	env_configure_udev_rules();
 
 	if (disk->mnt != NULL && param->fsuuid != NULL) {
 		if (access(disk->mnt, F_OK))
