@@ -515,18 +515,21 @@ static void set_fs_uuid(struct vzctl_env_handle *h)
 {
 	struct vzctl_disk *d;
 	struct vzctl_mount_param param = {};
-	char *arg[] = {"/sbin/tune2fs", "-Urandom", NULL, NULL};
+	char *tune2fs[] = {"/sbin/tune2fs", "-Urandom", NULL, NULL};
+	char *sgdisk[] = {"/usr/sbin/sgdisk", "-G", NULL, NULL};
 
 	list_for_each(d, &h->env_param->disk->disks, list) {
-
 		if (d->use_device)
 			continue;
 
 		if (vzctl2_mount_disk_image(d->path, &param))
 			continue;
 
-		arg[2] = (char *)get_fs_partname(d);
-		vzctl2_wrap_exec_script(arg, NULL, 0);
+		tune2fs[2] = (char *)get_fs_partname(d);
+		vzctl2_wrap_exec_script(tune2fs, NULL, 0);
+
+		sgdisk[2] = d->devname;
+		vzctl2_wrap_exec_script(sgdisk, NULL, 0);
 
 		vzctl2_umount_disk_image(d->path);
 	}
