@@ -1064,7 +1064,7 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 			return ret;
 	}
 
-	if (!skip_configure) {
+	if (!skip_configure && !root) {
 		ret = get_fs_uuid(get_fs_partname(disk), disk->fsuuid);
 		if (ret)
 			return ret;
