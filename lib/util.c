@@ -149,7 +149,7 @@ int check_name(const char *name, const char *extra, int len)
 
 int vzctl2_is_env_name_valid(const char *name)
 {
-	return check_name(name, " +-_.", NAME_MAX);
+	return check_name(name, " +-_.{}", NAME_MAX);
 }
 
 int vzctl2_is_networkid_valid(char const *name)
