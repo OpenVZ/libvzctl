@@ -1133,7 +1133,7 @@ static int reinstall_post(struct vzctl_env_handle *h, list_head_t *reinstall_scr
 		struct cp_data data = {REINSTALL_OLD_MNT "/etc", "/etc"};
 
 		logger(0, 0, "Copying Container credentials...");
-		ret = vzctl2_env_exec_fn2(h, (execFn) copy_credentials, (void *) &data, 0, 0);
+		ret = vzctl_env_exec_fn(h, (execFn) copy_credentials, (void *) &data, 0);
 		if (ret)
 			return vzctl_err(-1, 0, "Failed to copy Container credentials");
 	}

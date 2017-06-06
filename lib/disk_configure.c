@@ -431,8 +431,8 @@ int configure_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	if (realpath(get_fs_partname(disk), partname) == NULL)
 		snprintf(partname, sizeof(partname), "%s", get_fs_partname(disk));
 
-	if (vzctl2_env_exec_fn2(h, (execFn) env_configure_disk, &param, VZCTL_SCRIPT_EXEC_TIMEOUT,
-				(flags & VZCTL_RESTORE ? VE_SKIPLOCK : 0)))
+	if (vzctl_env_exec_fn(h, (execFn) env_configure_disk, &param,
+			VZCTL_SCRIPT_EXEC_TIMEOUT))
 		return vzctl_err(VZCTL_E_DISK_CONFIGURE, 0, "Failed to configure disk");
 
 	return 0;
@@ -622,8 +622,8 @@ int env_fin_configure_disk(struct vzctl_env_disk *disk)
 
 int fin_configure_disk(struct vzctl_env_handle *h, struct vzctl_env_disk *disk)
 {
-	if (vzctl2_env_exec_fn2(h, (execFn) env_fin_configure_disk, disk,
-				VZCTL_SCRIPT_EXEC_TIMEOUT, 0))
+	if (vzctl_env_exec_fn(h, (execFn) env_fin_configure_disk, disk,
+				VZCTL_SCRIPT_EXEC_TIMEOUT))
 		return vzctl_err(VZCTL_E_DISK_CONFIGURE, 0,
 				"Failed to finalize disk configure");
 	return 0;

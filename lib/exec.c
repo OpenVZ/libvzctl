@@ -994,9 +994,6 @@ static int do_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 	int ret;
 	struct vzctl_cleanup_hook *hook;
 
-	if (!(flags & VE_SKIPLOCK) && is_enter_locked(h))
-		return VZCTL_E_LOCK;
-
 	ret = get_env_ops()->env_exec_fn(h, fn, data, data_fd, timeout, flags, &pid);
 	if (ret)
 		return ret;
@@ -1008,11 +1005,23 @@ static int do_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 	return ret;
 }
 
+int vzctl_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
+		int timeout)
+{
+	if (!is_env_run(h))
+		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
+
+	return do_env_exec_fn(h, fn, data, NULL, timeout, 0);
+}
+
 int vzctl2_env_exec_fn2(struct vzctl_env_handle *h, execFn fn, void *data,
 		int timeout, int flags)
 {
 	if (!is_env_run(h))
 		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
+
+	if (!(flags & VE_SKIPLOCK) && is_enter_locked(h))
+		return VZCTL_E_LOCK;
 
 	return do_env_exec_fn(h, fn, data, NULL, timeout, flags);
 }

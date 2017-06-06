@@ -67,7 +67,7 @@ int setup_vzlink_dev(struct vzctl_env_handle *h, int flags)
 		perm.mask |= S_IROTH;
 
 	if (!(flags & VZCTL_SKIP_CONFIGURE))
-		vzctl2_env_exec_fn2(h,(execFn) mk_vzlink, NULL, 0, 0);
+		vzctl_env_exec_fn(h,(execFn) mk_vzlink, NULL, 0);
 
 	if ((ret = get_env_ops()->env_set_devperm(h, &perm)))
 		return ret;
@@ -262,7 +262,7 @@ int apply_dev_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int
 	}
 
 	if (!(flags & VZCTL_SKIP_CONFIGURE))
-		vzctl2_env_exec_fn2(h, (execFn) create_devs, (void *)dev, 0, 0);
+		vzctl_env_exec_fn(h, (execFn) create_devs, (void *)dev, 0);
 
 	list_for_each(it, head, list) {
 		if ((ret = get_env_ops()->env_set_devperm(h, it)))

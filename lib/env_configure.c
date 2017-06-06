@@ -358,8 +358,8 @@ int apply_quota_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, i
 	ugidlimit = *env->dq->ugidlimit;
 	if (ugidlimit != 0) {
 		qparam.turnon =  1;
-		if (vzctl2_env_exec_fn2(h, (execFn) setup_env_quota,
-					(void *)&qparam, 0, VE_SKIPLOCK))
+		if (vzctl_env_exec_fn(h, (execFn) setup_env_quota,
+				(void *)&qparam, 0))
 		{
 			logger(-1, 0, "Failed to setup 2nd level quota");
 			return VZCTL_E_SET_USER_QUOTA;
