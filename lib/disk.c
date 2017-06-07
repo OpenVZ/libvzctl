@@ -53,6 +53,7 @@
 #include "cluster.h"
 #include "cgroup.h"
 #include "sysfs_perm.h"
+#include "exec.h"
 
 static int mount_disk_image(struct vzctl_env_handle *h, struct vzctl_disk *d, int flags);
 static int umount_disk_image(struct vzctl_disk *d);
@@ -1285,7 +1286,7 @@ static int del_disk(struct vzctl_env_handle *h, struct vzctl_disk *d)
 		return ret;
 
 	if (is_env_run(h)) {
-		if (vzctl2_env_exec_fn2(h, env_umount, (void *)get_fs_partname(d), 0, 0))
+		if (vzctl_env_exec_fn(h, env_umount, (void *)get_fs_partname(d), 0))
 			vzctl_err(-1, 0, "Failed to unmount %s",
 					get_fs_partname(d));
 

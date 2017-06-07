@@ -1027,9 +1027,8 @@ int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
 	if (env->opts->wait == VZCTL_PARAM_ON) {
 		logger(0, 0, "Container start in progress"
 				", waiting ...");
-		ret = vzctl2_env_exec_fn2(h, wait_on_fifo, NULL, 0, 0);
-		if (ret)
-		{
+		ret = vzctl_env_exec_fn(h, wait_on_fifo, NULL, 0);
+		if (ret) {
 			logger(-1, 0, "Failed to start the Container%s",
 					ret == VZCTL_E_EXEC_TIMEOUT ? \
 					": timeout expired" : "");
