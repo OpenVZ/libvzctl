@@ -55,19 +55,8 @@
 #include "sysfs_perm.h"
 #include "exec.h"
 
-static int mount_disk_image(struct vzctl_env_handle *h, struct vzctl_disk *d, int flags);
 static int umount_disk_image(struct vzctl_disk *d);
-static int mount_disk_device(struct vzctl_env_handle *h, struct vzctl_disk *d, int flags);
 static int umount_disk_device(struct vzctl_disk *d);
-static int mount_disk_dummy(struct vzctl_env_handle *h, struct vzctl_disk *d,
-		 int flags)
-{
-	return 0;
-}
-static int umount_disk_dummy(struct vzctl_disk *d)
-{
-	return 0;
-}
 
 void free_disk_param(struct vzctl_disk_param *disk)
 {
@@ -349,9 +338,6 @@ int set_disk_param(struct vzctl_env_param *env, int flags)
 		if (env->fs->noatime == VZCTL_PARAM_ON)
 			root->mnt_flags = MS_NOATIME;
 
-		root->mount = mount_disk_image;
-		root->umount = umount_disk_image;
-
 		/* add to the head */
 		list_add(&root->list, &env->disk->disks);
 	}
@@ -472,17 +458,6 @@ static int parse_disk_str(const char *str, struct vzctl_disk *disk)
 
 	if (disk->uuid[0] == '\0')
 		return vzctl_err(VZCTL_E_INVAL, 0, "The uuid parameter is not specified");
-
-	if (!disk->use_device)  {
-		disk->mount = mount_disk_image;
-		disk->umount = umount_disk_image;
-	} else if (is_root_disk(disk)) {
-		disk->mount = mount_disk_device;
-		disk->umount =umount_disk_device;
-	} else {
-		disk->mount = mount_disk_dummy;
-		disk->umount = umount_disk_dummy;
-	}
 
 	return 0;
 }
@@ -789,6 +764,26 @@ int update_disk_info(struct vzctl_disk *disk)
 	return 0;
 }
 
+static int mount_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
+                int flags)
+{
+        if (!disk->use_device)
+                return mount_disk_image(h, disk, flags);
+        else if (is_root_disk(disk))
+                return mount_disk_device(h, disk, flags);
+
+        return 0;
+}
+
+static int umount_disk(struct vzctl_disk *disk)
+{
+        if (!disk->use_device)
+                return umount_disk_image(disk);
+        else if (is_root_disk(disk))
+                return umount_disk_device(disk);
+        return 0;
+}
+
 int vzctl2_mount_disk(struct vzctl_env_handle *h,
 		const struct vzctl_env_disk *env_disk, int flags)
 {
@@ -797,10 +792,10 @@ int vzctl2_mount_disk(struct vzctl_env_handle *h,
 
 	/* disks */
 	list_for_each(disk, &env_disk->disks, list) {
-		if (disk->enabled == VZCTL_PARAM_OFF || disk->mount == NULL)
+		if (disk->enabled == VZCTL_PARAM_OFF)
 			continue;
 
-		ret = disk->mount(h, disk, flags);
+		ret = mount_disk(h, disk, flags);
 		if (ret) {
 			if (is_permanent_disk(disk))
 				goto err;
@@ -828,8 +823,7 @@ err:
 			&e->list != (list_elem_t*)(&env_disk->disks);
 			e = list_entry(e->list.prev, typeof(*e), list))
 	{
-                if (e->umount != NULL)
-			e->umount(e);
+		umount_disk(e);
 	}
 
 	return ret;
@@ -909,10 +903,7 @@ int vzctl2_umount_disk(const struct vzctl_env_disk *env_disk)
 	assert(env_disk);
 
 	list_for_each_prev(disk, &env_disk->disks, list) {
-		if (disk->umount == NULL)
-			continue;
-
-		ret = disk->umount(disk);
+		ret = umount_disk(disk);
 		if (ret && ret != SYSEXIT_DEV_NOT_MOUNTED &&
 				is_permanent_disk(disk))
 			return ret;
@@ -1299,11 +1290,9 @@ static int del_disk(struct vzctl_env_handle *h, struct vzctl_disk *d)
 			return ret;
 	}
 
-	if (d->umount != NULL) {
-		ret = d->umount(d);
-		if (ret)
-			return ret;
-	}
+	ret = umount_disk(d);
+	if (ret)
+		return ret;
 
 	return 0;
 }
