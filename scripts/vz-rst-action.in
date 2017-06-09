@@ -119,10 +119,15 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 			 > /proc/sys/kernel/randomize_va_space || { echo "Failed to restore randomize_va_space"; exit 1; } }
 	fi
 	[ -n "$VEID" ] && { cgset -r ve.pseudosuper="0" $VEID || { echo "Failed to drop pseudosuper on $VEID"; exit 1; } }
+
+	ret=0
+	[ -n "$CRIU_ACTION_POST_RESUME_READ_FD" ] && printf '\0\0\0\0' >&${CRIU_ACTION_POST_RESUME_READ_FD}
+	[ -n "$CRIU_ACTION_POST_RESUME_WRITE_FD" ] && ret=$(head -c 4 <&${CRIU_ACTION_POST_RESUME_WRITE_FD} | hexdump -e '"%d"' -n 4)
+	[ "$ret" = "0" ] || { echo "Failed on action script in post-restore for $VEID"; exit 1; }
+
 	ret=0
 	[ -n "$STATUSFD" ] && printf '\0\0\0\0' >&${STATUSFD}
 	[ -n "$WAITFD" ] && ret=$(head -c 4 <&$WAITFD | hexdump -e '"%d"' -n 4)
-
 	[ "$ret" = "0" ] || { echo "Failed on post-restore for $VEID"; exit 1; }
 	;;
 esac

@@ -205,10 +205,10 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 	char script[PATH_MAX];
 	char buf[PATH_MAX];
 	char *arg[2];
-	char *env[14] = {};
+	char *env[16] = {};
 	struct vzctl_veth_dev *veth;
 	int ret, i = 0;
-	char *pbuf, *ep;
+	char *pbuf, *ep, *s;
 
 	get_dumpfile(h, param, path, sizeof(path));
 	logger(3, 0, "Open the dump file %s", path);
@@ -224,6 +224,18 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 	snprintf(buf, sizeof(buf), "CRIU_LOGLEVEL=%d",
 		vzctl2_get_log_verbose() + 1);
 	env[i++] = strdup(buf);
+
+	s = getenv("CRIU_ACTION_POST_RESUME_READ_FD");
+	if (s != NULL) {
+		snprintf(buf, sizeof(buf), "CRIU_ACTION_POST_RESUME_READ_FD=%s", s);
+		env[i++] = strdup(buf);
+	}
+
+	s = getenv("CRIU_ACTION_POST_RESUME_WRITE_FD");
+	if (s != NULL) {
+		snprintf(buf, sizeof(buf), "CRIU_ACTION_POST_RESUME_WRITE_FD=%s", s);
+		env[i++] = strdup(buf);
+	}
 
 	get_init_pid_path(h->ctid, path);
 	snprintf(buf, sizeof(buf), "VE_PIDFILE=%s", path);
