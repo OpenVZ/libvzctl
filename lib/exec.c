@@ -1154,7 +1154,7 @@ static int get_ar_size(char * const *a)
 	return i;
 }
 
-static char **build_arg(char **a, char *const *b)
+char **build_arg(char **a, char *const *b)
 {
 	int nelem;
 	char **ar;

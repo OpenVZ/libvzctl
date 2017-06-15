@@ -185,4 +185,11 @@ int get_cid_uuid_pair(const char *ctid, const char *uuid,
 		ctid_t ctid_out, ctid_t uuid_out);
 int enter_net_ns(struct vzctl_env_handle *h, pid_t *ct_pid);
 int run_stop_script(struct vzctl_env_handle *h);
+int vzctl_env_destroy(struct vzctl_env_handle *h, int flags);
+int vzctl_env_stop(struct vzctl_env_handle *h, stop_mode_e stop_mode, int flags);
+int vzctl_env_start(struct vzctl_env_handle *h, int flags);
+int vzctl_env_chkpnt(struct vzctl_env_handle *h, int cmd,
+		struct vzctl_cpt_param *param, int flags);
+int vzctl_env_restore(struct vzctl_env_handle *h,
+		struct vzctl_cpt_param *param, int flags);
 #endif /* _ENV_H_ */

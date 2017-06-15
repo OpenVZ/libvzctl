@@ -31,8 +31,12 @@ struct vzctl_env_handle;
 
 int vzctl_read_snapshot_tree(const char *fname, struct vzctl_snapshot_tree *tree);
 int vzctl_store_snapshot_tree(const char *fname, struct vzctl_snapshot_tree *tree);
-int vzctl_add_snapshot_tree_entry(struct vzctl_snapshot_tree *tree, int current, const char *guid,
-		const char *parent_guid, const char *name, const char *date, const char *desc);
-
+int vzctl_add_snapshot_tree_entry(struct vzctl_snapshot_tree *tree, int current,
+		const char *guid, const char *parent_guid, const char *name,
+		const char *date, const char *desc);
+int vzctl_env_switch_snapshot(struct vzctl_env_handle *h,
+		struct vzctl_switch_snapshot_param *param);
+int vzctl_env_delete_snapshot(struct vzctl_env_handle *h, const char *guid);
+int vzctl_env_create_snapshot(struct vzctl_env_handle *h,
+		struct vzctl_snapshot_param *param);
 #endif
-
