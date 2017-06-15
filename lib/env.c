@@ -21,6 +21,7 @@
  *
  */
 
+#define _GNU_SOURCE
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
@@ -792,7 +793,7 @@ int pre_setup_env(const struct start_param *param)
 	/* Now we wait until Container setup will be done
 	 * If no error, then start init, otherwise exit.
 	 */
-	if (read(param->h->ctx->wait_p[0], &errcode, sizeof(errcode)) == 0) {
+	if (TEMP_FAILURE_RETRY(read(param->h->ctx->wait_p[0], &errcode, sizeof(errcode))) == 0) {
 		logger(0, 0, "Cancel init execution");
 		return -1;
 	}
@@ -887,7 +888,7 @@ int read_p(int fd)
 {
 	int rc, errcode;
 
-	rc = read(fd, &errcode, sizeof(errcode));
+	rc = TEMP_FAILURE_RETRY(read(fd, &errcode, sizeof(errcode)));
 	if (rc == -1)
 		return vzctl_err(VZCTL_E_SYSTEM, errno, "Read from pipe failed");
 	else if (rc == 0)
