@@ -69,6 +69,7 @@
 #define VZCTL_CUSTOM_SCRIPT_DIR	"/etc/vz/reinstall.d"
 
 #define VZCTL_EXEC_WRAP_BIN	PKGLIBDIR "/exec_wrap"
+#define VZCTL_ACTION_WRAP_BIN	PKGLIBDIR "/action_wrap"
 #define VZCTL_START_PREFIX	"start"
 #define VZCTL_STOP_PREFIX	"stop"
 #define VZCTL_PRE_MOUNT_PREFIX	"premount"

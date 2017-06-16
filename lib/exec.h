@@ -61,7 +61,7 @@ int real_env_exec(struct vzctl_env_handle *h, struct exec_param *param, int flag
 void set_timeout_handler(pid_t pid, int timeout);
 int real_env_exec_init(struct exec_param *param);
 int real_env_exec_waiter(struct exec_param *param, int pid, int timeout, int flags);
-
+char **build_arg(char **a, char *const *b);
 
 /** Execute function inside VE.
  * All file descriptors are closed.
@@ -97,6 +97,8 @@ int vzctl2_wrap_exec_script(char *const argv[], char *const envp[], int flags);
 void vzctl_stdredir(int rdfd, int wrfd, int log);
 int vzctl_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 		int timeout);
+int vzctl_wrap_action(struct vzctl_env_handle *h, char *action,
+		char *const arg[]);
 #ifdef __cplusplus
 }
 #endif

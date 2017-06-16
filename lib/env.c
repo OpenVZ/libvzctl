@@ -73,6 +73,7 @@
 #include "env_ops.h"
 #include "cpt.h"
 #include "ha.h"
+#include "wrap.h"
 
 #define ENVRETRY	3
 
@@ -243,7 +244,7 @@ static int do_env_post_stop(struct vzctl_env_handle *h, int flags)
 	return ret;
 }
 
-int vzctl2_env_stop(struct vzctl_env_handle *h, stop_mode_e stop_mode, int flags)
+int vzctl_env_stop(struct vzctl_env_handle *h, stop_mode_e stop_mode, int flags)
 {
 	int ret;
 	struct vzctl_env_status env_status = {};
@@ -289,6 +290,14 @@ int vzctl2_env_stop(struct vzctl_env_handle *h, stop_mode_e stop_mode, int flags
 
 force:
 	return do_env_post_stop(h, flags);
+}
+
+int vzctl2_env_stop(struct vzctl_env_handle *h, stop_mode_e stop_mode, int flags)
+{
+	if (vzctl2_get_flags() & VZCTL_FLAG_DONT_USE_WRAP)
+		return vzctl_env_stop(h, stop_mode, flags);
+
+	return vzctl_wrap_env_stop(h, stop_mode, flags);
 }
 
 int vzctl2_env_pause(struct vzctl_env_handle *h, int flags)
@@ -909,7 +918,7 @@ static int drop_dump_state(struct vzctl_env_handle *h)
 }
 
 /** Start and configure Container. */
-int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
+int vzctl_env_start(struct vzctl_env_handle *h, int flags)
 {
 	int ret;
 	struct vzctl_env_param *env = h->env_param;
@@ -1074,7 +1083,15 @@ err_pipe:
 	return ret;
 }
 
-int vzctl2_env_chkpnt(struct vzctl_env_handle *h, int cmd,
+int vzctl2_env_start(struct vzctl_env_handle *h, int flags)
+{
+	if (vzctl2_get_flags() & VZCTL_FLAG_DONT_USE_WRAP)
+		return vzctl_env_start(h, flags);
+
+	return vzctl_wrap_env_start(h, flags);
+}
+
+int vzctl_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 		struct vzctl_cpt_param *param, int flags)
 {
 	int ret, lfd;
@@ -1112,6 +1129,15 @@ end:
 	return ret;
 }
 
+int vzctl2_env_chkpnt(struct vzctl_env_handle *h, int cmd,
+		struct vzctl_cpt_param *param, int flags)
+{
+	if (vzctl2_get_flags() & VZCTL_FLAG_DONT_USE_WRAP)
+		return vzctl_env_chkpnt(h, cmd, param, flags);
+
+	return vzctl_wrap_env_chkpnt(h, cmd, param, flags);
+}
+
 static int _announce_ips(pid_t pid)
 {
 	char script_bin[PATH_MAX];
@@ -1143,7 +1169,7 @@ static int announce_ips(struct vzctl_env_handle *h)
 	return env_wait(pid, 0, NULL);
 }
 
-int vzctl2_env_restore(struct vzctl_env_handle *h,
+int vzctl_env_restore(struct vzctl_env_handle *h,
 		struct vzctl_cpt_param *param, int flags)
 {
 	int ret;
@@ -1301,6 +1327,15 @@ err_pipe:
 	deinit_runtime_ctx(h->ctx);
 
 	return ret;
+}
+
+int vzctl2_env_restore(struct vzctl_env_handle *h,
+		struct vzctl_cpt_param *param, int flags)
+{
+	if (vzctl2_get_flags() & VZCTL_FLAG_DONT_USE_WRAP)
+		return vzctl_env_restore(h, param, flags);
+
+	return vzctl_wrap_env_restore(h, param, flags);
 }
 
 int vzctl2_env_restart(struct vzctl_env_handle *h, int flags)

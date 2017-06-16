@@ -67,7 +67,8 @@ libvzctl2_la_SOURCES =  bitmap.c \
 			tc.c \
 			systemd.c \
 			nl.c \
-			vcmm.c
+			vcmm.c \
+			wrap.c
 
 # 1. Start with version information of `0:0:0' for each libtool library.
 # 2. Update the version information only immediately before a public release of your software. More frequent updates are unnecessary, and only guarantee that the current interface number gets larger faster.

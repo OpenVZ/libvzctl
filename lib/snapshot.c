@@ -52,6 +52,8 @@
 #include "disk.h"
 #include "env_ops.h"
 #include "lock.h"
+#include "exec.h"
+#include "wrap.h"
 
 #define GET_SNAPSHOT_XML_TMP(buf, ve_private) \
 	snprintf(buf, sizeof(buf), "%s/" SNAPSHOT_XML ".tmp", ve_private);
@@ -298,7 +300,7 @@ static int copy_snapshot_config(struct vzctl_env_handle *h, const char *from, co
 	return res;
 }
 
-int vzctl2_env_create_snapshot(struct vzctl_env_handle *h,
+int vzctl_env_create_snapshot(struct vzctl_env_handle *h,
 		struct vzctl_snapshot_param *param)
 {
 	int ret, run = 0, lfd = -1;
@@ -425,6 +427,15 @@ err:
 	return VZCTL_E_CREATE_SNAPSHOT;
 }
 
+int vzctl2_env_create_snapshot(struct vzctl_env_handle *h,
+		struct vzctl_snapshot_param *param)
+{
+	if (vzctl2_get_flags() & VZCTL_FLAG_DONT_USE_WRAP)
+		return vzctl_env_create_snapshot(h, param);
+
+	return vzctl_wrap_env_create_snapshot(h, param);
+}
+
 /* Compatibility to support old 'struct vzctl_tsnapshot_param' with single filed
  */
 int vzctl2_env_create_tsnapshot(struct vzctl_env_handle *h, const char *guid,
@@ -485,7 +496,7 @@ static int restore_env_config(struct vzctl_env_handle *h, const char *guid,
 	return 0;
 }
 
-int vzctl2_env_switch_snapshot(struct vzctl_env_handle *h,
+int vzctl_env_switch_snapshot(struct vzctl_env_handle *h,
 		struct vzctl_switch_snapshot_param *param)
 {
 	int ret, run, lfd = -1;;
@@ -640,7 +651,16 @@ err:
 	return VZCTL_E_SWITCH_SNAPSHOT;
 }
 
-int vzctl2_env_delete_snapshot(struct vzctl_env_handle *h, const char *guid)
+int vzctl2_env_switch_snapshot(struct vzctl_env_handle *h,
+		struct vzctl_switch_snapshot_param *param)
+{
+	if (vzctl2_get_flags() & VZCTL_FLAG_DONT_USE_WRAP)
+		return vzctl_env_switch_snapshot(h, param);
+
+	return vzctl_wrap_env_switch_snapshot(h, param);
+}
+
+int vzctl_env_delete_snapshot(struct vzctl_env_handle *h, const char *guid)
 {
 	int ret;
 	char fname[MAXPATHLEN];
@@ -709,6 +729,14 @@ err:
 	logger(-1, 0, "Failed to delete snapshot %s", guid);
 	vzctl_free_snapshot_tree(tree);
 	return VZCTL_E_DELETE_SNAPSHOT;
+}
+
+int vzctl2_env_delete_snapshot(struct vzctl_env_handle *h, const char *guid)
+{
+	if (vzctl2_get_flags() & VZCTL_FLAG_DONT_USE_WRAP)
+		return vzctl_env_delete_snapshot(h, guid);
+
+	return vzctl_wrap_env_delete_snapshot(h, guid);
 }
 
 int vzctl2_env_delete_tsnapshot(struct vzctl_env_handle *h, const char *guid,

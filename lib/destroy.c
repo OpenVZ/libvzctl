@@ -49,6 +49,7 @@
 #include "list.h"
 #include "image.h"
 #include "exec.h"
+#include "wrap.h"
 
 #define BACKUP		0
 #define DESTR		1
@@ -282,7 +283,7 @@ static int validate_ve_private(const char *ctid, int layout, const char *path)
 		return 1;
 }
 
-int vzctl2_env_destroy(struct vzctl_env_handle *h, int flags)
+int vzctl_env_destroy(struct vzctl_env_handle *h, int flags)
 {
 	int ret;
 	char buf[PATH_LEN];
@@ -349,4 +350,12 @@ int vzctl2_env_destroy(struct vzctl_env_handle *h, int flags)
 	logger(0, 0, "Container private area was destroyed");
 
 	return 0;
+}
+
+int vzctl2_env_destroy(struct vzctl_env_handle *h, int flags)
+{
+	if (vzctl2_get_flags() & VZCTL_FLAG_DONT_USE_WRAP)
+		return vzctl_env_destroy(h, flags);
+
+	return vzctl_wrap_env_destroy(h, flags);
 }
