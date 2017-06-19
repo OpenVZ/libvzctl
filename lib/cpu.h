@@ -35,6 +35,8 @@ struct vzctl_cpu_param {
 	unsigned long *weight;
 	unsigned long *units;	/**< CPU weight for the VE, in units. */
 	unsigned long *vcpus;	/**< number of CPUs available in the running VE*/
+	unsigned long *burst_cpulimit;
+	unsigned long *burst_cpu_avg_usage;
 	struct vzctl_cpumask *cpumask;
 	struct vzctl_nodemask *nodemask;
 };
