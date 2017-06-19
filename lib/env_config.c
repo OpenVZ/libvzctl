@@ -723,9 +723,25 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 	}
 	case VZCTL_PARAM_BURST_CPU_AVG_USAGE:
 		ret = parse_ul(str, &ul);
+		if (ret)
+			return ret;
+		if (env->cpu->burst_cpu_avg_usage == NULL) {
+			env->cpu->burst_cpu_avg_usage = xmalloc(sizeof(unsigned long));
+			if (env->cpu->burst_cpu_avg_usage == NULL)
+				return VZCTL_E_NOMEM;
+		}
+		*env->cpu->burst_cpu_avg_usage = ul;
 		break;
 	case VZCTL_PARAM_BURST_CPULIMIT:
 		ret = parse_ul(str, &ul);
+		if (ret)
+			return ret;
+		if (env->cpu->burst_cpulimit == NULL) {
+			env->cpu->burst_cpulimit = xmalloc(sizeof(unsigned long));
+			if (env->cpu->burst_cpulimit == NULL)
+				return VZCTL_E_NOMEM;
+		}
+		*env->cpu->burst_cpulimit = ul;
 		break;
 	case VZCTL_PARAM_TRAFFIC_SHAPING:
 		if ((id = yesno2id(str)) == -1)
@@ -1286,11 +1302,19 @@ static char *env_param2str(struct vzctl_env_handle *h,
 			return strdup(buf);
 		}
 		break;
-	case VZCTL_PARAM_BURST_CPU_AVG_USAGE:
-//		ret = parse_ul(str, &ul);
-		break;
 	case VZCTL_PARAM_BURST_CPULIMIT:
-//		ret = parse_ul(str, &ul);
+		if (env->cpu->burst_cpulimit != NULL) {
+			snprintf(buf, sizeof(buf), "%lu",
+					*env->cpu->burst_cpulimit);
+			return strdup(buf);
+		}
+		break;
+	case VZCTL_PARAM_BURST_CPU_AVG_USAGE:
+		if (env->cpu->burst_cpu_avg_usage != NULL) {
+			snprintf(buf, sizeof(buf), "%lu",
+					*env->cpu->burst_cpu_avg_usage);
+			return strdup(buf);
+		}
 		break;
 	case VZCTL_PARAM_RATE:
 		if (!list_empty(&env->vz->tc->rate_list))
