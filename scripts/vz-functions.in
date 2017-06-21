@@ -156,17 +156,29 @@ vzcreatepair()
 {
 	${IP_CMD} link show dev $HNAME >/dev/null 2>&1
 	if [ $? -eq 0 ]; then
-		${IP_CMD} netns exec $VEID ${IP_CMD} link show dev $VNAME >/dev/null 2>&1 && return 0
+		# precreate veth case
+		v=`${IP_CMD} link show dev $HNAME 2>/dev/null | awk '/'"$HNAME"'@/{split($2, a, "[@:]"); print a[2]}'`
+		if [ -n "$v" ]; then
+			${IP_CMD} link set $v netns $VEID || \
+				vzerror "Unable to move veth interface $v to Container na" -1
+			${IP_CMD} -n $VEID link set dev $v name $VNAME || \
+				vzerror "Unable to rename $v to $VNAME" -1
+			${IP_CMD} -n $VEID link set dev $VNAME up
+			${IP_CMD} link set $HNAME up
+			return
+		fi
+
+		${IP_CMD} -n $VEID link show dev $VNAME >/dev/null 2>&1 && return 0
 		# Due to races, interfaces may exist some time after VE stop. Try to remove.
 		echo Only host part $HNAME of veth pair exists
 		${IP_CMD} link delete $HNAME || echo "Unable to delete veth interface $HNAME"
 	fi
 
-	${IP_CMD} netns exec $VEID ${IP_CMD} link add name $HNAME type veth peer name $VNAME || \
+	${IP_CMD} -n $VEID link add name $HNAME type veth peer name $VNAME || \
 		vzerror "Unable to create veth pair ($HNAME, $VNAME)" -1
-	${IP_CMD} netns exec $VEID ${IP_CMD} link set $HNAME netns $$ || \
+	${IP_CMD} -n $VEID link set $HNAME netns $$ || \
 		vzerror "Unable to move veth interface $HNAME to host ns" -1
-	${IP_CMD} netns exec $VEID ${IP_CMD} link set dev $VNAME up
+	${IP_CMD} -n $VEID link set dev $VNAME up
 	${IP_CMD} link set $HNAME up
 }
 
