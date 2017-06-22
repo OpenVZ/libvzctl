@@ -99,10 +99,10 @@ int vzctl2_unwrap_env_destroy(struct vzctl_env_handle *h, int argc, char **argv)
 {
 	int flags;
 
-	if (argc != 4)
+	if (argc != 1)
 		return VZCTL_E_INVAL;
 
-	if (parse_int(argv[3], &flags))
+	if (parse_int(argv[0], &flags))
 		return VZCTL_E_INVAL;
 
 	return vzctl_env_destroy(h, flags);
