@@ -178,8 +178,6 @@ int vzctl2_umount_disk_image(const char *path)
 {
 	int ret;
 	struct ploop_disk_images_data *di;
-	int i = 0;
-	int max_retry_cnt = 60 / 6; /* 6sec is ploop timeout */
 
 	logger(0, 0, "Unmount image: %s", path);
 	ret = open_dd(path, &di);
@@ -187,13 +185,9 @@ int vzctl2_umount_disk_image(const char *path)
 		return ret;
 
 	if (is_shared_fs(path))
-		max_retry_cnt *= 2;
+		ploop_set_umount_timeout(di, 120);
 
-retry:
 	ret = ploop_umount_image(di);
-	if (ret == SYSEXIT_UMOUNT_BUSY && i++ < max_retry_cnt)
-		goto retry;
-
 	ploop_close_dd(di);
 	if (ret && ret != SYSEXIT_DEV_NOT_MOUNTED)
 		return vzctl_err(VZCTL_E_UMOUNT_IMAGE, 0,
