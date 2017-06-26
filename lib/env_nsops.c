@@ -1073,27 +1073,66 @@ static int ns_env_kill(struct vzctl_env_handle *h)
 	return 0;
 }
 
+static int write_sunrpc_kill(struct vzctl_env_handle *h, unsigned value)
+{
+	pid_t pid;
+	int fd;
+	ssize_t res;
+	char path[PATH_MAX];
+	char *val = value ? "1" : "0";
+
+	if (cg_env_get_init_pid(h->ctid, &pid))
+		return -1;
+
+	snprintf(path, sizeof(path), "/proc/%d/net/rpc/kill-tasks", pid);
+
+	if (access(path, F_OK))
+		return 0;
+
+	fd = open(path, O_WRONLY);
+	if (fd == -1)
+		return vzctl_err(-1, errno, "Failed to open %s: %s",
+				path, strerror(errno));
+
+	res = write(fd, val, strlen(val) + 1);
+	close(fd);
+
+	if (res != strlen(val) + 1)
+		return vzctl_err(-1, errno, "Unable to %s SUNRPC traffic",
+				value ? "suppress" : "release");
+	return 1;
+}
+
 static int ns_env_stop_force(struct vzctl_env_handle *h)
 {
-	int ret, rc;
+	int ret, rc, sunrpc_suppressed;
+
+	sunrpc_suppressed = write_sunrpc_kill(h, 1);
 
 	logger(0, 0, "Forcibly stop the Container...");
 
 	ret = cg_freezer_cmd(EID(h), VZCTL_CMD_FREEZE);
 	if (ret)
-		return ret;
+		goto release_sunrpc;
 
 	rc = ns_env_kill(h);
 
 	/* Unfreeze unconditionally */
 	ret = cg_freezer_cmd(EID(h), VZCTL_CMD_RESUME);
-	if (ret || rc)
-		return ret ?: rc;
+	if (ret || rc) {
+		ret = ret ?: rc;
+		goto release_sunrpc;
+	}
 
 	if (wait_env_state(h, VZCTL_ENV_STOPPED, MAX_SHTD_TM))
 		return vzctl_err(-1, 0, "Failed to stop Container:"
 				" operation timed out");
 	return 0;
+
+release_sunrpc:
+	if (sunrpc_suppressed > 0)
+		(void) write_sunrpc_kill(h, 0);
+	return ret;
 }
 
 static int ns_env_cleanup(struct vzctl_env_handle *h, int flags)
