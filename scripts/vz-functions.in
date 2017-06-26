@@ -154,13 +154,16 @@ function vzcheckvar()
 # with no visible action.
 vzcreatepair()
 {
-	${IP_CMD} link show dev $HNAME >/dev/null 2>&1
+	${IP_CMD} link show type veth dev $HNAME >/dev/null 2>&1
 	if [ $? -eq 0 ]; then
+		${IP_CMD} -n $VEID link show type veth dev $VNAME >/dev/null 2>&1 && return 0
+
 		# precreate veth case
-		v=`${IP_CMD} link show dev $HNAME 2>/dev/null | awk '/'"$HNAME"'@/{split($2, a, "[@:]"); print a[2]}'`
-		if [ -n "$v" ]; then
+		v=`${IP_CMD} link show type veth dev $HNAME 2>/dev/null | awk '/'"$HNAME"'@/{split($2, a, "[@:]"); print a[2]}'`
+		h=`${IP_CMD} link show type veth dev $v 2>/dev/null | awk '/'"$HNAME"'@/{split($2, a, "[@:]"); print a[2]}'`
+		if [ -n "$v" -a "$h" = "$HNAME" ]; then
 			${IP_CMD} link set $v netns $VEID || \
-				vzerror "Unable to move veth interface $v to Container na" -1
+				vzerror "Unable to move veth interface $v to Container ns" -1
 			${IP_CMD} -n $VEID link set dev $v name $VNAME || \
 				vzerror "Unable to rename $v to $VNAME" -1
 			${IP_CMD} -n $VEID link set dev $VNAME up
@@ -168,7 +171,6 @@ vzcreatepair()
 			return
 		fi
 
-		${IP_CMD} -n $VEID link show dev $VNAME >/dev/null 2>&1 && return 0
 		# Due to races, interfaces may exist some time after VE stop. Try to remove.
 		echo Only host part $HNAME of veth pair exists
 		${IP_CMD} link delete $HNAME || echo "Unable to delete veth interface $HNAME"
