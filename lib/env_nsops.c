@@ -379,18 +379,6 @@ static int ns_apply_res_param(struct vzctl_env_handle *h,
 	if (ret)
 		return ret;
 
-	if (flags & VZCTL_RESTORE) {
-		struct vzctl_2UL_res r = {.l = ULONG_MAX, .b = ULONG_MAX};
-
-		ret = vzctl_add_ub_param(ub, VZCTL_PARAM_SWAPPAGES, &r);
-		if (ret)
-			goto err;
-
-		ret = ns_apply_memory_param(h, env, ub, flags);
-		free_ub_param(ub);
-		return ret;
-	}
-
 	if (is_vz_kernel()) {
 		ret = ns_set_ub(h, ub);
 		if (ret)
@@ -508,7 +496,7 @@ static int set_features(struct vzctl_env_handle *h,
 	return 0;
 }
 
-static int setup_env_cgroup(struct vzctl_env_handle *h, struct vzctl_env_param *env)
+static int setup_env_cgroup(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags)
 {
 	int ret;
 
@@ -516,7 +504,25 @@ static int setup_env_cgroup(struct vzctl_env_handle *h, struct vzctl_env_param *
 	if (ret)
 		return ret;
 
-	return 0;
+	if (flags & VZCTL_RESTORE) {
+		struct vzctl_ub_param *ub;
+		struct vzctl_2UL_res r = {.l = ULONG_MAX, .b = ULONG_MAX};
+
+		ret = get_vswap_param(h, env, &ub);
+		if (ret)
+			return ret;
+
+		ret = vzctl_add_ub_param(ub, VZCTL_PARAM_SWAPPAGES, &r);
+		if (ret) {
+			free_ub_param(ub);
+			return ret;
+		}
+
+		ret = ns_set_memory_param(h, ub);
+		free_ub_param(ub);
+	}
+
+	return ret;
 }
 
 static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
@@ -618,7 +624,7 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 			return ret;
 	}
 
-	return setup_env_cgroup(h, h->env_param);
+	return setup_env_cgroup(h, h->env_param, flags);
 }
 
 static int destroy_cgroup(struct vzctl_env_handle *h)
@@ -1223,18 +1229,6 @@ static int ns_env_apply_param(struct vzctl_env_handle *h,
 {
 	int ret;
 
-	if (flags & VZCTL_CPT_POST_RESTORE) {
-		ret = ns_apply_res_param(h, env, flags);
-		if (ret)
-			return ret;
-
-		ret = vzctl_setup_disk(h, env->disk, flags);
-		if (ret)
-			return ret;
-
-		return vcmm_activate(h);
-	}
-
 	if (ns_is_env_run(h)) {
 		if (h->ctx->state == VZCTL_STATE_STARTING) {
 			ret = set_net_classid(h);
@@ -1245,7 +1239,6 @@ static int ns_env_apply_param(struct vzctl_env_handle *h,
 		ret = ns_apply_res_param(h, env, flags);
 		if (ret)
 			return ret;
-
 		ret = vzctl_setup_disk(h, env->disk, flags);
 		if (ret)
 			return ret;

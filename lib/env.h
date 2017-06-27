@@ -61,7 +61,6 @@
 enum {
 	VZCTL_CONF_PARAM        = 0x20000,
 	VZCTL_CONF_QUIET        = 0x40000,
-	VZCTL_CPT_POST_RESTORE	= 0x80000,
 };
 
 struct vzctl_opts {

@@ -1172,7 +1172,7 @@ static int announce_ips(struct vzctl_env_handle *h)
 int vzctl_env_restore(struct vzctl_env_handle *h,
 		struct vzctl_cpt_param *param, int flags)
 {
-	int ret;
+	int ret, rc;
 	struct vzctl_env_param *env = h->env_param;
 	struct start_param start_param = {
 		.h = h,
@@ -1224,10 +1224,11 @@ int vzctl_env_restore(struct vzctl_env_handle *h,
 	fix_param(env);
 
 	h->ctx->state = VZCTL_STATE_STARTING;
-	if ((ret = get_env_ops()->env_restore(h, &start_param, param, flags)))
+	ret = get_env_ops()->env_restore(h, &start_param, param, flags);
+	if (ret)
 		goto err;
 
-	logger(10, 0, "* env_restore %d ", ret);
+	logger(10, 0, "* post-restore");
 
 	if (!(flags & VZCTL_SKIP_SETUP)) {
 		ret = vzctl2_apply_param(h, env, flags);
@@ -1248,30 +1249,8 @@ int vzctl_env_restore(struct vzctl_env_handle *h,
 		}
 	}
 
-	ret = 0;
-	logger(10, 0, "* Continue resume");
-	if (write(h->ctx->wait_p[1], &ret, sizeof(ret)) == -1)
-		ret = vzctl_err(VZCTL_E_SYSTEM, errno, "Unable to write to"
-			" the wait fd when restore the Container");
-	if (ret)
-		goto err;
-
-
-	logger(10, 0, "* Wait for post-restore action script");
-	ret = read_p(h->ctx->status_p[0]);
-	if (ret) {
-		logger(-1, 0, "Error %d reported from post-restore action script", ret);
-		goto err;
-	}
-
-	if (!(flags & VZCTL_SKIP_SETUP)) {
-		logger(10, 0, "* Setting up parameters on container");
-		ret = vzctl2_apply_param(h, env, VZCTL_CPT_POST_RESTORE);
-		if (ret)
-			goto err;
-	}
-
 	logger(10, 0, "* Continue post-restore action script");
+	ret = 0;
 	if (write(h->ctx->wait_p[1], &ret, sizeof(ret)) == -1)
 		ret = vzctl_err(VZCTL_E_SYSTEM, errno, "Unable to write to the"
 				" wait fd when post-restore the Container");
@@ -1307,21 +1286,23 @@ err:
 			if (close(h->ctx->wait_p[1]))
 				logger(4, errno, "Failed to close wait pipe");
 			h->ctx->wait_p[1] = -1;
-			wait_env_state(h, VZCTL_ENV_STOPPED, 5);
 		}
+	}
 
-		if (is_env_run(h) == 1)
-			vzctl2_env_stop(h, M_KILL, flags);
+	if (start_param.pid > 0) {
+		if (env_wait(start_param.pid, 0, &rc))
+			ret = VZCTL_E_SYSTEM;
+		else if (rc)
+			ret = vzctl_err(VZCTL_E_RESTORE, 0,
+				"criu exited with rc=%d", rc);
+	}
 
+	if (ret) {
 		if (vzctl2_env_is_mounted(h))
 			vzctl2_env_umount(h, flags);
-
 		logger(-1, 0, "Failed to restore the Container");
 	} else
 		logger(0, 0, "Container was restored successfully");
-
-	if (start_param.pid > 0)
-		env_wait(start_param.pid, 0, NULL);
 
 err_pipe:
 	deinit_runtime_ctx(h->ctx);

@@ -92,13 +92,6 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 		[ -n "$VE_PID_MAX" ] && cgset -r ve.pid_max="$VE_PID_MAX" $VEID
 	fi
 	;;
-"network-unlock")
-	ret=0
-	[ -n "$STATUSFD" ] && printf '\0\0\0\0' >&${STATUSFD}
-	[ -n "$WAITFD" ] && ret=$(head -c 4 <&$WAITFD | hexdump -e '"%d"' -n 4)
-
-	[ "$ret" = "0" ] || { echo "Failed on network unlocking for $VEID"; exit 1; }
-	;;
 "post-restore")
 	if [ -z "$CRTOOLS_IMAGE_DIR" ]; then
 		echo "Missing parameter CRTOOLS_IMAGE_DIR"

@@ -421,7 +421,7 @@ int configure_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	char partname[PATH_MAX + 1];
 	struct exec_disk_param param = {
 		.h = h,
-		.fsuuid = (flags & VZCTL_CPT_POST_RESTORE) || disk->fsuuid[0] == '\0' ? NULL : disk->fsuuid,
+		.fsuuid = (flags & VZCTL_RESTORE) || disk->fsuuid[0] == '\0' ? NULL : disk->fsuuid,
 		.disk = disk,
 		.automount = automount,
 		.partname = partname,
