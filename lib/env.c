@@ -1738,7 +1738,7 @@ int get_cid_uuid_pair(const char *ctid, const char *uuid,
 	if (vzctl2_get_normalized_uuid(ctid, ctid_out, sizeof(ctid_t)) == 0) {
 		if (uuid != NULL) {
 			if (vzctl2_get_normalized_uuid(uuid, uuid_out, sizeof(ctid_t)))
-				return VZCTL_E_INVAL;
+				return vzctl_err(VZCTL_E_INVAL, 0, "Invalid uuid: %s", uuid);
 		} else
 			SET_CTID(uuid_out, ctid_out);
 
@@ -1750,12 +1750,13 @@ int get_cid_uuid_pair(const char *ctid, const char *uuid,
 	 * UUID: uuid
 	 */
 	if (parse_int(ctid, &n) || n < 0)
-		return VZCTL_E_INVAL;
+		return vzctl_err(VZCTL_E_INVAL, 0, "Invalid ctid %s", ctid);
 
 	snprintf(ctid_out, sizeof(ctid_t), "%d", n);
 	if (uuid != NULL) {
 		if (vzctl2_get_normalized_uuid(uuid, uuid_out, sizeof(ctid_t)))
-			return VZCTL_E_INVAL;
+			return vzctl_err(VZCTL_E_INVAL, 0, "Invalid uuid %s",
+					uuid);
 	} else
 		vzctl2_generate_ctid(uuid_out);
 
