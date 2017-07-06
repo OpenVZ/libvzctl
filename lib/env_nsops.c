@@ -1313,11 +1313,9 @@ static int ns_env_apply_param(struct vzctl_env_handle *h,
 			if (ret)
 				return ret;
 
-			if (!(flags & VZCTL_RESTORE)) {
-				ret = vcmm_activate(h);
-				if (ret)
-					return ret;
-			}
+			ret = vcmm_activate(h);
+			if (ret)
+				return ret;
 		}
 	}
 
