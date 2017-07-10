@@ -86,7 +86,6 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 	fi
 	;;
 "post-setup-namespaces")
-	restore_devices
 	if [ -n "$VEID" ]; then
 		[ -n "$VE_OS_RELEASE" ] && cgset -r ve.os_release="$VE_OS_RELEASE" $VEID
 		[ -n "$VE_PID_MAX" ] && cgset -r ve.pid_max="$VE_PID_MAX" $VEID
@@ -97,6 +96,9 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 		echo "Missing parameter CRTOOLS_IMAGE_DIR"
 		exit 1
 	fi
+
+	restore_devices
+
 	if [ -n "$VEID" ]; then
 		[ -f "$CRTOOLS_IMAGE_DIR/vz_core_pattern.img" ] && \
 			{ cgexec -g ve:$VEID echo `cat $CRTOOLS_IMAGE_DIR/vz_core_pattern.img` \
