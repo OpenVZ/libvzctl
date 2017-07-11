@@ -1064,7 +1064,7 @@ static int ns_env_kill(struct vzctl_env_handle *h)
 		}
 
 		logger(5, 0, "kill CT process pid %lu", pid);
-		if (kill(pid, SIGKILL))
+		if (kill(pid, SIGKILL) && errno != ESRCH)
 			vzctl_err(-1, errno, "Failed to kill CT pid=%lu", pid);
 	}
 
@@ -1110,6 +1110,10 @@ static int ns_env_stop_force(struct vzctl_env_handle *h)
 	sunrpc_suppressed = write_sunrpc_kill(h, 1);
 
 	logger(0, 0, "Forcibly stop the Container...");
+
+	ret = ns_env_kill(h);
+	if (ret)
+		goto release_sunrpc;
 
 	ret = cg_freezer_cmd(EID(h), VZCTL_CMD_FREEZE);
 	if (ret)
