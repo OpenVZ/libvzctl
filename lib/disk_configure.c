@@ -547,9 +547,7 @@ static int env_fin_configure_systemd_unit(struct vzctl_env_disk *env_disk)
 {
 	int err = -1;
 	DIR *dir;
-	char dirent_buf[sizeof(struct dirent) + PATH_MAX];
-	struct dirent *de = (struct dirent *) dirent_buf;
-	struct dirent *result;
+	struct dirent *de;
 	char *ext;
 	char path[PATH_MAX];
 	char unit_link[PATH_MAX];
@@ -563,13 +561,11 @@ static int env_fin_configure_systemd_unit(struct vzctl_env_disk *env_disk)
 	}
 
 	while (1) {
-		if (readdir_r(dir, de, &result) != 0) {
-			logger(-1, errno, "readdir_r(\"%s\") error", SYSTEMD_DIR);
-			break;
-		}
-
-		if (result == NULL) {
-			err = 0;
+		errno = 0;
+		if (!(de = readdir(dir))) {
+			if (errno) {
+				logger(-1, errno, "readdir(\"%s\") error", SYSTEMD_DIR);
+			}
 			break;
 		}
 
