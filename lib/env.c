@@ -722,14 +722,17 @@ static int setup_devtmpfs()
 		if (mknod(_g_devs[i].name, _g_devs[i].mode, dev) &&
 				errno != EEXIST)
 		{
-			ret = vzctl_err(-1, errno, "Failed to creaet %s",
+			ret = vzctl_err(-1, errno, "Failed to create %s",
 					_g_devs[i].name);
 			break;
 		}
 		if (_g_devs[i].group) {
 			struct group *g = getgrnam(_g_devs[i].group);
-			if (g)
-				chown(_g_devs[i].name, 0, g->gr_gid);
+			if (g) {
+				if (chown(_g_devs[i].name, 0, g->gr_gid))
+					vzctl_err(-1, errno, "Failed to chown(%s, 0, %d)",
+							_g_devs[i].name, g->gr_gid);
+			}
 		}
 	}
 	umask(m);
