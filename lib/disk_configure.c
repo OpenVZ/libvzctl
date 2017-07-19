@@ -545,7 +545,7 @@ static int is_existing_ploop(struct vzctl_env_disk *env_disk, const char *dentry
 
 static int env_fin_configure_systemd_unit(struct vzctl_env_disk *env_disk)
 {
-	int err = -1;
+	int err = 0;
 	DIR *dir;
 	struct dirent *de;
 	char *ext;
@@ -563,9 +563,8 @@ static int env_fin_configure_systemd_unit(struct vzctl_env_disk *env_disk)
 	while (1) {
 		errno = 0;
 		if (!(de = readdir(dir))) {
-			if (errno) {
-				logger(-1, errno, "readdir(\"%s\") error", SYSTEMD_DIR);
-			}
+			if (errno)
+				err = vzctl_err(-1, errno, "readdir(\"%s\") error", SYSTEMD_DIR);
 			break;
 		}
 
@@ -573,7 +572,7 @@ static int env_fin_configure_systemd_unit(struct vzctl_env_disk *env_disk)
 		snprintf(path, PATH_MAX, SYSTEMD_DIR "/%s", de->d_name);
 
 		if (lstat(path, &st)) {
-			logger(-1, errno, "stat(\"%s\") error", path);
+			err = vzctl_err(-1, errno, "stat(\"%s\") error", path);
 			break;
 		}
 
