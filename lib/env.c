@@ -255,9 +255,9 @@ int vzctl_env_stop(struct vzctl_env_handle *h, stop_mode_e stop_mode, int flags)
 		if (flags & VZCTL_FORCE)
 			goto force;
 
-                return vzctl_err(0, 0,
-                                "Container is not running");
-	}
+                return vzctl_err(0, 0, "Container is not running");
+	} else if (flags & VZCTL_FORCE)
+		return 0;
 
 	logger(0, 0, "Stopping the Container ...");
 	if (env_status.mask & (ENV_STATUS_CPT_SUSPENDED | ENV_STATUS_CPT_UNDUMPED)) {
