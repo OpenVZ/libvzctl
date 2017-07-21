@@ -772,6 +772,10 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 		ret = cg_attach_task(h->ctid, getpid(), CG_MEMORY);
 		if (ret)
 			goto err;
+		ret = cg_attach_task(h->ctid, getpid(), CG_UB);
+		if (ret)
+			goto err;
+
 	}
 
 #if 0
