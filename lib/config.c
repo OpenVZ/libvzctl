@@ -300,13 +300,14 @@ skip_read:
 	if (fp_in != NULL)
 		fclose(fp_in);
 	fsync(fileno(fp_out));
-	if (fclose(fp_out)) {
-		logger(-1, errno, "Unable to write %s", r_path);
-		goto err;
-	}
 	if (rename(tmp_path, r_path)) {
 		logger(-1, errno, "Failed to rename %s -> %s",
 				tmp_path, r_path);
+		fclose(fp_out);
+		goto err;
+	}
+	if (fclose(fp_out)) {
+		logger(-1, errno, "Unable to close %s", tmp_path);
 		goto err;
 	}
 	return 0;
