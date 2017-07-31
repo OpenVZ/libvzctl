@@ -160,7 +160,7 @@ vzcreatepair()
 
 		# precreate veth case
 		v=`${IP_CMD} link show type veth dev $HNAME 2>/dev/null | awk '/'"$HNAME"'@/{split($2, a, "[@:]"); print a[2]}'`
-		h=`${IP_CMD} link show type veth dev $v 2>/dev/null | awk '/'"$HNAME"'@/{split($2, a, "[@:]"); print a[2]}'`
+		h=`${IP_CMD} link show type veth dev $v 2>/dev/null | awk '/'"$v"'@/{split($2, a, "[@:]"); print a[2]}'`
 		if [ -n "$v" -a "$h" = "$HNAME" ]; then
 			${IP_CMD} link set $v netns $VEID || \
 				vzerror "Unable to move veth interface $v to Container ns" -1
