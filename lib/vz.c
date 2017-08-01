@@ -620,6 +620,15 @@ out:
 	return 0;
 }
 
+static int get_serverid(char *out, int len)
+{
+	get_global_param("SERVER_UUID", out, len);
+	if (out[0] != '\0')
+		return 0;
+
+	return get_hostname(out, len);
+}
+
 #define START_ID	101
 
 void vzctl2_unlock_envid(unsigned veid)
@@ -727,8 +736,8 @@ int vzctl2_get_free_env_id(unsigned *neweid)
 	return vzctl2_get_free_envid(neweid, NULL, NULL);
 }
 
-static int vzctl_check_owner_quiet(const char *ve_private, char *host,
-		size_t hsize, char *ve_host, size_t ve_hsize)
+static int vzctl_check_owner_quiet(const char *ve_private, char *serverid,
+		size_t size, char *ve_ownerid, size_t ve_size)
 {
 	char file[PATH_MAX];
 	char *p;
@@ -753,20 +762,25 @@ static int vzctl_check_owner_quiet(const char *ve_private, char *host,
 		return vzctl_err(VZCTL_E_SYSTEM, errno,
 			"Owner check failed, unable open file %s", file);
 	}
-	len = fread(ve_host, 1, ve_hsize - 1, fp);
+	len = TEMP_FAILURE_RETRY(fread(ve_ownerid, 1, ve_size - 1, fp));
 	fclose(fp);
 	if (len == -1) {
 		return vzctl_err(VZCTL_E_SYSTEM, errno,
 			"Unable to read owner from %s", file);
 	}
-	ve_host[len] = 0;
-	if ((p = strchr(ve_host, '\n')) != NULL)
+	ve_ownerid[len] = '\0';
+	if ((p = strchr(ve_ownerid, '\n')) != NULL)
 		*p = 0;
-	if (get_hostname(host, ve_hsize - 1))
-		return vzctl_err(VZCTL_E_ENV_MANAGE_DISABLED, errno,
-			"Owner check failed, unable to get hostname");
 
-	if (strcmp(host, ve_host))
+	if (vzctl2_get_normalized_uuid(ve_ownerid, file, sizeof(file))) {
+		if (get_hostname(serverid, size - 1))
+			return vzctl_err(VZCTL_E_ENV_MANAGE_DISABLED, errno,
+				"Owner check failed, unable to get hostname");
+	} else {
+		get_serverid(serverid, size);
+	}
+
+	if (strcmp(serverid, ve_ownerid))
 		return VZCTL_E_ENV_MANAGE_DISABLED;
 
 	return 0;
@@ -999,7 +1013,7 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 					" the file %s", buf);
 			goto err;
 		}
-		if (get_hostname(buf, sizeof(buf)) == 0)
+		if (get_serverid(buf, sizeof(buf)) == 0)
 			fprintf(fp, "%s", buf);
 		fclose(fp);
 	}
@@ -1131,6 +1145,9 @@ int vzctl2_env_unreg(struct vzctl_env_handle *h, int flags)
 
 	ret = vzctl_check_owner_quiet(ve_private, buf, sizeof(buf), host, sizeof(host));
 	if (ret == VZCTL_E_ENV_MANAGE_DISABLED) {
+		logger(0, 0, "Owner check failed on the server '%s':"
+				" Container (%s) is registered for '%s'",
+				buf, ve_private, host);
 		ret = unregister_env_conf(h);
 		if (ret)
 			return ret;
@@ -1214,7 +1231,7 @@ int vzctl2_check_owner(const char *ve_private)
 
 	ret = vzctl_check_owner_quiet(ve_private, host, sizeof(host), ve_host, sizeof(ve_host));
 	if (ret == VZCTL_E_ENV_MANAGE_DISABLED)
-		logger(-1, 0, "Owner check failed on the server '%s';"
+		logger(-1, 0, "Owner check failed on the server '%s':"
 				" Container (%s) is registered for '%s'",
 				host, ve_private, ve_host);
 	return ret;
