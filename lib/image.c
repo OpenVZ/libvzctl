@@ -184,8 +184,7 @@ int vzctl2_umount_disk_image(const char *path)
 	if (ret)
 		return ret;
 
-	if (is_shared_fs(path))
-		ploop_set_umount_timeout(di, 120);
+	ploop_set_umount_timeout(di, 130);
 
 	ret = ploop_umount_image(di);
 	ploop_close_dd(di);
