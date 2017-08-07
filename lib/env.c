@@ -1303,7 +1303,7 @@ err:
 		if (env_wait(start_param.pid, 0, &rc))
 			ret = VZCTL_E_SYSTEM;
 		else if (rc)
-			ret = vzctl_err(VZCTL_E_RESTORE, 0,
+			ret = vzctl_err(VZCTL_E_RESOURCE, 0,
 				"criu exited with rc=%d", rc);
 	}
 
