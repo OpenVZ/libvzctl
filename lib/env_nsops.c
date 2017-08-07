@@ -745,6 +745,10 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 	act.sa_flags = SA_NOCLDSTOP;
 	sigaction(SIGPIPE, &act, NULL);
 
+	ret = make_dir(VZCTL_VE_RUN_DIR, 1);
+	if (ret)
+		return ret;
+
 	ret = create_cgroup(h, flags);
 	if (ret)
 		return ret;
