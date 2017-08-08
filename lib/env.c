@@ -1760,7 +1760,7 @@ int get_cid_uuid_pair(const char *ctid, const char *uuid,
 	 * UUID: uuid
 	 */
 	if (parse_int(ctid, &n) || n < 0)
-		return vzctl_err(VZCTL_E_INVAL, 0, "Invalid ctid %s", ctid);
+		return VZCTL_E_INVAL;
 
 	snprintf(ctid_out, sizeof(ctid_t), "%d", n);
 	if (uuid != NULL) {
