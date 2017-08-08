@@ -297,7 +297,8 @@ skip_read:
 		}
 		conf->map.data[i].mask = CONF_DATA_NEW;
 	}
-
+	if (fp_in != NULL)
+		fclose(fp_in);
 	fsync(fileno(fp_out));
 	if (rename(tmp_path, r_path)) {
 		logger(-1, errno, "Failed to rename %s -> %s",
@@ -309,15 +310,8 @@ skip_read:
 		logger(-1, errno, "Unable to close %s", tmp_path);
 		goto err;
 	}
-
-	if (fp_in != NULL)
-		fclose(fp_in);
-
 	return 0;
 err:
-	if (fp_in != NULL)
-		fclose(fp_in);
-
 	unlink(tmp_path);
 	return VZCTL_E_CONF_SAVE;
 }
