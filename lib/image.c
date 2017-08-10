@@ -120,7 +120,7 @@ int vzctl2_mount_disk_image(const char *path, struct vzctl_mount_param *param)
 	struct ploop_disk_images_data *di;
 	char *guid = param->guid;
 
-	logger(0, 0, "Mount image: %s", path);
+	logger(0, 0, "Mount image: %s %s", path, param->ro ? "ro" : "");
 
 	if (param->target != NULL && !stat_file(param->target)) {
 		ret = make_dir(param->target, 1);

@@ -625,7 +625,6 @@ static int get_disk_mount_param(struct vzctl_env_handle *h, struct vzctl_disk *d
 {
 	int ret;
 
-	bzero(param, sizeof(struct vzctl_mount_param));
 	if (is_root_disk(d)) {
 		char *target = h->env_param->fs->ve_root;
 		if (target == NULL)
@@ -700,6 +699,9 @@ int mount_disk_image(struct vzctl_env_handle *h, struct vzctl_disk *d, int flags
 	int ret;
 	char buf[PATH_MAX];
 	struct vzctl_mount_param param = {};
+
+	if (!is_permanent_disk(d))
+		param.ro = 1;
 
 	ret = get_disk_mount_param(h, d, &param, flags, buf, sizeof(buf));
 	if (ret)
@@ -1084,14 +1086,13 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 
 static int enable_disk(struct vzctl_env_handle *h, struct vzctl_disk *d)
 {
-	struct vzctl_mount_param mount_param = {};
 	int ret;
 
 	if (!d->use_device) {
 		if (vzctl2_is_image_mounted(d->path))
 			return 0;
 
-		ret = vzctl2_mount_disk_image(d->path, &mount_param);
+		ret = mount_disk_image(h, d, 0);
 		if (ret)
 			return ret;
 	}
