@@ -364,7 +364,7 @@ int vztmpl_get_cache_tarball(const char *config, char **ostmpl,
 	}
 
 	if (tarball[0] == '\0') {
-		if (*applist != NULL && !use_ostmpl) {
+		if (applist && *applist != NULL && !use_ostmpl) {
 			logger(0, 0, "Cached package set '%s' with applications"
 					" from config %s is not found, run create "
 					"appcache utility...", *ostmpl, config_name);
