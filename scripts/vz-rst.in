@@ -30,7 +30,6 @@
 # Optional parameters:
 #   VE_VETH_DEVS  - pair of veth names (CT=HW\n)
 exec 1>&2
-set -e
 veth_args=""
 for dev in $VE_VETH_DEVS; do
 	veth_args="$veth_args --veth-pair $dev"
@@ -135,6 +134,7 @@ if [ $? -eq 0 ]; then
 		echo The log of successful restore was saved in ${VE_WORK_DIR}.restore/$VE_RESTORE_LOG_PATH
 	exit 0
 else
+	grep ' Error ' $VE_WORK_DIR/$VE_RESTORE_LOG_PATH >&2
 	echo The restore log was saved in $VE_WORK_DIR/$VE_RESTORE_LOG_PATH
 	exit 1
 fi

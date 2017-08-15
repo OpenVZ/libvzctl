@@ -133,6 +133,7 @@ criu dump -v$CRIU_LOGLEVEL -o dump.log				\
 
 if [ $? -ne 0 ]; then
         [ -d $VE_DUMP_DIR.fail ] && rm -rf $VE_DUMP_DIR.fail
+	grep ' Error ' $dumpdir/dump.log >&2
         mv -f $dumpdir $VE_DUMP_DIR.fail
         echo Failed to checkpoint the Container
         echo All dump files and logs were saved to $VE_DUMP_DIR.fail
