@@ -228,9 +228,7 @@ static int update_vztt_param(struct vzctl_env_handle *h)
 	const char *ostmpl = h->env_param->tmpl->ostmpl;
 
 	ret = vztmpl_get_technologies(ostmpl, &tech);
-	if (ret)
-		return ret;
-	if (tech)
+	if (ret == 0 && tech)
 		vzctl_conf_add_param(h->conf, "TECHNOLOGIES",
 				tech2str(tech, buf, sizeof(buf)));
 
