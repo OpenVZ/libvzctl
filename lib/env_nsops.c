@@ -272,6 +272,11 @@ static int ns_set_ub(struct vzctl_env_handle *h,
 	SET_UB_LIMIT(numfile)
 	SET_UB_LIMIT(numiptent)
 #undef SET_UB_LIMIT
+	if (ub->num_memory_subgroups != NULL) {
+		if (cg_env_set_memory(h->ctid, "cgroup.subgroups_limit",
+						 ub->num_memory_subgroups->l))
+			return VZCTL_E_SETUBC;
+	}
 
 	return 0;
 }

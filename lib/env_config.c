@@ -188,6 +188,7 @@ static struct vzctl_config_param config_param_map[] = {
 
 {"MEMGUARANTEE",VZCTL_PARAM_MEM_GUARANTEE},
 {"PAGECACHE_ISOLATION",VZCTL_PARAM_PAGECACHE_ISOLATION},
+{"NUMMEMORYSUBGROUPS", VZCTL_PARAM_NUMMEMORYSUBGROUPS},
 
 
 /* TODO */
@@ -371,6 +372,7 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 	case VZCTL_PARAM_NUMFILE:
 	case VZCTL_PARAM_NUMIPTENT:
 	case VZCTL_PARAM_AVNUMPROC:
+	case VZCTL_PARAM_NUMMEMORYSUBGROUPS:
 		ret = parse_ub(env->res->ub, str, param_id, 0, 0);
 		break;
 
@@ -1010,6 +1012,13 @@ static char *env_param2str(struct vzctl_env_handle *h,
 		}
 		break;
 	}
+	case VZCTL_PARAM_NUMMEMORYSUBGROUPS:
+		if (env->res->ub->num_memory_subgroups) {
+			snprintf(buf, sizeof(buf), "%lu",
+				env->res->ub->num_memory_subgroups->l);
+			return strdup(buf);
+		}
+		break;
 	case VZCTL_PARAM_VM_OVERCOMMIT:
 		if (env->res->ub->vm_overcommit != NULL) {
 			snprintf(buf, sizeof(buf), "%g",

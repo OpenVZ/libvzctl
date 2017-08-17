@@ -280,6 +280,7 @@ void free_ub_param(struct vzctl_ub_param *ub)
 	xfree(ub->avnumproc);
 	xfree(ub->swappages);
 	xfree(ub->vm_overcommit);
+	xfree(ub->num_memory_subgroups);
 	free(ub);
 }
 
@@ -328,6 +329,7 @@ if (resid == id) { \
 	ADD_UB_PARAM(numiptent, VZCTL_PARAM_NUMIPTENT)
 	ADD_UB_PARAM(avnumproc, VZCTL_PARAM_AVNUMPROC)
 	ADD_UB_PARAM(swappages, VZCTL_PARAM_SWAPPAGES)
+	ADD_UB_PARAM(num_memory_subgroups, VZCTL_PARAM_NUMMEMORYSUBGROUPS)
 	return VZCTL_E_INVAL;
 #undef ADD_UB_PARAM
 }
@@ -362,6 +364,7 @@ if ((src->x) != NULL) {						\
 	MERGE_P2(numiptent)
 	MERGE_P2(avnumproc)
 	MERGE_P2(swappages)
+	MERGE_P2(num_memory_subgroups)
 	if (src->vm_overcommit != NULL) {
 		if (dst->vm_overcommit == NULL)
 			dst->vm_overcommit = malloc(sizeof(float));

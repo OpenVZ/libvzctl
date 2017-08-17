@@ -46,6 +46,7 @@ struct vzctl_ub_param {
 	struct vzctl_2UL_res *numiptent;
 	struct vzctl_2UL_res *avnumproc;
 	struct vzctl_2UL_res *swappages;
+	struct vzctl_2UL_res *num_memory_subgroups;
 	float *vm_overcommit;
 	int pagecache_isolation;
 };
