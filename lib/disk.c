@@ -669,12 +669,6 @@ int mount_disk_device(struct vzctl_env_handle *h, struct vzctl_disk *d, int flag
 				"Unable to mount root image: %s is not block device",
 				d->path);
 
-	if (access(param.target, F_OK)) {
-		ret = make_dir(param.target, 1);
-		if (ret)
-			return ret;
-	}
-
 	ret = get_real_device(d->path, device, sizeof(device));
 	if (ret)
 		return ret;
@@ -687,10 +681,19 @@ int mount_disk_device(struct vzctl_env_handle *h, struct vzctl_disk *d, int flag
 	if (mknod(part, st.st_mode, st.st_rdev + 1) && errno != EEXIST)
 		return vzctl_err(VZCTL_E_SYSTEM, errno, "mknod %s", part);
 
-	logger(0, 0, "Mount root disk device %s %s", part, param.target);
-	if (mount(part, param.target, "ext4", 0, NULL))
-		return vzctl_err(VZCTL_E_SYSTEM, errno,
-				"Failed to mount device %s", part);
+	if (param.target != NULL) {
+		if (access(param.target, F_OK)) {
+			ret = make_dir(param.target, 1);
+			if (ret)
+				return ret;
+		}
+
+		logger(0, 0, "Mount root disk device %s %s", part, param.target);
+		if (mount(part, param.target, "ext4", 0, NULL))
+			return vzctl_err(VZCTL_E_SYSTEM, errno,
+					"Failed to mount device %s", part);
+	}
+
 	return 0;
 }
 
