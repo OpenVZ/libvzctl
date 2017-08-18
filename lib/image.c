@@ -184,7 +184,7 @@ int vzctl2_umount_disk_image(const char *path)
 	if (ret)
 		return ret;
 
-	ploop_set_umount_timeout(di, 130);
+	ploop_set_umount_timeout(di, 190);
 
 	ret = ploop_umount_image(di);
 	ploop_close_dd(di);
