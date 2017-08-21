@@ -798,11 +798,11 @@ int cg_env_set_net_classid(const char *ctid, unsigned int classid)
 
 static int cg_env_check_init_pid(const char *ctid, pid_t pid)
 {
-	int ret, n;
+	int ret;
 	FILE *fp;
 	char buf[4096];
 
-	snprintf(buf, sizeof(buf), "/proc/%d/cgroup", pid);
+	snprintf(buf, sizeof(buf), "/proc/%d/status", pid);
 	fp = fopen(buf, "r");
 	if (fp == NULL) {
 		if (errno == ENOENT)
@@ -813,7 +813,7 @@ static int cg_env_check_init_pid(const char *ctid, pid_t pid)
 
 	ret = 1;
 	while (fgets(buf, sizeof(buf), fp)) {
-		if (sscanf(buf, "%d:ve:/%s", &n, buf) != 2)
+		if (sscanf(buf, "envID:  %s", buf) != 1)
 			continue;
 
 		if (!strcmp(ctid, buf))
