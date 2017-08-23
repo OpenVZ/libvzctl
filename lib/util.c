@@ -2268,7 +2268,7 @@ char *get_fs_root(const char *dir)
 
 const char *get_jquota_format()
 {
-	return "vfsv0";
+	return "vfsv1";
 }
 
 static const char *get_quota_mount_opts(int mode, char *out, int size)
