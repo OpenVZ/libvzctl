@@ -243,14 +243,6 @@ static int check_new_disk(struct vzctl_env_disk *env_disk,
 	return 0;
 }
 
-static int get_user_quota_mode(const struct vzctl_dq_param *dq)
-{
-	/* by default the journaled quota is used */
-	return !is_2quota_enabled(dq) ? 0 :
-		(dq->journaled_quota == VZCTL_PARAM_OFF ?
-			 VZCTL_QUOTA_MODE : VZCTL_JQUOTA_MODE);
-}
-
 static int load_disk_info(struct vzctl_env_param *env)
 {
 	struct vzctl_disk *disk;

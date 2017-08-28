@@ -2266,16 +2266,29 @@ char *get_fs_root(const char *dir)
 	return strdup("/");
 }
 
-const char *get_jquota_format()
+const char *get_jquota_format(int mode)
 {
-	return "vfsv1";
+	return mode == VZCTL_JQUOTA_MODE ? "vfsv1" : "vfsold";
+}
+
+static int is_2quota_enabled(unsigned long *ugidlimit)
+{
+	return (ugidlimit != NULL && *ugidlimit != 0);
+}
+
+int get_user_quota_mode(const struct vzctl_dq_param *dq)
+{
+	/* by default the journaled quota is used */
+	return !is_2quota_enabled(dq->ugidlimit) ? 0 :
+		(dq->journaled_quota == VZCTL_PARAM_OFF ?
+		 VZCTL_QUOTA_MODE : VZCTL_JQUOTA_MODE);
 }
 
 static const char *get_quota_mount_opts(int mode, char *out, int size)
 {
 	if (mode == VZCTL_JQUOTA_MODE)
 		snprintf(out, size, "usrjquota=aquota.user,grpjquota=aquota.group,jqfmt=%s",
-			get_jquota_format());
+			get_jquota_format(mode));
 	else if (mode == VZCTL_QUOTA_MODE)
 		snprintf(out, size, "usrquota,grpquota");
 	else
@@ -2497,11 +2510,6 @@ int vzctl_pclose(FILE *fp)
 	fclose(fp);
 
 	return status;
-}
-
-int is_2quota_enabled(const struct vzctl_dq_param *dq)
-{
-	return (dq->ugidlimit != NULL && *dq->ugidlimit != 0);
 }
 
 char *get_script_path(const char *name, char *buf, int size)

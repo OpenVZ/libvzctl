@@ -48,6 +48,7 @@ struct quota_param {
 	int ve_layout;
 	dev_t dev;
 	int turnon;
+	int mode;
 };
 
 static char *envp_s[] =
@@ -290,7 +291,8 @@ static int setup_env_quota(struct quota_param *param)
 		return mk_vzquota_link(st.st_dev);
 	} else if (param->turnon) {
 		if (stat_file(QUOTA_U) == 0 || stat_file(QUOTA_G) == 0) {
-			char *quotacheck[] = {"quotacheck", "-anugmM", "-F", (char *)get_jquota_format(), NULL};
+			char *quotacheck[] = {"quotacheck", "-anugmM", "-F",
+				(char *)get_jquota_format(param->mode), NULL};
 
 			logger(0, 0, "Running quotacheck ...");
 			ret = vzctl2_exec_script(quotacheck, NULL, 0);
@@ -357,7 +359,9 @@ int apply_quota_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, i
 
 	ugidlimit = *env->dq->ugidlimit;
 	if (ugidlimit != 0) {
-		qparam.turnon =  1;
+		qparam.turnon = 1;
+		qparam.mode = get_user_quota_mode(h->env_param->dq);
+
 		if (vzctl_env_exec_fn(h, (execFn) setup_env_quota,
 				(void *)&qparam, 0))
 		{
