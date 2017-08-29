@@ -1550,13 +1550,15 @@ static int get_disk_iostat(const char *device, struct vzctl_iostat *stat)
 	return 0;
 }
 
-int vzctl2_get_disk_stats(const char *path, struct vzctl_disk_stats *stats)
+int vzctl2_get_disk_stats(const char *path, struct vzctl_disk_stats *stats,
+		int size)
 {
 	int ret;
 	char buf[PATH_MAX];
 	char devname[STR_SIZE];
 	char partname[STR_SIZE];
 	struct ploop_info info;
+	struct vzctl_disk_stats st = {};
 
 	ret = get_ploop_dev(path, devname, sizeof(devname),
 			partname, sizeof(partname));
@@ -1581,29 +1583,20 @@ int vzctl2_get_disk_stats(const char *path, struct vzctl_disk_stats *stats)
 	snprintf(buf, sizeof(buf), "%s/" DISKDESCRIPTOR_XML, path);
 	ret = ploop_get_info_by_descr(buf, &info);
 	if (ret == 0) {
-		stats->total = info.fs_bsize * info.fs_blocks / 1024;
-		stats->free = info.fs_bsize * info.fs_bfree / 1024;
-		stats->inodes = info.fs_inodes;
-		stats->ifree = info.fs_ifree;
+		st.total = info.fs_bsize * info.fs_blocks / 1024;
+		st.free = info.fs_bsize * info.fs_bfree / 1024;
+		st.inodes = info.fs_inodes;
+		st.ifree = info.fs_ifree;
+
+		memcpy(stats, &st, size < sizeof(st) ? size : sizeof(st));
 	}
 
-	return 0;
-}
-
-static int get_ploop_disk_stats(const struct vzctl_disk *disk,
-		struct vzctl_disk_stats *stats)
-{
-	if (disk->use_device)
-		return VZCTL_E_INVAL;
-
-	return vzctl2_get_disk_stats(disk->path, stats);
+	return ret;
 }
 
 int vzctl2_env_get_disk_stats(struct vzctl_env_handle *h, const char *uuid,
 	struct vzctl_disk_stats *stats, int size)
 {
-	int ret = 0;
-	struct vzctl_disk_stats st = {};
 	struct vzctl_disk *d;
 
 	if (h->env_param->fs->layout != VZCTL_LAYOUT_5)
@@ -1613,11 +1606,11 @@ int vzctl2_env_get_disk_stats(struct vzctl_env_handle *h, const char *uuid,
 	if (d == NULL)
 		return vzctl_err(VZCTL_E_INVAL, 0, "Unable to get disk "
 			"statistics: disk %s is not found", uuid);
-	ret = get_ploop_disk_stats(d, &st);
-	if (ret == 0)
-		memcpy(stats, &st, size < sizeof(st) ? size : sizeof(st));
 
-	return ret;
+	if (d->use_device)
+		return VZCTL_E_INVAL;
+
+	return vzctl2_get_disk_stats(d->path, stats, size);
 }
 
 int vzctl2_env_encrypt_disk(struct vzctl_env_handle *h, const char *uuid,

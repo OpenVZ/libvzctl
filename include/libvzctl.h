@@ -1018,7 +1018,8 @@ int vzctl2_env_attach_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *
 int vzctl2_env_del_disk(struct vzctl_env_handle *h, const char *uuid, int flags);
 int vzctl2_env_detach_disk(struct vzctl_env_handle *h, const char *guid);
 int vzctl2_env_set_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param);
-int vzctl2_get_disk_stats(const char *path, struct vzctl_disk_stats *stats);
+int vzctl2_get_disk_stats(const char *path, struct vzctl_disk_stats *stats,
+		int size);
 int vzctl2_env_get_disk_stats(struct vzctl_env_handle *h, const char *uuid,
 	struct vzctl_disk_stats *stats, int size);
 
