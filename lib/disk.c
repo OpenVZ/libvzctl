@@ -1550,8 +1550,7 @@ static int get_disk_iostat(const char *device, struct vzctl_iostat *stat)
 	return 0;
 }
 
-static int get_ploop_disk_stats(const struct vzctl_disk *disk,
-		struct vzctl_disk_stats *stats)
+int vzctl2_get_disk_stats(const char *path struct vzctl_disk_stats *stats)
 {
 	int ret;
 	char buf[PATH_MAX];
@@ -1559,10 +1558,7 @@ static int get_ploop_disk_stats(const struct vzctl_disk *disk,
 	char partname[STR_SIZE];
 	struct ploop_info info;
 
-	if (disk->use_device)
-		return VZCTL_E_INVAL;
-
-	ret = get_ploop_dev(disk->path, devname, sizeof(devname),
+	ret = get_ploop_dev(path, devname, sizeof(devname),
 			partname, sizeof(partname));
 	if (ret == 0) {
 		ret = get_disk_iostat(devname, &stats->io);
@@ -1591,7 +1587,16 @@ static int get_ploop_disk_stats(const struct vzctl_disk *disk,
 		stats->ifree = info.fs_ifree;
 	}
 
-	return (ret == 0 || ret == 1) ? 0 : VZCTL_E_SYSTEM;
+	return 0;
+}
+
+static int get_ploop_disk_stats(const struct vzctl_disk *disk,
+		struct vzctl_disk_stats *stats)
+{
+	if (disk->use_device)
+		return VZCTL_E_INVAL;
+
+	return vzctl2_get_disk_stats(disk->path);
 }
 
 int vzctl2_env_get_disk_stats(struct vzctl_env_handle *h, const char *uuid,
