@@ -1550,7 +1550,7 @@ static int get_disk_iostat(const char *device, struct vzctl_iostat *stat)
 	return 0;
 }
 
-int vzctl2_get_disk_stats(const char *path struct vzctl_disk_stats *stats)
+int vzctl2_get_disk_stats(const char *path, struct vzctl_disk_stats *stats)
 {
 	int ret;
 	char buf[PATH_MAX];
@@ -1572,13 +1572,13 @@ int vzctl2_get_disk_stats(const char *path struct vzctl_disk_stats *stats)
 		}
 	} else if (ret == 1) {
 		/* Precache data is not ready, avoid mount ploop */
-		snprintf(buf, sizeof(buf), "%s/.statfs", disk->path);
+		snprintf(buf, sizeof(buf), "%s/.statfs", path);
 		if (access(buf, F_OK))
 			return VZCTL_E_INVAL;
 	} else
 		return VZCTL_E_SYSTEM;
 
-	get_dd_path(disk, buf, sizeof(buf));
+	snprintf(buf, sizeof(buf), "%s/" DISKDESCRIPTOR_XML, path);
 	ret = ploop_get_info_by_descr(buf, &info);
 	if (ret == 0) {
 		stats->total = info.fs_bsize * info.fs_blocks / 1024;
@@ -1596,7 +1596,7 @@ static int get_ploop_disk_stats(const struct vzctl_disk *disk,
 	if (disk->use_device)
 		return VZCTL_E_INVAL;
 
-	return vzctl2_get_disk_stats(disk->path);
+	return vzctl2_get_disk_stats(disk->path, stats);
 }
 
 int vzctl2_env_get_disk_stats(struct vzctl_env_handle *h, const char *uuid,
