@@ -1563,13 +1563,13 @@ int vzctl2_get_disk_stats(const char *path, struct vzctl_disk_stats *stats,
 	ret = get_ploop_dev(path, devname, sizeof(devname),
 			partname, sizeof(partname));
 	if (ret == 0) {
-		ret = get_disk_iostat(devname, &stats->io);
+		ret = get_disk_iostat(devname, &st.io);
 		if (ret)
 			return ret;
 
 		ret = ploop_get_mnt_by_dev(devname, buf, sizeof(buf));
 		if (ret == 0) {
-			snprintf(stats->device, sizeof(stats->device), "%s",
+			snprintf(st.device, sizeof(st.device), "%s",
 					partname);
 		}
 	} else if (ret == 1) {
