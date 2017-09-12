@@ -2345,9 +2345,9 @@ int get_mount_opts(const char *opts, int user_quota, char *out, int size)
 {
 	int rc;
 	char jq[64];
-
-	rc = snprintf(out, size, "%s,%s",
-		opts != NULL ? opts : "lazytime",
+	rc = snprintf(out, size, "%s%s%s",
+		opts != NULL ? opts : "",
+		opts != NULL ? "," : "",
 		user_quota ? get_quota_mount_opts(user_quota, jq, sizeof(jq)) : "");
 	if (rc >= size)
 		return VZCTL_E_INVAL;
