@@ -47,21 +47,19 @@
 
 struct exec_disk_param {
 	struct vzctl_env_handle *h;
-	const char *fsuuid;
 	struct vzctl_disk *disk;
 	int automount;
 	char *partname;
 	dev_t partdev;
 };
 
-int get_fs_uuid(const char *device, char *uuid)
+int get_fs_uuid(const char *device, struct vzctl_disk *disk)
 {
 	struct stat st;
 	FILE *fp;
 	int n = 0;
 	char *argv[] = {
-		"/sbin/dumpe2fs",
-		"-h",
+		"/usr/sbin/blkid",
 		(char *)device,
 		NULL,
 	};
@@ -75,17 +73,16 @@ int get_fs_uuid(const char *device, char *uuid)
 		return vzctl_err(-1, errno, "Unable to start %s", argv[0]);
 
 	while (fgets(buf, sizeof(buf), fp)) {
-		n = sscanf(buf, "Filesystem UUID: %38s", uuid);
-		if (n == 1)
-			break;
+		n = sscanf(buf, "%*[^:]: UUID=\"%36[^\"]\" TYPE=\"%4[^\"]\"",
+				disk->fsuuid, disk->fstype);
+		if (n == 2) {
+			fclose(fp);
+			return 0;
+		}
 	}
 	fclose(fp);
 
-	if (n != 1)
-		return vzctl_err(-1, 0, "Unable to get file system uuid dev=%s",
-				device);
-
-	return 0;
+	return vzctl_err(-1, 0, "Unable to get file system uuid dev=%s", device);
 }
 
 static int write_fstab_entry(FILE *fp, const char *uuid, const char *mnt, const char *opts)
@@ -388,25 +385,29 @@ static int env_configure_disk(struct exec_disk_param *param)
 			return -1;
 	}
 
-	if (disk->mnt != NULL && param->fsuuid != NULL) {
+	if (disk->mnt != NULL) {
 		if (access(disk->mnt, F_OK))
 			make_dir(disk->mnt, 1);
+
+		if (disk->dmname)
+			goto skip_configure;
 
 		if (is_systemd()) {
 			// skip unit configure for runing CT #PSBM-33596
 			if (param->h->ctx->state == VZCTL_STATE_STARTING &&
-			   	 env_configure_systemd_unit(param->fsuuid,
+			   	 env_configure_systemd_unit(disk->fsuuid,
 						disk->mnt, disk->mnt_opts))
 				return -1;
 		} else {
-			if (env_configure_fstab(param->fsuuid, disk->mnt,
+			if (env_configure_fstab(disk->fsuuid, disk->mnt,
 						disk->mnt_opts))
 				return -1;
 		}
 
-		if (param->automount || disk->dmname) {
+skip_configure:
+		if (param->automount) {
 			const char *partname = get_fs_partname(disk);
-			if (mount(partname, disk->mnt, "ext4", 0, NULL))
+			if (mount(partname, disk->mnt, disk->fstype, 0, NULL))
 				return vzctl_err(-1, errno, "Failed to mount %s %s",
 					partname, disk->mnt);
 		}
@@ -421,9 +422,8 @@ int configure_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	char partname[PATH_MAX + 1];
 	struct exec_disk_param param = {
 		.h = h,
-		.fsuuid = (flags & VZCTL_RESTORE) || disk->fsuuid[0] == '\0' ? NULL : disk->fsuuid,
 		.disk = disk,
-		.automount = automount,
+		.automount = (flags & VZCTL_RESTORE) ? 0 : automount,
 		.partname = partname,
 		.partdev = get_fs_partdev(disk),
 	};

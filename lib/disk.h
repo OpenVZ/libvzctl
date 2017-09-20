@@ -32,6 +32,9 @@
 typedef int (*disk_mount)(struct vzctl_env_handle *h, struct vzctl_disk *d, int flags);
 typedef int (*disk_umount)(struct vzctl_disk *d);
 
+typedef char fsuuid_t[37];
+typedef char fstype_t[5];
+
 struct vzctl_disk {
 	list_elem_t list;
 	char uuid[39];
@@ -43,7 +46,8 @@ struct vzctl_disk {
 	int mnt_flags;
 	int user_quota;
 	int autocompact;
-	char fsuuid[39];
+	fsuuid_t fsuuid;
+	fstype_t fstype;
 	char *storage_url;
 	int use_device;
 	char *devname;
@@ -88,7 +92,7 @@ int vzctl2_set_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param);
 int vzctl2_resize_disk(struct vzctl_env_handle *h, const char *guid,
 		unsigned long size, int offline);
 int vzctl_setup_disk(struct vzctl_env_handle *h, struct vzctl_env_disk *env_disk, int flags);
-int get_fs_uuid(const char *device, char *uuid);
+int get_fs_uuid(const char *device, struct vzctl_disk *disk);
 int env_fin_configure_disk(struct vzctl_env_disk *disk);
 int fin_configure_disk(struct vzctl_env_handle *h, struct vzctl_env_disk *disk);
 void get_partition_dev_name(dev_t dev, char *out, int len);
