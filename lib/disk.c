@@ -717,8 +717,26 @@ int update_disk_info(struct vzctl_disk *disk)
 	struct stat st;
 
 	if (disk->use_device) {
-		if (get_real_device(disk->path, devname, sizeof(devname)) ||
-				get_part_device(devname, partname, sizeof(partname)))
+		if (get_real_device(disk->path, devname, sizeof(devname)))
+			return VZCTL_E_SYSTEM;
+
+		if (stat(devname, &st))
+			return vzctl_err(VZCTL_E_SYSTEM, errno, "stat %s", devname);
+		if (gnu_dev_major(st.st_rdev) == 253) {
+			disk->dev = st.st_rdev;
+			disk->dm_dev = st.st_rdev;
+			disk->part_dev = st.st_rdev;
+			free(disk->devname);
+			disk->devname = strdup(devname);
+			free(disk->partname);
+			disk->partname = strdup(devname);
+			free(disk->dmname);
+			disk->dmname = strdup(devname);
+			
+			return 0;
+		}
+
+		if (get_part_device(devname, partname, sizeof(partname)))
 			return VZCTL_E_FS_NOT_MOUNTED;
 	} else {
 		char x[STR_SIZE];
@@ -1051,7 +1069,7 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	}
 
 	if (!skip_configure && !root) {
-		ret = get_fs_uuid(get_fs_partname(disk), disk->fsuuid);
+		ret = get_fs_uuid(get_fs_partname(disk), disk);
 		if (ret)
 			return ret;
 	}
@@ -1470,7 +1488,9 @@ int vzctl_setup_disk(struct vzctl_env_handle *h, struct vzctl_env_disk *env_disk
 		if (disk->enabled == VZCTL_PARAM_OFF)
 			continue;
 
-		ret = do_setup_disk(h, disk, flags, 0);
+		int automount = disk->dmname ? 1 : 0;
+
+		ret = do_setup_disk(h, disk, flags, automount);
 		if (ret && is_permanent_disk(disk))
 			return ret;
 
