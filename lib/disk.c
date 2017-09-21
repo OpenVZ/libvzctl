@@ -1488,7 +1488,7 @@ int vzctl_setup_disk(struct vzctl_env_handle *h, struct vzctl_env_disk *env_disk
 		if (disk->enabled == VZCTL_PARAM_OFF)
 			continue;
 
-		int automount = disk->dmname ? 1 : 0;
+		int automount = (disk->dmname && !is_root_disk(disk)) ? 1 : 0;
 
 		ret = do_setup_disk(h, disk, flags, automount);
 		if (ret && is_permanent_disk(disk))
