@@ -669,6 +669,7 @@ int create_root_dev(void *data)
 	logger(10, 0, "Root device: %s", device);
 	if (stat(root, &st))
 		return vzctl_err(-1, errno, "Failed to stat /");
+	make_dir(device, 0);
 	unlink(device);
 	if (mknod(device, S_IFBLK | S_IRUSR | S_IWUSR, st.st_dev))
 		return vzctl_err(-1, errno, "Failed to mknod %s", device);
