@@ -385,7 +385,7 @@ static int env_configure_disk(struct exec_disk_param *param)
 			return -1;
 	}
 
-	if (disk->mnt != NULL) {
+	if (disk->mnt != NULL && !is_root_disk(disk)) {
 		if (access(disk->mnt, F_OK))
 			make_dir(disk->mnt, 1);
 
