@@ -316,6 +316,7 @@ enum {
 	VZCTL_DISK_DETACH       = 0x1,
 	VZCTL_DISK_SKIP_CREATE  = 0x2,
 	VZCTL_DISK_SKIP_CONFIGURE = 0x4,
+	VZCTL_DISK_RECREATE	= 0x8,
 };
 
 struct vzctl_state_evt {

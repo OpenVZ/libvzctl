@@ -1177,14 +1177,32 @@ int vzctl2_add_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param,
 
 			goto err;
 		}
-		logger(0, 0, "The ploop image %s already exists",
-				d->path);
+		logger(0, 0, "The ploop image %s already exists: %s",
+				d->path, flags & VZCTL_DISK_RECREATE ?
+					"recreate" : "register");
 		if (open_dd(d->path, &di))
 			goto err;
+
 		if (ploop_read_dd(di)) {
 			ploop_close_dd(di);
 			goto err;
 		}
+
+		if (flags & VZCTL_DISK_RECREATE) {
+			struct ploop_create_param p = {	};
+
+			if (param->enc_keyid)
+				p.keyid = param->enc_keyid;
+			else if (di->enc)
+				 p.keyid = di->enc->keyid;
+
+			if (ploop_init_image(di, &p)) {
+				vzctl_err(-1, 0, "Failed to recreate image: %s",
+						ploop_get_last_error());
+				goto err;
+			}
+		}
+
 		d->size = (unsigned long)di->size >> 1; /* sectors -> 1K */
 		ploop_close_dd(di);
 	} else {
