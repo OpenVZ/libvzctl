@@ -678,10 +678,10 @@ static int wait_on_pipe(const char *msg, int status_p)
 	ret = TEMP_FAILURE_RETRY(read(status_p, &errcode, sizeof(errcode)));
 	logger(10, 0, "* Done wait status %s ret=%d errcode=%d", msg, ret, errcode);
 	if (ret == -1)
-		return vzctl_err(VZCTL_E_SYSTEM, errno, "Failed tp %s the Container,"
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "Failed to %s the Container,"
 				" read from status pipe is failed", msg);
 	if (ret == 0)
-		return vzctl_err(VZCTL_E_SYSTEM, 0, "Failed tp %s the Container,"
+		return vzctl_err(VZCTL_E_SYSTEM, 0, "Failed to %s the Container,"
 				" status pipe unexpectedly closed", msg);
 	return errcode;
 }
