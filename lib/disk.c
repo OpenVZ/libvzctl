@@ -20,6 +20,7 @@
  * Schaffhausen, Switzerland.
  */
 
+#define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -35,6 +36,7 @@
 #include <sys/mount.h>
 #include <libgen.h>
 #include <dirent.h>
+#include <string.h>
 
 #include "vzerror.h"
 #include "image.h"
@@ -1194,7 +1196,7 @@ int vzctl2_add_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param,
 			if (param->enc_keyid)
 				p.keyid = param->enc_keyid;
 			else if (di->enc)
-				 p.keyid = di->enc->keyid;
+				 p.keyid = strdupa(di->enc->keyid);
 
 			if (ploop_init_image(di, &p)) {
 				vzctl_err(-1, 0, "Failed to recreate image: %s",
