@@ -368,7 +368,8 @@ int vzctl2_get_ploop_dev(const char *path, char *dev, int len)
 	return ret;
 }
 
-int get_ploop_dev(const char *path, char *dev, int dlen, char *part, int plen)
+int vzctl2_get_ploop_dev2(const char *path, char *dev, int dlen, char *part,
+		int plen)
 {
 	struct ploop_disk_images_data *di;
 	int ret;

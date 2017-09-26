@@ -1026,6 +1026,8 @@ int vzctl2_env_get_disk_stats(struct vzctl_env_handle *h, const char *uuid,
 
 int vzctl2_get_ploop_dev(const char *path, char *dev, int len);
 int vzctl2_get_ploop_dev_by_mnt(const char *mnt, char *out, int len);
+int vzctl2_get_ploop_dev2(const char *path, char *dev, int dlen, char *part,
+		int plen);
 int vzctl2_get_top_image_fname(char *ve_private, char *out, int len);
 int vzctl2_is_image_mounted(const char *path);
 int vzctl2_get_mount_opts(const char *mnt_opts, int user_quota, char *out, int size);

@@ -743,7 +743,7 @@ int update_disk_info(struct vzctl_disk *disk)
 	} else {
 		char x[STR_SIZE];
 
-		ret = get_ploop_dev(disk->path, devname, sizeof(devname),
+		ret = vzctl2_get_ploop_dev2(disk->path, devname, sizeof(devname),
 					partname, sizeof(partname));
 		if (ret == -1)
 			return VZCTL_E_DISK_CONFIGURE;
@@ -1603,7 +1603,7 @@ int vzctl2_get_disk_stats(const char *path, struct vzctl_disk_stats *stats,
 	struct ploop_info info;
 	struct vzctl_disk_stats st = {};
 
-	ret = get_ploop_dev(path, devname, sizeof(devname),
+	ret = vzctl2_get_ploop_dev2(path, devname, sizeof(devname),
 			partname, sizeof(partname));
 	if (ret == 0) {
 		ret = get_disk_iostat(devname, &st.io);
