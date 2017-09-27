@@ -1537,6 +1537,9 @@ int check_external_disk(const char *basedir, struct vzctl_env_disk *env_disk)
 		return 0;
 
 	list_for_each(d, &env_disk->disks, list) {
+		if (d->use_device)
+			continue;
+
 		if (realpath(d->path, path) == NULL) {
 			vzctl2_log(VZCTL_E_SYSTEM, errno,
 				"Failed to get realpath for disk %s", d->path);
