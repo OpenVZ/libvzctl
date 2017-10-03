@@ -499,8 +499,11 @@ static int numa_node_to_cpu(int nid, unsigned long *cpumask, int size)
 
 	sprintf(path, "/sys/devices/system/node/node%d", nid);
 	d = opendir(path);
-	if (!d)
-		return vzctl_err(-1, errno, "NUMA: Failed to open %s", path);
+	if (!d) {
+		if (errno != ENOENT)
+			return vzctl_err(-1, errno, "NUMA: Failed to open %s", path);
+		return -1;
+	}
 
 	while ((de = readdir(d)) != NULL) {
 		int cpu;
