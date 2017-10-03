@@ -248,9 +248,12 @@ int vzctl2_env_cpustat(struct vzctl_env_handle *h, struct vzctl_cpustat *vzctl_c
 
 	cpustatctl.veid = h->veid;
 	cpustatctl.cpustat = &cpustat;
-	if ((ret = ioctl(get_vzctlfd(), VZCTL_GET_CPU_STAT, &cpustatctl)))
+	if ((ret = ioctl(get_vzctlfd(), VZCTL_GET_CPU_STAT, &cpustatctl))) {
+		if (errno == ESRCH)
+			return VZCTL_E_ENV_NOT_RUN;
 		return vzctl_err(VZCTL_E_CPUSTAT, errno,
 				"Unable to get cpu stat");
+	}
 	tmp.loadavg[0] = (float) cpustat.avenrun[0].val_int +
 					(0.01 * cpustat.avenrun[0].val_frac);
 	tmp.loadavg[1] = (float) cpustat.avenrun[1].val_int +
