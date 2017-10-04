@@ -229,8 +229,10 @@ static int read_resolv_conf(struct resolv_conf_data *r)
 
 	fclose(fp);
 
-	asprintf(&r->nameserver, "NAMESERVER=%s", nsrv);
-	asprintf(&r->searchdomain, "SEARCHDOMAIN=%s", srch);
+	if (asprintf(&r->nameserver, "NAMESERVER=%s", nsrv) == -1)
+		logger(-1, errno, "asprintf()");
+	if (asprintf(&r->searchdomain, "SEARCHDOMAIN=%s", srch) == -1)
+		logger(-1, errno, "asprintf()");
 	free(srch);
 
 	return 0;
