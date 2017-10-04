@@ -21,6 +21,7 @@
  *
  */
 
+#define _GNU_SOURCE 
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
@@ -150,7 +151,93 @@ int env_hostnm_configure(struct vzctl_env_handle *h, struct vzctl_env_param *env
 	return ret;
 }
 
-int env_dns_configure(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags)
+struct resolv_conf_data {
+	int set;
+	char *nameserver;
+	char *searchdomain;
+};
+
+/* Read nameserver and search/domain lines from HW's /etc/resolv.conf
+ *
+ * We have to process resolv.conf the same way as system does,
+ * so this function is partly based on GLIBC implementation
+ * (resolv/res_init.c:__res_vinit()) which in turn
+ * is taken from BIND 8.
+ */
+static int read_resolv_conf(struct resolv_conf_data *r)
+{
+	const char *file = "/etc/resolv.conf";
+	FILE *fp;
+	char buf[STR_SIZE];
+	char nsrv[STR_SIZE] = "";
+	char *srch = NULL;
+
+	if (r->set)
+		return 0;
+
+	r->set = 1;
+
+#define MATCH(line, name) \
+	(!strncmp(line, name, sizeof(name) - 1) && \
+	 (line[sizeof(name) - 1] == ' ' || \
+	  line[sizeof(name) - 1] == '\t'))
+
+	fp = fopen(file, "r");
+	if (!fp) {
+		logger(-1, errno, "Can't open %s", file);
+		return -1;
+	}
+	while (fgets(buf, sizeof(buf), fp) != NULL) {
+		char *cp, *ep;
+
+		/* skip comments */
+		if (*buf == ';' || *buf == '#')
+			continue;
+		/* read default domain name */
+		if (MATCH(buf, "domain") || MATCH(buf, "search")) {
+			cp = buf + 6;
+			while (*cp == ' ' || *cp == '\t')
+				cp++;
+			if ((*cp == '\0') || (*cp == '\n'))
+				continue;
+			if ((ep = strchr(cp, '\n')) != NULL)
+				*ep = '\0';
+			/* As per resolv.conf(5), if there's more than
+			 * one line, only the last line is used
+			 */
+			if (srch)
+				free(srch);
+			srch = strdup(cp);
+			continue;
+		}
+		if (MATCH(buf, "nameserver")) {
+			cp = buf + 10;
+			while (*cp == ' ' || *cp == '\t')
+				cp++;
+			if ((*cp == '\0') || (*cp == '\n'))
+				continue;
+			if ((ep = strchr(cp, '\n')) != NULL)
+				*ep = '\0';
+			/* nameserver entries are accumulated */
+			if (nsrv[0])
+				*--cp=' ';
+			strncat(nsrv, cp, sizeof(nsrv) - strlen(nsrv) - 1);
+			continue;
+		}
+	}
+#undef MATCH
+
+	fclose(fp);
+
+	asprintf(&r->nameserver, "NAMESERVER=%s", nsrv);
+	asprintf(&r->searchdomain, "SEARCHDOMAIN=%s", srch);
+	free(srch);
+
+	return 0;
+}
+
+int env_dns_configure(struct vzctl_env_handle *h, struct vzctl_env_param *env,
+		int flags)
 {
 	list_head_t *phead;
 	char *envp[MAX_ARGS];
@@ -158,6 +245,7 @@ int env_dns_configure(struct vzctl_env_handle *h, struct vzctl_env_param *env, i
 	char *str;
 	const char *script;
 	int ret, i = 0;
+	struct resolv_conf_data r = {};
 
 	if (flags & VZCTL_SKIP_CONFIGURE)
 		return 0;
@@ -184,13 +272,29 @@ int env_dns_configure(struct vzctl_env_handle *h, struct vzctl_env_param *env, i
 
 	phead = &env->misc->searchdomain;
 	if (!list_empty(phead)) {
-		str = list2str("SEARCHDOMAIN=", phead);
+		str = list_first_entry(phead, struct vzctl_str_param, list)->str;
+		if (strcmp(str, "inherit") == 0) {
+			read_resolv_conf(&r);
+			str = r.searchdomain;
+			r.searchdomain = NULL;
+		}
+		else
+			str = list2str("SEARCHDOMAIN=", phead);
+
 		if (str != NULL)
 			envp[i++] = str;
 	}
 	phead = &env->misc->nameserver;
 	if (!list_empty(phead)) {
-		str = list2str("NAMESERVER=", phead);
+		str = list_first_entry(phead, struct vzctl_str_param, list)->str;
+		if (strcmp(str, "inherit") == 0) {
+			read_resolv_conf(&r);
+			str = r.nameserver;
+			r.nameserver = NULL;
+		}
+		else
+			str = list2str("NAMESERVER=", phead);
+
 		if (str != NULL)
 			envp[i++] = str;
 	}
@@ -200,6 +304,8 @@ int env_dns_configure(struct vzctl_env_handle *h, struct vzctl_env_param *env, i
 
 	logger(0, 0, "File resolv.conf was modified");
 	free_ar_str(envp);
+	free(r.nameserver);
+	free(r.searchdomain);
 
 	return ret;
 }
