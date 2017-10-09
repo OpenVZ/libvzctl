@@ -57,13 +57,13 @@ int get_fs_uuid(const char *device, struct vzctl_disk *disk)
 {
 	struct stat st;
 	FILE *fp;
-	int n = 0;
 	char *argv[] = {
 		"/usr/sbin/blkid",
 		(char *)device,
 		NULL,
 	};
 	char buf[512];
+	char *p;
 
 	if (stat(argv[0], &st))
 		return vzctl_err(-1, errno, "Unable to stat %s", argv[0]);
@@ -73,16 +73,30 @@ int get_fs_uuid(const char *device, struct vzctl_disk *disk)
 		return vzctl_err(-1, errno, "Unable to start %s", argv[0]);
 
 	while (fgets(buf, sizeof(buf), fp)) {
-		n = sscanf(buf, "%*[^:]: UUID=\"%36[^\"]\" TYPE=\"%4[^\"]\"",
-				disk->fsuuid, disk->fstype);
-		if (n == 2) {
-			fclose(fp);
-			return 0;
-		}
+		p = strstr(buf, " UUID=\"");
+		if (p == NULL)
+			break;
+		strncpy(disk->fsuuid, p + 7, sizeof(fsuuid_t) - 1);
+		disk->fsuuid[sizeof(fsuuid_t) - 1] = '\0';
+		p = strchr(disk->fsuuid, '"');
+		if (p != NULL)
+			*p = '\0';
+
+		p = strstr(buf, " TYPE=\"");
+		if (p == NULL)
+			break;
+		strncpy(disk->fstype, p + 7, sizeof(fstype_t) - 1);
+		disk->fstype[sizeof(fstype_t) - 1] = '\0';
+		p = strchr(disk->fstype, '"');
+		if (p != NULL)
+			*p = '\0';
 	}
 	fclose(fp);
 
-	return vzctl_err(-1, 0, "Unable to get file system uuid dev=%s", device);
+	if (disk->fsuuid[0] == '\0' || disk->fstype[0] == '\0')
+		return vzctl_err(-1, 0, "Unable to get file system uuid dev=%s",
+				 device);
+	return 0;
 }
 
 static int write_fstab_entry(FILE *fp, const char *uuid, const char *mnt, const char *opts)
