@@ -63,6 +63,10 @@ for s in $VE_CGROUP_MOUNT_MAP; do
 	cgroup_root="$cgroup_root --cgroup-root $ctl:/$root"
 done
 
+for s in $VE_EXT_MOUNT_MAP; do
+	ext_mount_map="$ext_mount_map --ext-mount-map $s"
+done
+
 #
 # When migrating from vz7-u3 to vz7-u4 new cgroup net_prio
 # controller been introduced in kernel, thus add this special

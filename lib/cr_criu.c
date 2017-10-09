@@ -76,6 +76,33 @@ static int create_ploop_dev_map(struct vzctl_env_handle *h, pid_t pid)
 	return 0;
 }
 
+static int make_ext_mount_args(struct vzctl_env_handle *h, int cpt, char *out,
+		int size)
+{
+	char *ep, *pbuf = out;
+	struct vzctl_bindmount *it;
+	struct vzctl_bindmount_param *mnt = h->env_param->bindmount;
+
+	ep = pbuf + size;
+	pbuf += snprintf(pbuf, size, "VE_EXT_MOUNT_MAP=");
+	list_for_each(it, &mnt->mounts, list) {
+		if (it->src == NULL)
+			continue;
+
+		if (cpt)
+			pbuf += snprintf(pbuf, ep - pbuf, "%s:%s\n",
+					it->dst, it->src);
+		else
+			pbuf += snprintf(pbuf, ep - pbuf, "%s:%s\n",
+					it->src, it->src);
+		if (pbuf > ep)
+			return vzctl_err(VZCTL_E_INVAL, 0,
+					"make_ext_map: buffer overflow");
+	}
+
+	return 0;
+}
+
 static int make_ploop_dev_args(struct vzctl_env_handle *h, char *out, int size)
 {
 	char *ep, *pbuf = out;
@@ -109,7 +136,7 @@ static int dump(struct vzctl_env_handle *h, int cmd,
 	char buf[PATH_MAX];
 	char script[PATH_MAX];
 	char *arg[2];
-	char *env[12] = {};
+	char *env[13] = {};
 	int ret, i = 0;
 	pid_t pid;
 
@@ -166,6 +193,11 @@ static int dump(struct vzctl_env_handle *h, int cmd,
 	cg_get_cgroup_env_param(NULL, buf, sizeof(buf));
 	env[i++] = strdup(buf);
 
+	ret = make_ext_mount_args(h, 1, buf, sizeof(buf));
+	if (ret)
+		goto err;
+	env[i++] = strdup(buf);
+
 	env[i] = NULL;
 
 	arg[0] = get_script_path("vz-cpt", script, sizeof(script));
@@ -205,7 +237,7 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 	char script[PATH_MAX];
 	char buf[PATH_MAX];
 	char *arg[2];
-	char *env[16] = {};
+	char *env[17] = {};
 	struct vzctl_veth_dev *veth;
 	int ret, i = 0;
 	char *pbuf, *ep, *s;
@@ -276,6 +308,11 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 	if (ret)
 		goto err;
 	logger(10, 0, "* %s", buf);
+	env[i++] = strdup(buf);
+
+	ret = make_ext_mount_args(h, 0, buf, sizeof(buf));
+	if (ret)
+		goto err;
 	env[i++] = strdup(buf);
 
 	cg_get_cgroup_env_param(EID(h), buf, sizeof(buf));
