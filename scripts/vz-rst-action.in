@@ -28,40 +28,48 @@
 
 exec 1>&2
 
+action_script=@SCRIPTDIR@/vz-rst-action
+
 restore_devices()
 {
 	local s d t major minor old dir device
 	local pid=$CRTOOLS_INIT_PID
 
-	root=/proc/$pid/root
+	if [ -z "$VZ_RST_USE_NSENTER" ]; then
+		export VZ_RST_USE_NSENTER="y"
+		nsenter -m -t $pid bash $action_script
+		exit 0
+	fi
 
-	# VE_PLOOP_DEVS=UUID@ploopN:major:minor:[root]
-	for s in $VE_PLOOP_DEVS; do
-		uuid=${s%%@*}
-		t=${s#*@}
-		device=${t%%:*}
-		t=${t#*:}
-		major=${t%%:*}
-		t=${t#*:}
-		minor=${t%%:*}
+	for root in $CRIU_MNT_NS_ROOTS; do
+		# VE_PLOOP_DEVS=UUID@ploopN:major:minor:[root]
+		for s in $VE_PLOOP_DEVS; do
+			uuid=${s%%@*}
+			t=${s#*@}
+			device=${t%%:*}
+			t=${t#*:}
+			major=${t%%:*}
+			t=${t#*:}
+			minor=${t%%:*}
 
-		[ ! -L "$root/dev/$uuid" ] && continue
+			[ ! -L "$root/dev/$uuid" ] && continue
 
-		old=$(readlink $root/dev/$uuid)
-		[ -z "$old" ] && continue
+			old=$(readlink $root/dev/$uuid)
+			[ -z "$old" ] && continue
 
-		for d in "${old}" "${device}"; do
-			dir=$root/$d
-			dir=${dir%/*}
-			if [ -e "$dir" ]; then
-				rm -f $root/$d
-			else
-				mkdir -p $dir
-			fi
-			mknod -m 600 $root/$d b $major $minor
+			for d in "${old}" "${device}"; do
+				dir=$root/$d
+				dir=${dir%/*}
+				if [ -e "$dir" ]; then
+					rm -f $root/$d
+				else
+					mkdir -p $dir
+				fi
+				mknod -m 600 $root/$d b $major $minor
+			done
+
+			rm -f $root/dev/$uuid
 		done
-
-		rm -f $root/dev/$uuid
 	done
 }
 
@@ -87,6 +95,7 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 	;;
 "post-setup-namespaces")
 	if [ -n "$VEID" ]; then
+		restore_devices
 		[ -n "$VE_OS_RELEASE" ] && cgset -r ve.os_release="$VE_OS_RELEASE" $VEID
 		[ -n "$VE_PID_MAX" ] && cgset -r ve.pid_max="$VE_PID_MAX" $VEID
 	fi
@@ -96,8 +105,6 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 		echo "Missing parameter CRTOOLS_IMAGE_DIR"
 		exit 1
 	fi
-
-	restore_devices
 
 	if [ -n "$VEID" ]; then
 		[ -f "$CRTOOLS_IMAGE_DIR/vz_core_pattern.img" ] && \
