@@ -300,9 +300,14 @@ skip_read:
 	if (fp_in != NULL)
 		fclose(fp_in);
 	fsync(fileno(fp_out));
+retry:
 	if (rename(tmp_path, r_path)) {
 		logger(-1, errno, "Failed to rename %s -> %s",
 				tmp_path, r_path);
+		if (errno == EBUSY) {
+			usleep(500000);
+			goto retry;
+		}
 		fclose(fp_out);
 		goto err;
 	}
