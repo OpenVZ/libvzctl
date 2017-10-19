@@ -1342,7 +1342,8 @@ int vzctl2_env_restart(struct vzctl_env_handle *h, int flags)
 	return vzctl2_env_start(h, flags);
 }
 
-static int is_quotaugidlimit_changed(struct vzctl_env_handle *h, unsigned long ugidlimit)
+int is_quotaugidlimit_changed(struct vzctl_env_handle *h,
+		unsigned long ugidlimit)
 {
 	FILE *fp;
 	struct mntent *ent, mntbuf;
