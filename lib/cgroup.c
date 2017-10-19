@@ -608,11 +608,10 @@ int cg_pseudosuper_open(const char *ctid, int *fd)
 	if (ret)
 		return ret;
 
-	*fd = open(path, O_WRONLY);
+	*fd = open(path, O_WRONLY|O_CLOEXEC);
 	if (*fd == -1)
 		return vzctl_err(-1, errno, "Cannot open %s", path);
 
-	fcntl(*fd, F_SETFD, FD_CLOEXEC);
 	return 0;
 }
 

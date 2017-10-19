@@ -124,7 +124,8 @@ static int _open_lock_file(const char *lockfile)
 
 	get_lock_file_wrap(lockfile, buf, sizeof(buf));
 	for (i = 0; i < 3; i++) {
-		fd = open(buf, O_CREAT|O_EXCL|O_RDWR, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+		fd = open(buf, O_CREAT|O_EXCL|O_RDWR|O_CLOEXEC,
+					S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
 		if (fd == -1 && errno == EEXIST) {
 			fd = open(buf, O_RDWR, 0);
 			if (fd == -1 && errno == ENOENT)
@@ -135,9 +136,6 @@ static int _open_lock_file(const char *lockfile)
 
 	if (fd == -1)
 		return vzctl_err(-1, errno, "Unable to open the lock file %s", buf);
-
-	/* Set FD_CLOEXEC explicitly */
-	fcntl(fd, F_SETFD, FD_CLOEXEC);
 
 	return fd;
 }
