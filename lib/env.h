@@ -191,4 +191,6 @@ int vzctl_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 		struct vzctl_cpt_param *param, int flags);
 int vzctl_env_restore(struct vzctl_env_handle *h,
 		struct vzctl_cpt_param *param, int flags);
+int is_quotaugidlimit_changed(struct vzctl_env_handle *h,
+		unsigned long ugidlimit);
 #endif /* _ENV_H_ */

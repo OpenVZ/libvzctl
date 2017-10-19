@@ -466,6 +466,9 @@ int apply_quota_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, i
 		return 0;
 
 	ugidlimit = *env->dq->ugidlimit;
+	if (!is_quotaugidlimit_changed(h, ugidlimit))
+		return 0;
+
 	if (ugidlimit != 0) {
 		qparam.turnon = 1;
 		qparam.mode = get_user_quota_mode(h->env_param->dq);
