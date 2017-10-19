@@ -136,6 +136,7 @@ static int _open_lock_file(const char *lockfile)
 
 	if (fd == -1)
 		return vzctl_err(-1, errno, "Unable to open the lock file %s", buf);
+	logger(5, 0, "Lock %s fd=%d", buf, fd);
 
 	return fd;
 }
@@ -420,9 +421,11 @@ void vzctl2_unlock(int fd, const char *lockfile)
 	close(fd);
 	if (lockfile != NULL) {
 		get_lock_file_wrap(lockfile, buf, sizeof(buf));
+		logger(5, 0, "Unlock %s fd=%d", buf, fd);
 		if (unlink(buf))
 			logger(3, errno, "failed unlink %s", buf);
-	}
+	} else
+		logger(5, 0, "Unlock fd=%d", fd);
 }
 
 static int do_enter_lock(struct vzctl_env_handle *h, int mode)
@@ -484,8 +487,10 @@ int vzctl_env_conf_lock(struct vzctl_env_handle *h, int mode)
 
 void vzctl_env_conf_unlock(int lckfd)
 {
-	if (lckfd != -1)
+	if (lckfd != -1) {
+		logger(5, 0, "Unlock conf fd=%d", lckfd);
 		close(lckfd);
+	}
 }
 
 int vzctl2_env_lock_prvt(const ctid_t ctid, const char *prvt, const char *status)
