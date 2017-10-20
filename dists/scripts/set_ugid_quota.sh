@@ -26,32 +26,9 @@
 #   MINOR	- root device minor number
 #   MAJOR	- root device major number
 SCRIPTNAME='/etc/init.d/vzquota'
-RCDIRS="/etc/rc.d /etc"
-
-
-setup_vzquota()
-{
-	setup_vzquota_common
-
-	RC=
-	for RC in ${RCDIRS}; do
-		[ -d ${RC}/rc3.d ] && break
-	done
-
-	if [ -z "${RC}" ]; then
-		echo "Unable to find runlevel directories"
-		exit 1
-	fi
-
-	for dir in `ls -d ${RC}/rc[0-6].d`; do
-		ln -sf ${SCRIPTNAME} ${dir}/S10vzquota
-	done
-}
 
 if grep -q '/dev/ploop' /proc/mounts; then
 	setup_quota
-else
-	setup_vzquota
 fi
 
 exit 0

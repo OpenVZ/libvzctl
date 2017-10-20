@@ -368,25 +368,6 @@ static int quotaon(void)
 	return 0;
 }
 
-#define PROC_QUOTA      "/proc/vz/vzaquota/"
-static int mk_vzquota_link(dev_t dev)
-{
-	char buf[64];
-
-	snprintf(buf, sizeof(buf), PROC_QUOTA "%08lx" QUOTA_U,
-			(unsigned long)dev);
-	unlink(QUOTA_U);
-	if (symlink(buf, QUOTA_U))
-		logger(-1, errno, "Unable to create symlink %s", buf);
-
-	snprintf(buf, sizeof(buf), PROC_QUOTA "%08lx" QUOTA_G,
-			(unsigned long)dev);
-	unlink(QUOTA_G);
-	if (symlink(buf, QUOTA_G))
-		logger(-1, errno, "Unable to create symlink %s", buf);
-	return 0;
-}
-
 static int setup_env_quota(struct quota_param *param)
 {
 	int ret;
@@ -395,9 +376,7 @@ static int setup_env_quota(struct quota_param *param)
 	if (stat("/", &st))
 		return vzctl_err(-1, errno, "Failed to stat /");
 
-	if (param->ve_layout < VZCTL_LAYOUT_5) {
-		return mk_vzquota_link(st.st_dev);
-	} else if (param->turnon) {
+	if (param->turnon) {
 		if (stat_file(QUOTA_U) == 0 || stat_file(QUOTA_G) == 0) {
 			char *quotacheck[] = {"quotacheck", "-anugmM", "-F",
 				(char *)get_jquota_format(param->mode), NULL};

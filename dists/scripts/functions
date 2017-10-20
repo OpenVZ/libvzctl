@@ -515,47 +515,6 @@ cleanup_vzquota()
 	ln -sf /proc/mounts /etc/mtab
 }
 
-setup_vzquota_common()
-{
-	if [ -z "$MAJOR" ]; then
-		cleanup_vzquota
-		exit 0
-	fi
-
-	echo -e '#!/bin/sh
-### BEGIN INIT INFO
-# Provides: vzquota
-# Required-Start:
-# Required-Stop:
-# Default-Start: 2 3 4 5
-# Default-Stop: 0 1 6
-# Description: Set up second level quota
-### END INIT INFO
-
-start() {
-	[ -e "/dev/'${DEVFS}'" ] || mknod /dev/'${DEVFS}' b '$MAJOR' '$MINOR'
-	rm -f /etc/mtab >/dev/null 2>&1
-	echo "/dev/'${DEVFS}' / reiserfs rw,usrquota,grpquota 0 0" > /etc/mtab
-	mnt=`grep -v " / " /proc/mounts`
-	if [ $? == 0 ]; then
-		echo "$mnt" >> /etc/mtab
-	fi
-}
-
-case "$1" in
-    start)
-	start
-	;;
-    *)
-	exit 0
-esac
-' > ${SCRIPTNAME} || {
-		echo "Unable to create ${SCRIPTNAME}"
-		exit 1
-	}
-	chmod 755 ${SCRIPTNAME}
-}
-
 is_quota_support_ext4()
 {
 	grep -q usrquota /proc/mounts && return 0
