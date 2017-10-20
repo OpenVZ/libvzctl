@@ -46,8 +46,6 @@
 #include "env_ops.h"
 
 struct quota_param {
-	int ve_layout;
-	dev_t dev;
 	int turnon;
 	int mode;
 };
@@ -436,7 +434,7 @@ static int env_quota_configure(struct vzctl_env_handle *h, unsigned long ugidlim
 
 int apply_quota_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags)
 {
-	struct quota_param qparam = {.ve_layout = h->env_param->fs->layout};
+	struct quota_param qparam = {};
 	unsigned long ugidlimit;
 
 	if ((flags & VZCTL_RESTORE) ||
