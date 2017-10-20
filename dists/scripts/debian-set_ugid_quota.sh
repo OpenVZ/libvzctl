@@ -27,16 +27,8 @@
 #   MAJOR	- root device major number
 SCRIPTNAME='/etc/init.d/vzquota'
 
-setup_vzquota()
-{
-	setup_vzquota_common
-	/usr/sbin/update-rc.d vzquota defaults >/dev/null 2>&1
-}
-
 if grep -q '/dev/ploop' /proc/mounts; then
 	setup_quota
-else
-	setup_vzquota
 fi
 
 exit 0

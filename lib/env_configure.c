@@ -45,13 +45,6 @@
 #include "cpt.h"
 #include "env_ops.h"
 
-struct quota_param {
-	int ve_layout;
-	dev_t dev;
-	int turnon;
-	int mode;
-};
-
 static char *envp_s[] =
 {
 	"HOME=/",
@@ -368,26 +361,7 @@ static int quotaon(void)
 	return 0;
 }
 
-#define PROC_QUOTA      "/proc/vz/vzaquota/"
-static int mk_vzquota_link(dev_t dev)
-{
-	char buf[64];
-
-	snprintf(buf, sizeof(buf), PROC_QUOTA "%08lx" QUOTA_U,
-			(unsigned long)dev);
-	unlink(QUOTA_U);
-	if (symlink(buf, QUOTA_U))
-		logger(-1, errno, "Unable to create symlink %s", buf);
-
-	snprintf(buf, sizeof(buf), PROC_QUOTA "%08lx" QUOTA_G,
-			(unsigned long)dev);
-	unlink(QUOTA_G);
-	if (symlink(buf, QUOTA_G))
-		logger(-1, errno, "Unable to create symlink %s", buf);
-	return 0;
-}
-
-static int setup_env_quota(struct quota_param *param)
+int setup_env_quota(int mode)
 {
 	int ret;
 	struct stat st;
@@ -395,26 +369,21 @@ static int setup_env_quota(struct quota_param *param)
 	if (stat("/", &st))
 		return vzctl_err(-1, errno, "Failed to stat /");
 
-	if (param->ve_layout < VZCTL_LAYOUT_5) {
-		return mk_vzquota_link(st.st_dev);
-	} else if (param->turnon) {
-		if (stat_file(QUOTA_U) == 0 || stat_file(QUOTA_G) == 0) {
-			char *quotacheck[] = {"quotacheck", "-anugmM", "-F",
-				(char *)get_jquota_format(param->mode), NULL};
+	if (stat_file(QUOTA_U) == 0 || stat_file(QUOTA_G) == 0) {
+		char *quotacheck[] = {"quotacheck", "-anugmM", "-F",
+			(char *)get_jquota_format(mode), NULL};
 
-			logger(0, 0, "Running quotacheck ...");
-			ret = vzctl2_exec_script(quotacheck, NULL, 0);
-			if (ret)
-				return ret;
-		}
-		return quotaon();
+		logger(0, 0, "Running quotacheck ...");
+		ret = vzctl2_exec_script(quotacheck, NULL, 0);
+		if (ret)
+			return ret;
 	}
 
-	return 0;
+	return quotaon();
 }
 
-static int env_quota_configure(struct vzctl_env_handle *h, unsigned long ugidlimit,
-		struct quota_param *qparam, int flags)
+static int env_quota_configure(struct vzctl_env_handle *h,
+		unsigned long ugidlimit, int flags)
 {
 	int ret;
 	char buf[STR_SIZE];
@@ -457,31 +426,12 @@ static int env_quota_configure(struct vzctl_env_handle *h, unsigned long ugidlim
 
 int apply_quota_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags)
 {
-	struct quota_param qparam = {.ve_layout = h->env_param->fs->layout};
-	unsigned long ugidlimit;
-
 	if ((flags & VZCTL_RESTORE) ||
 			h->env_param->dq->enable == VZCTL_PARAM_OFF ||
 			env->dq->ugidlimit == NULL)
 		return 0;
 
-	ugidlimit = *env->dq->ugidlimit;
-	if (!is_quotaugidlimit_changed(h, ugidlimit))
-		return 0;
-
-	if (ugidlimit != 0) {
-		qparam.turnon = 1;
-		qparam.mode = get_user_quota_mode(h->env_param->dq);
-
-		if (vzctl_env_exec_fn(h, (execFn) setup_env_quota,
-				(void *)&qparam, 0))
-		{
-			logger(-1, 0, "Failed to setup 2nd level quota");
-			return VZCTL_E_SET_USER_QUOTA;
-		}
-	}
-
-	return env_quota_configure(h, ugidlimit, &qparam, flags);
+	return env_quota_configure(h, *env->dq->ugidlimit, flags);
 }
 
 int env_console_configure(struct vzctl_env_handle *h, int flags)

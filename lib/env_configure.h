@@ -39,5 +39,6 @@ int env_pw_configure(struct vzctl_env_handle *h,
 int env_console_configure(struct vzctl_env_handle *h, int flags);
 
 int apply_quota_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags);
+int setup_env_quota(int mode);
 
 #endif /* __ENV_CONFIGURE_H__ */

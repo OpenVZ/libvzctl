@@ -788,6 +788,12 @@ int pre_setup_env(const struct start_param *param)
 	if (env->fs->layout >= VZCTL_LAYOUT_5)
 		restore_mtab();
 
+	if (env->dq->enable != VZCTL_PARAM_OFF && env->dq->ugidlimit != NULL) {
+		ret = setup_env_quota(get_user_quota_mode(env->dq));
+		if (ret)
+			return ret;
+	}
+
 	if (env->fs->layout == VZCTL_LAYOUT_5 && env->disk != NULL &&
 			!is_secondary_disk_present(env->disk))
 	{

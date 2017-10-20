@@ -26,49 +26,9 @@
 #   MINOR	- root device minor number
 #   MAJOR	- root device major number
 SCRIPTNAME='/etc/init.d/vzquota'
-DEFAULT="/etc/runlevels/default/vzquota"
-
-setup_vzquota()
-{
-	if [ -z "$MAJOR" ]; then
-		rm -f ${SCRIPTNAME} > /dev/null 2>&1
-		rm -f ${DEFAULT} > /dev/null 2>&1
-		rm -f /etc/mtab > /dev/null 2>&1
-		ln -sf /proc/mounts /etc/mtab
-		exit 0
-	fi
-
-	echo -e '#!/sbin/runscript
-
-start() {
-	[ -e "/dev/'${DEVFS}'" ] || mknod /dev/'${DEVFS}' b '$MAJOR' '$MINOR'
-	rm -f /etc/mtab >/dev/null 2>&1
-	echo "/dev/'${DEVFS}' / reiserfs rw,usrquota,grpquota 0 0" > /etc/mtab
-	mnt=`grep -v " / " /proc/mounts`
-	if [ $? == 0 ]; then
-		echo "$mnt" >> /etc/mtab
-	fi
-	quotaon -aug
-	return
-}
-
-stop() {
-	return
-}
-
-' > ${SCRIPTNAME} || {
-		echo "Unable to create ${SCRIPTNAME}"
-		exit 1
-	}
-	chmod 755 ${SCRIPTNAME}
-
-	ln -sf ${SCRIPTNAME} ${DEFAULT}
-}
 
 if grep -q '/dev/ploop' /proc/mounts; then
 	setup_quota
-else
-	setup_vzquota
 fi
 
 exit 0

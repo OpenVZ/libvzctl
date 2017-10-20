@@ -26,21 +26,9 @@
 #   MINOR	- root device minor number
 #   MAJOR	- root device major number
 SCRIPTNAME=/etc/rc.d/rc.quota
-RC_LOCAL=/etc/rc.d/rc.local
-
-setup_vzquota()
-{
-	setup_vzquota_common
-
-	if ! grep -q "${SCRIPTNAME}" ${RC_LOCAL} 2>/dev/null; then
-		echo "${SCRIPTNAME} start" >> /etc/rc.d/rc.local
-	fi
-}
 
 if grep -q '/dev/ploop' /proc/mounts; then
 	setup_quota
-else
-	setup_vzquota
 fi
 
 exit 0
