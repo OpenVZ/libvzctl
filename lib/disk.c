@@ -1205,7 +1205,12 @@ int vzctl2_add_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param,
 			}
 		}
 
-		d->size = (unsigned long)di->size >> 1; /* sectors -> 1K */
+		struct ploop_info info = {};
+		if (ploop_get_info_by_descr(fname, &info))
+			d->size = (unsigned long)di->size >> 1; /* sectors -> 1K */
+		else
+			d->size = info.fs_blocks * info.fs_bsize / 1024;
+
 		ploop_close_dd(di);
 	} else {
 		if (flags & VZCTL_DISK_SKIP_CREATE)
