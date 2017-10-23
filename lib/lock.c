@@ -127,7 +127,7 @@ static int _open_lock_file(const char *lockfile)
 		fd = open(buf, O_CREAT|O_EXCL|O_RDWR|O_CLOEXEC,
 					S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
 		if (fd == -1 && errno == EEXIST) {
-			fd = open(buf, O_RDWR, 0);
+			fd = open(buf, O_RDWR|O_CLOEXEC, 0);
 			if (fd == -1 && errno == ENOENT)
 				continue;
 		}
