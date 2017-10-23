@@ -52,62 +52,60 @@ static void shaman_get_resname(ctid_t ctid, char *buf, int size)
 }
 
 int handle_set_cmd_on_ha_cluster(ctid_t ctid, const char *ve_private,
-		struct ha_params *cmdline,
-		struct ha_params *config,
-		int save)
+		struct ha_params *cmdline, struct ha_params *config)
 {
-	int i = 5;
-	struct stat st;
-	char command[NAME_MAX];
+	char *argv[9];
 	char resname[NAME_MAX];
-	char *argv[] = {SHAMAN_BIN, "-i", "-q", command, resname, NULL, NULL, NULL};
 	char prio[NAME_MAX];
+	int i = 0;
+	int del = cmdline->ha_enable == VZCTL_PARAM_OFF;
 
-	if (cmdline->ha_enable) {
+	if (!is_bin_present(SHAMAN_BIN))
+		return 0;
+
+	if (config->ha_enable == VZCTL_PARAM_OFF &&
+			cmdline->ha_enable != VZCTL_PARAM_ON)
+		return 0;
+
+	argv[i++] = SHAMAN_BIN;
+	argv[i++] = "-iq";
+
+	if (cmdline->ha_enable == VZCTL_PARAM_ON) {
 		/*
 		 * If there is a '--ha-enable yes' in the command line, then use 'add'
 		 * command to create resource file and set up needed parameters.
 		 */
-		snprintf(command, sizeof(command), "%s", id2yesno(cmdline->ha_enable));
+		argv[i++] = "add";
+	} else if (cmdline->ha_enable == VZCTL_PARAM_OFF) {
+		argv[i++] = "del";
 	} else if (cmdline->ha_prio) {
-		snprintf(command, sizeof(command), "set");
+		argv[i++] = "set";
 	} else {
 		/* HA options are not present in the command line */
 		return 0;
 	}
 
-	/*
-	 * Check that '--ha-*' options are always used along with '--save', otherwise
-	 * CT config and HA cluster contents could become unsynchronized.
-	 */
-	if (!save) {
-		logger(-1, 0, "High Availability Cluster options could be set only"
-			" when --save option is provided");
-		return VZCTL_E_NOT_ENOUGH_PARAMS;
-	}
-
-	/*
-	 * If HA_ENABLE is explicitely set to "no" in the CT config and the command
-	 * line doesn't provide the '--ha_enable' option -- just save parameters
-	 * in the CT config and don't run shaman.
-	 */
-	if ((config->ha_enable == VZCTL_PARAM_ON) && !cmdline->ha_enable)
-		return 0;
-
-	if (stat(ve_private, &st) || !is_shared_fs(ve_private))
-		return 0;
-
-	if (!is_bin_present(SHAMAN_BIN))
-		return 0;
-
 	shaman_get_resname(ctid, resname, sizeof(resname));
+	argv[i++] = resname;
 
-	if (cmdline->ha_prio || config->ha_prio) {
-		snprintf(prio, sizeof(prio), "%lu",
-				 cmdline->ha_prio ? *cmdline->ha_prio : *config->ha_prio);
-		argv[i++] = "--prio";
-		argv[i++] = prio;
+	if (!del) {
+		/*
+		 * Specify all parameters from the config when doing 'shaman add'.
+		 * This is needed e.g. when registering an already existing CT - newly
+		 * created cluster resource for this CT should contain all actual
+		 * HA parameter values.
+		 */
+		if (cmdline->ha_prio || config->ha_prio) {
+			snprintf(prio, sizeof(prio), "%lu",
+					cmdline->ha_prio ? *cmdline->ha_prio :
+					*config->ha_prio);
+			argv[i++] = "--prio";
+			argv[i++] = prio;
+			argv[i++] = "--path";
+			argv[i++] = (char *)ve_private;
+		}
 	}
+	argv[i] = NULL;
 
 	return vzctl2_wrap_exec_script(argv, NULL, 0);
 }
