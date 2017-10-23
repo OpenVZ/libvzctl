@@ -30,9 +30,7 @@ struct ha_params {
 struct vzctl_config;
 
 int handle_set_cmd_on_ha_cluster(ctid_t ctid, const char *ve_private,
-		struct ha_params *cmdline,
-		struct ha_params *config,
-		int save);
+		struct ha_params *cmdline, struct ha_params *config);
 void shaman_del_everywhere(ctid_t ctid);
 int shaman_del_resource(ctid_t ctid);
 int shaman_add_resource(ctid_t ctid, struct vzctl_config *conf, const char *ve_private);
