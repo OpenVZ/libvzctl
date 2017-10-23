@@ -178,6 +178,9 @@ int destroydir(const char *dir)
 	if (fd_lock == -2) /* already locked */
 		return 0;
 
+	int r, s[2] = {-1, -1};
+	if (pipe(s))
+		vzctl_err(-1, errno, "pipe");
 	ret = 0;
 	if (!(pid = fork())) {
 		setsid();
@@ -187,6 +190,9 @@ int destroydir(const char *dir)
 	} else if (pid < 0)
 		ret = vzctl_err(VZCTL_E_FORK, errno, "destroydir: Unable to fork");
 
+	close(s[1]);
+	if (read(s[0], &r, sizeof(r)) == -1)
+		vzctl_err(-1, errno, "read");
 err:
 	if (fd_lock >= 0)
 		close(fd_lock);
