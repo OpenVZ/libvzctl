@@ -68,7 +68,7 @@ int handle_set_cmd_on_ha_cluster(ctid_t ctid, const char *ve_private,
 		return 0;
 
 	argv[i++] = SHAMAN_BIN;
-	argv[i++] = "-iq";
+	argv[i++] = "-i";
 
 	if (cmdline->ha_enable == VZCTL_PARAM_ON) {
 		/*
@@ -125,7 +125,7 @@ void shaman_del_everywhere(ctid_t ctid)
 int shaman_del_resource(ctid_t ctid)
 {
 	char resname[NAME_MAX];
-	char *argv[] = {SHAMAN_BIN, "-i", "-q", "del", resname, NULL};
+	char *argv[] = {SHAMAN_BIN, "-i", "del", resname, NULL};
 
 	if (!is_bin_present(SHAMAN_BIN))
 		return 0;
@@ -137,8 +137,7 @@ int shaman_del_resource(ctid_t ctid)
 int shaman_add_resource(ctid_t ctid, struct vzctl_config *conf, const char *ve_private)
 {
 	char resname[NAME_MAX];
-	char *argv[] = {SHAMAN_BIN, "-i", "-q",
-					"add", resname,
+	char *argv[] = {SHAMAN_BIN, "-i", "add", resname,
 					"--prio", NULL,
 					"--path", (char *)ve_private,
 					NULL};
@@ -150,7 +149,7 @@ int shaman_add_resource(ctid_t ctid, struct vzctl_config *conf, const char *ve_p
 	shaman_get_resname(ctid, resname, sizeof(resname));
 
 	vzctl2_conf_get_param(conf, "HA_PRIO", &prio);
-	argv[6] = (char *)(prio ?: "0");
+	argv[5] = (char *)(prio ?: "0");
 
 	return vzctl2_wrap_exec_script(argv, NULL, 0);
 }
