@@ -1503,27 +1503,27 @@ int vzctl2_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 		}
 	}
 
-	if (env->opts->ha_prio || env->opts->ha_enable) {
-		struct ha_params p = {
-			.ha_enable = env->opts->ha_enable,
-			.ha_prio = env->opts->ha_prio,
-		};
-		struct ha_params c = {
-			.ha_enable = h->env_param->opts->ha_enable,
-			.ha_prio = h->env_param->opts->ha_prio,
-		};
-
-		ret = handle_set_cmd_on_ha_cluster(EID(h),
-				h->env_param->fs->ve_private, &p, &c);
-		if (ret)
-			goto err;
-	}
-
 	ret = get_env_ops()->env_apply_param(h, env, flags);
 	if (ret)
 		goto err;
 
 	if (h->ctx->state != VZCTL_STATE_STARTING) {
+		if (env->opts->ha_prio || env->opts->ha_enable) {
+			struct ha_params p = {
+				.ha_enable = env->opts->ha_enable,
+				.ha_prio = env->opts->ha_prio,
+			};
+			struct ha_params c = {
+				.ha_enable = h->env_param->opts->ha_enable,
+				.ha_prio = h->env_param->opts->ha_prio,
+			};
+
+			ret = handle_set_cmd_on_ha_cluster(EID(h),
+					h->env_param->fs->ve_private, &p, &c);
+			if (ret)
+				goto err;
+		}
+
 		if (!run && env->dq->ugidlimit && *env->dq->ugidlimit == 0 &&
 			h->env_param->dq->ugidlimit && *h->env_param->dq->ugidlimit)
 		{
