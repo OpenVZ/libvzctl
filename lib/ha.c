@@ -55,9 +55,10 @@ int handle_set_cmd_on_ha_cluster(ctid_t ctid, const char *ve_private,
 		struct ha_params *cmdline, struct ha_params *config)
 {
 	char *argv[9];
+	char *fail_act = NULL;
 	char resname[NAME_MAX];
 	char prio[NAME_MAX];
-	int i = 0;
+	int rc, i = 0;
 	int del = cmdline->ha_enable == VZCTL_PARAM_OFF;
 
 	if (!is_bin_present(SHAMAN_BIN))
@@ -76,10 +77,12 @@ int handle_set_cmd_on_ha_cluster(ctid_t ctid, const char *ve_private,
 		 * command to create resource file and set up needed parameters.
 		 */
 		argv[i++] = "add";
+		fail_act = "set";
 	} else if (cmdline->ha_enable == VZCTL_PARAM_OFF) {
 		argv[i++] = "del";
 	} else if (cmdline->ha_prio) {
 		argv[i++] = "set";
+		fail_act = "add";
 	} else {
 		/* HA options are not present in the command line */
 		return 0;
@@ -107,7 +110,14 @@ int handle_set_cmd_on_ha_cluster(ctid_t ctid, const char *ve_private,
 	}
 	argv[i] = NULL;
 
-	return vzctl2_wrap_exec_script(argv, NULL, 0);
+	rc = vzctl2_wrap_exec_script(argv, NULL, 0);
+	if (rc == 2 && fail_act != NULL) {
+		/* try to guess action if failed */
+		argv[2] = fail_act;
+		rc = vzctl2_wrap_exec_script(argv, NULL, 0);
+	}
+
+	return rc;
 }
 
 void shaman_del_everywhere(ctid_t ctid)
