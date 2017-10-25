@@ -55,9 +55,10 @@ int handle_set_cmd_on_ha_cluster(ctid_t ctid, const char *ve_private,
 		struct ha_params *cmdline, struct ha_params *config)
 {
 	char *argv[9];
+	char *fail_act = NULL;
 	char resname[NAME_MAX];
 	char prio[NAME_MAX];
-	int i = 0;
+	int rc, i = 0;
 	int del = cmdline->ha_enable == VZCTL_PARAM_OFF;
 
 	if (!is_bin_present(SHAMAN_BIN))
@@ -68,7 +69,7 @@ int handle_set_cmd_on_ha_cluster(ctid_t ctid, const char *ve_private,
 		return 0;
 
 	argv[i++] = SHAMAN_BIN;
-	argv[i++] = "-iq";
+	argv[i++] = "-i";
 
 	if (cmdline->ha_enable == VZCTL_PARAM_ON) {
 		/*
@@ -76,10 +77,12 @@ int handle_set_cmd_on_ha_cluster(ctid_t ctid, const char *ve_private,
 		 * command to create resource file and set up needed parameters.
 		 */
 		argv[i++] = "add";
+		fail_act = "set";
 	} else if (cmdline->ha_enable == VZCTL_PARAM_OFF) {
 		argv[i++] = "del";
 	} else if (cmdline->ha_prio) {
 		argv[i++] = "set";
+		fail_act = "add";
 	} else {
 		/* HA options are not present in the command line */
 		return 0;
@@ -107,7 +110,14 @@ int handle_set_cmd_on_ha_cluster(ctid_t ctid, const char *ve_private,
 	}
 	argv[i] = NULL;
 
-	return vzctl2_wrap_exec_script(argv, NULL, 0);
+	rc = vzctl2_wrap_exec_script(argv, NULL, 0);
+	if (rc == 2 && fail_act != NULL) {
+		/* try to guess action if failed */
+		argv[2] = fail_act;
+		rc = vzctl2_wrap_exec_script(argv, NULL, 0);
+	}
+
+	return rc;
 }
 
 void shaman_del_everywhere(ctid_t ctid)
@@ -125,7 +135,7 @@ void shaman_del_everywhere(ctid_t ctid)
 int shaman_del_resource(ctid_t ctid)
 {
 	char resname[NAME_MAX];
-	char *argv[] = {SHAMAN_BIN, "-i", "-q", "del", resname, NULL};
+	char *argv[] = {SHAMAN_BIN, "-i", "del", resname, NULL};
 
 	if (!is_bin_present(SHAMAN_BIN))
 		return 0;
@@ -137,8 +147,7 @@ int shaman_del_resource(ctid_t ctid)
 int shaman_add_resource(ctid_t ctid, struct vzctl_config *conf, const char *ve_private)
 {
 	char resname[NAME_MAX];
-	char *argv[] = {SHAMAN_BIN, "-i", "-q",
-					"add", resname,
+	char *argv[] = {SHAMAN_BIN, "-i", "add", resname,
 					"--prio", NULL,
 					"--path", (char *)ve_private,
 					NULL};
@@ -150,7 +159,7 @@ int shaman_add_resource(ctid_t ctid, struct vzctl_config *conf, const char *ve_p
 	shaman_get_resname(ctid, resname, sizeof(resname));
 
 	vzctl2_conf_get_param(conf, "HA_PRIO", &prio);
-	argv[6] = (char *)(prio ?: "0");
+	argv[5] = (char *)(prio ?: "0");
 
 	return vzctl2_wrap_exec_script(argv, NULL, 0);
 }
