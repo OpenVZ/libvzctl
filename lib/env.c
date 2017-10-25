@@ -1520,8 +1520,13 @@ int vzctl2_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 
 			ret = handle_set_cmd_on_ha_cluster(EID(h),
 					h->env_param->fs->ve_private, &p, &c);
-			if (ret)
+			if (ret) {
+				/* Dont save parameter on error */
+				free(env->opts->ha_prio);
+				env->opts->ha_prio = NULL;
+				env->opts->ha_enable = 0;
 				goto err;
+			}
 		}
 
 		if (!run && env->dq->ugidlimit && *env->dq->ugidlimit == 0 &&
