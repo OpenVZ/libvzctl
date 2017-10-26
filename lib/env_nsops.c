@@ -584,17 +584,18 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 
 	/* Init cpu: copy settings from parent */
 	for (i = 0; i < sizeof(cpu)/sizeof(cpu[0]); i++) {
-		char x[STR_SIZE];
 		ret = cg_get_param("", CG_CPUSET, cpu[i], buf, sizeof(buf));
 		if (ret)
 			return -1;
 
-		ret = cg_get_param("/", CG_CPUSET, cpu[i], x, sizeof(x));
-		if (ret)
-			return -1;
+		if (buf[0] == '\0') {
+			/* Setup parent */
+			ret = cg_get_param(NULL, CG_CPUSET, cpu[i], buf,
+					sizeof(buf));
+			if (ret)
+				return -1;
 
-		if (x[0] == '\0') {
-			ret = cg_set_param("/", CG_CPUSET, cpu[i], buf);
+			ret = cg_set_param("", CG_CPUSET, cpu[i], buf);
 			if (ret)
 				return ret;
 		}

@@ -269,7 +269,7 @@ int cg_get_path(const char *ctid, const char *subsys, const char *name,
 	if (ret)
 		return ret;
 
-	if (ctid == NULL || EMPTY_CTID(ctid))
+	if (ctid == NULL)
 		snprintf(out, size, "%s/%s", ctl->mount_path, name);
 	else {
 		get_cgroup_name(ctid, ctl, path, sizeof(path));
