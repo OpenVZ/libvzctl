@@ -771,21 +771,21 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 	 * When plain container start we should
 	 * exec init from inside of VE and other
 	 * cgroups, in turn restore procedure
-	 * always start on VE0 and criu moves
-	 * children into appropriate cgroups.
+	 * always start on VE0 so joining inside
+	 * VEX made by CRIU. Still we have to
+	 * enter the rest of cgoups to properly
+	 * hide cgroup roots in /proc/$pid/cgroup
+	 * from inside of container (grep CGRP_VE_ROOT
+	 * in kernel source code).
 	 */
 	if (!param->fn) {
-		ret = cg_attach_task(h->ctid, getpid(), NULL);
+		ret = cg_attach_task(h->ctid, getpid(), NULL, NULL);
 		if (ret)
 			goto err;
 	} else {
-		ret = cg_attach_task(h->ctid, getpid(), CG_MEMORY);
+		ret = cg_attach_task(h->ctid, getpid(), NULL, CG_VE);
 		if (ret)
 			goto err;
-		ret = cg_attach_task(h->ctid, getpid(), CG_UB);
-		if (ret)
-			goto err;
-
 	}
 
 #if 0
@@ -947,7 +947,7 @@ static int ns_env_enter(struct vzctl_env_handle *h, int flags)
 	if (dp == NULL)
 		return vzctl_err(-1, errno, "Unable to open dir %s", path);
 
-	ret = cg_attach_task(EID(h), getpid(), NULL);
+	ret = cg_attach_task(EID(h), getpid(), NULL, NULL);
 	if (ret)
 		goto err;
 
