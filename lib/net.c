@@ -851,6 +851,50 @@ int vzctl2_get_env_tc_netstat(struct vzctl_env_handle *h,
 	return 0;
 }
 
+static int get_netstat(const char *dir, const char *name, unsigned long long* out)
+{
+	char path[PATH_MAX];
+	FILE *f;
+
+	snprintf(path, sizeof(path), "%s/%s", dir, name);
+	f = fopen(path, "r");
+	if (f == NULL)
+		return -1;
+
+	fscanf(f, "%llu", out);
+	fclose(f);
+
+	return 0;
+}
+
+int vzctl2_get_env_netstat(const ctid_t ctid, const char *dev,
+		struct vzctl_netstat *stat, int size)
+{
+	char d[PATH_MAX];
+	struct vzctl_netstat s = {};
+
+	if (strcmp(dev, "venet0") == 0) {
+		pid_t pid;
+
+		if (read_init_pid(ctid, &pid))
+			return -1;
+		snprintf(d, sizeof(d), "/proc/%d/root/sys/class/net/%s/statistics",
+				(int) pid, dev);
+	} else {
+		snprintf(d, sizeof(d), "/sys/class/net/%s/statistics", dev);
+	}
+
+	if (get_netstat(d, "rx_bytes", &s.incoming) ||
+			get_netstat(d, "rx_packets", &s.incoming_pkt) ||
+			get_netstat(d, "tx_bytes", &s.outgoing) ||
+			get_netstat(d, "tx_packets", &s.outgoing_pkt))
+		return -1;
+
+	memcpy(stat, &s, size);
+
+	return 0;
+}
+
 void vzctl2_release_net_info(struct vzctl_net_info *info)
 {
 	if (info == NULL)
