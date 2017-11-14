@@ -279,6 +279,13 @@ struct vzctl_tc_netstat {
 	unsigned int outgoing_pkt[TC_MAX_CLASSES];
 };
 
+struct vzctl_netstat {
+	unsigned long long incoming;
+	unsigned long long outgoing;
+	unsigned long long incoming_pkt;
+	unsigned long long outgoing_pkt;
+};
+
 enum {
 	VZCTL_ENV_CREATED = 1,
 	VZCTL_ENV_REGISTERED = 2,
@@ -667,6 +674,9 @@ int vzctl2_env_cpustat(struct vzctl_env_handle *h, struct vzctl_cpustat *cpustat
 
 int vzctl2_get_env_tc_netstat(struct vzctl_env_handle *h,
 		struct vzctl_tc_netstat *stat, int v6);
+
+int vzctl2_get_env_netstat(const ctid_t ctid, const char *dev,
+		struct vzctl_netstat *stat, int size);
 
 /** Set Container I/O priority
  * @return		0 on success
