@@ -861,7 +861,8 @@ static int get_netstat(const char *dir, const char *name, unsigned long long* ou
 	if (f == NULL)
 		return -1;
 
-	fscanf(f, "%llu", out);
+	if (fscanf(f, "%llu", out) != 1)
+		*out = 0;
 	fclose(f);
 
 	return 0;
