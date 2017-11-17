@@ -1111,13 +1111,47 @@ static int ns_env_kill(struct vzctl_env_handle *h)
 	return 0;
 }
 
+static int pre_env_kill(struct vzctl_env_handle *h)
+{
+	int rc;
+	pid_t pid, pid2;
+
+	logger(5, 0, "Pre kill");
+
+	pid = fork();
+	if (pid == -1)
+		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
+
+	if (pid == 0) {
+		close_fds(0);
+		rc = enter_net_ns(h, NULL);
+		if (rc)
+			goto err;
+
+		pid2 = fork();
+		if (pid2 == -1) {
+			rc = vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
+			goto err;
+		} else if (pid2 == 0) {
+			rc = ns_env_kill(h);
+			_exit(rc);
+		}
+
+		rc = env_wait(pid2, 0, NULL);
+err:
+		_exit(rc);
+	}
+
+	return env_wait(pid, 0, NULL);
+}
+
 static int ns_env_stop_force(struct vzctl_env_handle *h)
 {
 	int ret, rc;
 
 	logger(0, 0, "Forcibly stop the Container...");
 
-	ret = ns_env_kill(h);
+	ret = pre_env_kill(h);
 	if (ret)
 		return ret;
 
