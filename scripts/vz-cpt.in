@@ -144,5 +144,9 @@ if [ $? -ne 0 ]; then
         exit 1
 else
 	mv $dumpdir $VE_DUMP_DIR
+	if [ $? -ne 0 ]; then
+		echo "Failed to mv $dumpdir"
+		exit 1
+	fi
         echo Checkpointing finished successfully
 fi
