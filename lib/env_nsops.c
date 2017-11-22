@@ -1081,7 +1081,7 @@ static int write_sunrpc_kill(pid_t pid)
 	return 1;
 }
 
-static int ns_env_kill(struct vzctl_env_handle *h, int kill_sunrpc)
+static int ns_env_kill(struct vzctl_env_handle *h)
 {
 	int ret;
 	struct vzctl_str_param *it;
@@ -1099,8 +1099,7 @@ static int ns_env_kill(struct vzctl_env_handle *h, int kill_sunrpc)
 			continue;
 		}
 
-		if (kill_sunrpc)
-			write_sunrpc_kill(pid);
+		write_sunrpc_kill(pid);
 
 		logger(5, 0, "kill CT process pid %lu", pid);
 		if (kill(pid, SIGKILL) && errno != ESRCH)
@@ -1112,47 +1111,13 @@ static int ns_env_kill(struct vzctl_env_handle *h, int kill_sunrpc)
 	return 0;
 }
 
-static int pre_env_kill(struct vzctl_env_handle *h)
-{
-	int rc;
-	pid_t pid, pid2;
-
-	logger(5, 0, "Pre kill");
-
-	pid = fork();
-	if (pid == -1)
-		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
-
-	if (pid == 0) {
-		close_fds(0);
-		rc = enter_net_ns(h, NULL);
-		if (rc)
-			goto err;
-
-		pid2 = fork();
-		if (pid2 == -1) {
-			rc = vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
-			goto err;
-		} else if (pid2 == 0) {
-			rc = ns_env_kill(h, 0);
-			_exit(rc);
-		}
-
-		rc = env_wait(pid2, 0, NULL);
-err:
-		_exit(rc);
-	}
-
-	return env_wait(pid, 0, NULL);
-}
-
 static int ns_env_stop_force(struct vzctl_env_handle *h)
 {
 	int ret, rc;
 
 	logger(0, 0, "Forcibly stop the Container...");
 
-	ret = pre_env_kill(h);
+	ret = ns_env_kill(h);
 	if (ret)
 		return ret;
 
@@ -1160,7 +1125,7 @@ static int ns_env_stop_force(struct vzctl_env_handle *h)
 	if (ret)
 		return ret;
 
-	rc = ns_env_kill(h, 1);
+	rc = ns_env_kill(h);
 
 	/* Unfreeze unconditionally */
 	ret = cg_freezer_cmd(EID(h), VZCTL_CMD_RESUME);
