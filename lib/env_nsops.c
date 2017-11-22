@@ -1081,7 +1081,7 @@ static int write_sunrpc_kill(pid_t pid)
 	return 1;
 }
 
-static int ns_env_kill(struct vzctl_env_handle *h, int kill_sunrpc)
+static int ns_env_kill(struct vzctl_env_handle *h)
 {
 	int ret;
 	struct vzctl_str_param *it;
@@ -1099,8 +1099,7 @@ static int ns_env_kill(struct vzctl_env_handle *h, int kill_sunrpc)
 			continue;
 		}
 
-		if (kill_sunrpc)
-			write_sunrpc_kill(pid);
+		write_sunrpc_kill(pid);
 
 		logger(5, 0, "kill CT process pid %lu", pid);
 		if (kill(pid, SIGKILL) && errno != ESRCH)
@@ -1134,7 +1133,7 @@ static int pre_env_kill(struct vzctl_env_handle *h)
 			rc = vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
 			goto err;
 		} else if (pid2 == 0) {
-			rc = ns_env_kill(h, 0);
+			rc = ns_env_kill(h);
 			_exit(rc);
 		}
 
@@ -1160,7 +1159,7 @@ static int ns_env_stop_force(struct vzctl_env_handle *h)
 	if (ret)
 		return ret;
 
-	rc = ns_env_kill(h, 1);
+	rc = ns_env_kill(h);
 
 	/* Unfreeze unconditionally */
 	ret = cg_freezer_cmd(EID(h), VZCTL_CMD_RESUME);
