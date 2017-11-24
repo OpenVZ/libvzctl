@@ -488,6 +488,28 @@ int vzctl2_delete_snapshot(struct vzctl_env_handle *h, const char *guid)
 	return ret;
 }
 
+void vzctl2_env_drop_cbt(struct vzctl_env_handle *h)
+{
+	struct ploop_disk_images_data *di;
+	struct vzctl_disk *d;
+	struct vzctl_env_disk *env_disk = h->env_param->disk;
+
+	if (env_disk == NULL)
+		return;
+
+	list_for_each(d, &env_disk->disks, list) {
+		if (d->use_device)
+			continue;
+
+		if (open_dd(d->path, &di))
+			continue;
+
+		ploop_drop_cbt(di);
+
+		ploop_close_dd(di);
+	}
+}
+
 int vzctl2_merge_disk_snapshot(const char *path, const char *guid)
 {
 	struct ploop_disk_images_data *di;

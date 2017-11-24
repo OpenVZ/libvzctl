@@ -981,6 +981,7 @@ int vzctl2_mount_snap(struct vzctl_env_handle *h, const char *mnt, const char *g
 int vzctl2_umount_disk_snapshot(const char *path, const char *guid, const char *component_name);
 int vzctl2_umount_snapshot(struct vzctl_env_handle *h, const char *guid, const char *component_name);
 int vzctl2_delete_snapshot(struct vzctl_env_handle *h, const char *guid);
+void vzctl2_env_drop_cbt(struct vzctl_env_handle *h);
 int vzctl2_merge_snapshot(struct vzctl_env_handle *h, const char *guid);
 int vzctl2_umount_image_by_dev(const char *dev);
 int vzctl2_create_snapshot(struct vzctl_env_handle *h, const char *guid);
