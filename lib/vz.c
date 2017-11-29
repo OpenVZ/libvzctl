@@ -176,7 +176,7 @@ static int get_env_ids_proc(vzctl_ids_t *ctids)
 		}
 
 		res = sscanf(buf, "%37s %d %d", id, &classid, &nproc);
-		if (res != 3 || vzctl2_parse_ctid(id, ctid))
+		if (res != 3 || vzctl2_parse_ctid(id, ctid) || !strcmp(id, "0"))
 			continue;
 
 		if (add_eids(ctids, ctid, ++ret)) {
