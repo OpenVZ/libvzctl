@@ -75,6 +75,6 @@ void configure_net_rps(const char *ve_root, const char *dev);
 int vz_ip_ctl(struct vzctl_env_handle *h, int op, const char *ipstr, int flags);
 int vz_netdev_ctl(struct vzctl_env_handle *h, int add, const char *dev);
 int get_env_ip_proc(struct vzctl_env_handle *h, list_head_t *ip);
-
+int relase_venet_ips(struct vzctl_env_handle *h);
 #endif /* _NET_H_ */
 
