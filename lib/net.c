@@ -729,6 +729,21 @@ int apply_venet_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, i
 	return 0;
 }
 
+int relase_venet_ips(struct vzctl_env_handle *h)
+{
+	int ret;
+	LIST_HEAD(ip);
+
+	vzctl_get_env_ip(h, &ip);
+	if (list_empty(&ip))
+		return 0;
+
+	ret = env_ip_ctl(h, VE_IP_DEL, &ip, 0, 0);
+	free_ip(&ip);
+
+	return ret;
+}
+
 int set_net_hwcsum(const char *devname, int on)
 {
 	int fd, err;

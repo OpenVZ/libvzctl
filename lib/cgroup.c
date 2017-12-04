@@ -945,8 +945,11 @@ static int get_veip(const char *path, list_head_t *list)
 	char *p;
 	int ret = 0;
 
-	if ((fp = fopen(path, "r")) == NULL)
+	if ((fp = fopen(path, "r")) == NULL) {
+		if (errno == ENOENT)
+			return 0;
 		return vzctl_err(-1, errno, "Unable to open %s", path);
+	}
 
 	while (!feof(fp)) {
 		if (fgets(str, sizeof(str), fp) == NULL)

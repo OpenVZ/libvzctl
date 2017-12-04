@@ -639,6 +639,7 @@ static int destroy_cgroup(struct vzctl_env_handle *h)
 	pid_t pid;
 
 	logger(10, 0, "* Destroy cgroup");
+	relase_venet_ips(h);
 	get_netns_path(h, nspath, sizeof(nspath));
 	if (unlink(nspath) && errno != ENOENT)
 		logger(-1, errno, "Failed to unlink %s", nspath);
