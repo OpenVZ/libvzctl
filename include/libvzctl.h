@@ -407,6 +407,7 @@ struct vzctl_snap_holder {
 struct vzctl_tsnapshot_param {
 	char *component_name;
 	char *snap_dir;
+	char *cbt_uuid;
 	int dummy[32];
 };
 

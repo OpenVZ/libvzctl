@@ -604,11 +604,17 @@ static int create_disk_snapshot(const char *path, const char *guid,
 		return ret;
 
 	if (tsnap != NULL) {
+		char cbt_uuid[STR_SIZE];
 		struct ploop_tsnapshot_param snap = {
 			.guid = (char *) guid,
 			.component_name = tsnap->component_name,
 			.snap_dir = tsnap->snap_dir,
 		};
+
+		if (tsnap->cbt_uuid != NULL) {
+			vzctl_get_guid_str(tsnap->cbt_uuid, cbt_uuid);
+			snap.cbt_uuid = cbt_uuid;
+		}
 
 		ret = ploop_create_temporary_snapshot(di, &snap,
 				get_snap_holder_fd(holder));
