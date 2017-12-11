@@ -104,9 +104,9 @@ int handle_set_cmd_on_ha_cluster(ctid_t ctid, const char *ve_private,
 					*config->ha_prio);
 			argv[i++] = "--prio";
 			argv[i++] = prio;
-			argv[i++] = "--path";
-			argv[i++] = (char *)ve_private;
 		}
+		argv[i++] = "--path";
+		argv[i++] = (char *)ve_private;
 	}
 	argv[i] = NULL;
 
