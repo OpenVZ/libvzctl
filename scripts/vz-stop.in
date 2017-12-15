@@ -35,8 +35,6 @@ vzcheckvar VEID
 vzgetnetdev
 
 for IP in $(cat "$VE_STATE_DIR/$VEID" 2>/dev/null); do
-	[ grep -qw "$IP" /proc/vz/veip 2>/dev/null ] && continue
-
 	vzdelrouting $IP
 	vzarp del $IP
 done
