@@ -504,7 +504,7 @@ int vzctl2_env_lock_prvt(const ctid_t ctid, const char *prvt, const char *status
 
 	/* If Container private does not exist just lock with old schema */
 	if (prvt && stat_file(prvt)) {
-		lckfd = vzctl2_lock(prvt, VZCTL_LOCK_EX|VZCTL_LOCK_NB, 0);
+		lckfd = vzctl2_lock(prvt, VZCTL_LOCK_EX, 60);
 		if (lckfd < 0) {
 			vzctl_free_conf_simple(&g_conf);
 			return lckfd;
