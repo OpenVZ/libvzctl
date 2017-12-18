@@ -1192,7 +1192,8 @@ static int parse_netif_str(struct vzctl_env_handle *h, const char *str,
 	return 0;
 }
 
-int parse_netif_ifname(struct vzctl_veth_param *veth, const char *str, int op)
+int parse_netif_ifname(struct vzctl_veth_param *veth, const char *str, int op,
+		int replace)
 {
 	int len, id, ret;
 	struct vzctl_veth_dev *dev;
@@ -1278,7 +1279,7 @@ int parse_netif_ifname(struct vzctl_veth_param *veth, const char *str, int op)
 			return VZCTL_E_INVAL;
 		break;
 	case VZCTL_PARAM_NETIF_IPADD:
-		ret = parse_ip_str(&dev->ip_list, str, 1);
+		ret = parse_ip_str(&dev->ip_list, str, replace);
 		if (ret)
 			return ret;
 		update_configure = 1;
@@ -1287,7 +1288,7 @@ int parse_netif_ifname(struct vzctl_veth_param *veth, const char *str, int op)
 		if (strcmp(str, "all") == 0)
 			dev->ip_delall = 1;
 		else {
-			ret = parse_ip_str(&dev->ip_del_list, str, 1);
+			ret = parse_ip_str(&dev->ip_del_list, str, replace);
 			if (ret)
 				return ret;
 		}
