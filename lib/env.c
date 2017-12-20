@@ -1314,6 +1314,8 @@ err:
 	}
 
 	if (ret) {
+		if (is_env_run(h))
+			vzctl_env_stop(h, M_KILL, 0);
 		if (vzctl2_env_is_mounted(h))
 			vzctl2_env_umount(h, flags);
 		logger(-1, 0, "Failed to restore the Container");
