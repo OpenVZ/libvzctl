@@ -259,6 +259,45 @@ function put_param3() {
 
 }
 
+# Puts line
+# NAME=value
+# to config file. If NAME is found, line gets replaced,
+# otherwise it is added to the end of file.
+# Parameters:
+# $1 - config file
+# $2 - NAME
+# $3 - value
+function put_param4()
+{
+	local file="$1"
+	local name="$2"
+	local value="$3"
+	local path
+
+	path=${file%/*}
+	if [ ! -d "${path}" ]; then
+		 mkdir -p ${path} || error "Unable to create dir ${path}" $VZ_FS_NO_DISK_SPACE
+	fi
+
+	if [ ! -e "${file}" ]; then
+		touch "${file}" || error "Can't change file $file" $VZ_FS_NO_DISK_SPACE
+	fi
+
+	${CP} ${file} ${file}.$$ || error "Can't copy file $file" $VZ_FS_NO_DISK_SPACE
+	if grep -E "^$name=.*" $file.$$ >/dev/null 2>&1; then
+		/bin/sed -e "s|^$name=.*|$name=$value|" < ${file} > ${file}.$$
+		if [ $? -ne 0 ]; then
+			rm -f ${file}.$$ 2>/dev/null
+			error "Can't change file $file" $VZ_FS_NO_DISK_SPACE
+		fi
+	else
+		echo "$name=$value" >> $file.$$ || error "Can't change file $file" $VZ_FS_NO_DISK_SPACE
+	fi
+
+	mv -f ${file}.$$ ${file} || rm -f ${file}.$$
+}
+
+
 # Adds value to array NAME
 # in config file. If NAME is found, value gets added,
 # otherwise it is added to the end of file.

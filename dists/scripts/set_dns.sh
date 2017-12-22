@@ -30,11 +30,11 @@
 #       Sets name server(s). Modifies /etc/resolv.conf
 RESOLVCONF=/etc/resolvconf/resolv.conf.d/base
 
-set_dns()
+set_resolvconf()
 {
-	local cfgfile="$1"
-	local server="$2"
-	local search="$3"
+	local cfgfile=/etc/resolv.conf
+	local server="$1"
+	local search="$2"
 	local post_configure_cmd=
 	local srv fname
 
@@ -78,6 +78,41 @@ set_dns()
 	[ -n "${post_configure_cmd}" ] && ${post_configure_cmd}
 }
 
-set_dns /etc/resolv.conf "${NAMESERVER}" "${SEARCHDOMAIN}"
+set_resolved()
+{
+	local cfg=/etc/systemd/resolved.conf
+	local server="$1"
+	local search="$2"
+
+	if [ "${server}" = '#' ]; then
+		sed "/DNS=.*/d" < ${cfg} > ${cfg}.$$ && \
+			if [ $? -ne 0 ]; then
+				rm -f ${cfg}.$$
+				error "Can't change file ${cfg}" ${VZ_FS_NO_DISK_SPACE}
+			fi
+			mv -f ${cfg}.$$ ${cfg} || rm -f ${cfg}.$$
+	elif [ -n "${server}" ]; then
+		put_param4 "${cfg}" DNS "${server}"
+	fi
+
+	if [ "${search}" = '#' ]; then
+		sed "/Domains=.*/d" < ${cfg} > ${cfg}.$$ && \
+			if [ $? -ne 0 ]; then
+				rm -f ${cfg}.$$
+				error "Can't change file ${cfg}" ${VZ_FS_NO_DISK_SPACE}
+			fi
+			mv -f ${cfg}.$$ ${cfg} || rm -f ${cfg}.$$
+	elif [ -n "${search}" ]; then
+		put_param4 "${cfg}" Domains "${search}"
+	fi
+
+	[ "${VE_STATE}" = "running" ] && service systemd-resolved restart
+}
+
+if [ -e /etc/systemd/system/dbus-org.freedesktop.resolve1.service ]; then
+	set_resolved "${NAMESERVER}" "${SEARCHDOMAIN}"
+else
+	set_resolvconf "${NAMESERVER}" "${SEARCHDOMAIN}"
+fi
 
 exit 0
