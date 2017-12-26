@@ -275,6 +275,11 @@ static int ns_set_ub(struct vzctl_env_handle *h,
 			return VZCTL_E_SETUBC;
 	}
 
+	if (ub->kmemsize) {
+		if (cg_env_set_memory(h->ctid, CG_KMEM_LIMIT, ub->kmemsize->l))
+			return VZCTL_E_SETUBC;
+	}
+
 	return 0;
 }
 
