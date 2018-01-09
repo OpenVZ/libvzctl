@@ -1081,7 +1081,7 @@ static int write_sunrpc_kill(pid_t pid)
 	return 1;
 }
 
-static int ns_env_kill(struct vzctl_env_handle *h)
+int ns_env_kill(struct vzctl_env_handle *h)
 {
 	int ret;
 	struct vzctl_str_param *it;
