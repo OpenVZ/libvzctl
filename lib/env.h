@@ -193,4 +193,5 @@ int vzctl_env_restore(struct vzctl_env_handle *h,
 		struct vzctl_cpt_param *param, int flags);
 int is_quotaugidlimit_changed(struct vzctl_env_handle *h,
 		unsigned long ugidlimit);
+int ns_env_kill(struct vzctl_env_handle *h);
 #endif /* _ENV_H_ */
