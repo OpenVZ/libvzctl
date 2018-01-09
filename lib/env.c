@@ -1316,6 +1316,10 @@ err:
 	if (ret) {
 		if (is_env_run(h))
 			vzctl_env_stop(h, M_KILL, 0);
+		else
+			/* kill processes in the VE cgroup #PSBM-79465 */
+			ns_env_kill(h);
+
 		if (vzctl2_env_is_mounted(h))
 			vzctl2_env_umount(h, flags);
 		logger(-1, 0, "Failed to restore the Container");
