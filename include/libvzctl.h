@@ -842,6 +842,7 @@ int vzctl2_env_get_autocompact(vzctl_env_param_ptr env, int *enable);
 int vzctl2_env_set_autocompact(vzctl_env_param_ptr env, int enable);
 int vzctl2_env_get_bootorder(struct vzctl_env_param *env, unsigned long *bootorder);
 int vzctl2_env_set_bootorder(struct vzctl_env_param *env, unsigned long bootorder);
+int vzctl2_env_get_disabled(struct vzctl_env_param *env, int *disabled);
 
 int vzctl2_get_config_fname(const char *param_conf, char *config, int len);
 int vzctl2_get_config_full_fname(const char *param_conf, char *config, int len);
