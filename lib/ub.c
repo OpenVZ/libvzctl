@@ -28,62 +28,41 @@
 #include <fcntl.h>
 #include <string.h>
 #include <limits.h>
-#include <linux/vzcalluser.h>
-#include <linux/beancounter.h>
 
 #include "vzctl.h"
 #include "ub.h"
 #include "vzctl_param.h"
 #include "vzerror.h"
 #include "logger.h"
-#include "vzsyscalls.h"
 #include "vztypes.h"
 #include "env.h"
 #include "util.h"
 
-#define UB_IPTENTRIES  23      /* Number of iptables rules */
-
-static int setublimit(unsigned veid, int id,
-	const struct vzctl_2UL_res *res)
-{
-	unsigned long limit[2];
-
-	limit[0] = res->b;
-	limit[1] = res->l;
-	if (limit[0] > LONG_MAX)
-		limit[0] = LONG_MAX;
-	if (limit[1] > LONG_MAX)
-		limit[1] = LONG_MAX;
-
-	return syscall(__NR_setublimit, veid, (unsigned long)id, limit);
-}
-
 static struct ubname2id {
 	char *name;
-	unsigned int id;
 	unsigned int paramid;
 } ubname2id[] = {
-	{"KMEMSIZE",	UB_KMEMSIZE,	VZCTL_PARAM_KMEMSIZE},
-	{"LOCKEDPAGES",	UB_LOCKEDPAGES,	VZCTL_PARAM_LOCKEDPAGES},
-	{"PRIVVMPAGES",	UB_PRIVVMPAGES,	VZCTL_PARAM_PRIVVMPAGES},
-	{"SHMPAGES",	UB_SHMPAGES,	VZCTL_PARAM_SHMPAGES},
-	{"NUMPROC",	UB_NUMPROC,	VZCTL_PARAM_NUMPROC},
-	{"PHYSPAGES",	UB_PHYSPAGES,	VZCTL_PARAM_PHYSPAGES},
-	{"VMGUARPAGES",	UB_VMGUARPAGES,	VZCTL_PARAM_VMGUARPAGES},
-	{"OOMGUARPAGES",UB_OOMGUARPAGES,VZCTL_PARAM_OOMGUARPAGES},
-	{"NUMTCPSOCK",	UB_NUMTCPSOCK,	VZCTL_PARAM_NUMTCPSOCK},
-	{"NUMFLOCK",	UB_NUMFLOCK,	VZCTL_PARAM_NUMFLOCK},
-	{"NUMPTY",	UB_NUMPTY,	VZCTL_PARAM_NUMPTY},
-	{"NUMSIGINFO",	UB_NUMSIGINFO,	VZCTL_PARAM_NUMSIGINFO},
-	{"TCPSNDBUF",	UB_TCPSNDBUF,	VZCTL_PARAM_TCPSNDBUF},
-	{"TCPRCVBUF",	UB_TCPRCVBUF,	VZCTL_PARAM_TCPRCVBUF},
-	{"OTHERSOCKBUF",UB_OTHERSOCKBUF,VZCTL_PARAM_OTHERSOCKBUF},
-	{"DGRAMRCVBUF",	UB_DGRAMRCVBUF,	VZCTL_PARAM_DGRAMRCVBUF},
-	{"NUMOTHERSOCK",UB_NUMOTHERSOCK,VZCTL_PARAM_NUMOTHERSOCK},
-	{"NUMFILE",	UB_NUMFILE,	VZCTL_PARAM_NUMFILE},
-	{"DCACHESIZE",	UB_DCACHESIZE,	VZCTL_PARAM_DCACHESIZE},
-	{"NUMIPTENT",	UB_IPTENTRIES,	VZCTL_PARAM_NUMIPTENT},
-	{"SWAPPAGES",	UB_SWAPPAGES,	VZCTL_PARAM_SWAPPAGES},
+	{"KMEMSIZE",	VZCTL_PARAM_KMEMSIZE},
+	{"LOCKEDPAGES",	VZCTL_PARAM_LOCKEDPAGES},
+	{"PRIVVMPAGES",	VZCTL_PARAM_PRIVVMPAGES},
+	{"SHMPAGES",	VZCTL_PARAM_SHMPAGES},
+	{"NUMPROC",	VZCTL_PARAM_NUMPROC},
+	{"PHYSPAGES",	VZCTL_PARAM_PHYSPAGES},
+	{"VMGUARPAGES",	VZCTL_PARAM_VMGUARPAGES},
+	{"OOMGUARPAGES",VZCTL_PARAM_OOMGUARPAGES},
+	{"NUMTCPSOCK",	VZCTL_PARAM_NUMTCPSOCK},
+	{"NUMFLOCK",	VZCTL_PARAM_NUMFLOCK},
+	{"NUMPTY",	VZCTL_PARAM_NUMPTY},
+	{"NUMSIGINFO",	VZCTL_PARAM_NUMSIGINFO},
+	{"TCPSNDBUF",	VZCTL_PARAM_TCPSNDBUF},
+	{"TCPRCVBUF",	VZCTL_PARAM_TCPRCVBUF},
+	{"OTHERSOCKBUF",VZCTL_PARAM_OTHERSOCKBUF},
+	{"DGRAMRCVBUF",	VZCTL_PARAM_DGRAMRCVBUF},
+	{"NUMOTHERSOCK",VZCTL_PARAM_NUMOTHERSOCK},
+	{"NUMFILE",	VZCTL_PARAM_NUMFILE},
+	{"DCACHESIZE",	VZCTL_PARAM_DCACHESIZE},
+	{"NUMIPTENT",	VZCTL_PARAM_NUMIPTENT},
+	{"SWAPPAGES",	VZCTL_PARAM_SWAPPAGES},
 	{NULL, 0},
 };
 
@@ -146,16 +125,6 @@ int is_ub_empty(const struct vzctl_ub_param *ub)
 	return 1;
 }
 
-static const char *get_ub_name(int res_id)
-{
-	int i;
-
-	for (i = 0; ubname2id[i].name != NULL; i++)
-		if (ubname2id[i].id == res_id)
-			return ubname2id[i].name;
-        return NULL;
-}
-
 const char *get_ub_param_name(int id)
 {
 	int i;
@@ -192,69 +161,6 @@ const struct vzctl_2UL_res *vzctl_get_ub_res(struct vzctl_ub_param *ub, int id)
 	GET_UB_RES(kmemsize, VZCTL_PARAM_KMEMSIZE)
 #undef GET_UB_RES
 	return NULL;
-}
-
-int set_ub_limit(unsigned veid, int id, struct vzctl_2UL_res *res)
-{
-	if (res != NULL) {
-		logger(3, 0, "%s %lu:%lu",
-				get_ub_name(id), res->b, res->l);
-		if (setublimit(veid, id, res)) {
-			return vzctl_err(VZCTL_E_SETUBC, errno,
-					"setublimit %s %lu:%lu failed",
-					get_ub_name(id), res->b, res->l);
-		}
-	}
-	return 0;
-}
-
-int set_ub(unsigned veid, const struct vzctl_ub_param *ub)
-{
-
-#define SET_UB_LIMIT(name, id)						\
-if (ub->name != NULL) {							\
-	logger(3, 0, "%s %lu:%lu", \
-		get_ub_name(id), ub->name->l, ub->name->b); \
-	if (setublimit(veid, id, ub->name)) {				\
-		return vzctl_err(VZCTL_E_SETUBC, errno,		\
-			"setublimit %s %lu:%lu failed",			\
-			get_ub_name(id), ub->name->l, ub->name->b);	\
-	}								\
-}
-
-	SET_UB_LIMIT(lockedpages, UB_LOCKEDPAGES)
-	SET_UB_LIMIT(privvmpages, UB_PRIVVMPAGES)
-	SET_UB_LIMIT(shmpages, UB_SHMPAGES)
-	SET_UB_LIMIT(numproc, UB_NUMPROC)
-	SET_UB_LIMIT(physpages, UB_PHYSPAGES)
-	SET_UB_LIMIT(vmguarpages, UB_VMGUARPAGES)
-	SET_UB_LIMIT(numtcpsock, UB_NUMTCPSOCK)
-	SET_UB_LIMIT(numflock, UB_NUMFLOCK)
-	SET_UB_LIMIT(numpty, UB_NUMPTY)
-	SET_UB_LIMIT(numsiginfo, UB_NUMSIGINFO)
-	SET_UB_LIMIT(tcpsndbuf, UB_TCPSNDBUF )
-	SET_UB_LIMIT(tcprcvbuf, UB_TCPRCVBUF)
-	SET_UB_LIMIT(othersockbuf, UB_OTHERSOCKBUF)
-	SET_UB_LIMIT(dgramrcvbuf, UB_DGRAMRCVBUF)
-	SET_UB_LIMIT(numothersock, UB_NUMOTHERSOCK)
-	SET_UB_LIMIT(numfile, UB_NUMFILE)
-	SET_UB_LIMIT(numiptent, UB_IPTENTRIES)
-	SET_UB_LIMIT(swappages, UB_SWAPPAGES)
-#undef SET_UB_LIMIT
-
-	return 0;
-}
-
-int env_ub_set_unl(unsigned veid)
-{
-	int i;
-	struct vzctl_2UL_res res = {LONG_MAX, LONG_MAX};
-
-	for (i = 0; i <= 23; i++)
-		setublimit(veid, i, &res);
-	res.b = 0; res.l = 0;
-	setublimit(veid, UB_SWAPPAGES, &res);
-	return 0;
 }
 
 void free_ub_param(struct vzctl_ub_param *ub)

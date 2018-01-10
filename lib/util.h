@@ -235,6 +235,8 @@ int fs_is_mounted_check_by_target(const char *target);
 int vzctl_get_mount_opts(struct vzctl_disk *d, char *out, int size);
 int init_runtime_ctx(struct vzctl_runtime_ctx *ctx);
 void deinit_runtime_ctx(struct vzctl_runtime_ctx *ctx);
+void get_dumpfile(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
+		char *dumpfile, int size);
 #ifdef __cplusplus
 }
 #endif

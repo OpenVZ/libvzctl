@@ -33,15 +33,12 @@
 #include <limits.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>
-#include <linux/vzcalluser.h>
-#include <linux/cpt_ioctl.h>
 #include <ploop/libploop.h>
 
 #include "libvzctl.h"
 #include "vzerror.h"
 #include "vz.h"
 #include "util.h"
-#include "cpt.h"
 #include "fs.h"
 #include "env.h"
 #include "env_config.h"

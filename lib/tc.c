@@ -27,7 +27,6 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/ioctl.h>
-#include <linux/vzcalluser.h>
 #include <linux/vzctl_netstat.h>
 
 #include "config.h"

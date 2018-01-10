@@ -32,11 +32,7 @@
 #include <time.h>
 #include <uuid/uuid.h>
 
-#include <linux/vzcalluser.h>
-#include <linux/vzctl_veth.h>
-
 #include "libvzctl.h"
-
 #include "vzerror.h"
 #include "util.h"
 #include "veth.h"
@@ -285,94 +281,6 @@ static int run_vznetcfg(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
 		return vzctl_err(VZCTL_E_VETH, 0, "%s exited with error",
 				fname);
 	return 0;
-}
-
-static int vz_veth_dev_mac_filter(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
-{
-	struct vzctl_ve_hwaddr hwaddr = {};
-	int ret;
-
-	hwaddr.op = (dev->mac_filter == VZCTL_PARAM_ON) ? VE_ETH_DENY_MAC_CHANGE :
-					VE_ETH_ALLOW_MAC_CHANGE;
-	hwaddr.veid = h->veid;
-	memcpy(hwaddr.dev_name, dev->dev_name, IFNAMSIZE);
-	memcpy(hwaddr.dev_name_ve, dev->dev_name_ve, IFNAMSIZE);
-	ret = ioctl(get_vzctlfd(), VETHCTL_VE_HWADDR, &hwaddr);
-	if (ret) {
-		if (errno != ENODEV)
-			return vzctl_err(VZCTL_E_VETH, errno, "Unable to set mac filter");
-	}
-	return 0;
-}
-
-static int vz_veth_dev_create(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
-{
-	struct vzctl_ve_hwaddr hwaddr;
-	int ret;
-
-	hwaddr.veid = h->veid;
-	hwaddr.op = VE_ETH_ADD;
-	memcpy(hwaddr.dev_name, dev->dev_name, IFNAMSIZE);
-	if (dev->mac != NULL) {
-		parse_hwaddr(dev->mac, (char*)hwaddr.dev_addr);
-		hwaddr.addrlen = ETH_ALEN;
-	}
-	if (dev->mac_ve != NULL) {
-		parse_hwaddr(dev->mac_ve, (char*)hwaddr.dev_addr_ve);
-		hwaddr.addrlen_ve = ETH_ALEN;
-	}
-	memcpy(hwaddr.dev_name_ve, dev->dev_name_ve, IFNAMSIZE);
-
-	ret = ioctl(get_vzctlfd(), VETHCTL_VE_HWADDR, &hwaddr);
-	if (ret) {
-		if (errno == ENOTTY)
-			logger(-1, 0, "Error: veth feature is"
-					" not supported by kernel");
-		else
-			logger(-1, errno, "Unable to create veth");
-		return VZCTL_E_VETH;
-	}
-	return 0;
-}
-
-static int vz_veth_dev_remove(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
-{
-	struct vzctl_ve_hwaddr hwaddr = {};
-	int ret;
-
-	if (!dev->dev_name[0])
-		return vzctl_err(VZCTL_E_INVAL, 0, "Veth device name is not specified");
-
-	hwaddr.op = VE_ETH_DEL;
-	hwaddr.veid = h->veid;
-	memcpy(hwaddr.dev_name, dev->dev_name, IFNAMSIZE);
-	ret = ioctl(get_vzctlfd(), VETHCTL_VE_HWADDR, &hwaddr);
-	if (ret) {
-		if (errno != ENODEV)
-			return vzctl_err(VZCTL_E_VETH, errno, "Unable to remove veth");
-	}
-	return 0;
-}
-
-int vz_veth_ctl(struct vzctl_env_handle *h, int op, struct vzctl_veth_dev *dev, int flags)
-{
-	int ret = 0;
-
-	if (op == ADD) {
-		if (!(dev->flags & VETH_ACTIVE)) {
-			if ((ret = vz_veth_dev_create(h, dev)))
-				return ret;
-		}
-		dev->flags |= VETH_ACTIVE;
-		if (dev->mac_filter) {
-			if ((ret = vz_veth_dev_mac_filter(h, dev)))
-				return ret;
-		}
-	} else {
-		if (dev->flags & VETH_ACTIVE)
-			ret = vz_veth_dev_remove(h, dev);
-	}
-	return ret;
 }
 
 static void fill_veth_dev_name(struct vzctl_env_handle *h,

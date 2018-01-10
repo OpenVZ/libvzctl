@@ -33,7 +33,6 @@
 #include "libvzctl.h"
 #include "disk.h"
 #include "list.h"
-#include "cpt.h"
 #include "cgroup.h"
 #include "env.h"
 #include "util.h"

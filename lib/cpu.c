@@ -24,7 +24,6 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/syscall.h>
-#include <linux/vzcalluser.h>
 #include <sys/ioctl.h>
 #include <string.h>
 #include <errno.h>
@@ -33,203 +32,16 @@
 #include <sys/types.h>
 #include <dirent.h>
 
+#include "linux/vzcalluser.h"
 #include "env.h"
 #include "util.h"
 #include "logger.h"
 #include "vzerror.h"
-#include "vzsyscalls.h"
 #include "vz.h"
 #include "cpu.h"
 #include "bitmap.h"
 
 static long __clk_tck = -1;
-
-static inline int fairsched_chwt(unsigned int id, unsigned wght)
-{
-	return syscall(__NR_fairsched_chwt, id, wght);
-}
-
-static inline int fairsched_rate(unsigned int id, int op, unsigned rate)
-{
-	return syscall(__NR_fairsched_rate, id, op, rate);
-}
-
-static inline int fairsched_vcpus(unsigned int id, unsigned vcpus)
-{
-	int ret;
-
-	ret = syscall(__NR_fairsched_vcpus, id, vcpus);
-	if (ret && errno == ENOSYS)
-		ret = 0;
-	return ret;
-}
-
-static int env_set_cpulimit(struct vzctl_env_handle *h, unsigned int cpulim1024)
-{
-	int op;
-
-	op = cpulim1024 != 0 ? FAIRSCHED_SET_RATE : FAIRSCHED_DROP_RATE;
-	logger(0, 0, "Setting CPU limit: %0.1f%%", 100.0 *cpulim1024 /1024);
-	if (fairsched_rate(h->veid, op, cpulim1024) < 0)
-		return vzctl_err(VZCTL_E_CPULIMIT, errno,
-			"Cannot set %d as cpulimit value", cpulim1024);
-	return 0;
-}
-
-static int env_set_cpuweight(struct vzctl_env_handle *h, unsigned int cpuweight)
-{
-	if (fairsched_chwt(h->veid, cpuweight))
-		return vzctl_err(VZCTL_E_CPUWEIGHT, errno,
-			"Cannot set %d as cpuweight value", cpuweight);
-	return 0;
-}
-
-static int env_set_cpuunits(struct vzctl_env_handle *h, unsigned int cpuunits)
-{
-	int cpuweight;
-
-	if (cpuunits < MINCPUUNITS || cpuunits > MAXCPUUNITS) {
-		return vzctl_err(VZCTL_E_INVAL, 0,
-			"Invalid value for cpuunits: %d allowed range is %d-%d",
-			cpuunits, MINCPUUNITS, MAXCPUUNITS);
-	}
-	cpuweight = MAXCPUUNITS / cpuunits;
-	logger(0, 0, "Setting CPU units: %d", cpuunits);
-	if (fairsched_chwt(h->veid, cpuweight))
-		return vzctl_err(VZCTL_E_CPUWEIGHT, errno,
-			"Cannot set %d as cpuuniit value", cpuunits);
-	return 0;
-}
-
-/** Change number of CPUs available in the running Container.
- *
- * @param veid		Container id
- * @param vcpu		number of cpu
- */
-static int env_set_vcpus(struct vzctl_env_handle *h, unsigned int vcpus)
-{
-	logger(0, 0, "Setting CPUs: %d", vcpus);
-	if (fairsched_vcpus(h->veid, vcpus))
-		return vzctl_err(VZCTL_E_VCPU, errno,
-			"Cannot set %d as vcpu value", vcpus);
-	return 0;
-}
-
-int env_set_cpumask(struct vzctl_env_handle *h, struct vzctl_cpumask *cpumask)
-{
-	int ret;
-	char buf[1024] = "";
-
-	if (cpumask == NULL)
-		return 0;
-
-	bitmap_snprintf(buf, sizeof(buf), cpumask->mask, sizeof(cpumask->mask));
-	logger(1, 0, "Set cpumask: %s", buf);
-
-	ret = syscall(__NR_fairsched_cpumask, h->veid,
-			sizeof(cpumask->mask), cpumask->mask);
-	if (ret) {
-		if (errno == ENOENT)
-			logger(-1, 0, "Unable to set cpumask: the Container is not running");
-		else
-			logger(-1, errno, "Unable to set cpumask ret=%d", ret);
-		return VZCTL_E_CPUMASK;
-	}
-	return 0;
-}
-
-int env_set_nodemask(struct vzctl_env_handle *h, struct vzctl_nodemask *nodemask)
-{
-	int ret;
-	char buf[1024] = "";
-
-	if (nodemask == NULL)
-		return 0;
-
-	bitmap_snprintf(buf, sizeof(buf), nodemask->mask, sizeof(nodemask->mask));
-	logger(1, 0, "Set nodemask: %s", buf);
-
-	ret = syscall(__NR_fairsched_nodemask, h->veid,
-			sizeof(struct vzctl_nodemask), nodemask->mask);
-	if (ret) {
-		if (errno == ENOENT)
-			logger(-1, 0, "Unable to set nodemask: the Container is not running");
-		else
-			logger(-1, errno, "Unable to set nodemask ret=%d", ret);
-		return VZCTL_E_NODEMASK;
-	}
-	return 0;
-}
-
-int vzctl2_set_cpumask(struct vzctl_env_handle *h, const char *str)
-{
-	int ret;
-	struct vzctl_cpumask *mask = NULL;
-
-	ret = parse_cpumask(str, &mask);
-	if (ret)
-		return ret;
-
-	ret = env_set_cpumask(h, mask);
-
-	free(mask);
-
-	return ret;
-}
-
-int vzctl2_set_nodemask(struct vzctl_env_handle *h, const char *str)
-{
-	int ret;
-	struct vzctl_nodemask *mask = NULL;
-
-	ret = parse_nodemask(str, &mask);
-	if (ret)
-		return ret;
-
-	ret = env_set_nodemask(h, mask);
-
-	free(mask);
-
-	return ret;
-}
-
-int apply_cpu_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags)
-{
-	struct vzctl_cpu_param *cpu = env->cpu;
-	int ret = 0;
-
-	if (cpu->limit_res == NULL &&
-			cpu->units == NULL &&
-			cpu->weight == NULL &&
-			cpu->vcpus == NULL &&
-			cpu->cpumask == NULL)
-	{
-		return 0;
-	}
-	if (cpu->limit_res != NULL) {
-		if ((ret = env_set_cpulimit(h, cpu->limit * 1024 /100)))
-			return ret;
-	}
-	if (cpu->vcpus != NULL) {
-		if ((ret = env_set_vcpus(h, *cpu->vcpus)))
-			return ret;
-	}
-
-	if (cpu->units != NULL) {
-		if ((ret = env_set_cpuunits(h, *cpu->units)))
-			return ret;
-	} else if (cpu->weight != NULL) {
-		if ((ret = env_set_cpuweight(h, *cpu->weight)))
-			return ret;
-	}
-
-	if (cpu->nodemask != NULL || cpu->cpumask != NULL) {
-		if ((ret = vzctl2_env_set_node(h, cpu->nodemask, cpu->cpumask)))
-			return ret;
-	}
-
-	return 0;
-}
 
 static long get_clk_tck()
 {

@@ -32,7 +32,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
-#include <linux/vzcalluser.h>
 #include <sys/mount.h>
 #include <libgen.h>
 #include <dirent.h>

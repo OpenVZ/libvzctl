@@ -172,9 +172,6 @@ int env_start_conf(struct vzctl_env_handle *h, int flags, vzctl_env_create_FN fn
 int vzctl2_env_stop(struct vzctl_env_handle *h, stop_mode_e stop_mode, int flags);
 int is_env_run(struct vzctl_env_handle *h);
 int vzctl_chroot(const char *root);
-int vzctl_setluid(struct vzctl_env_handle *h);
-int vzctl_env_create_ioctl(unsigned veid, int flags);
-
 int set_personality32(void);
 int real_env_stop(int stop_mode);
 int pre_setup_env(const struct start_param *param);
@@ -194,4 +191,8 @@ int vzctl_env_restore(struct vzctl_env_handle *h,
 int is_quotaugidlimit_changed(struct vzctl_env_handle *h,
 		unsigned long ugidlimit);
 int ns_env_kill(struct vzctl_env_handle *h);
+int vzctl2_cpt_cmd(struct vzctl_env_handle *h, int action, int cmd,
+		struct vzctl_cpt_param *param, int flags);
+int criu_cmd(struct vzctl_env_handle *h, int cmd,
+		struct vzctl_cpt_param *param, struct start_param *data);
 #endif /* _ENV_H_ */

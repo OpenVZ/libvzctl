@@ -28,13 +28,11 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdlib.h>
+#include <linux/vzctl_netstat.h>
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
-#include <linux/vzcalluser.h>
-#include <linux/vzctl_venet.h>
-#include <linux/vzctl_netstat.h>
-#include <linux/vzlist.h>
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -200,94 +198,6 @@ char *ip2str(const char *prefix, list_head_t *ip, int use_nemask)
 char *ip_param2str(list_head_t *head)
 {
 	return ip2str(NULL, head, 0);
-}
-
-static int do_ip_ctl(unsigned veid, int op, int family, unsigned int *addr)
-{
-	int addrlen, ret;
-	struct sockaddr_in6 sa;
-
-	make_sockaddr(family, addr, (struct sockaddr *)&sa);
-
-	if (family == AF_INET) {
-		addrlen = sizeof(struct sockaddr_in);
-	} else if (family == AF_INET6) {
-		addrlen = sizeof(struct sockaddr_in6);
-	} else {
-		return -EAFNOSUPPORT;
-	}
-
-	switch (op) {
-	case VE_IP_ADD:
-	case VE_IP_DEL: {
-		struct vzctl_ve_ip_map ip_map;
-
-		ip_map.veid = veid;
-		ip_map.op = op;
-		ip_map.addr = (struct sockaddr *)&sa;
-		ip_map.addrlen = addrlen;
-
-		ret = ioctl(get_vzctlfd(), VENETCTL_VE_IP_MAP, &ip_map);
-		break;
-	}
-	default:
-		ret = -1;
-		break;
-	}
-	return ret;
-}
-
-int vz_ip_ctl(struct vzctl_env_handle *h, int op, const char *ipstr, int flags)
-{
-	int ret;
-	unsigned int addr[4];
-	int family;
-	const char *mes;
-
-	family = get_netaddr(ipstr, addr);
-	if (family == -1)
-		return 0;
-
-	ret = do_ip_ctl(h->veid, op, family, addr);
-	if (ret) {
-		switch (op) {
-		case VE_IP_ADD:
-			mes = "to add IP address";
-			break;
-		case VE_IP_DEL:
-			if (errno == EADDRNOTAVAIL)
-				return 0;
-			mes = "to del IP address";
-			break;
-		default:
-			mes = "to process IP";
-			break;
-		}
-
-		switch (errno) {
-		case EADDRNOTAVAIL:
-		case EADDRINUSE	:
-			logger(-1, 0, "Unable %s %s: address already in use",
-				mes, ipstr);
-			ret = VZCTL_E_IP_INUSE;
-			break;
-		case ENOTTY	:
-                        logger(-1, 0, "Unable %s %s: modules are not loaded",
-				mes, ipstr);
-			ret = VZCTL_E_CANT_ADDIP;
-			break;
-		case ESRCH	:
-			logger(-1, 0, "Unable %s %s: Container is not running",
-				mes, ipstr);
-                        ret = VZCTL_E_ENV_NOT_RUN;
-			break;
-		default:
-			logger(-1, errno, "Unable %s %s", mes, ipstr);
-			ret = VZCTL_E_CANT_ADDIP;
-			break;
-		}
-	}
-	return ret;
 }
 
 #define	PROC_VEINFO	"/proc/vz/veinfo"
@@ -636,21 +546,6 @@ void free_netdev_param(struct vzctl_netdev_param *param)
 {
 	free_str(&param->dev);
 	free(param);
-}
-
-int vz_netdev_ctl(struct vzctl_env_handle *h, int add, const char *dev)
-{
-	struct vzctl_ve_netdev netdev = {
-		.veid = h->veid,
-		.op = add ? VE_NETDEV_ADD : VE_NETDEV_DEL,
-		.dev_name = (char *)dev
-	};
-
-	if (ioctl(get_vzctlfd(), VZCTL_VE_NETDEV, &netdev))
-		return vzctl_err(VZCTL_E_NETDEV, errno,	"Unable to %s netdev %s",
-				add ? "add": "del", dev);
-
-	return 0;
 }
 
 static int netdev_ctl(struct vzctl_env_handle *h, int add, list_head_t *netdev)

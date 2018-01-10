@@ -24,7 +24,6 @@
 #include <errno.h>
 #include <sys/syscall.h>
 #include <sys/ioctl.h>
-#include <linux/vziolimit.h>
 #include <string.h>
 #include <limits.h>
 
@@ -32,65 +31,13 @@
 #include "logger.h"
 #include "env.h"
 #include "io.h"
-#include "vzsyscalls.h"
 #include "util.h"
 #include "vz.h"
 #include "env_ops.h"
 
-static inline int _setioprio(int which, unsigned who, int prio)
-{
-	return syscall(__NR_ioprio_set, which, who, prio);
-}
-
-int vz_set_ioprio(struct vzctl_env_handle *h, int prio)
-{
-	int ret;
-
-	if (prio < 0)
-		return VZCTL_E_SET_IO;
-
-	logger(0, 0, "Set up ioprio: %d", prio);
-	ret = _setioprio(IOPRIO_WHO_UBC, h->veid,
-			prio | IOPRIO_CLASS_BE << IOPRIO_CLASS_SHIFT);
-	if (ret) {
-		if (errno == ESRCH)
-			return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0,
-					"Container is not running");
-		else if (errno == EINVAL)
-			return vzctl_err(0, 0, "Warning: ioprio feature is not supported"
-					" by the kernel: ioprio configuration is skippe");
-		return vzctl_err(VZCTL_E_SET_IO, errno, "Unable to set ioprio");
-	}
-
-	return 0;
-}
-
 int vzctl2_set_ioprio(struct vzctl_env_handle *h, int prio)
 {
 	return get_env_ops()->env_set_ioprio(h, prio);
-}
-
-int vz_set_iolimit(struct vzctl_env_handle *h, unsigned int limit)
-{
-	int ret;
-	struct iolimit_state io;
-
-	io.id = h->veid;
-	// Hardcoded values according the bug #483045
-	io.speed = limit;
-	io.burst = limit * 3;
-	io.latency = 10*1000;
-	logger(0, 0, "Set up iolimit: %u", limit);
-	ret = ioctl(get_vzctlfd(), VZCTL_SET_IOLIMIT, &io);
-	if (ret) {
-		if (errno == ESRCH)
-			return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
-		else if (errno == ENOTTY)
-			return vzctl_err(0, 0, "Warning: iolimit feature is not supported"
-					" by the kernel; iolimit configuration is skipped");
-		return vzctl_err(VZCTL_E_SET_IO, errno, "Unable to set iolimit");
-	}
-	return 0;
 }
 
 int vzctl2_set_iolimit(struct vzctl_env_handle *h, unsigned int limit)
@@ -98,63 +45,14 @@ int vzctl2_set_iolimit(struct vzctl_env_handle *h, unsigned int limit)
 	return get_env_ops()->env_set_iolimit(h, limit);
 }
 
-int vz_get_iolimit(struct vzctl_env_handle *h, unsigned int *limit)
-{
-	int ret;
-	struct iolimit_state io;
-
-	io.id = h->veid;
-	ret = ioctl(get_vzctlfd(), VZCTL_GET_IOLIMIT, &io);
-	if (ret == 0)
-		*limit = io.speed;
-
-	return ret;
-}
-
 int vzctl2_get_iolimit(struct vzctl_env_handle *h, unsigned int *limit)
 {
 	return get_env_ops()->env_get_iolimit(h, limit);
 }
 
-int vz_set_iopslimit(struct vzctl_env_handle *h, unsigned int limit)
-{
-	int ret;
-	struct iolimit_state io;
-
-	io.id = h->veid;
-	// Hardcoded values according the bug #483045
-	io.speed = limit;
-	io.burst = limit * 3;
-	io.latency = 10*1000;
-	logger(0, 0, "Set up iopslimit: %u", limit);
-	ret = ioctl(get_vzctlfd(), VZCTL_SET_IOPSLIMIT, &io);
-	if (ret) {
-		if (errno == ESRCH)
-			return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
-		else if (errno == ENOTTY)
-			return vzctl_err(0, 0, "Warning: iopslimit feature is not supported"
-					" by the kernel; iopslimit configuration is skipped");
-		return vzctl_err(VZCTL_E_SET_IO, errno, "Unable to set iopslimit");
-	}
-	return 0;
-}
-
 int vzctl2_set_iopslimit(struct vzctl_env_handle *h, unsigned int limit)
 {
 	return get_env_ops()->env_set_iopslimit(h, limit);
-}
-
-int vz_get_iopslimit(struct vzctl_env_handle *h, unsigned int *limit)
-{
-	int ret;
-	struct iolimit_state io;
-
-	io.id = h->veid;
-	ret = ioctl(get_vzctlfd(), VZCTL_GET_IOPSLIMIT, &io);
-	if (ret == 0)
-		*limit = io.speed;
-
-	return ret;
 }
 
 int vzctl2_get_iopslimit(struct vzctl_env_handle *h, unsigned int *limit)
@@ -265,4 +163,3 @@ int parse_iopslimit(struct vzctl_io_param *io, const char *str)
 
 	return ret;
 }
-
