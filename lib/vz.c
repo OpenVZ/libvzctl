@@ -40,8 +40,6 @@
 #include <sys/param.h>
 #include <sys/utsname.h>
 
-#include <linux/vzlist.h>
-#include <linux/vzctl_netstat.h>
 #include <ploop/libploop.h>
 #include "vz.h"
 #include "env.h"
@@ -58,7 +56,6 @@
 #include "image.h"
 #include "env_ops.h"
 #include "ha.h"
-#include "cpt.h"
 #include "exec.h"
 #include "ha.h"
 #include "disk.h"

@@ -28,7 +28,6 @@
 #include <limits.h>
 
 #include "libvzctl.h"
-#include "vzsyscalls.h"
 #include "env.h"
 #include "ub.h"
 #include "res.h"
@@ -415,21 +414,6 @@ err:
 	return ret;
 }
 
-static int set_vswap_limit(struct vzctl_env_handle *h, struct vzctl_env_param *env)
-{
-	int ret;
-	struct vzctl_ub_param *ub;
-
-	ret = get_vswap_param(h, env, &ub);
-	if (ret)
-		return ret;
-
-	ret = set_ub(h->veid, ub);
-	free_ub_param(ub);
-
-	return ret;
-}
-
 static int mm_check_param(struct vzctl_res_param *res)
 {
 	int ret = 0;
@@ -456,37 +440,4 @@ static int mm_check_param(struct vzctl_res_param *res)
 int check_res_requires(struct vzctl_env_param *env)
 {
 	return mm_check_param(env->res);
-}
-
-static int is_vswap_set(struct vzctl_env_param *env)
-{
-	if (env->res->ub->vm_overcommit == NULL &&
-		env->res->slm->memorylimit == NULL &&
-		is_ub_empty(env->res->ub))
-	{
-		return 0;
-	}
-	return 1;
-}
-
-static int vswap_configure(struct vzctl_env_handle *h, struct vzctl_env_param *env)
-{
-	if (!is_vswap_set(env))
-		return 0;
-	if (!is_env_run(h))
-		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0,
-			"Cannot apply parameters; the Container is not running");
-	return set_vswap_limit(h, env);
-}
-
-int vzctl_res_setup_post(struct vzctl_env_handle *h)
-{
-
-	env_ub_set_unl(h->veid);
-	return set_vswap_limit(h, h->env_param);
-}
-
-int vzctl_res_configure(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags)
-{
-	return vswap_configure(h, env);
 }

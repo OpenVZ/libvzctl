@@ -28,7 +28,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <linux/vzcalluser.h>
 
 #include "vzctl.h"
 #include "vzerror.h"
@@ -42,7 +41,6 @@
 #include "net.h"
 #include "dev.h"
 #include "image.h"
-#include "cpt.h"
 #include "env_ops.h"
 
 static char *envp_s[] =

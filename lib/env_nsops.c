@@ -50,7 +50,6 @@
 #include "ub.h"
 #include "dev.h"
 #include "env_configure.h"
-#include "cpt.h"
 #include "exec.h"
 #include "disk.h"
 #include "iptables.h"
@@ -1460,10 +1459,6 @@ static int ns_env_get_cpt_state(struct vzctl_env_handle *h, int *state)
 	return 0;
 }
 
-#define VE_IP_ADD       1
-#define VE_IP_DEL       2
-
-
 static int ns_ip_ctl(struct vzctl_env_handle *h, int op, const char *ip, int flags)
 {
 	if (!is_vz_kernel())
@@ -1475,7 +1470,7 @@ static int ns_ip_ctl(struct vzctl_env_handle *h, int op, const char *ip, int fla
 	case VE_IP_DEL:
 		return cg_del_veip(EID(h), ip);
 	default:
-		return vz_ip_ctl(h, op, ip, flags);
+		return vzctl_err(VZCTL_E_INVAL, 0, "ns_ip_ctl: invalid op %d", op);
 	}
 }
 

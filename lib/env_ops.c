@@ -42,7 +42,6 @@ struct vzctl_env_ops *get_env_ops(void)
 
 void init_env_ops(void)
 {
-	env_vzops_init(get_env_ops());
 	env_nsops_init(get_env_ops());
 }
 

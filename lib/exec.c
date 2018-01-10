@@ -22,7 +22,6 @@
  */
 
 #include <sys/ioctl.h>
-#include <linux/vzcalluser.h>
 #include <linux/limits.h>
 
 #include <stdlib.h>

@@ -43,7 +43,6 @@ struct vzctl_cpu_param {
 
 struct vzctl_env_handle;
 struct vzctl_env_param;
-int apply_cpu_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags);
 int vzctl_parse_cpulimit(struct vzctl_cpu_param *param, struct vzctl_cpulimit_param *cpu);
 int parse_cpulimit(struct vzctl_cpu_param *param, const char *str, int def_in_mhz);
 int parse_cpumask(const char *str, struct vzctl_cpumask **cpumask);

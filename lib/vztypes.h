@@ -114,6 +114,15 @@
 
 #define NETNS_RUN_DIR   "/var/run/netns"
 
+#define VE_IP_ADD	1
+#define VE_IP_DEL	2
+
+#define VE_USE_MAJOR	010     /* Test MAJOR supplied in rule */
+#define VE_USE_MINOR	030     /* Test MINOR supplied in rule */
+
+#define VE_SKIPLOCK	32      /* Allow entering embrion VE */
+
+
 /* VE states */
 enum {
 	VZCTL_STATE_STARTING = 1,

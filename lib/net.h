@@ -72,8 +72,6 @@ const struct vzctl_ip_param *find_ip(list_head_t *head,
 	struct vzctl_ip_param *ip);
 int invert_ip_op(int op);
 void configure_net_rps(const char *ve_root, const char *dev);
-int vz_ip_ctl(struct vzctl_env_handle *h, int op, const char *ipstr, int flags);
-int vz_netdev_ctl(struct vzctl_env_handle *h, int add, const char *dev);
 int get_env_ip_proc(struct vzctl_env_handle *h, list_head_t *ip);
 int relase_venet_ips(struct vzctl_env_handle *h);
 #endif /* _NET_H_ */

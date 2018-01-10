@@ -23,6 +23,10 @@
 #ifndef __LIBVZCTL_H__
 #define __LIBVZCTL_H__
 
+#ifndef VZ_DEPRECATED
+#define VZ_DEPRECATED __attribute__ ((deprecated))
+#endif
+
 #define VZ_DIR			"/etc/vz/"
 #define VZ_GLOBAL_CFG		VZ_DIR "vz.conf"
 #define VZ_ENV_CONF_DIR		VZ_DIR "conf/"
@@ -917,15 +921,6 @@ int vzctl2_env_set_uptime(vzctl_env_handle_ptr h, unsigned long long uptime,
  */
 int vzctl2_env_sync_uptime(vzctl_env_handle_ptr h);
 
-/** Set limits parameters
- *  Read parameters from vz.conf
- *  $name_BCID
- *  $name_IOLIMIT
- *  $name_IOPSLIMIT
- *  $name_MEMLIMIT
- */
-int vzctl2_set_vzlimits(const char *name);
-
 int vzctl2_get_cpuinfo(struct vzctl_cpuinfo *info);
 
 int vzctl2_check_owner(const char *ve_private);
@@ -1151,6 +1146,7 @@ int vzctl2_mount_snapshot(struct vzctl_env_handle *h, struct vzctl_mount_param *
 int vzctl2_env_create_tsnapshot(struct vzctl_env_handle *h, const char *guid,
 		struct vzctl_tsnapshot_param *tsnap, struct vzctl_snap_holder *holder);
 
+VZ_DEPRECATED int vzctl2_set_vzlimits(const char *name);
 #ifdef __cplusplus
 }
 #endif

@@ -40,7 +40,6 @@
 #include <errno.h>
 #include <sys/syscall.h>
 #include <linux/capability.h>
-#include <linux/vzcalluser.h>
 #include <string.h>
 #include <sys/prctl.h>
 
@@ -110,8 +109,6 @@
 	CAP_TO_MASK(CAP_NET_ADMIN)
 
 
-extern int capget(cap_user_header_t header, const cap_user_data_t data);
-
 static char *cap_names[] = {
 "CHOWN",		/*	0	*/
 "DAC_OVERRIDE",		/*	1	*/
@@ -146,15 +143,6 @@ static char *cap_names[] = {
 "VE_ADMIN",		/*	30	*/
 "SETFCAP",		/*	31	*/
 };
-
-/* We can't include sys/capability.h since it conflicts
- * with linux/capability.h, so we put this prototype here */
-extern int capget(cap_user_header_t header, const cap_user_data_t data);
-
-static inline int capset(cap_user_header_t header, cap_user_data_t data)
-{
-	return syscall(__NR_capset, header, data);
-}
 
 /** Add capability name to capability mask.
  *
@@ -207,70 +195,6 @@ void build_cap_str(struct vzctl_cap_param *new, char *buf, int len)
 	}
 }
 
-static int set_cap_bound(cap_t mask)
-{
-	int i;
-
-	for (i = 0; ; i++) {
-		/* Currently (kernel 3.5) in-kernel cap size is u64,
-		 * but it might change in the future
-		 */
-		if (i == sizeof(__u64) * 8) {
-			errno = EOVERFLOW;
-			return -1;
-		}
-
-		if ((1ULL << i) & mask)
-			continue;
-
-		if (prctl(PR_CAPBSET_DROP, i) == -1) {
-			if (i == 0)
-				return 1; /* PR_CAPBSET_DROP not supported */
-
-			/* vzctl could have been built with the headers
-			 * different from those of the running kernel, so
-			 * it can't rely on CAP_LAST_CAP value. Therefore,
-			 * try dropping all caps until EINVAL.
-			 */
-			if (errno == EINVAL) /* All capabilities were set */
-				break;
-			return -1;
-		}
-	}
-
-	return 0;
-}
-
-static int set_cap(cap_t mask, int pid)
-{
-	struct __user_cap_header_struct header;
-	struct __user_cap_data_struct data[2]; /* as of .._VERSION_3 */
-
-	memset(&header, 0, sizeof(header));
-	capget(&header, NULL); /* Get linux capability version from kernel */
-	switch (header.version) {
-	case _LINUX_CAPABILITY_VERSION_1:
-	case _LINUX_CAPABILITY_VERSION_2:
-	case _LINUX_CAPABILITY_VERSION_3:
-		break;
-	default:
-		errno = ENOSYS;
-		/* Error is printed by vps_set_cap() */
-		return -1;
-	}
-	header.pid = pid;
-
-	memset(&data, 0, sizeof(data));
-	data[0].effective = mask;
-	data[0].permitted = mask;
-	data[0].inheritable = mask;
-
-	logger(10, 0, "Capability: %x", mask);
-	if (capset(&header, data) < 0)
-		return vzctl_err(VZCTL_E_CAP, errno, "Unable to set capapbility");
-	return 0;
-}
-
 static cap_t make_cap_mask(cap_t def, cap_t on, cap_t off)
 {
 	return (def | on) & ~off;
@@ -279,25 +203,6 @@ static cap_t make_cap_mask(cap_t def, cap_t on, cap_t off)
 unsigned long vzctl2_get_default_capmask(void)
 {
 	return CAPDEFAULTMASK & 0xffffffff;
-}
-
-/** Apply capability mask to Container.
- * @param cap		capability mask.
- * @param features	features mask.
- * @return		0 on success.
- */
-int env_set_cap(struct vzctl_cap_param *cap)
-{
-	cap_t mask = CAPDEFAULTMASK_UPSTREAM;
-	int ret;
-
-	mask = make_cap_mask(mask, cap->on, cap->off);
-
-	ret = set_cap_bound(mask);
-	if (ret < 0)
-		return vzctl_err(VZCTL_E_CAP, errno, "set_cap_bound");
-
-	return set_cap(mask, 0);
 }
 
 int parse_cap(struct vzctl_cap_param *cap, const char *str, int replace)

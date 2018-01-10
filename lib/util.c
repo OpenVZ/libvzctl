@@ -2810,3 +2810,12 @@ int init_runtime_ctx(struct vzctl_runtime_ctx *ctx)
 	}
 	return 0;
 }
+
+void get_dumpfile(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
+		char *dumpfile, int size)
+{
+	if (param->dumpfile != NULL)
+		snprintf(dumpfile, size, "%s", param->dumpfile);
+	else
+		vzctl2_get_dump_file(h, dumpfile, size);
+}

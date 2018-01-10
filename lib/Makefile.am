@@ -2,7 +2,7 @@
 
 include $(top_srcdir)/paths.am
 
-AM_CPPFLAGS = -I. -I./include -I../include \
+AM_CPPFLAGS = -I. -I../include -I./include \
 	      -DSBINDIR=\"$(sbindir)\" \
 	      -DPKGCONFDIR=\"$(pkgconfdir)\" \
 	      -DPKGLIBDIR=\"$(pkglibdir)\" \
@@ -19,7 +19,6 @@ libvzctl2_la_SOURCES =  bitmap.c \
 			cgroup.c \
 			cleanup.c \
 			config.c \
-			cpt.c \
 			cr_criu.c \
 			cpu.c \
 			create.c \

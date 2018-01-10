@@ -27,7 +27,6 @@
 #include <ctype.h>
 #include <string.h>
 #include <sys/utsname.h>
-#include <linux/vzcalluser.h>
 
 #include "vzctl.h"
 #include "vzfeatures.h"
@@ -407,7 +406,7 @@ int vzctl2_env_get_features(struct vzctl_env_param *env, struct vzctl_feature_pa
 unsigned long long tech2features(unsigned long long tech)
 {
 	if (tech & VZ_T_NFS)
-		return VE_FEATURE_NFS;
+		return VZ_FEATURE_NFS;
 
 	return 0;
 }

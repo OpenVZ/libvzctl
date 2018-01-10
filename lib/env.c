@@ -38,7 +38,6 @@
 #include <sys/ioctl.h>
 #include <sys/mount.h>
 #include <linux/vzcalluser.h>
-#include <vzsyscalls.h>
 #include <sys/personality.h>
 #include <time.h>
 #include <grp.h>
@@ -72,7 +71,6 @@
 #include "disk.h"
 #include "tc.h"
 #include "env_ops.h"
-#include "cpt.h"
 #include "ha.h"
 #include "wrap.h"
 
@@ -3527,4 +3525,10 @@ int vzctl2_env_get_disabled(struct vzctl_env_param *env, int *disabled)
 	*disabled = (env->misc->start_disabled == VZCTL_PARAM_ON) ? 1 : 0;
 
 	return 0;
+}
+
+int vzctl2_cpt_cmd(struct vzctl_env_handle *h, int action, int cmd,
+		struct vzctl_cpt_param *param, int flags)
+{
+	return get_env_ops()->env_cpt_cmd(h, action, cmd, param, flags);
 }

@@ -87,7 +87,6 @@ int add_veth_param(list_head_t *head, struct vzctl_veth_dev *dev);
 struct vzctl_veth_dev *alloc_veth_dev(void);
 void free_veth_param(struct vzctl_veth_param *veth);
 
-int vz_veth_ctl(struct vzctl_env_handle *h, int op, struct vzctl_veth_dev *dev, int flags);
 int merge_veth_ifname_param(struct vzctl_env_handle *h,
 		struct vzctl_env_param *env);
 void generate_mac(char **mac, int fix);
