@@ -3521,3 +3521,10 @@ int vzctl2_env_set_setmode(struct vzctl_env_param *env, vzctl_setmode_t mode)
 
 	return 0;
 }
+
+int vzctl2_env_get_disabled(struct vzctl_env_param *env, int *disabled)
+{
+	*disabled = (env->misc->start_disabled == VZCTL_PARAM_ON) ? 1 : 0;
+
+	return 0;
+}
