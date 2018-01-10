@@ -90,6 +90,9 @@ AC_CHECK_LIB([vcmmd], [vcmmd_strerror], VCMMD_LIBS="-lvcmmd",
 	AC_MSG_ERROR([Please install libvcmmd package]))
 AC_SUBST(VCMMD_LIBS)
 
+# Checks for e2fsprogs lib
+AC_CHECK_HEADER([ext2fs/ext2_fs.h], ,
+	AC_MSG_ERROR([Please install e2fsprogs devel package]))
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
