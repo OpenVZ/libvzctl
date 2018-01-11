@@ -1736,8 +1736,8 @@ static int ns_get_runtime_param(struct vzctl_env_handle *h, int flags)
 		cpu->limit_res->limit = (unsigned long)limit;
 	}
 
-	ns_get_iopslimit(h, &iolimit);
-	ns_get_iolimit(h, &iopslimit);
+	ns_get_iopslimit(h, &iopslimit);
+	ns_get_iolimit(h, &iolimit);
 	if (iolimit != 0 || iopslimit != 0) {
 		if (h->env_param->io == NULL) {
 			h->env_param->io = xmalloc(sizeof(struct vzctl_io_param));
