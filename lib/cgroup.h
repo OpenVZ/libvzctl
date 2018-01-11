@@ -40,8 +40,6 @@
 #define CG_MEM_USAGE	"memory.usage_in_bytes"
 #define CG_SWAP_LIMIT	"memory.memsw.limit_in_bytes"
 #define CG_SWAP_USAGE	"memory.memsw.usage_in_bytes"
-#define CG_KMEM_LIMIT	"memory.kmem.limit_in_bytes"
-#define CG_KMEM_USAGE	"memory.kmem.usage_in_bytes"
 #define CG_NET_CLASSID	"net_cls.classid"
 
 /* For x86-64 kernels */
