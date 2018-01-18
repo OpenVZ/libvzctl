@@ -443,11 +443,28 @@ function vzaddrouting()
 #   $1 - IP address
 function vzdelrouting()
 {
-	while ${IP_CMD} route list table all $1 | grep "^$1 dev" >/dev/null 2>&1; do
-		if [ "${1%%:*}" != "${1}" ]; then
-			${IP_CMD} -6 route flush $1 || vzerror "Unable to remove route" 0
-		else
-			${IP_CMD} route del $1 || vzerror "Unable to remove route: ${IP_CMD} route del $1" 0
+	local rc=0
+	local fmt=
+	local arg="route del"
+
+	if [ "${1%%:*}" != "${1}" ]; then
+		fmt=-6
+		arg="-6 route flush"
+	fi
+
+	while [ $rc -eq 0 ]; do
+		out=`${IP_CMD} $fmt route list "$1"`
+		rc=$?
+		if [ $rc -ne 0 ]; then
+			vzwarning "Failed to get route list: ${IP_CMD} $fmt route list $1 [$rc]"
+		elif ! echo $out | grep -qw "$1"; then
+			break
+		fi
+
+		${IP_CMD} $arg "$1"
+		if [ $? -ne 0 ]; then
+			vzwarning "Unable to remove route: ${IP_CMD} $arg $1"
+			break
 		fi
 	done
 }
