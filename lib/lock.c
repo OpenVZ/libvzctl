@@ -542,11 +542,12 @@ void vzctl2_env_unlock_prvt(const ctid_t ctid, int lckfd, const char *prvt)
 
 	bzero(&g_conf, sizeof(struct vzctl_conf_simple));
 	vzctl_parse_conf_simple(ctid, GLOBAL_CFG, &g_conf);
+	_unlock_file(ctid, g_conf.lockdir);
+	vzctl_free_conf_simple(&g_conf);
+
 	if (lckfd > 0)
 		vzctl2_unlock(lckfd, prvt);
 
-	_unlock_file(ctid, g_conf.lockdir);
-	vzctl_free_conf_simple(&g_conf);
 }
 
 void vzctl2_env_unlock(struct vzctl_env_handle *h, int lckfd)
