@@ -25,10 +25,13 @@
 #include <errno.h>
 #include <ctype.h>
 
+#include <vz/vztt_error.h>
+
 #include "list.h"
 #include "vzerror.h"
 #include "util.h"
 #include "exec.h"
+
 
 static void trim_n(char *buf)
 {
@@ -45,8 +48,9 @@ static int process_cmd_status(char **arg, int status, int quiet)
 		ret = WEXITSTATUS(status);
 		if (ret) {
 			if (!quiet)
-				logger(-1, 0, "command %s exited with error %d",
-						arg[0], ret);
+				logger(ret == VZT_TMPL_NOT_FOUND ? 3 : -1, 0,
+					"command %s exited with error %d",
+					arg[0], ret);
 			return ret;
 		}
 	} else if (WIFSIGNALED(status))
@@ -129,7 +133,7 @@ int vztmpl_get_osrelease(const char *ostmpl, char *out, int len)
 
 	out[0] = '\0';
 	ret = get_last_line(arg, out, len);
-	if (ret && ret != 24 /* Template was not found */)
+	if (ret && ret != VZT_TMPL_NOT_FOUND)
 		return vzctl_err(VZCTL_E_GET_OSRELEASE, errno, "Failed to get osrelease for %s",
 				ostmpl);
 	return 0;
@@ -313,14 +317,6 @@ static int vztmpl_get_appcache_tarball(const char *cache_config, const char *ost
 err:
 	return ret;
 }
-
-#ifndef VZT_TMPL_NOT_CACHED
-#define VZT_TMPL_NOT_CACHED 23
-#endif
-
-#ifndef VZT_TMPL_NOT_FOUND
-#define VZT_TMPL_NOT_FOUND 24
-#endif
 
 int vztmpl_get_cache_tarball(const char *config, char **ostmpl,
 		const char *fstype, char **applist, int use_ostmpl,
