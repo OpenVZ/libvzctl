@@ -65,7 +65,7 @@ addif()
 			/^tcp-segmentation-offload:/{print "tso", $2};
 			/^generic-segmentation-offload:/{print "gso", $2}')
 		if [ -z "$iface_params" ]; then
-			echo "Unable to get bound_iface ethtool params"
+			echo "Unable to get $bound_iface ethtool params"
 		else
 			ethtool -K $iface $iface_params
 		fi
