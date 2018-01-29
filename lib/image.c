@@ -146,8 +146,8 @@ int vzctl2_mount_disk_image(const char *path, struct vzctl_mount_param *param)
 	ploop_close_dd(di);
 	if (ret && ret != SYSEXIT_NOSNAP)
 		return vzctl_err(VZCTL_E_MOUNT_IMAGE, 0,
-				"Failed to mount image: %s [%d]",
-				ploop_get_last_error(), ret);
+				"Failed to mount image %s: %s [%d]",
+				path, ploop_get_last_error(), ret);
 
 	snprintf(fname, sizeof(fname), "%s/" FS_CORRECTED_MARK,
 			param->target);
