@@ -512,7 +512,6 @@ static int merge_create_param(struct vzctl_env_handle *h, struct vzctl_env_param
 static void set_fs_uuid(struct vzctl_env_handle *h)
 {
 	struct vzctl_disk *d;
-	struct vzctl_mount_param param = {};
 	char *tune2fs[] = {"/sbin/tune2fs", "-Urandom", NULL, NULL};
 	char *sgdisk[] = {"/usr/sbin/sgdisk", "-G", NULL, NULL};
 
@@ -520,16 +519,19 @@ static void set_fs_uuid(struct vzctl_env_handle *h)
 		if (d->use_device)
 			continue;
 
-		if (vzctl2_mount_disk_image(d->path, &param))
-			continue;
+		if (is_root_disk(d)) {
+			if (umount(h->env_param->fs->ve_root)) {
+				logger(-1, errno, "set_fs_uuid: failed to unmount %s",
+						h->env_param->fs->ve_root);
+				continue;
+			}
+		}
 
 		tune2fs[2] = (char *)get_fs_partname(d);
 		vzctl2_wrap_exec_script(tune2fs, NULL, 0);
 
 		sgdisk[2] = d->devname;
 		vzctl2_wrap_exec_script(sgdisk, NULL, 0);
-
-		vzctl2_umount_disk_image(d->path);
 	}
 }
 
@@ -664,10 +666,10 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 			goto err;
 
 		post_create(h);
-		vzctl2_env_umount(h, 0);
-
 		if (layout >= VZCTL_LAYOUT_5)
 			set_fs_uuid(h);
+
+		vzctl2_env_umount(h, 0);
 	}
 
 	if ((ret = vzctl2_env_save_conf(h, conf)))
