@@ -1286,6 +1286,7 @@ int vzctl_env_restore(struct vzctl_env_handle *h,
 	if (param->cmd == VZCTL_CMD_RESTORE && param->dumpfile == NULL)
 		drop_dump_state(h);
 
+	vzctl2_register_running_state(h->env_param->fs->ve_private);
 	announce_ips(h);
 	ret = 0;
 
