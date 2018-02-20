@@ -170,6 +170,20 @@ int add_veth_param(list_head_t *head, struct vzctl_veth_dev *dev)
 	return 0;
 }
 
+static unsigned int hash32(uuid_t u)
+{   
+	unsigned int h = 0, i;
+
+	for (i = 0; i < sizeof(uuid_t); ++i) {
+		h += u[i]; 
+		h += (h << 10);
+		h ^= (h >> 6);
+	}
+	h += (h << 3);
+	h ^= (h >> 11);
+	return h + (h << 15);
+}
+
 void generate_mac(char **mac, int fix)
 {
 	unsigned int hash;
@@ -177,14 +191,7 @@ void generate_mac(char **mac, int fix)
 	uuid_t u;
 
 	uuid_generate(u);
-
-	memcpy(&hash, u, sizeof(hash));
-	hash ^= hash << 3;
-	hash += hash >> 5;
-	hash ^= hash << 4;
-	hash += hash >> 17;
-	hash ^= hash << 25;
-	hash += hash >> 6;
+	hash = hash32(u);
 
 	hwaddr[0] = (char) (SW_OUI >> 0xf);
 	hwaddr[1] = (char) (SW_OUI >> 0x8);
