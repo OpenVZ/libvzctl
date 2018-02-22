@@ -198,7 +198,7 @@ int parse_cpulimit(struct vzctl_cpu_param *param, const char *str, int def_in_mh
 
 	errno = 0;
 	cpu.limit = strtoul(str, (char **)&tail, 10);
-	if (errno == ERANGE || cpu.limit > INT_MAX)
+	if (errno == ERANGE)
 		return VZCTL_E_INVAL;
 
 	if (def_in_mhz || !strcasecmp(tail, "m") || !strcasecmp(tail, "mhz"))
