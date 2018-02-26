@@ -143,6 +143,7 @@ if [ $? -ne 0 ]; then
         echo All dump files and logs were saved to $VE_DUMP_DIR.fail
         exit 1
 else
+	[ -d $VE_DUMP_DIR ] && rm -rf $VE_DUMP_DIR
 	mv $dumpdir $VE_DUMP_DIR
 	if [ $? -ne 0 ]; then
 		echo "Failed to mv $dumpdir"
