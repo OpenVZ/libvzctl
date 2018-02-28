@@ -21,6 +21,7 @@
  *
  */
 
+#define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -31,6 +32,7 @@
 #include <limits.h>
 #include <errno.h>
 #include <assert.h>
+#include <libgen.h>
 
 #include "env.h"
 #include "cpu.h"
@@ -293,8 +295,13 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 	case VZCTL_PARAM_VE_PRIVATE:
 		ret = parse_str(&env->fs->ve_private_orig, str, replace);
 		if (ret == 0) {
-			free(env->fs->ve_private);
-			env->fs->ve_private = subst_VEID(EID(h), str);
+			if (EMPTY_CTID(h->ctid) && h->conf->fname) {
+				char *t = strdupa(h->conf->fname);
+				ret = xstrdup(&env->fs->ve_private, dirname(t));
+			} else {
+				free(env->fs->ve_private);
+				env->fs->ve_private = subst_VEID(EID(h), str);
+			}
 		}
 		break;
 	case VZCTL_PARAM_TEMPLATE:
