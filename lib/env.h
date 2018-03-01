@@ -54,7 +54,7 @@
 /** Maximum High Availability priority value */
 #define MAXHAPRIO		UINT_MAX
 
-#define EID(h)		(h->ctid)
+#define EID(h)		((h) ? (h)->ctid : "")
 #define IS_OLD_EID(a)	(strlen(a) < 11)
 
 /* internal flags */
