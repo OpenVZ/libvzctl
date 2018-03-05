@@ -353,7 +353,9 @@ static int ns_apply_memory_param(struct vzctl_env_handle *h,
 	int ret;
 	struct vzctl_ub_param *ub;
 
-	if (env->res->ub->physpages == NULL && env->res->ub->swappages == NULL)
+	if (env->res->ub->physpages == NULL &&
+			env->res->ub->swappages == NULL &&
+			env->res->memguar == NULL)
 		return 0;
 
 	ret = get_vswap_param(h, env, &ub);

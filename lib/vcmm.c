@@ -163,8 +163,9 @@ static int get_vcmm_config(struct vzctl_env_handle *h,
 		mem_p = &mem;
 		/* scale guaranty on memlimit chage */
 		if (guar == NULL) {
-			guar_def.type = DEFAULT_MEM_GUARANTEE_PCT;
-			guar_def.value = ((float)guar_bytes_cur / mem_cur) * 100;
+			guar_def.type = VZCTL_MEM_GUARANTEE_PCT;
+			if (mem_cur)
+				guar_def.value = ((float)guar_bytes_cur / mem_cur) * 100;
 			guar = &guar_def;
 		}
 	}
@@ -257,7 +258,8 @@ int vcmm_update(struct vzctl_env_handle *h, struct vzctl_env_param *env)
 			env->res->ub->swappages == NULL &&
 			env->res->memguar == NULL &&
 			env->cpu->cpumask == NULL &&
-			env->cpu->nodemask == NULL)
+			env->cpu->nodemask == NULL &&
+			env->res->memguar == NULL)
 		return 0;
 
 	logger(1, 0, "vcmmd: update");
