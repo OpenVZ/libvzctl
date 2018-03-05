@@ -58,7 +58,7 @@ int cg_destroy_cgroup(const char *ctid);
 int cg_enable_pseudosuper(const char *ctid);
 int cg_pseudosuper_open(const char *ctid, int *fd);
 int cg_disable_pseudosuper(const int pseudosuper_fd);
-int cg_attach_task(const char *ctid, pid_t pid, char *cg_subsys_only, char *cg_subsys_except);
+int cg_attach_task(const char *ctid, pid_t pid, char *cg_subsys_except);
 int cg_set_param(const char *ctid, const char *subsys, const char *name, const char *data);
 int cg_get_param(const char *ctid, const char *subsys, const char *name, char *out, int size);
 int cg_get_ul(const char *ctid, const char *subsys, const char *name,

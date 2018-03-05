@@ -778,11 +778,11 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 	 * in kernel source code).
 	 */
 	if (!param->fn) {
-		ret = cg_attach_task(h->ctid, getpid(), NULL, NULL);
+		ret = cg_attach_task(h->ctid, getpid(), NULL);
 		if (ret)
 			goto err;
 	} else {
-		ret = cg_attach_task(h->ctid, getpid(), NULL, CG_VE);
+		ret = cg_attach_task(h->ctid, getpid(), CG_VE);
 		if (ret)
 			goto err;
 	}
@@ -946,7 +946,7 @@ static int ns_env_enter(struct vzctl_env_handle *h, int flags)
 	if (dp == NULL)
 		return vzctl_err(-1, errno, "Unable to open dir %s", path);
 
-	ret = cg_attach_task(EID(h), getpid(), NULL, NULL);
+	ret = cg_attach_task(EID(h), getpid(), NULL);
 	if (ret)
 		goto err;
 
