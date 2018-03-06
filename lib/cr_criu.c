@@ -216,36 +216,119 @@ static int chkpnt(struct vzctl_env_handle *h, int cmd,
 		struct vzctl_cpt_param *param)
 {
 	int ret;
-	char buf[PATH_MAX];
 
 	ret = dump(h, cmd, param);
 	if (ret)
 		return ret;
 
 	vcmm_unregister(h);
-	get_init_pid_path(EID(h), buf);
-	unlink(buf);
+	clear_init_pid(h->ctid);
 
 	return 0;
+}
+
+static int restore_ini(struct vzctl_env_handle *h,
+		struct vzctl_cpt_param *param, char **dump, char **work,
+		char **log)
+{
+	int ret = 0;
+	const char *p;
+	struct vzctl_config *f;
+	char s[PATH_MAX];
+
+	get_dumpfile(h, param, s, sizeof(s));
+	ret = xstrdup(dump, s);
+	if (ret)
+		return ret;
+	ret = xstrdup(work, s);
+	if (ret)
+		return ret;
+	ret = xstrdup(log, "restore.log");
+	if (ret)
+		return ret;
+
+	snprintf(s, sizeof(s), "%s/restore-extra-args", *dump);
+	if (access(s, F_OK))
+		return 0;
+
+	f = vzctl2_conf_open(s, VZCTL_CONF_SKIP_GLOBAL, &ret);
+	if (ret)
+		return ret;
+
+	if (vzctl2_conf_get_param(f, "VE_WORK_DIR", &p) == 0) {
+		ret = xstrdup(work, p);
+		if (ret)
+			goto err;
+	}
+
+	if (vzctl2_conf_get_param(f, "VE_RESTORE_LOG_PATH", &p) == 0) {
+		ret = xstrdup(log, p);
+		if (ret)
+			goto err;
+	}
+err:
+	vzctl2_conf_close(f);
+
+	return ret;
+}
+
+static void restore_fin(const char *dumpdir, const char *workdir,
+		const char *logfile, int rc)
+{
+	char s[PATH_MAX];
+	char d[PATH_MAX];
+
+	if (rc)	{
+		char *arg[] = {"/bin/grep", " Error ", s, NULL};
+
+		snprintf(s, sizeof(s), "%s/%s", workdir, logfile);
+		if (access(s, F_OK) == 0)
+			vzctl2_exec_script(arg, NULL, 0);
+		vzctl_err(-1, 0, "The restore log was saved in %s", s);
+		return;
+	}
+
+	snprintf(d, sizeof(d), "%s.restore", dumpdir);
+	if (make_dir(d, 1))
+		return;
+
+	snprintf(s, sizeof(s), "%s/dump.log", dumpdir);
+	snprintf(d, sizeof(d), "%s.restore/dump.log", dumpdir);
+	rename(s, d);
+
+	snprintf(s, sizeof(s), "%s/restore.log", dumpdir);
+	snprintf(d, sizeof(d), "%s.restore/restore.log", dumpdir);
+	rename(s, d);
+
+	logger(0, 0, "The log of successful restore was saved in %s", d);
 }
 
 static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 	struct start_param *data)
 {
-	char path[STR_SIZE];
+	char *dumpdir = NULL;
+	char *workdir = NULL;
+	char *logfile = NULL;
+	char path[PATH_MAX];
 	char script[PATH_MAX];
 	char buf[PATH_MAX];
 	char *arg[2];
-	char *env[17] = {};
+	char *env[20] = {};
 	struct vzctl_veth_dev *veth;
 	int ret, i = 0;
 	char *pbuf, *ep, *s;
 
-	get_dumpfile(h, param, path, sizeof(path));
-	logger(3, 0, "Open the dump file %s", path);
-	snprintf(buf, sizeof(buf), "VE_DUMP_DIR=%s", path);
-	env[i++] = strdup(buf);
+	ret = restore_ini(h, param, &dumpdir, &workdir, &logfile);
+	if (ret)
+		return ret;
 
+	logger(3, 0, "Open the dump file %s", dumpdir);
+	snprintf(buf, sizeof(buf), "VE_DUMP_DIR=%s", dumpdir);
+	env[i++] = strdup(buf);
+	snprintf(buf, sizeof(buf), "VE_WORK_DIR=%s", workdir);
+	env[i++] = strdup(buf);
+	snprintf(buf, sizeof(buf), "VE_RESTORE_LOG_PATH=%s", logfile);
+	env[i++] = strdup(buf);
 	/*
 	   -v1, -v only messages and errors;
 	   -v2, -vv also warnings (default level);
@@ -268,10 +351,12 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 		env[i++] = strdup(buf);
 	}
 
-	get_init_pid_path(h->ctid, path);
-	snprintf(buf, sizeof(buf), "VE_PIDFILE=%s", path);
+	snprintf(buf, sizeof(buf), "VE_INIT_PIDFILE=%s",
+			get_init_pidfile(h->ctid, path));
 	env[i++] = strdup(buf);
-
+	snprintf(buf, sizeof(buf), "VE_CRIU_PIDFILE=%s",
+			get_criu_pidfile(h->ctid, path));
+	env[i++] = strdup(buf);
 	snprintf(buf, sizeof(buf), "VE_ROOT=%s", h->env_param->fs->ve_root);
 	env[i++] = strdup(buf);
 	snprintf(buf, sizeof(buf), "VZCTL_PID=%d", getpid());
@@ -322,12 +407,17 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 	arg[0] = get_script_path("vz-rst", script, sizeof(script));
 	arg[1] = NULL;
 
-	ret = vzctl2_wrap_exec_script(arg, env, 0);
-	if (ret)
+	if (vzctl2_wrap_exec_script(arg, env, 0)) {
+		unlink(get_criu_pidfile(h->ctid, path));
 		ret = VZCTL_E_RESTORE;
+	}
 
+	restore_fin(dumpdir, workdir, logfile, ret);
 err:
 	free_ar_str(env);
+	free(dumpdir);
+	free(workdir);
+	free(logfile);
 
 	return ret;
 }

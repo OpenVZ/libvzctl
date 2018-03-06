@@ -50,7 +50,6 @@
 #define VZCTL_VE_ROOTHDD_DIR	"root.hdd"
 #define VZCTL_VE_CLUSTER_SERVICE_NAME	".cluster_service_name"
 #define VZCTL_VE_RUN_DIR	"/var/run/ve"
-#define VZCTL_VE_INIT_PID_FILE_EXT	".init.pid"
 
 #define VZCTL_SCRIPT_D_DIR	SCRIPTDDIR"/"
 #define VZCTL_START		"vz-start"

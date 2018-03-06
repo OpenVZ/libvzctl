@@ -2603,9 +2603,20 @@ void p_close(int p[2])
 		close(p[1]);
 }
 
-void get_init_pid_path(const ctid_t ctid, char *path)
+static const char *get_pidfile(const ctid_t ctid, const char *sfx, char *out)
 {
-	sprintf(path, VZCTL_VE_RUN_DIR "/%s" VZCTL_VE_INIT_PID_FILE_EXT, ctid);
+	sprintf(out, VZCTL_VE_RUN_DIR "/%s.%s" , ctid, sfx);
+	return out;
+}
+
+const char *get_init_pidfile(const ctid_t ctid, char *out)
+{
+	return get_pidfile(ctid, "init.pid", out);
+}
+
+const char *get_criu_pidfile(const ctid_t ctid, char *out)
+{
+	return get_pidfile(ctid, "criu.pid", out);
 }
 
 int write_init_pid(const ctid_t ctid, pid_t pid)
@@ -2614,7 +2625,7 @@ int write_init_pid(const ctid_t ctid, pid_t pid)
 	char path[PATH_MAX];
 	FILE *fp;
 
-	get_init_pid_path(ctid, path);
+	get_init_pidfile(ctid, path);
 
 	logger(10, 0, "Write init pid=%d %s", pid, path);
 	if ((ret = make_dir(path, 0)))
@@ -2630,16 +2641,12 @@ int write_init_pid(const ctid_t ctid, pid_t pid)
 	return ret;
 }
 
-int read_init_pid(const ctid_t ctid, pid_t *pid)
+int read_pid(const char *path, pid_t *pid)
 {
 	int ret = 0;
-	char path[PATH_MAX];
 	FILE *fp;
 
 	*pid = 0;
-
-	get_init_pid_path(ctid, path);
-
 	if ((fp = fopen(path, "r")) == NULL) {
 		if (errno != ENOENT)
 			vzctl_err(-1, errno, "Unable to open %s", path);
@@ -2648,21 +2655,28 @@ int read_init_pid(const ctid_t ctid, pid_t *pid)
 	}
 
 	if (fscanf(fp, "%d", pid) < 1)
-		ret = vzctl_err(-1, 0, "Unable to read Container init pid");
+		ret = vzctl_err(-1, 0, "Unable to read pid from %s", path);
 
 	fclose(fp);
 	return ret;
 }
 
-int clear_init_pid(const ctid_t ctid)
+int read_init_pid(const ctid_t ctid, pid_t *pid)
 {
-	int ret;
 	char path[PATH_MAX];
 
-	get_init_pid_path(ctid, path);
+	get_init_pidfile(ctid, path);
+	return read_pid(path, pid);
+}
 
-	if ((ret = remove(path)) < 0 && errno != ENOENT)
-		return vzctl_err(-1, 0, "Unable to clear Container init pid file: %s", path);
+int clear_init_pid(const ctid_t ctid)
+{
+	char f[PATH_MAX];
+
+	get_init_pidfile(ctid, f);
+
+	if (remove(f) < 0 && errno != ENOENT)
+		return vzctl_err(-1, 0, "Unable to clear Container init pid file: %s", f);
 
 	return 0;
 }
