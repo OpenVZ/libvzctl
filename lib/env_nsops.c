@@ -390,6 +390,12 @@ static int ns_apply_res_param(struct vzctl_env_handle *h,
 			goto err;
 	}
 
+	if (ub->kmemsize) {
+		ret = cg_env_set_memory(h->ctid, CG_KMEM_LIMIT, ub->kmemsize->l);
+		if (ret)
+			goto err;
+	}
+
 	ret = ns_apply_memory_param(h, env, ub, flags);
 	if (ret)
 		goto err;
