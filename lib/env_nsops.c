@@ -282,8 +282,29 @@ static int ns_set_ub(struct vzctl_env_handle *h,
 
 #define PAGE_COUNTER_MAX ((unsigned long)LONG_MAX)
 
+static int set_memlimit_iteratively(const char *ctid, unsigned long l,
+		unsigned long r)
+{
+	unsigned long m = l;
+
+	do {
+		int rc = cg_env_set_memory(ctid, CG_MEM_LIMIT, m);
+		if (rc) {
+			if (errno != EBUSY)
+				return rc;
+			l = m;
+		} else {
+			r = m;
+		}
+
+		m = l + (r - l) / 2;
+	} while ((r - l) >  1024 * 1024);
+
+	return 0;
+}
+
 static int ns_set_memory_param(struct vzctl_env_handle *h,
-		struct vzctl_ub_param *ub)
+		struct vzctl_ub_param *ub, int flags)
 {
 	int ret = 0;
 	int pagesize = get_pagesize();
@@ -317,20 +338,29 @@ static int ns_set_memory_param(struct vzctl_env_handle *h,
 		new_mem = x > PAGE_COUNTER_MAX ? PAGE_COUNTER_MAX : (unsigned long) x;
 
 		if (new_ms < cur_mem) {
-			ret = cg_env_set_memory(h->ctid, CG_MEM_LIMIT, new_mem);
+			if (flags & VZCTL_RESTORE)
+				ret = set_memlimit_iteratively(h->ctid,
+						new_mem, cur_mem);
+			else
+				ret = cg_env_set_memory(h->ctid, CG_MEM_LIMIT,
+						new_mem);
 			if (ret)
 				goto err;
 
 			ret = cg_env_set_memory(h->ctid, CG_SWAP_LIMIT, new_ms);
 			if (ret)
 				goto err;
-
 		} else {
 			ret = cg_env_set_memory(h->ctid, CG_SWAP_LIMIT, new_ms);
 			if (ret)
 				goto err;
 
-			ret = cg_env_set_memory(h->ctid, CG_MEM_LIMIT, new_mem);
+			if (flags & VZCTL_RESTORE)
+				ret = set_memlimit_iteratively(h->ctid,
+						new_mem, cur_mem);
+			else
+				ret = cg_env_set_memory(h->ctid, CG_MEM_LIMIT,
+						new_mem);
 			if (ret)
 				goto err;
 		}
@@ -368,7 +398,7 @@ static int ns_apply_memory_param(struct vzctl_env_handle *h,
 			 * unlimited memory resources until
 			 * configuration was activated by vcmmd
 			 */
-			ret = ns_set_memory_param(h, ub);
+			ret = ns_set_memory_param(h, ub, flags);
 			if (!ret)
 				ret = vcmm_register(h, env);
 		} else
@@ -378,7 +408,7 @@ static int ns_apply_memory_param(struct vzctl_env_handle *h,
 			env->res->memguar = NULL;
 		}
 	} else
-		ret = ns_set_memory_param(h, ub);
+		ret = ns_set_memory_param(h, ub, flags);
 
 	return ret;
 }
@@ -521,7 +551,9 @@ static int setup_env_cgroup(struct vzctl_env_handle *h, struct vzctl_env_param *
 			return ret;
 		}
 
-		ret = ns_set_memory_param(h, ub);
+		if (ub->physpages)
+			ub->physpages->l *= 2;
+		ret = ns_set_memory_param(h, ub, 0);
 		free_ub_param(ub);
 	}
 
@@ -778,11 +810,11 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 	 * in kernel source code).
 	 */
 	if (!param->fn) {
-		ret = cg_attach_task(h->ctid, getpid(), NULL, NULL);
+		ret = cg_attach_task(h->ctid, getpid(), NULL);
 		if (ret)
 			goto err;
 	} else {
-		ret = cg_attach_task(h->ctid, getpid(), NULL, CG_VE);
+		ret = cg_attach_task(h->ctid, getpid(), CG_VE);
 		if (ret)
 			goto err;
 	}
@@ -946,7 +978,7 @@ static int ns_env_enter(struct vzctl_env_handle *h, int flags)
 	if (dp == NULL)
 		return vzctl_err(-1, errno, "Unable to open dir %s", path);
 
-	ret = cg_attach_task(EID(h), getpid(), NULL, NULL);
+	ret = cg_attach_task(EID(h), getpid(), NULL);
 	if (ret)
 		goto err;
 
@@ -1266,6 +1298,19 @@ static int ns_env_apply_param(struct vzctl_env_handle *h,
 		struct vzctl_env_param *env, int flags)
 {
 	int ret;
+
+	if (flags & VZCTL_RESTORE) {
+		char f[PATH_MAX];
+		pid_t p;
+
+		get_criu_pidfile(h->ctid, f);
+		if (read_pid(f, &p) == 0) {
+			ret = cg_attach_task(NULL, p, CG_VE);
+			if (ret)
+				return ret;
+		}
+		unlink(f);
+	}
 
 	if (ns_is_env_run(h)) {
 		if (h->ctx->state == VZCTL_STATE_STARTING) {
