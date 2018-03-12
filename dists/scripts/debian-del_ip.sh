@@ -39,6 +39,7 @@ function del_ip()
 
 	if [ "x${IPDELALL}" = "xyes" ]; then
 		ifdown ${VENET_DEV} 2>/dev/null
+		ip a flush dev ${VENET_DEV}
 		remove_debian_interface "${VENET_DEV}:[0-9]*" ${CFGFILE}
 		remove_debian_interface "${VENET_DEV}" ${CFGFILE}
 		return
