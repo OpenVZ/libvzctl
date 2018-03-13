@@ -295,7 +295,9 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 	case VZCTL_PARAM_VE_PRIVATE:
 		ret = parse_str(&env->fs->ve_private_orig, str, replace);
 		if (ret == 0) {
-			if (h && EMPTY_CTID(EID(h)) && h->conf->fname) {
+			if ((flags & VZCTL_CONF_UNREGISTERED) &&
+				h && EMPTY_CTID(EID(h)) && h->conf->fname)
+			{
 				char *t = strdupa(h->conf->fname);
 				ret = xstrdup(&env->fs->ve_private, dirname(t));
 			} else {
