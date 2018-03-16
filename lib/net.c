@@ -554,8 +554,6 @@ static int netdev_ctl(struct vzctl_env_handle *h, int add, list_head_t *netdev)
 	struct vzctl_str_param *it;
 
 	list_for_each(it, netdev, list) {
-		logger(0, 0, "%s the network device: %s",
-				add ? "Add": "Del", it->str);
 		ret = get_env_ops()->env_netdev_ctl(h, add, it->str);
 		if (ret)
 			return ret;
