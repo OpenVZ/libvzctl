@@ -38,7 +38,7 @@
 #include <linux/if.h>
 #include <linux/veth.h>
 #include <sys/ioctl.h>
-
+#include <libgen.h>
 #include <sched.h>
 
 #include "env.h"
@@ -1669,6 +1669,7 @@ static int ns_netdev_ctl(struct vzctl_env_handle *h, int add, const char *dev)
 	char hname_s[STR_SIZE];
 	char *arg[] = {script, NULL};
 	char *envp[] = {id_s, vname_s, hname_s, NULL};
+	const char *mode = "-";
 
 	logger(0, 0, "%s the network device: %s", add ? "Add" : "Delete", dev);
 
@@ -1676,6 +1677,7 @@ static int ns_netdev_ctl(struct vzctl_env_handle *h, int add, const char *dev)
 		ret = get_sysfs_device_path("net", dev, sysfs, sizeof(sysfs));
 		if (ret)
 			return ret;
+		mode = "rwx";
 	}
 
 	snprintf(id_s, sizeof(id_s), "VEID=%s", EID(h));
@@ -1688,12 +1690,12 @@ static int ns_netdev_ctl(struct vzctl_env_handle *h, int add, const char *dev)
 
 	if (!add) {
 		/* get sysfs device name after it moved on host */
-		if (get_sysfs_device_path("net", dev, sysfs, sizeof(sysfs)) == 0)
-			add_sysfs_dir(h, sysfs, NULL,  "-");
-	} else
-		add_sysfs_dir(h, sysfs, NULL,  "rx");
+		ret = get_sysfs_device_path("net", dev, sysfs, sizeof(sysfs));
+		if (ret)
+			return ret;
+	}
 
-	return 0;
+	return add_sysfs_dir(h, dirname(sysfs), NULL, mode);
 }
 
 static int ns_set_iolimit(struct vzctl_env_handle *h, unsigned int speed)
