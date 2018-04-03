@@ -858,7 +858,7 @@ int cg_env_get_ve_state(const char *ctid)
 
 	cg_read(path, buf, sizeof(buf));
 
-	return (strcmp(buf, "STOPPED") || strcmp(buf, "STOPPING"));
+	return (strcmp(buf, "STOPPED") && strcmp(buf, "STOPPING"));
 }
 
 int cg_env_get_pids(const char *ctid, list_head_t *list)
