@@ -283,6 +283,9 @@ function add_ip()
 				./ifup-aliases ${VENET_DEV}
 		fi
 	fi
+
+	# firewall-cmd will wait for all previous firewalld configuration tasks if any
+	[ -x /usr/bin/firewall-cmd ] && /usr/bin/firewall-cmd --state >/dev/null 2>&1
 }
 
 add_ip
