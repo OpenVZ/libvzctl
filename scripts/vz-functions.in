@@ -279,6 +279,7 @@ function vzgetnetdev()
 	for dev in $NETDEVICES; do
 		if ! [[ -e "/sys/class/net/$dev/device" \
 			|| -e "/sys/class/net/$dev/bridge" \
+			|| -e "/proc/net/vlan/$dev" \
 			|| $dev =~ ^bond ]]; then
 			continue
 		fi
