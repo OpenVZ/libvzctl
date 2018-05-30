@@ -64,7 +64,6 @@ libvzctl2_la_SOURCES =  bitmap.c \
 			vzenv.c \
 			slm.c \
 			tc.c \
-			systemd.c \
 			nl.c \
 			vcmm.c \
 			wrap.c
