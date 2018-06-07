@@ -77,7 +77,7 @@ set_localhost()
 	fi
 
 	file=${VE_ROOT}"/etc/resolv.conf"
-	if [ ! -e "${file}" ]; then
+	if [ ! -e "${file}" -a ! -h "${file}" ]; then
 		touch ${file}
 	fi
 }
