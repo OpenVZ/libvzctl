@@ -31,15 +31,17 @@
 
 vzcheckvar VEID
 
-# get list of network devices for vzarp
-vzgetnetdev
+if [ -f "$VE_STATE_DIR/$VEID" ]; then
+	# get list of network devices for vzarp
+	vzgetnetdev
 
-for IP in $(cat "$VE_STATE_DIR/$VEID" 2>/dev/null); do
-	vzdelrouting $IP
-	vzarp del $IP
-done
+	for IP in $(cat "$VE_STATE_DIR/$VEID" 2>/dev/null); do
+		vzdelrouting $IP
+		vzarp del $IP
+	done
 
-rm -f $VE_STATE_DIR/$VEID
+	rm -f $VE_STATE_DIR/$VEID
+fi
 
 @SCRIPTDIR@/vz-setrate del
 
