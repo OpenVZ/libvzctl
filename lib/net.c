@@ -51,6 +51,7 @@
 #include "vz.h"
 #include "env_ops.h"
 #include "exec.h"
+#include "cgroup.h"
 
 void free_ip_param(struct vzctl_ip_param *ip)
 {
@@ -821,10 +822,18 @@ static int get_net_info(ctid_t ctid, const char *ifname,
 	int ret = 0;
 	FILE *fp;
 	char ip[STR_SIZE];
+	char pid_s[12];
 	char buf[STR_SIZE];
 	LIST_HEAD(ips);
-	char *arg[] = {"/usr/sbin/ip", "netns", "exec", ctid, "ip", "a", "l",
-			"dev", (char *) ifname, NULL};
+	pid_t pid;
+	char *arg[] = {"/usr/bin/nsenter", "-n", "-m", "-t", pid_s,
+		"ip", "a", "l",	ifname ? "dev" : NULL, (char *) ifname, NULL};
+
+	ret = cg_env_get_init_pid(ctid, &pid);
+	if (ret)
+		return ret;
+
+	snprintf(pid_s, sizeof(pid_s), "%lu", (long unsigned)pid);
 
 	fp = vzctl_popen(arg, NULL, 0);
 	if (fp == NULL)
