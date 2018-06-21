@@ -874,9 +874,6 @@ int vzctl2_get_net_info(struct vzctl_env_handle *h, const char *ifname,
 {
 	int ret;
 
-	if (ifname == NULL)
-		return VZCTL_E_INVAL;
-
 	if (!is_env_run(h))
 		return VZCTL_E_ENV_NOT_RUN;
 
