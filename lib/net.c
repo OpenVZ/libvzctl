@@ -852,6 +852,10 @@ static int get_net_info(ctid_t ctid, const char *ifname,
 				strncmp(ip, "fe80:", 5) == 0)
 			continue;
 
+		char *p = strrchr(ip, '/');
+		if (p != NULL)
+			*p = '\0';
+
 		if (add_str_param(&ips, ip) == NULL) {
 			ret = VZCTL_E_NOMEM;
 			goto err;
