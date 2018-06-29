@@ -37,6 +37,7 @@
 #include <dirent.h>
 #include <string.h>
 
+#include "libvzctl.h"
 #include "vzerror.h"
 #include "image.h"
 #include "disk.h"
@@ -55,9 +56,14 @@
 #include "cgroup.h"
 #include "sysfs_perm.h"
 #include "exec.h"
+#include "disk.h"
 
-static int umount_disk_image(struct vzctl_disk *d);
 static int umount_disk_device(struct vzctl_disk *d);
+
+disk_type get_disk_type(struct vzctl_disk *disk)
+{
+	return disk->use_device ? DISK_DEVICE : DISK_PLOOP;
+}
 
 void free_disk_param(struct vzctl_disk_param *disk)
 {
@@ -120,6 +126,9 @@ int is_root_disk(struct vzctl_disk *disk)
 struct vzctl_disk *find_root_disk(const struct vzctl_env_disk *env_disk)
 {
 	struct vzctl_disk *disk;
+
+	if (env_disk == NULL)
+		return NULL;
 
 	list_for_each(disk, &env_disk->disks, list)
 		if (is_root_disk(disk))
@@ -612,7 +621,7 @@ static int get_part_device(const char *device, char *out, int size)
 			device);
 }
 
-static int get_disk_mount_param(struct vzctl_env_handle *h, struct vzctl_disk *d,
+int get_disk_mount_param(struct vzctl_env_handle *h, struct vzctl_disk *d,
 		struct vzctl_mount_param *param, int flags,
 		char *mnt_opts, int mnt_opts_size)
 {
@@ -703,21 +712,30 @@ int mount_disk_image(struct vzctl_env_handle *h, struct vzctl_disk *d, int flags
 	if (ret)
 		return ret;
 
-	ret = vzctl2_mount_disk_image(d->path, &param);
-	if (ret)
-		return ret;
+	if (param.target != NULL) {
+		ret = make_dir(param.target, 1);
+		if (ret)
+			return ret;
+	}
 
-	return 0;
+	switch(get_disk_type(d)) {
+	case DISK_PLOOP: 
+		return mount_ploop_image(h, d, &param);
+	default:
+		return VZCTL_E_INVAL;
+	}
 }
 
-int update_disk_info(struct vzctl_disk *disk)
+int update_disk_info(struct vzctl_env_handle *h, struct vzctl_disk *disk)
 {
 	char devname[STR_SIZE];
 	char partname[STR_SIZE];
+	char x[STR_SIZE];
 	int ret;
 	struct stat st;
 
-	if (disk->use_device) {
+	switch (get_disk_type(disk)) {
+	case DISK_DEVICE:
 		if (get_real_device(disk->path, devname, sizeof(devname)))
 			return VZCTL_E_SYSTEM;
 
@@ -739,9 +757,9 @@ int update_disk_info(struct vzctl_disk *disk)
 
 		if (get_part_device(devname, partname, sizeof(partname)))
 			return VZCTL_E_FS_NOT_MOUNTED;
-	} else {
-		char x[STR_SIZE];
-
+		break;
+	case DISK_PLOOP:
+	default:
 		ret = vzctl2_get_ploop_dev2(disk->path, devname, sizeof(devname),
 					partname, sizeof(partname));
 		if (ret == -1)
@@ -761,6 +779,7 @@ int update_disk_info(struct vzctl_disk *disk)
 			disk->dmname = strdup(partname);
 			strcpy(partname, x);
 		}
+		break;
 	}
 
 	if (stat(devname, &st))
@@ -791,13 +810,19 @@ static int mount_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
         return 0;
 }
 
-static int umount_disk(struct vzctl_disk *disk)
+static int umount_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk)
 {
-        if (!disk->use_device)
-                return umount_disk_image(disk);
-        else if (is_root_disk(disk))
-                return umount_disk_device(disk);
-        return 0;
+	switch (get_disk_type(disk)) {
+	case DISK_DEVICE:
+		if (is_root_disk(disk))
+			return umount_disk_device(disk);
+		break;
+	case DISK_PLOOP:
+	default:
+		return vzctl2_umount_disk_image(disk->path);
+	}
+
+	return 0;
 }
 
 int vzctl2_mount_disk(struct vzctl_env_handle *h,
@@ -827,7 +852,7 @@ int vzctl2_mount_disk(struct vzctl_env_handle *h,
 				goto err;
 			}
 		}
-		ret = update_disk_info(disk);
+		ret = update_disk_info(h, disk);
 		if (ret)
 			goto err;
 	}
@@ -839,13 +864,13 @@ err:
 			&e->list != (list_elem_t*)(&env_disk->disks);
 			e = list_entry(e->list.prev, typeof(*e), list))
 	{
-		umount_disk(e);
+		umount_disk(h, e);
 	}
 
 	return ret;
 }
 
-static int get_mnt_by_dev(const char *device, char *out, int size)
+int get_mnt_by_dev(const char *device, char *out, int size)
 {
 	FILE *fp;
 	int ret = 1;
@@ -906,12 +931,8 @@ int umount_disk_device(struct vzctl_disk *d)
 	return 0;
 }
 
-int umount_disk_image(struct vzctl_disk *d)
-{
-	return vzctl2_umount_disk_image(d->path);
-}
-
-int vzctl2_umount_disk(const struct vzctl_env_disk *env_disk)
+int vzctl2_umount_disk(struct vzctl_env_handle *h,
+		const struct vzctl_env_disk *env_disk)
 {
 	int ret;
 	struct vzctl_disk *disk;
@@ -919,7 +940,7 @@ int vzctl2_umount_disk(const struct vzctl_env_disk *env_disk)
 	assert(env_disk);
 
 	list_for_each_prev(disk, &env_disk->disks, list) {
-		ret = umount_disk(disk);
+		ret = umount_disk(h, disk);
 		if (ret && ret != SYSEXIT_DEV_NOT_MOUNTED &&
 				is_permanent_disk(disk))
 			return ret;
@@ -1064,7 +1085,7 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	int skip_configure = (flags & VZCTL_SKIP_CONFIGURE);
 
 	if (disk->dev == 0) {
-		ret = update_disk_info(disk);
+		ret = update_disk_info(h, disk);
 		if (ret)
 			return ret;
 	}
@@ -1123,13 +1144,81 @@ static void get_dd_path(const struct vzctl_disk *disk, char *buf, size_t size)
 	snprintf(buf, size, "%s/" DISKDESCRIPTOR_XML, disk->path);
 }
 
+static int create_image(struct vzctl_env_handle *h,
+		struct vzctl_disk_param *param, int flags)
+{
+	int ret;
+	struct vzctl_create_image_param create_param = {
+		.size = param->size,
+		.enc_keyid = param->enc_keyid,
+	};
+
+	if (make_dir(param->path, 1))
+		return VZCTL_E_SYSTEM; 
+
+	ret = vzctl_create_image(h, param->path, &create_param);
+	if (ret)
+		unlink(param->path);
+
+	return ret;
+}
+
+static int register_ploop_image(struct vzctl_disk *disk,
+		struct vzctl_disk_param *param,	int flags)
+{
+	int rc;
+	char fname[PATH_MAX];
+	struct ploop_info info = {};
+	struct ploop_disk_images_data *di;
+
+	get_dd_path(disk, fname, sizeof(fname));
+	rc = stat_file(fname);
+	if (rc == -1)
+		return VZCTL_E_SYSTEM;
+	else if (rc == 0)
+		return vzctl_err(VZCTL_E_INVAL, 0,
+			"Failed to register ploop image: no such file %s", fname);
+	logger(0, 0, "The ploop image %s already exists: %s",
+			param->path, flags & VZCTL_DISK_RECREATE ?
+			"recreate" : "register");
+	if (open_dd(disk->path, &di))
+		return VZCTL_E_SYSTEM;
+
+	if (ploop_read_dd(di)) {
+		ploop_close_dd(di);
+		return VZCTL_E_SYSTEM;
+	}
+
+	if (flags & VZCTL_DISK_RECREATE) {
+		struct ploop_create_param p = {};
+
+		if (param->enc_keyid)
+			p.keyid = param->enc_keyid;
+		else if (di->enc)
+			p.keyid = strdupa(di->enc->keyid);
+
+		if (ploop_init_image(di, &p)) {
+			ploop_close_dd(di);
+			return vzctl_err(VZCTL_E_SYSTEM, 0,
+				"Failed to recreate image: %s",
+				ploop_get_last_error());
+		}
+	}
+
+	if (ploop_get_info_by_descr(fname, &info))
+		disk->size = (unsigned long)di->size >> 1; /* sectors -> 1K */
+	else
+		disk->size = info.fs_blocks * info.fs_bsize / 1024;
+
+	ploop_close_dd(di);
+
+	return 0;
+}
+
 int vzctl2_add_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param,
 		int flags)
 {
 	int ret, rc;
-	struct vzctl_create_image_param create_param = {
-		.enc_keyid = param->enc_keyid,
-	};
 	struct vzctl_disk *d;
 	int created = 0;
 	char fname[PATH_MAX];
@@ -1164,53 +1253,9 @@ int vzctl2_add_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param,
 	if (rc == -1) {
 		goto err;
 	} else if (rc == 1) {
-		/* disk registration */
-		char fname[PATH_MAX];
-		struct ploop_disk_images_data *di;
-
-		get_dd_path(d, fname, sizeof(fname));
-		rc = stat_file(fname);
-		if (rc == -1) {
+		ret = register_ploop_image(d, param, flags);
+		if (ret)
 			goto err;
-		} else if (rc == 0) {
-			logger(-1, 0, "Failed to register ploop image:"
-					" no such file %s", fname);
-
-			goto err;
-		}
-		logger(0, 0, "The ploop image %s already exists: %s",
-				d->path, flags & VZCTL_DISK_RECREATE ?
-					"recreate" : "register");
-		if (open_dd(d->path, &di))
-			goto err;
-
-		if (ploop_read_dd(di)) {
-			ploop_close_dd(di);
-			goto err;
-		}
-
-		if (flags & VZCTL_DISK_RECREATE) {
-			struct ploop_create_param p = {	};
-
-			if (param->enc_keyid)
-				p.keyid = param->enc_keyid;
-			else if (di->enc)
-				 p.keyid = strdupa(di->enc->keyid);
-
-			if (ploop_init_image(di, &p)) {
-				vzctl_err(-1, 0, "Failed to recreate image: %s",
-						ploop_get_last_error());
-				goto err;
-			}
-		}
-
-		struct ploop_info info = {};
-		if (ploop_get_info_by_descr(fname, &info))
-			d->size = (unsigned long)di->size >> 1; /* sectors -> 1K */
-		else
-			d->size = info.fs_blocks * info.fs_bsize / 1024;
-
-		ploop_close_dd(di);
 	} else {
 		if (flags & VZCTL_DISK_SKIP_CREATE)
 			goto out;
@@ -1219,16 +1264,11 @@ int vzctl2_add_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param,
 			logger(-1, 0, "The --size option have to be specified");
 			goto err;
 		}
-		/* disk creation */
-		if (make_dir(d->path, 1))
+
+		ret = create_image(h, param, flags);
+		if (ret)
 			goto err;
 
-		create_param.size = d->size = param->size;
-		ret = vzctl2_create_disk_image(d->path, &create_param);
-		if (ret) {
-			unlink(d->path);
-			goto err;
-		}
 		created = 1;
 	}
 
@@ -1305,7 +1345,7 @@ static int del_disk(struct vzctl_env_handle *h, struct vzctl_disk *d)
 {
 	int ret;
 
-	ret = update_disk_info(d);
+	ret = update_disk_info(h, d);
 	if (ret == VZCTL_E_FS_NOT_MOUNTED)
 		return 0;
 	else if (ret)
@@ -1325,7 +1365,7 @@ static int del_disk(struct vzctl_env_handle *h, struct vzctl_disk *d)
 			return ret;
 	}
 
-	ret = umount_disk(d);
+	ret = umount_disk(h, d);
 	if (ret)
 		return ret;
 

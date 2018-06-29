@@ -55,7 +55,7 @@ static int create_ploop_dev_map(struct vzctl_env_handle *h, pid_t pid)
 			continue;
 
 		if (d->dev == 0) {
-			ret = update_disk_info(d);
+			ret = update_disk_info(h, d);
 			if (ret)
 				return ret;
 		}

@@ -307,13 +307,15 @@ int vzctl2_env_is_mounted(struct vzctl_env_handle *h)
 {
 	const char *ve_private = h->env_param->fs->ve_private;
 	const char *target = h->env_param->fs->ve_root;
+	struct vzctl_disk *d = NULL;
+
+	if (h->env_param->disk)
+		d = find_root_disk(h->env_param->disk);
 
 	if (ve_private != NULL) {
 		int layout = vzctl2_env_layout_version(ve_private);
 
 		if (layout == VZCTL_LAYOUT_5) {
-			struct vzctl_disk *d = find_root_disk(h->env_param->disk);
-
 			if (d != NULL && !d->use_device)
 				return vzctl2_is_image_mounted(d->path);
 

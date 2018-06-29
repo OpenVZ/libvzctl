@@ -28,6 +28,7 @@
 struct vzctl_env_handle;
 struct vzctl_mount_param;
 struct vzctl_create_image_param;
+struct vzctl_disk;
 
 const char *get_root_disk_path(const char *ve_private, char *buf, int len);
 int open_dd(const char *path, struct ploop_disk_images_data **di);
@@ -39,4 +40,8 @@ int vzctl2_switch_snapshot(struct vzctl_env_handle *h, const char *guid,
 int resize_disk_image(const char *path, unsigned long long newsize,
 		int offline, pid_t mntns_pid);
 int vzctl_encrypt_disk_image(const char *path, const char *keyid, int flags);
+int mount_ploop_image(struct vzctl_env_handle *h, struct vzctl_disk *disk,
+		struct vzctl_mount_param *param);
+int vzctl_create_image(struct vzctl_env_handle *h, const char *path,
+		struct vzctl_create_image_param *param);
 #endif

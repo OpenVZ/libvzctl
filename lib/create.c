@@ -398,7 +398,7 @@ static int do_create_private(struct vzctl_env_handle *h, const char *dst,
 #define TMP_SFX	".private_temporary"
 static int create_env_private(struct vzctl_env_handle *h, const char *ve_private,
 		const char *ostmpl, const char *vzpkg_conf, char **applist,
-		int layout, const char *enc_keyid, int flags)
+		int layout, struct vzctl_env_create_param *param, int flags)
 {
 	char lockfile[PATH_MAX];
 	char dst_tmp[PATH_MAX];
@@ -436,11 +436,11 @@ static int create_env_private(struct vzctl_env_handle *h, const char *ve_private
 	if (ret)
 		goto err;
 
-	if (enc_keyid != NULL) {
+	if (param->enc_keyid != NULL) {
 		char path[PATH_MAX];
 
 		get_root_disk_path(dst_tmp, path, sizeof(path));
-		ret = vzctl_encrypt_disk_image(path, enc_keyid, 0);
+		ret = vzctl_encrypt_disk_image(path, param->enc_keyid, 0);
 		if (ret)
 			goto err;
 	}
@@ -651,7 +651,7 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 	}
 
 	if ((ret = create_env_private(h, fs->ve_private, ostmpl, vzpkg_src_conf,
-				&applist, layout, param->enc_keyid, flags)))
+				&applist, layout, param, flags)))
 		goto err;
 
 	vzctl2_get_env_conf_path_orig(h, conf, sizeof(conf));
