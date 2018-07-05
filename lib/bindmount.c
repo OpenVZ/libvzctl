@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <mntent.h>
 
 #include "vzerror.h"
 #include "util.h"
@@ -306,6 +307,43 @@ char *bindmount2str(struct vzctl_bindmount_param *old_mnt, struct vzctl_bindmoun
 	return buf;
 }
 
+static int get_mount_flags(const char *dir, int *flags)
+{
+	FILE *fp;
+	struct mntent *ent, mntbuf;
+	char tmp[PATH_MAX];
+	struct stat st;
+
+	fp = fopen("/proc/mounts", "r");
+	if (fp == NULL)
+		return vzctl_err(-1, errno, "Cannot open /proc/mounts");
+
+	if (stat(dir, &st))
+		return vzctl_err(-1, errno, "Cannpt stat %s", dir);
+
+	while ((ent = getmntent_r(fp, &mntbuf, tmp, sizeof(tmp)))) {
+		struct stat s;
+
+		if (ent->mnt_opts == NULL)
+			continue;
+		if (stat(ent->mnt_dir, &s))
+			continue;
+
+		if (st.st_dev == s.st_dev) {
+			if (hasmntopt(ent, "nodev"))
+				*flags |= MS_NODEV;
+			if (hasmntopt(ent, "nosuid"))
+				*flags |= MS_NOSUID;
+			if (hasmntopt(ent, "noexec"))
+				*flags |= MS_NOEXEC;
+			break;
+		}
+	}
+	fclose(fp);
+
+	return 0;
+}
+
 static int bind_mount(struct vzctl_env_handle *h, struct vzctl_bindmount *mnt)
 {
 	char s[STR_SIZE];
@@ -339,6 +377,8 @@ static int bind_mount(struct vzctl_env_handle *h, struct vzctl_bindmount *mnt)
 		}
 	} else {
 		snprintf(s, sizeof(s), "%s", mnt->src);
+		if (flags && get_mount_flags(mnt->src, &flags))
+			return VZCTL_E_MOUNT;
 	}
 
 	logger(0, 0, "Set up the bind mount: %s", s);
@@ -350,7 +390,7 @@ static int bind_mount(struct vzctl_env_handle *h, struct vzctl_bindmount *mnt)
 	/* apply flags */
 	if (flags && mount(s, d, "", flags | MS_REMOUNT | MS_BIND, NULL))
 		return vzctl_err(VZCTL_E_MOUNT, errno,
-				"Cannot bind-mount: %s %s", s, d);
+				"Cannot apply bind-mount flags: %s %s", s, d);
 
 	return 0;
 }
