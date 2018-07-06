@@ -137,6 +137,8 @@ enum {
 					   data under VE_PRIVATE */
 	VZ_REG_SKIP_HA_CLUSTER  = 0x20, /* compatibility: alias for VZ_REG_SKIP_CLUSTER */
 	VZ_REG_START            = 0x40, /* Start CT after registration */
+	VZ_REG_RENEW_NETIF_IFNAME	= 0x80, /* Renew host_ifname */
+	VZ_REG_RENEW_NETIF_MAC	= 0x100, /* Renew host_mac */
 };
 
 /* Global internal flags for vzctl2_set_flags  */

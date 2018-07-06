@@ -696,7 +696,8 @@ int apply_veth_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 }
 
 /**************************** Config functions ***************************/
-char *veth2str(struct vzctl_env_param *env, struct vzctl_veth_param *new)
+char *veth2str(struct vzctl_env_param *env, struct vzctl_veth_param *new,
+		int renew)
 {
 	char buf[STR_SIZE * 10];
 	list_head_t *phead;
@@ -707,7 +708,6 @@ char *veth2str(struct vzctl_env_param *env, struct vzctl_veth_param *new)
 	struct vzctl_veth_param *old = env->veth;
 	unsigned int addr[4];
 	int f;
-
 
 	if (list_empty(&new->dev_list) &&
 	    list_empty(&new->dev_del_list) &&
@@ -748,18 +748,21 @@ char *veth2str(struct vzctl_env_param *env, struct vzctl_veth_param *new)
 			if (sp >= ep)
 				break;
 		}
-		if (it->dev_name[0] != 0) {
-			sp += snprintf(sp, ep - sp, "host_ifname=%s,",
-				it->dev_name);
-			if (sp >= ep)
-				break;
-		}
-		if (it->mac == NULL)
+		if ((renew & VZ_REG_RENEW_NETIF_MAC) || it->mac == NULL)
 			generate_mac(&it->mac, 1);
 
 		if (it->mac != NULL) {
 			sp += snprintf(sp, ep - sp, "host_mac=%s,",
 				it->mac);
+			if (sp >= ep)
+				break;
+		}
+		if (renew & VZ_REG_RENEW_NETIF_IFNAME)
+			generate_veth_name(it);
+
+		if (it->dev_name[0] != 0) {
+			sp += snprintf(sp, ep - sp, "host_ifname=%s,",
+				it->dev_name);
 			if (sp >= ep)
 				break;
 		}

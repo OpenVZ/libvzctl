@@ -1139,7 +1139,7 @@ static char *env_param2str(struct vzctl_env_handle *h,
 			return nodemask2str(env->cpu->nodemask);
 		break;
 	case VZCTL_PARAM_NETIF:
-		return veth2str(h->env_param, env->veth);
+		return veth2str(h->env_param, env->veth, 0);
 	case VZCTL_PARAM_NAME:
 		if (env->name->name != NULL)
 			return strdup(env->name->name);
