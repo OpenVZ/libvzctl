@@ -82,7 +82,8 @@ int parse_netif(struct vzctl_env_handle *h, list_head_t *head, const char *val);
 int parse_netif_cmd(struct vzctl_env_handle *h, list_head_t *head, const char *val);
 int parse_netif_ifname(struct vzctl_veth_param *veth, const char *str, int op,
 		int replace);
-char *veth2str(struct vzctl_env_param *env, struct vzctl_veth_param *new);
+char *veth2str(struct vzctl_env_param *env, struct vzctl_veth_param *new,
+		int renew);
 int add_veth_param(list_head_t *head, struct vzctl_veth_dev *dev);
 struct vzctl_veth_dev *alloc_veth_dev(void);
 void free_veth_param(struct vzctl_veth_param *veth);

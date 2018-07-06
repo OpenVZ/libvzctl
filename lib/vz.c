@@ -923,7 +923,7 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 		return -1;
 	}
 
-	h = vzctl2_env_open_conf(param->ctid, veconf, VZCTL_CONF_BASE_SET, &err);
+	h = vzctl2_env_open_conf(param->ctid, veconf, 0, &err);
 	if (h == NULL)
 		return -1;
 
@@ -1058,6 +1058,15 @@ int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int fla
 	vzctl2_env_set_param(h, "VEID", ctid);
 	/* Update UUID */
 	vzctl2_env_set_param(h, "UUID", uuid);
+	if (flags & (VZ_REG_RENEW_NETIF_IFNAME|VZ_REG_RENEW_NETIF_MAC)) {
+		if (h->env_param->veth &&
+				!list_empty(&h->env_param->veth->dev_list)) {
+			h->env_param->veth->delall = 1;
+			data = veth2str(h->env_param, h->env_param->veth, flags);
+			if (data != NULL)
+				vzctl2_env_set_param(h, "NETIF", data);
+		}
+	}
 
 	ret = vzctl2_env_save_conf(h, veconf);
 	if (ret)
