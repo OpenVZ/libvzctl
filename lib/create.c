@@ -427,8 +427,18 @@ static int create_env_private(struct vzctl_env_handle *h, const char *ve_private
 	if (ret)
 		goto err;
 
-	ret = do_create_private(h, dst_tmp, ostmpl, vzpkg_conf, applist,
-			layout, 0, flags);
+	if (param->root_disk == VZCTL_ROOT_DISK_BLANK) {
+		char fname[PATH_MAX];
+		struct vzctl_create_image_param p = {
+			.size = h->env_param->dq->diskspace->l,
+			.enc_keyid = param->enc_keyid,
+		};
+
+		get_root_disk_path(dst_tmp, fname, sizeof(fname));
+		ret = vzctl_create_image(h, fname, &p);
+	} else
+		ret = do_create_private(h, dst_tmp, ostmpl, vzpkg_conf, applist,
+				layout, 0, flags);
 	if (ret)
 		goto err;
 
@@ -503,7 +513,8 @@ static int merge_create_param(struct vzctl_env_handle *h, struct vzctl_env_param
 			return ret;
 	}
 
-	if (param->no_root_disk && find_root_disk(env->disk) == NULL)
+	if ((param->root_disk == VZCTL_ROOT_DISK_SKIP) &&
+			find_root_disk(env->disk) == NULL)
 		env->disk->root = VZCTL_PARAM_OFF;
 
 	return 0;
@@ -660,7 +671,7 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 		goto err;
 
 
-	if (!param->no_root_disk) {
+	if (param->root_disk != VZCTL_ROOT_DISK_SKIP) {
 		ret = vzctl2_env_mount(h, 8);
 		if (ret)
 			goto err;
