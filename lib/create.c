@@ -580,10 +580,17 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 	vzctl2_get_env_conf_path(ctid, conf, sizeof(conf));
 
 	if (param->config != NULL) {
-                vzctl2_get_config_full_fname(param->config, src_conf,
-                        sizeof(src_conf));
-                vzctl2_get_config_fname(param->config, vzpkg_src_conf,
-                        sizeof(vzpkg_src_conf));
+		if (param->config[0] == '/') {
+			snprintf(src_conf, sizeof(src_conf), "%s",
+					param->config);
+			snprintf(vzpkg_src_conf, sizeof(vzpkg_src_conf), "%s",
+					strrchr(param->config, '/') + 1);
+		} else {
+			vzctl2_get_config_full_fname(param->config, src_conf,
+					sizeof(src_conf));
+			vzctl2_get_config_fname(param->config, vzpkg_src_conf,
+					sizeof(vzpkg_src_conf));
+		}
 
 		if (stat_file(src_conf) != 1)
 			return vzctl_err(VZCTL_E_CP_CONFIG, 0,
