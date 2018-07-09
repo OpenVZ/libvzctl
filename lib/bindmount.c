@@ -314,12 +314,12 @@ static int get_mount_flags(const char *dir, int *flags)
 	char tmp[PATH_MAX];
 	struct stat st;
 
+	if (stat(dir, &st))
+		return vzctl_err(-1, errno, "Cannpt stat %s", dir);
+
 	fp = fopen("/proc/mounts", "r");
 	if (fp == NULL)
 		return vzctl_err(-1, errno, "Cannot open /proc/mounts");
-
-	if (stat(dir, &st))
-		return vzctl_err(-1, errno, "Cannpt stat %s", dir);
 
 	while ((ent = getmntent_r(fp, &mntbuf, tmp, sizeof(tmp)))) {
 		struct stat s;
