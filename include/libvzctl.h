@@ -483,6 +483,11 @@ struct vzctl_cpt_param {
 	int rst_fd;
 };
 
+enum {
+	VZCTL_ROOT_DISK_SKIP	= 1,
+	VZCTL_ROOT_DISK_BLANK	= 2,
+};
+
 struct vzctl_env_create_param {
 	ctid_t ctid;
 	const char *uuid;
@@ -492,7 +497,10 @@ struct vzctl_env_create_param {
 	char *ve_root;
 	char *name;
 	int layout;
-	int no_root_disk;
+	union {
+		int no_root_disk;
+		int root_disk;
+	};
 	char *enc_keyid;
 	int dummy[32];
 };

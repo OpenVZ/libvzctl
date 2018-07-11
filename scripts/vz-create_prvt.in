@@ -101,15 +101,9 @@ function create_prvt()
 		;;
 	esac
 
-	QUOTA_LIMIT=`vzquota stat ${VEID} -f 2>/dev/null | awk '/1k-blocks/{min=$3; if ($4 < min) min=$4;print min}'`
-	TMP=`df -P ${VE_PRVT}`
-	AVAIL=`echo "${TMP}" | awk 'END{print $4}'`
-	if [ -n "${QUOTA_LIMIT}" ]; then
-		[ ${QUOTA_LIMIT} -lt ${AVAIL} ] && AVAIL=${QUOTA_LIMIT}
-	else
-		# Use reserved logic for ploop based CT only
-		[ "$NEEDED" -lt "$RESERVED_DISKSPACE" ] && NEEDED=$RESERVED_DISKSPACE
-	fi
+	AVAIL=`df -P ${VE_PRVT} | awk 'END{print $4}'`
+	# Use reserved logic for ploop based CT only
+	[ "$NEEDED" -lt "$RESERVED_DISKSPACE" ] && NEEDED=$RESERVED_DISKSPACE
 	if test ${AVAIL} -lt ${NEEDED}; then
 		vzerror "Insufficient disk space in ${VE_PRVT} available: ${AVAIL} needed: ${NEEDED}" ${VZ_FS_NO_DISK_SPACE}
 	fi

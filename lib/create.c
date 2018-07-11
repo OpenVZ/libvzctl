@@ -398,7 +398,7 @@ static int do_create_private(struct vzctl_env_handle *h, const char *dst,
 #define TMP_SFX	".private_temporary"
 static int create_env_private(struct vzctl_env_handle *h, const char *ve_private,
 		const char *ostmpl, const char *vzpkg_conf, char **applist,
-		int layout, int use_ostmpl, const char *enc_keyid, int flags)
+		int layout, struct vzctl_env_create_param *param, int flags)
 {
 	char lockfile[PATH_MAX];
 	char dst_tmp[PATH_MAX];
@@ -427,8 +427,18 @@ static int create_env_private(struct vzctl_env_handle *h, const char *ve_private
 	if (ret)
 		goto err;
 
-	ret = do_create_private(h, dst_tmp, ostmpl, vzpkg_conf, applist,
-			layout, use_ostmpl, flags);
+	if (param->root_disk == VZCTL_ROOT_DISK_BLANK) {
+		char fname[PATH_MAX];
+		struct vzctl_create_image_param p = {
+			.size = h->env_param->dq->diskspace->l,
+			.enc_keyid = param->enc_keyid,
+		};
+
+		get_root_disk_path(dst_tmp, fname, sizeof(fname));
+		ret = vzctl_create_image(h, fname, &p);
+	} else
+		ret = do_create_private(h, dst_tmp, ostmpl, vzpkg_conf, applist,
+				layout, 0, flags);
 	if (ret)
 		goto err;
 
@@ -436,11 +446,11 @@ static int create_env_private(struct vzctl_env_handle *h, const char *ve_private
 	if (ret)
 		goto err;
 
-	if (enc_keyid != NULL) {
+	if (param->enc_keyid != NULL) {
 		char path[PATH_MAX];
 
 		get_root_disk_path(dst_tmp, path, sizeof(path));
-		ret = vzctl_encrypt_disk_image(path, enc_keyid, 0);
+		ret = vzctl_encrypt_disk_image(path, param->enc_keyid, 0);
 		if (ret)
 			goto err;
 	}
@@ -503,7 +513,8 @@ static int merge_create_param(struct vzctl_env_handle *h, struct vzctl_env_param
 			return ret;
 	}
 
-	if (param->no_root_disk && find_root_disk(env->disk) == NULL)
+	if ((param->root_disk == VZCTL_ROOT_DISK_SKIP) &&
+			find_root_disk(env->disk) == NULL)
 		env->disk->root = VZCTL_PARAM_OFF;
 
 	return 0;
@@ -569,10 +580,17 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 	vzctl2_get_env_conf_path(ctid, conf, sizeof(conf));
 
 	if (param->config != NULL) {
-                vzctl2_get_config_full_fname(param->config, src_conf,
-                        sizeof(src_conf));
-                vzctl2_get_config_fname(param->config, vzpkg_src_conf,
-                        sizeof(vzpkg_src_conf));
+		if (param->config[0] == '/') {
+			snprintf(src_conf, sizeof(src_conf), "%s",
+					param->config);
+			snprintf(vzpkg_src_conf, sizeof(vzpkg_src_conf), "%s",
+					strrchr(param->config, '/') + 1);
+		} else {
+			vzctl2_get_config_full_fname(param->config, src_conf,
+					sizeof(src_conf));
+			vzctl2_get_config_fname(param->config, vzpkg_src_conf,
+					sizeof(vzpkg_src_conf));
+		}
 
 		if (stat_file(src_conf) != 1)
 			return vzctl_err(VZCTL_E_CP_CONFIG, 0,
@@ -651,7 +669,7 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 	}
 
 	if ((ret = create_env_private(h, fs->ve_private, ostmpl, vzpkg_src_conf,
-				&applist, layout, 0, param->enc_keyid, flags)))
+				&applist, layout, param, flags)))
 		goto err;
 
 	vzctl2_get_env_conf_path_orig(h, conf, sizeof(conf));
@@ -660,7 +678,7 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 		goto err;
 
 
-	if (!param->no_root_disk) {
+	if (param->root_disk != VZCTL_ROOT_DISK_SKIP) {
 		ret = vzctl2_env_mount(h, 8);
 		if (ret)
 			goto err;

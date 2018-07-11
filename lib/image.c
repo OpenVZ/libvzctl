@@ -112,7 +112,8 @@ int vzctl2_is_image_mounted(const char *path)
 	return ret;
 }
 
-int vzctl2_mount_disk_image(const char *path, struct vzctl_mount_param *param)
+int mount_ploop_image(struct vzctl_env_handle *h, struct vzctl_disk *disk,
+		 struct vzctl_mount_param *param)
 {
 	char fname[PATH_MAX];
 	int ret;
@@ -120,14 +121,9 @@ int vzctl2_mount_disk_image(const char *path, struct vzctl_mount_param *param)
 	struct ploop_disk_images_data *di;
 	char *guid = param->guid;
 
-	logger(0, 0, "Mount image: %s %s", path, param->ro ? "ro" : "");
+	logger(0, 0, "Mount image: %s %s", disk->path, param->ro ? "ro" : "");
 
-	if (param->target != NULL && !stat_file(param->target)) {
-		ret = make_dir(param->target, 1);
-		if (ret)
-			return ret;
-	}
-	ret = open_dd(path, &di);
+	ret = open_dd(disk->path, &di);
 	if (ret)
 		return ret;
 
@@ -147,7 +143,7 @@ int vzctl2_mount_disk_image(const char *path, struct vzctl_mount_param *param)
 	if (ret && ret != SYSEXIT_NOSNAP)
 		return vzctl_err(VZCTL_E_MOUNT_IMAGE, 0,
 				"Failed to mount image %s: %s [%d]",
-				path, ploop_get_last_error(), ret);
+				disk->path, ploop_get_last_error(), ret);
 
 	snprintf(fname, sizeof(fname), "%s/" FS_CORRECTED_MARK,
 			param->target);
@@ -155,7 +151,7 @@ int vzctl2_mount_disk_image(const char *path, struct vzctl_mount_param *param)
 		int fd;
 
 		logger(0, 0, "File system errors were corrected for image=%s",
-				path);
+				disk->path);
 		fd = open(fname, O_CREAT | O_RDONLY, 0644);
 		if (fd != -1)
 			close(fd);
@@ -165,6 +161,18 @@ int vzctl2_mount_disk_image(const char *path, struct vzctl_mount_param *param)
 	snprintf(param->device, sizeof(param->device), mount_param.device);
 
 	return 0;
+}
+
+int vzctl2_mount_disk_image(const char *path, struct vzctl_mount_param *param)
+{
+	struct vzctl_disk d = {.path = (char *)path};
+
+	switch (get_disk_type(&d)) {
+	case DISK_PLOOP:
+		return mount_ploop_image(NULL, &d, param);
+	default:
+		return VZCTL_E_INVAL;
+	}
 }
 
 int vzctl2_mount_image(const char *ve_private, struct vzctl_mount_param *param)
@@ -215,7 +223,8 @@ int vzctl2_umount_image_by_dev(const char *dev)
 	return 0;
 }
 
-int vzctl2_create_disk_image(const char *path, struct vzctl_create_image_param *param)
+static int create_ploop_image(const char *path,
+		struct vzctl_create_image_param *param)
 {
 	int ret = 0;
 	struct ploop_create_param create_param = {};
@@ -239,6 +248,18 @@ int vzctl2_create_disk_image(const char *path, struct vzctl_create_image_param *
 				"Failed to create image: %s [%d]",
 				ploop_get_last_error(), ret);
 	return 0;
+}
+
+int vzctl_create_image(struct vzctl_env_handle *h, const char *path,
+		struct vzctl_create_image_param *param)
+{
+	return create_ploop_image(path, param);;
+}
+
+int vzctl2_create_disk_image(const char *path,
+		struct vzctl_create_image_param *param)
+{
+	return vzctl_create_image(NULL, path, param);
 }
 
 int vzctl2_create_root_image(const char *ve_private, struct vzctl_create_image_param *param)

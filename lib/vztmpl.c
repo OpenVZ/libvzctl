@@ -327,6 +327,11 @@ int vztmpl_get_cache_tarball(const char *config, char **ostmpl,
 	LIST_HEAD(unsupported_applist);
 	char full_ostmpl[STR_SIZE];
 
+	if (*ostmpl[0] == '/') {
+		snprintf(tarball, len, "%s", *ostmpl);
+		return 0;
+	}
+
 	tarball[0] = '\0';
 	ret = vztmpl_get_appcache_tarball(config_name, *ostmpl, fstype,
 			&unsupported_applist, tarball, len);

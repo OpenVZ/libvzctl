@@ -2384,7 +2384,7 @@ int vzctl_get_mount_opts(struct vzctl_disk *d, char *out, int size)
 		return vzctl_err(VZCTL_E_INVAL, 0,
 			"Not enough buffer size to store mnt_ops result");
 
-	if (d->use_device)
+	if (get_disk_type(d) == DISK_DEVICE)
 		return 0;
 
 	ret = open_dd(d->path, &di);
