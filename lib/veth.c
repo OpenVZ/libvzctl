@@ -757,10 +757,11 @@ char *veth2str(struct vzctl_env_param *env, struct vzctl_veth_param *new,
 			if (sp >= ep)
 				break;
 		}
-		if (renew & VZ_REG_RENEW_NETIF_IFNAME)
-			generate_veth_name(it);
 
 		if (it->dev_name[0] != 0) {
+			if (renew & VZ_REG_RENEW_NETIF_IFNAME)
+				generate_veth_name(it);
+
 			sp += snprintf(sp, ep - sp, "host_ifname=%s,",
 				it->dev_name);
 			if (sp >= ep)
