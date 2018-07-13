@@ -58,6 +58,7 @@
 #include "exec.h"
 #include "snapshot.h"
 #include "disk.h"
+#include "qcow.h"
 
 #define REINSTALL_OLD_MNT	"/mnt"
 #define CUSTOM_SCRIPT_DIR	"/etc/vz/reinstall.d"
@@ -432,6 +433,7 @@ static int create_env_private(struct vzctl_env_handle *h, const char *ve_private
 		struct vzctl_create_image_param p = {
 			.size = h->env_param->dq->diskspace->l,
 			.enc_keyid = param->enc_keyid,
+			.fmt = param->fmt,
 		};
 
 		get_root_disk_path(dst_tmp, fname, sizeof(fname));

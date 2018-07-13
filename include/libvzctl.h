@@ -354,10 +354,16 @@ struct vzctl_mount_param {
 	char dummy[32];
 };
 
+typedef enum {
+	VZCTL_IMAGE_FMT_PLOOP,
+	VZCTL_IMAGE_FMT_QCOW,
+} image_fmt_t;
+
 struct vzctl_create_image_param {
 	int mode;
 	unsigned long size;
 	char *enc_keyid;
+	image_fmt_t fmt;
 };
 
 struct vzctl_cpuinfo {
@@ -377,6 +383,7 @@ struct vzctl_disk_param {
 	char *storage_url;
 	int use_device;
 	char *enc_keyid;
+	image_fmt_t fmt;
 	int dummy[32];
 };
 
@@ -502,6 +509,7 @@ struct vzctl_env_create_param {
 		int root_disk;
 	};
 	char *enc_keyid;
+	image_fmt_t fmt;
 	int dummy[32];
 };
 

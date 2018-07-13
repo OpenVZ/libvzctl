@@ -57,6 +57,7 @@
 #include "sysfs_perm.h"
 #include "exec.h"
 #include "disk.h"
+#include "qcow.h"
 
 static int umount_disk_device(struct vzctl_disk *d);
 
@@ -721,6 +722,8 @@ int mount_disk_image(struct vzctl_env_handle *h, struct vzctl_disk *d, int flags
 	switch(get_disk_type(d)) {
 	case DISK_PLOOP: 
 		return mount_ploop_image(h, d, &param);
+	case DISK_QCOW2:
+		return mount_qcow2_image(h, d, &param);
 	default:
 		return VZCTL_E_INVAL;
 	}
@@ -757,6 +760,14 @@ int update_disk_info(struct vzctl_env_handle *h, struct vzctl_disk *disk)
 
 		if (get_part_device(devname, partname, sizeof(partname)))
 			return VZCTL_E_FS_NOT_MOUNTED;
+		break;
+	case DISK_QCOW2:
+		ret = get_qcow2_info(h, disk, devname, sizeof(devname));
+		if (ret)
+			return ret;
+		ret = get_part_device(devname, partname, sizeof(partname));
+		if (ret)
+			strcpy(partname, devname);
 		break;
 	case DISK_PLOOP:
 	default:
@@ -817,6 +828,8 @@ static int umount_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk)
 		if (is_root_disk(disk))
 			return umount_disk_device(disk);
 		break;
+	case DISK_QCOW2:
+		return umount_qcow2_image(h, disk);
 	case DISK_PLOOP:
 	default:
 		return vzctl2_umount_disk_image(disk->path);
@@ -1151,6 +1164,7 @@ static int create_image(struct vzctl_env_handle *h,
 	struct vzctl_create_image_param create_param = {
 		.size = param->size,
 		.enc_keyid = param->enc_keyid,
+		.fmt = param->fmt,
 	};
 
 	if (make_dir(param->path, 1))

@@ -41,6 +41,7 @@
 #include "vzctl.h"
 #include "disk.h"
 #include "cluster.h"
+#include "qcow.h"
 
 #define DEFAULT_FSTYPE		"ext4"
 #define SNAPSHOT_MOUNT_ID	"snap"
@@ -170,6 +171,8 @@ int vzctl2_mount_disk_image(const char *path, struct vzctl_mount_param *param)
 	switch (get_disk_type(&d)) {
 	case DISK_PLOOP:
 		return mount_ploop_image(NULL, &d, param);
+	case DISK_QCOW2:
+		return mount_qcow2_image(NULL, &d, param);
 	default:
 		return VZCTL_E_INVAL;
 	}
@@ -253,7 +256,12 @@ static int create_ploop_image(const char *path,
 int vzctl_create_image(struct vzctl_env_handle *h, const char *path,
 		struct vzctl_create_image_param *param)
 {
-	return create_ploop_image(path, param);;
+	switch (param->fmt) {
+	case VZCTL_IMAGE_FMT_QCOW:
+		return create_qcow_image(h, path, param);
+	default:
+		return create_ploop_image(path, param);;
+	}
 }
 
 int vzctl2_create_disk_image(const char *path,

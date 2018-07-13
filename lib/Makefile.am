@@ -43,6 +43,7 @@ libvzctl2_la_SOURCES =  bitmap.c \
 			meminfo.c \
 			name.c \
 			net.c \
+			qcow.c \
 			quota.c \
 			readelf.c \
 			res.c \

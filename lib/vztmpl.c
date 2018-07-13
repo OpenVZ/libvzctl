@@ -60,7 +60,7 @@ static int process_cmd_status(char **arg, int status, int quiet)
 	return 0;
 }
 
-static int get_last_line(char **arg, char *buf, int len)
+int get_last_line(char **arg, char *buf, int len)
 {
 	FILE *fp;
 	int ret;

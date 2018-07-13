@@ -39,6 +39,7 @@ typedef enum {
 	DISK_UNKNOWN,
 	DISK_DEVICE,
 	DISK_PLOOP,
+	DISK_QCOW2,
 } disk_type;
 
 struct vzctl_disk {

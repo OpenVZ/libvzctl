@@ -239,6 +239,7 @@ int init_runtime_ctx(struct vzctl_runtime_ctx *ctx);
 void deinit_runtime_ctx(struct vzctl_runtime_ctx *ctx);
 void get_dumpfile(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 		char *dumpfile, int size);
+int get_last_line(char **arg, char *buf, int len);
 #ifdef __cplusplus
 }
 #endif
