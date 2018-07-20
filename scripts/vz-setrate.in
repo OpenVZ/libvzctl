@@ -310,6 +310,19 @@ fill_configured_dev()
 	done
 }
 
+check_BANDWIDTH()
+{
+	[ -n "$BANDWIDTH" ] && return
+	dev=`/usr/sbin/ip r l | awk '/^default/ {print $5; exit(0)}'`
+	[ -z "$dev" ] && return
+	for iface in `ls "/sys/class/net/$dev/brif"`; do
+		if [ -e "/sys/class/net/$iface/device" ]; then
+			BANDWIDTH="$iface"
+			break
+		fi
+	done
+}
+
 # Checks BANDWIDTH, TOTALRATE and RATEMPU
 # for consistance
 # Parameters:
@@ -687,6 +700,7 @@ vzcreate_qdisc()
 			RATEMPU=\"$RATEMPU\" )
 	[ "X$TRAFFIC_SHAPING" != "Xyes" ] && return;
 
+	check_BANDWIDTH
 	vzcheck_TOTALRATE
 
 	for dev in ${VZ_CONFIGURED_DEV} ; do
@@ -785,6 +799,7 @@ vzadd_ve_sh_classes()
 
 	[ -z "${1}" ] && vzerror "VEID is not specified." ${VZ_SET_RATE};
 
+	check_BANDWIDTH 
 	vzcheck_RATE
 	vzread_tc_class "${1}"
 	[ ! -z "${vzread_tc_class_RET}" ] && vzdel_ve_sh_classes "${1}"
@@ -861,6 +876,7 @@ vzclear_qdisc()
 
 	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return;
 
+	check_BANDWIDTH
 	vzcheckvar BANDWIDTH
 	if [ "X${1}" != "Xkeepdb" ]; then
 		lockfile ${VZ_TC_CLASSES_LOCK}
@@ -875,14 +891,15 @@ vzclear_qdisc()
 }
 
 if [ "${1}" = "add" ]; then
+	check_BANDWIDTH
 	vzcheckvar VEID BANDWIDTH TOTALRATE
 	if [ "$VE_STATE" = "starting" ]; then
 		vzdel_ve_sh_classes $VEID
 	fi
 	vzadd_ve_sh_classes $VEID
 elif [ "${1}" = "del" ]; then
-	vzcheckvar VEID
-
+	check_BANDWIDTH
+	vzcheckvar VEID BANDWIDTH
 	vzdel_ve_sh_classes $VEID
 
 elif [ "${1}" = "shaperoff" ]; then
