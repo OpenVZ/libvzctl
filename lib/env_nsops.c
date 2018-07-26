@@ -590,7 +590,8 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 	};
 	char *bc[] = {
 		"beancounter.memory",
-		"beancounter.blkio"
+		"beancounter.blkio",
+		"beancounter.pids"
 	};
 
 	logger(10, 0, "* init Container cgroup");
@@ -598,11 +599,11 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 		return vzctl_err(VZCTL_E_RESOURCE, 0,
 				"Failed to set VEID=%u", h->veid);
 
-	/* Bind beancounter with blkio/memory cgroups */
+	/* Bind beancounter with blkio/memory/pids cgroups */
 	for (i = 0; i < sizeof(bc)/sizeof(bc[0]); i++) {
 		snprintf(buf, sizeof(buf), "/%s/%s", cg_get_slice_name(), EID(h));
 		ret = cg_set_param(EID(h), CG_UB, bc[i], buf);
-		if (ret)
+		if (ret == -1)
 			return ret;
 	}
 
