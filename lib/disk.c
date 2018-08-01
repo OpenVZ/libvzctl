@@ -1145,7 +1145,7 @@ static void get_dd_path(const struct vzctl_disk *disk, char *buf, size_t size)
 }
 
 static int create_image(struct vzctl_env_handle *h,
-		struct vzctl_disk_param *param, int flags)
+		struct vzctl_disk *param, int flags)
 {
 	int ret;
 	struct vzctl_create_image_param create_param = {
@@ -1265,7 +1265,7 @@ int vzctl2_add_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param,
 			goto err;
 		}
 
-		ret = create_image(h, param, flags);
+		ret = create_image(h, d, flags);
 		if (ret)
 			goto err;
 
