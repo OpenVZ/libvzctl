@@ -134,6 +134,7 @@ int mount_ploop_image(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	mount_param.mount_data = param->mount_data;
 	mount_param.fsck = (!param->ro && param->fsck != VZCTL_PARAM_OFF);
 	mount_param.fsck_rc = 0;
+	mount_param.flags = MS_REMOUNT;
 
 	if (param->component_name != NULL)
 		ploop_set_component_name(di, param->component_name);
@@ -197,8 +198,10 @@ int vzctl2_umount_disk_image(const char *path)
 	ret = ploop_umount_image(di);
 	ploop_close_dd(di);
 	if (ret && ret != SYSEXIT_DEV_NOT_MOUNTED)
-		return vzctl_err(VZCTL_E_UMOUNT_IMAGE, 0,
-				"Failed to umount image: %s [%d]",
+		return vzctl_err(ret == SYSEXIT_UMOUNT_BUSY ?
+					VZCTL_E_UMOUNT_BUSY :
+					VZCTL_E_UMOUNT_IMAGE,
+				0, "Failed to umount image: %s [%d]",
 				ploop_get_last_error(), ret);
 	return 0;
 }
