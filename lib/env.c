@@ -984,12 +984,17 @@ int vzctl_env_start(struct vzctl_env_handle *h, int flags)
 
 	if (!(flags & VZCTL_SKIP_MOUNT)) {
 		/* If Container mounted umount first to cleanup mount state */
-		if (vzctl2_env_is_mounted(h) &&
-				(ret = vzctl2_env_umount(h, flags)))
-			goto err_pipe;
+		if (vzctl2_env_is_mounted(h)) {
+			ret = vzctl2_env_umount(h, flags);
+			if (ret) {
+				if (ret != VZCTL_E_UMOUNT_BUSY)
+					goto err_pipe;
+				flags |= VZCTL_FORCE;
+			}
+		}
 
-		/* increase quota to perform initial setup */
-		if ((ret = vzctl2_env_mount(h, flags)))
+		ret = vzctl2_env_mount(h, flags);
+		if (ret)
 			goto err_pipe;
 	}
 

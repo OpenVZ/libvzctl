@@ -194,7 +194,7 @@ int vzctl2_env_mount(struct vzctl_env_handle *h, int flags)
 	if (check_var(fs->ve_root, "VE_ROOT is not set"))
 		return VZCTL_E_VE_ROOT_NOTSET;
 
-	if (vzctl2_env_is_mounted(h)) {
+	if (!(flags & VZCTL_FORCE) && vzctl2_env_is_mounted(h)) {
 		logger(0, 0, "Container is already mounted");
 		return 0;
 	}
