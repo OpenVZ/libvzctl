@@ -786,7 +786,7 @@ int pre_setup_env(const struct start_param *param)
 	if (env->fs->layout >= VZCTL_LAYOUT_5)
 		restore_mtab();
 
-	if (env->dq->enable != VZCTL_PARAM_OFF && env->dq->ugidlimit != NULL) {
+	if (env->dq->ugidlimit != NULL && *env->dq->ugidlimit != 0) {
 		ret = setup_env_quota(get_user_quota_mode(env->dq));
 		if (ret)
 			return ret;
