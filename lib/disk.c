@@ -211,6 +211,9 @@ static struct vzctl_disk *disk_param2disk(struct vzctl_env_handle *h,
 	if (param->storage_url && xstrdup(&d->storage_url, param->storage_url))
 		goto err;
 
+	if (param->enc_keyid != NULL && xstrdup(&d->enc_keyid, param->enc_keyid))
+		goto err;
+
 	return d;
 
 err:
