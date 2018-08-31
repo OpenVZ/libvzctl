@@ -377,6 +377,7 @@ struct vzctl_disk_param {
 	char *storage_url;
 	int use_device;
 	char *enc_keyid;
+	char *mnt_opts;
 	int dummy[32];
 };
 

@@ -208,6 +208,9 @@ static struct vzctl_disk *disk_param2disk(struct vzctl_env_handle *h,
 	if (param->mnt && xstrdup(&d->mnt, param->mnt))
 		goto err;
 
+	if (param->mnt_opts && xstrdup(&d->mnt_opts, param->mnt_opts))
+		goto err;
+
 	if (param->storage_url && xstrdup(&d->storage_url, param->storage_url))
 		goto err;
 
@@ -550,6 +553,13 @@ char *disk2str(struct vzctl_env_handle *h, struct vzctl_env_disk *env_disk)
 		if (it->mnt != NULL) {
 			sp += snprintf(sp, ep - sp, "mnt=%s,",
 					it->mnt);
+			if (sp >= ep)
+				break;
+		}
+
+		if (it->mnt_opts != NULL) {
+			sp += snprintf(sp, ep - sp, "mnt_opts=%s,",
+					it->mnt_opts);
 			if (sp >= ep)
 				break;
 		}
