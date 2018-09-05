@@ -315,7 +315,11 @@ check_BANDWIDTH()
 	[ -n "$BANDWIDTH" ] && return
 	dev=`/usr/sbin/ip r l | awk '/^default/ {print $5; exit(0)}'`
 	[ -z "$dev" ] && return
-	for iface in `ls "/sys/class/net/$dev/brif"`; do
+	if [ -e "/sys/class/net/$dev/device" ]; then
+		BANDWIDTH="$dev"
+		return
+	fi
+	for iface in `ls "/sys/class/net/$dev/brif" 2>/dev/null`; do
 		if [ -e "/sys/class/net/$iface/device" ]; then
 			BANDWIDTH="$iface"
 			break
@@ -899,7 +903,7 @@ if [ "${1}" = "add" ]; then
 	vzadd_ve_sh_classes $VEID
 elif [ "${1}" = "del" ]; then
 	check_BANDWIDTH
-	vzcheckvar VEID BANDWIDTH
+	vzcheckvar VEID
 	vzdel_ve_sh_classes $VEID
 
 elif [ "${1}" = "shaperoff" ]; then
