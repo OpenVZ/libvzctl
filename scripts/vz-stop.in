@@ -43,7 +43,7 @@ if [ -f "$VE_STATE_DIR/$VEID" ]; then
 	rm -f $VE_STATE_DIR/$VEID
 fi
 
-@SCRIPTDIR@/vz-setrate del
+[ "${TRAFFIC_SHAPING}" == "yes" ] && @SCRIPTDIR@/vz-setrate del
 
 exit 0
 # end of script
