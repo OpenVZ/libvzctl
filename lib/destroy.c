@@ -111,7 +111,7 @@ static void do_destroydir(const char *root)
 				continue;
 			if (!S_ISDIR(st.st_mode))
 				continue;
-			snprintf(buf, sizeof(buf), "rm -rf %s/%s",
+			snprintf(buf, sizeof(buf), "rm --one-file-system -rf %s/%s",
 					root, ep->d_name);
 			ret = system(buf);
 			if (ret == -1 || WEXITSTATUS(ret))
