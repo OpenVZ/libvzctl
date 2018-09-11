@@ -166,14 +166,13 @@ static void _close_fds(int close_mode, int *skip_fds)
 			if (a[i].revents == POLLNVAL)
 				continue;
 
-			if (close_mode & VZCTL_CLOSE_NOCHECK) {
-				close(a[i].fd);
-				continue;
+			if (is_fd_in_list(skip_fds, a[i].fd)) {
+				if ((close_mode & VZCTL_CLOSE_NOCHECK) ||
+						(fstat(a[i].fd, &st) == 0 &&
+						 S_ISFIFO(st.st_mode)))
+					continue;
 			}
-			/* Only the pipes allowed to be opened */
-			if (is_fd_in_list(skip_fds, a[i].fd) &&
-					fstat(a[i].fd, &st) == 0 && S_ISFIFO(st.st_mode))
-				continue;
+
 			close(a[i].fd);
 		}
 	}
