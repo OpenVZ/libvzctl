@@ -94,6 +94,7 @@ static struct vzctl_config_param config_param_map[] = {
 	{"IPTENTRIES",	VZCTL_PARAM_NUMIPTENT, "NUMIPTENT"},
 {"AVNUMPROC",	VZCTL_PARAM_AVNUMPROC},
 {"SWAPPAGES",	VZCTL_PARAM_SWAPPAGES},
+{"KMEMSIZE",	VZCTL_PARAM_KMEMSIZE},
 {"VM_OVERCOMMIT",	VZCTL_PARAM_VM_OVERCOMMIT},
 /*	Old 2.6 UBC	*/
 {"TOTVMPAGES",	VZCTL_PARAM_TOTVMPAGES},
@@ -384,7 +385,9 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 	case VZCTL_PARAM_NUMMEMORYSUBGROUPS:
 		ret = parse_ub(env->res->ub, str, param_id, 0, 0);
 		break;
-
+	case VZCTL_PARAM_KMEMSIZE:
+		ret = parse_ub(env->res->ub, str, param_id, 1, 1);
+		break;
 	case VZCTL_PARAM_NUMTCPSOCK:
 	case VZCTL_PARAM_NUMOTHERSOCK:
 	case VZCTL_PARAM_TCPSNDBUF:
@@ -392,7 +395,6 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 	case VZCTL_PARAM_OTHERSOCKBUF:
 	case VZCTL_PARAM_DGRAMRCVBUF:
 	case VZCTL_PARAM_OOMGUARPAGES:
-	case VZCTL_PARAM_KMEMSIZE:
 	case VZCTL_PARAM_DCACHESIZE:
 		if (!(flags & VZCTL_CONF_PARAM))
 			logger(0, 0, "Warning: %s parameter is deprecated",
@@ -1012,6 +1014,7 @@ static char *env_param2str(struct vzctl_env_handle *h,
 	case VZCTL_PARAM_OTHERSOCKBUF:
 	case VZCTL_PARAM_DGRAMRCVBUF:
 	case VZCTL_PARAM_SWAPPAGES:
+	case VZCTL_PARAM_KMEMSIZE:
 	{
 		const struct vzctl_2UL_res *res;
 
