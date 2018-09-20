@@ -158,6 +158,7 @@ const struct vzctl_2UL_res *vzctl_get_ub_res(struct vzctl_ub_param *ub, int id)
 	GET_UB_RES(numiptent, VZCTL_PARAM_NUMIPTENT)
 	GET_UB_RES(avnumproc, VZCTL_PARAM_AVNUMPROC)
 	GET_UB_RES(swappages, VZCTL_PARAM_SWAPPAGES)
+	GET_UB_RES(kmemsize, VZCTL_PARAM_KMEMSIZE)
 #undef GET_UB_RES
 	return NULL;
 }
@@ -187,6 +188,7 @@ void free_ub_param(struct vzctl_ub_param *ub)
 	xfree(ub->swappages);
 	xfree(ub->vm_overcommit);
 	xfree(ub->num_memory_subgroups);
+	xfree(ub->kmemsize);
 	free(ub);
 }
 
@@ -236,6 +238,8 @@ if (resid == id) { \
 	ADD_UB_PARAM(avnumproc, VZCTL_PARAM_AVNUMPROC)
 	ADD_UB_PARAM(swappages, VZCTL_PARAM_SWAPPAGES)
 	ADD_UB_PARAM(num_memory_subgroups, VZCTL_PARAM_NUMMEMORYSUBGROUPS)
+	ADD_UB_PARAM(kmemsize, VZCTL_PARAM_KMEMSIZE)
+
 	return VZCTL_E_INVAL;
 #undef ADD_UB_PARAM
 }
@@ -271,6 +275,7 @@ if ((src->x) != NULL) {						\
 	MERGE_P2(avnumproc)
 	MERGE_P2(swappages)
 	MERGE_P2(num_memory_subgroups)
+	MERGE_P2(kmemsize)
 	if (src->vm_overcommit != NULL) {
 		if (dst->vm_overcommit == NULL)
 			dst->vm_overcommit = malloc(sizeof(float));
