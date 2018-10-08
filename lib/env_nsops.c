@@ -387,6 +387,7 @@ static int ns_apply_memory_param(struct vzctl_env_handle *h,
 	struct vzctl_ub_param *ub;
 
 	if (env->res->ub->physpages == NULL &&
+			env->res->slm == NULL &&
 			env->res->ub->swappages == NULL &&
 			env->res->memguar == NULL)
 		return 0;
@@ -403,7 +404,7 @@ static int ns_apply_memory_param(struct vzctl_env_handle *h,
 			 */
 			ret = ns_set_memory_param(h, ub, flags);
 			if (!ret)
-				ret = vcmm_register(h, env);
+				ret = vcmm_register(h, env, ub);
 		} else
 			ret = vcmm_update(h, env);
 		if (ret) {
@@ -412,6 +413,8 @@ static int ns_apply_memory_param(struct vzctl_env_handle *h,
 		}
 	} else
 		ret = ns_set_memory_param(h, ub, flags);
+
+	free_ub_param(ub);
 
 	return ret;
 }
