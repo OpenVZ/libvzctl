@@ -334,8 +334,8 @@ static int update_vswap_param(struct vzctl_env_handle *h, struct vzctl_env_param
 			get_ub_resources(EID(h), ram, swap);
 
 		if (env->res->slm->memorylimit != NULL) {
-			ram[0] = env->res->slm->memorylimit->quality;
-			ram[1] = env->res->slm->memorylimit->quality;
+			ram[0] = env->res->slm->memorylimit->quality / 4096;
+			ram[1] = env->res->slm->memorylimit->quality / 4096;
 			changed = 1;
 			// Set unlimited PRIVVMPAGES bug #PSBM-10224
 			ADD_VSWAP_PARAM(VZCTL_PARAM_PRIVVMPAGES, LONG_MAX)
