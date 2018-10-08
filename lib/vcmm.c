@@ -130,14 +130,14 @@ int vcmm_get_param(const char *id, unsigned long *mem,
 }
 
 static int get_vcmm_config(struct vzctl_env_handle *h,
-		struct vcmmd_ve_config *c, struct vzctl_env_param *env, int init)
+		struct vcmmd_ve_config *c, struct vzctl_env_param *env,
+		struct vzctl_ub_param *ub, int init)
 {
 	int ret;
 	unsigned long *mem_p = NULL, *swap_p = NULL, *guar_p = NULL;
 	unsigned long mem, swap, guar_bytes;
 	unsigned long mem_cur, guar_bytes_cur;
 	unsigned long x;
-	struct vzctl_ub_param *ub = env->res->ub;
 	struct vzctl_mem_guarantee *guar = env->res->memguar;
 	struct vzctl_mem_guarantee guar_def = {
 		.type = VZCTL_MEM_GUARANTEE_AUTO
@@ -210,7 +210,8 @@ int vcmm_unregister(struct vzctl_env_handle *h)
 	return 0;
 }
 
-int vcmm_register(struct vzctl_env_handle *h, struct vzctl_env_param *env)
+int vcmm_register(struct vzctl_env_handle *h, struct vzctl_env_param *env,
+		struct vzctl_ub_param *ub)
 {
 	int rc;
 	struct vcmmd_ve_config c;
@@ -218,7 +219,7 @@ int vcmm_register(struct vzctl_env_handle *h, struct vzctl_env_param *env)
 	if (!is_managed_by_vcmmd())
 		return 0;
 
-	rc = get_vcmm_config(h, &c, env, 1);
+	rc = get_vcmm_config(h, &c, env, ub, 1);
 	if (rc)
 		return rc;
 
@@ -263,7 +264,7 @@ int vcmm_update(struct vzctl_env_handle *h, struct vzctl_env_param *env)
 		return 0;
 
 	logger(1, 0, "vcmmd: update");
-	rc = get_vcmm_config(h, &c, env, 0);
+	rc = get_vcmm_config(h, &c, env, env->res->ub, 0);
 	if (rc)
 		return rc;
 
