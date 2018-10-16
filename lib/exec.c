@@ -535,7 +535,7 @@ int real_env_exec_waiter(struct exec_param *param, int pid, int timeout, int fla
 	}
 
 	initoutput();
-	while (!child_exited) {
+	do {
 		int n;
 		fd_set rd_set;
 	
@@ -576,13 +576,7 @@ int real_env_exec_waiter(struct exec_param *param, int pid, int timeout, int fla
 			close(param->err_p[0]); param->err_p[0] = -1;
 			break;
 		}
-	}
-
-	/* Flush fds */
-	if (param->out_p[0] != -1)
-		while (stdredir(param->out_p[0], STDOUT_FILENO, log) == 0);
-	if (param->err_p[0] != -1)
-		while (stdredir(param->err_p[0], STDERR_FILENO, log) == 0);
+	} while (param->out_p[0] != -1 && param->err_p[0] != -1);
 
 	writeoutput(0);
 out:
