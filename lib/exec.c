@@ -576,7 +576,7 @@ int real_env_exec_waiter(struct exec_param *param, int pid, int timeout, int fla
 			close(param->err_p[0]); param->err_p[0] = -1;
 			break;
 		}
-	} while (param->out_p[0] != -1 && param->err_p[0] != -1);
+	} while (param->out_p[0] != -1 || param->err_p[0] != -1);
 
 	writeoutput(0);
 out:
