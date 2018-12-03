@@ -441,7 +441,6 @@ int vzctl2_get_env_status_info(struct vzctl_env_handle *h,
 
 int vzctl2_get_env_status(const ctid_t ctid, vzctl_env_status_t *status, int mask)
 {
-	char path[STR_SIZE];
 	int ret;
 	struct vzctl_env_handle *h;
 	ctid_t id;
@@ -452,9 +451,8 @@ int vzctl2_get_env_status(const ctid_t ctid, vzctl_env_status_t *status, int mas
 
 	memset(status, 0, sizeof(struct vzctl_env_status));
 
-	vzctl2_get_env_conf_path(id, path, sizeof(path));
-	if (stat_file(path) == 0)
-		return 0;
+	if (mask == ENV_STATUS_RUNNING)
+		flags |= VZCTL_CONF_SKIP_PARSE;
 
 	h = vzctl2_env_open(ctid, flags, &ret);
 	if (h == NULL)
