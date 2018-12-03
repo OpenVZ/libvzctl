@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <sys/resource.h>
 
 #include <string.h>
 #include <assert.h>
@@ -738,6 +739,30 @@ static int setup_devtmpfs()
 	return ret;
 }
 
+static void set_def_rlimits()
+{
+	int i;
+	struct rlimit rl[] = {
+		[RLIMIT_CPU]            = {RLIM_INFINITY, RLIM_INFINITY},
+		[RLIMIT_FSIZE]          = {RLIM_INFINITY, RLIM_INFINITY},
+		[RLIMIT_DATA]           = {RLIM_INFINITY, RLIM_INFINITY},
+		[RLIMIT_STACK]          = {8*1024*1024, RLIM_INFINITY},
+		[RLIMIT_CORE]           = {0,  RLIM_INFINITY},
+		[RLIMIT_RSS]            = {RLIM_INFINITY,  RLIM_INFINITY},
+		[RLIMIT_NPROC]          = {62987, 62987},
+		[RLIMIT_NOFILE]         = {1024, 4096},
+		[RLIMIT_MEMLOCK]        = {65536, 65536},
+		[RLIMIT_AS]             = {RLIM_INFINITY, RLIM_INFINITY},
+		[RLIMIT_LOCKS]          = {RLIM_INFINITY, RLIM_INFINITY},
+	};
+
+	for (i = 0; i < sizeof(rl)/ sizeof(rl[0]); i++)
+	{
+		if (setrlimit(i, &rl[i]))
+			vzctl_err(-1, errno, "Failed setrlimit(%d)", i);
+	}
+}
+
 int pre_setup_env(const struct start_param *param)
 {
 	struct vzctl_env_param *env = param->h->env_param;
@@ -752,6 +777,8 @@ int pre_setup_env(const struct start_param *param)
 	errcode = set_personality32();
 	if (errcode)
 		return errcode;
+
+	set_def_rlimits();
 
 	/* Create /fastboot to skip run fsck */
 	fd = creat("/fastboot", 0644);
