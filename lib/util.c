@@ -2637,7 +2637,8 @@ int write_init_pid(const ctid_t ctid, pid_t pid)
 	if ((fprintf(fp, "%d", pid)) < 0)
 		ret = vzctl_err(-1, 0, "Failed to write Container init pid");
 
-	fclose(fp);
+	if (fclose(fp))
+		return vzctl_err(-1, errno, "Failed to write pid %s", path);
 	return ret;
 }
 
