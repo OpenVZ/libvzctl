@@ -471,8 +471,8 @@ int real_env_exec(struct vzctl_env_handle *h, struct exec_param *param, int flag
 		execvep(param->argv[0], param->argv,
 				param->envp != NULL ? param->envp : envp_bash);
 
-		ret = vzctl_err(VZCTL_E_BAD_TMPL, errno, "Failed to exec %s",
-				param->argv[0]);;
+		ret = vzctl_err(errno == ENOENT ? VZCTL_E_BAD_TMPL : VZCTL_E_RESOURCE,
+				errno, "Failed to exec %s", param->argv[0]);;
 	} else {
 		sigaction(SIGPIPE, &act, NULL);
 		if (flags & EXEC_NOENV) {
@@ -486,7 +486,8 @@ int real_env_exec(struct vzctl_env_handle *h, struct exec_param *param, int flag
 					param->argv != NULL ? param->argv : argv_bash,
 					param->envp != NULL ? param->envp : envp_bash);
 		}
-		ret = vzctl_err(VZCTL_E_BAD_TMPL, errno, "Failed to exec /bin/sh");;
+		ret = vzctl_err(errno == ENOENT ? VZCTL_E_BAD_TMPL : VZCTL_E_RESOURCE,
+				errno, "Failed to exec /bin/sh");;
 	}
 
 err:
@@ -516,8 +517,13 @@ int real_env_exec_waiter(struct exec_param *param, int pid, int timeout, int fla
 		return vzctl_err(ret, 0, "Failed to exec ret=%d", ret);
 
 	if (param->std_in != NULL) {
-		if (write(param->in_p[1], param->std_in, strlen(param->std_in)) < 0)
+		if (write(param->in_p[1], param->std_in, strlen(param->std_in)) < 0) {
+			close(param->in_p[1]);
+			param->in_p[1] = -1;
+			if (errno == EPIPE)
+				return env_wait(pid, timeout, NULL);
 			return vzctl_err(VZCTL_E_EXEC, errno, "Failed to write to in pipe");
+		}
 		/* do not set STDIN_FILENO in select() */
 		close(param->in_p[1]);
 		param->in_p[1] = -1;
