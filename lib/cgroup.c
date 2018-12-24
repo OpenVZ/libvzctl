@@ -1118,7 +1118,7 @@ static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t *head)
 
 	snprintf(s, sizeof(s), "%s/sys/fs/cgroup", ve_root);
 	if (access(s, F_OK) && make_dir(s, 1))
-		return vzctl_err(VZCTL_E_CREATE_DIR,, errno,
+		return vzctl_err(VZCTL_E_CREATE_DIR, errno,
 				"Can't pre-mount tmpfs in %s", s);
 	if (mount(NULL, s, "tmpfs", 0, NULL))
 		return vzctl_err(VZCTL_E_MOUNT, errno,
