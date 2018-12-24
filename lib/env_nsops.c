@@ -84,7 +84,7 @@ int ns_open(void)
 {
 	if (mkdir(NETNS_RUN_DIR, S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH) &&
 				errno != EEXIST)
-		return vzctl_err(VZCTL_E_RESOURCE, errno,
+		return vzctl_err(VZCTL_E_CREATE_DIR, errno,
 				"Can't create directory " NETNS_RUN_DIR);
 	return 0;
 }
@@ -195,7 +195,7 @@ static int start_container(struct vzctl_env_handle *h)
 		return 0;
 
 	if (cg_set_param(EID(h), CG_VE, "ve.state", "START") == -1)
-		return vzctl_err(VZCTL_E_RESOURCE, 0,
+		return vzctl_err(VZCTL_E_SYSTEM, 0,
 				"Failed to switch CT to the START state");
 
 	return set_virt_osrelease(h, h->env_param->tmpl->osrelease);
@@ -218,7 +218,7 @@ static int real_ns_env_create(void *arg)
 		return VZCTL_E_SYSTEM;
 
 	if (setuid(0) || setgid(0) || setgroups(0, NULL)) {
-		ret = vzctl_err(VZCTL_E_RESOURCE, errno, "Unable to set uid or gid");
+		ret = vzctl_err(VZCTL_E_SYSTEM, errno, "Unable to set uid or gid");
 		goto err;
 	}
 
@@ -604,7 +604,7 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 
 	logger(10, 0, "* init Container cgroup");
 	if (h->veid && cg_set_veid(EID(h), h->veid) == -1)
-		return vzctl_err(VZCTL_E_RESOURCE, 0,
+		return vzctl_err(VZCTL_E_SYSTEM, 0,
 				"Failed to set VEID=%u", h->veid);
 
 	/* Bind beancounter with blkio/memory/pids cgroups */
@@ -742,7 +742,7 @@ static int write_id_maps(int pid)
 		if (write(fd, id, sizeof(id)) != sizeof(id)) {
 			int saved_errno = errno;
 			close(fd);
-			return vzctl_err(VZCTL_E_RESOURCE, saved_errno, "Unable to write id mappings");
+			return vzctl_err(VZCTL_E_SYSTEM, saved_errno, "Unable to write id mappings");
 		}
 		close(fd);
 	}
@@ -1029,7 +1029,7 @@ static int ns_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
 			goto err;
 		} else if (pid2 == 0) {
 			if (setsid() == -1) {
-				ret = vzctl_err(VZCTL_E_RESOURCE, errno, "setsid");
+				ret = vzctl_err(VZCTL_E_SYSTEM, errno, "setsid");
 				_exit(ret);
 			}
 

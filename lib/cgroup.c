@@ -1000,16 +1000,16 @@ static int do_bindmount(const char *src, const char *dst, int mnt_flags)
 {
 
 	if (access(dst, F_OK) && make_dir(dst, 1))
-		return vzctl_err(VZCTL_E_RESOURCE, errno,
+		return vzctl_err(VZCTL_E_CREATE_DIR, errno,
 				"Can't create %s", dst);
 
 	if (access(src, F_OK) && make_dir(src, 1))
-		return vzctl_err(VZCTL_E_RESOURCE, errno,
+		return vzctl_err(VZCTL_E_CREATE_DIR, errno,
 				"Can't create %s", src);
 
 	logger(5, 0, "bindmount %s -> %s", src, dst);
 	if (mount(src, dst, NULL, mnt_flags, NULL))
-		return vzctl_err(VZCTL_E_RESOURCE, errno,
+		return vzctl_err(VZCTL_E_MOUNT, errno,
 				"Can't bindmount %s -> %s", src, dst);
 	return 0;
 }
@@ -1113,15 +1113,15 @@ static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t *head)
 		return vzctl_err(VZCTL_E_CREATE_DIR, errno,
 				"Can't create %s", s);
 	if (mount(NULL, s, "sysfs", 0, NULL))
-		return vzctl_err(VZCTL_E_RESOURCE, errno,
+		return vzctl_err(VZCTL_E_MOUNT, errno,
 				"Can't pre-mount sysfs in %s", s);
 
 	snprintf(s, sizeof(s), "%s/sys/fs/cgroup", ve_root);
 	if (access(s, F_OK) && make_dir(s, 1))
-		return vzctl_err(VZCTL_E_RESOURCE, errno,
+		return vzctl_err(VZCTL_E_CREATE_DIR,, errno,
 				"Can't pre-mount tmpfs in %s", s);
 	if (mount(NULL, s, "tmpfs", 0, NULL))
-		return vzctl_err(VZCTL_E_RESOURCE, errno,
+		return vzctl_err(VZCTL_E_MOUNT, errno,
 				"Can't pre-mount tmpfs in %s", s);
 
 	ret = get_cgroups(&cgroups);
