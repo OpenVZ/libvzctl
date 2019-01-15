@@ -884,6 +884,10 @@ static int env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
 			snprintf(id, sizeof(id), "CT-%s", EID(h));
 			snprintf(prompt, sizeof(prompt), "PS1=%s \\W\\$ ", id);
 
+			act.sa_handler = SIG_DFL;
+			sigaction(SIGPIPE, &act, NULL);
+			sigaction(SIGWINCH, &act, NULL);
+
 			if ((term = getenv("TERM")) != NULL) {
 				snprintf(buf, sizeof(buf), "TERM=%s", term);
 				env[sizeof(env)/sizeof(env[0]) - 2] = buf;
