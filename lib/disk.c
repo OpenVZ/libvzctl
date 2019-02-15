@@ -1655,43 +1655,28 @@ int vzctl2_get_disk_stats(const char *path, struct vzctl_disk_stats *stats,
 {
 	int ret;
 	char buf[PATH_MAX];
-	char devname[STR_SIZE];
-	char partname[STR_SIZE];
-	struct ploop_info info;
+	struct ploop_fs_info i;
 	struct vzctl_disk_stats st = {};
 
-	ret = vzctl2_get_ploop_dev2(path, devname, sizeof(devname),
-			partname, sizeof(partname));
-	if (ret == 0) {
-		ret = get_disk_iostat(devname, &st.io);
-		if (ret)
-			return ret;
-
-		ret = ploop_get_mnt_by_dev(devname, buf, sizeof(buf));
-		if (ret == 0) {
-			snprintf(st.device, sizeof(st.device), "%s",
-					partname);
-		}
-	} else if (ret == 1) {
-		/* Precache data is not ready, avoid mount ploop */
-		snprintf(buf, sizeof(buf), "%s/.statfs", path);
-		if (access(buf, F_OK))
-			return VZCTL_E_INVAL;
-	} else
+	snprintf(buf, sizeof(buf), "%s/" DISKDESCRIPTOR_XML, path);
+	if (ploop_get_fs_info(buf, &i, sizeof(i)))
 		return VZCTL_E_SYSTEM;
 
-	snprintf(buf, sizeof(buf), "%s/" DISKDESCRIPTOR_XML, path);
-	ret = ploop_get_info_by_descr(buf, &info);
-	if (ret == 0) {
-		st.total = info.fs_bsize * info.fs_blocks / 1024;
-		st.free = info.fs_bsize * info.fs_bfree / 1024;
-		st.inodes = info.fs_inodes;
-		st.ifree = info.fs_ifree;
+	st.total = i.fs.fs_bsize * i.fs.fs_blocks / 1024;
+	st.free = i.fs.fs_bsize * i.fs.fs_bfree / 1024;
+	st.inodes = i.fs.fs_inodes;
+	st.ifree = i.fs.fs_ifree;
 
-		memcpy(stats, &st, size < sizeof(st) ? size : sizeof(st));
+	if (i.dev[0] != '\0') {
+		snprintf(st.device, sizeof(st.device), "%s", i.dev);
+		ret = get_disk_iostat(st.device, &st.io);
+		if (ret)
+			return ret;
 	}
 
-	return ret;
+	memcpy(stats, &st, size < sizeof(st) ? size : sizeof(st));
+
+	return 0;
 }
 
 int vzctl2_env_get_disk_stats(struct vzctl_env_handle *h, const char *uuid,
