@@ -231,6 +231,9 @@ struct vzctl_rate_param {
 	int rate;
 };
 
+#define VZCTL_TRANSITION_MIGRATING	"migrating"
+#define VZCTL_TRANSITION_RESTORING	"restoring"
+
 struct vzctl_env_status {
 #define ENV_STATUS_EXISTS	0x01
 #define ENV_STATUS_MOUNTED	0x02

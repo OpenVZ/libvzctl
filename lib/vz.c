@@ -329,36 +329,26 @@ int vzctl2_env_is_mounted(struct vzctl_env_handle *h)
 	return fs_is_mounted_check_by_target(target);
 }
 
-static void read_env_transition(ctid_t ctid, char *lockdir, char *str, int sz)
+static void read_env_transition(ctid_t ctid, char *lockdir,
+		vzctl_env_status_t *status)
 {
 	char buf[PATH_MAX];
-	int fd, len;
-	char *p, *ep;
+	int fd, len, pid;
 
 	if (lockdir == NULL)
 		return;
 	snprintf(buf, sizeof(buf), "%s/%s.lck", lockdir, ctid);
-	if (stat_file(buf) != 1)
-		return;
 	if ((fd = open(buf, O_RDONLY)) < 0)
 		return;
 	len = read(fd, buf, sizeof(buf));
 	close(fd);
 	if (len < 0 || len >= sizeof(buf))
 		return;
-	buf[len] = 0;
-	/* skip pid */
-	p = strchr(buf, '\n');
-	if (p == NULL)
+
+	if (sscanf(buf, "%d\n%255s", &pid, status->transition) != 2)
 		return;
-	p++;
-	ep = strchr(p, '\n');
-	if (ep == NULL)
-		ep = buf + len;
-	*ep = 0;
-	len = ep - p + 1;
-	snprintf(str, len > sz ? sz : len, "%s", p);
-	return;
+	if (kill(pid, 0))
+		 status->transition[0] = '\0';
 }
 
 /** Get vz service status
@@ -433,8 +423,7 @@ int vzctl2_get_env_status_info(struct vzctl_env_handle *h,
 		if (stat_file(path) == 1)
 			status->mask |= ENV_STATUS_SUSPENDED;
 	}
-	read_env_transition(EID(h), h->env_param->opts->lockdir,
-			status->transition, sizeof(status->transition));
+	read_env_transition(EID(h), h->env_param->opts->lockdir, status);
 
 	return 0;
 }
