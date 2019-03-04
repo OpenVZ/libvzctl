@@ -28,6 +28,7 @@ struct ha_params {
 };
 
 struct vzctl_config;
+struct vzctl_env_handle;
 
 int handle_set_cmd_on_ha_cluster(ctid_t ctid, const char *ve_private,
 		struct ha_params *cmdline, struct ha_params *config);
@@ -35,5 +36,5 @@ void shaman_del_everywhere(ctid_t ctid);
 int shaman_del_resource(ctid_t ctid);
 int shaman_add_resource(ctid_t ctid, struct vzctl_config *conf, const char *ve_private);
 int shaman_is_configured(void);
-int cpufeatures_sync(void);
+int ha_sync(struct vzctl_env_handle *h);
 #endif	/* _HA_H_ */
