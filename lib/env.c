@@ -993,8 +993,9 @@ int vzctl_env_start(struct vzctl_env_handle *h, int flags)
 
 	logger(0, 0, "Starting Container ...");
 
-	if (cpufeatures_sync())
-		return vzctl_err(VZCTL_E_CPUPOOLS, 0, "Error syncing node and pool features.");
+	ret = ha_sync(h);
+	if (ret)
+		return ret;
 
 	/* check requred parameters for start */
 	ret = check_requires(env, flags);
@@ -1240,8 +1241,9 @@ int vzctl_env_restore(struct vzctl_env_handle *h,
 		
 	logger(0, 0, "Restoring the Container ...");
 
-	if (cpufeatures_sync())
-		return vzctl_err(VZCTL_E_CPUPOOLS, 0, "Error syncing node and pool features.");
+	ret = ha_sync(h);
+	if (ret)
+		return ret;
 
 	/* check requred parameters for start */
 	ret = check_requires(env, flags);

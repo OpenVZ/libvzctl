@@ -150,6 +150,7 @@ int shaman_add_resource(ctid_t ctid, struct vzctl_config *conf, const char *ve_p
 	char *argv[] = {SHAMAN_BIN, "-i", "add", resname,
 					"--prio", NULL,
 					"--path", (char *)ve_private,
+					"--force",
 					NULL};
 	const char *prio = NULL;
 
@@ -157,7 +158,6 @@ int shaman_add_resource(ctid_t ctid, struct vzctl_config *conf, const char *ve_p
 		return 0;
 
 	shaman_get_resname(ctid, resname, sizeof(resname));
-
 	vzctl2_conf_get_param(conf, "HA_PRIO", &prio);
 	argv[5] = (char *)(prio ?: "0");
 
@@ -174,13 +174,19 @@ int shaman_is_configured(void)
 	return vzctl2_wrap_exec_script(argv, NULL, 1) == 0;
 }
 
-
-int cpufeatures_sync(void)
+int ha_sync(struct vzctl_env_handle *h)
 {
-	char *argv[] = {CPUFEATURES_BIN, "--quiet", "sync", NULL};
+	if (is_bin_present(CPUFEATURES_BIN)) {
+		char *argv[] = {CPUFEATURES_BIN, "--quiet", "sync", NULL};
+		if (vzctl2_wrap_exec_script(argv, NULL, 0))
+			return vzctl_err(VZCTL_E_CPUPOOLS, 0,
+				"Error syncing node and pool features.");
+	}
 
-	if (!is_bin_present(CPUFEATURES_BIN))
-		return 0;
+	const char *private = h->env_param->fs->ve_private;
+	if (is_shared_fs(private))
+		shaman_add_resource(h->ctid, h->conf, private);
 
-	return vzctl2_wrap_exec_script(argv, NULL, 0);
+	return 0;
 }
+
