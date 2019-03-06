@@ -993,7 +993,7 @@ int vzctl_env_start(struct vzctl_env_handle *h, int flags)
 
 	logger(0, 0, "Starting Container ...");
 
-	ret = ha_sync(h);
+	ret = ha_sync(h, flags);
 	if (ret)
 		return ret;
 
@@ -1241,7 +1241,7 @@ int vzctl_env_restore(struct vzctl_env_handle *h,
 		
 	logger(0, 0, "Restoring the Container ...");
 
-	ret = ha_sync(h);
+	ret = ha_sync(h, flags);
 	if (ret)
 		return ret;
 
