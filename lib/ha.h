@@ -36,5 +36,5 @@ void shaman_del_everywhere(ctid_t ctid);
 int shaman_del_resource(ctid_t ctid);
 int shaman_add_resource(ctid_t ctid, struct vzctl_config *conf, const char *ve_private);
 int shaman_is_configured(void);
-int ha_sync(struct vzctl_env_handle *h);
+int ha_sync(struct vzctl_env_handle *h, int flags);
 #endif	/* _HA_H_ */

@@ -174,7 +174,7 @@ int shaman_is_configured(void)
 	return vzctl2_wrap_exec_script(argv, NULL, 1) == 0;
 }
 
-int ha_sync(struct vzctl_env_handle *h)
+int ha_sync(struct vzctl_env_handle *h, int flags)
 {
 	if (is_bin_present(CPUFEATURES_BIN)) {
 		char *argv[] = {CPUFEATURES_BIN, "--quiet", "sync", NULL};
@@ -184,9 +184,12 @@ int ha_sync(struct vzctl_env_handle *h)
 	}
 
 	const char *private = h->env_param->fs->ve_private;
-	if (is_shared_fs(private))
+	if (!(flags & VZCTL_SKIP_HA_REG) &&
+			h->env_param->opts->ha_enable != VZCTL_PARAM_OFF &&
+			is_shared_fs(private))
+	{
 		shaman_add_resource(h->ctid, h->conf, private);
+	}
 
 	return 0;
 }
-
