@@ -192,6 +192,7 @@ static struct vzctl_config_param config_param_map[] = {
 {"MEMGUARANTEE",VZCTL_PARAM_MEM_GUARANTEE},
 {"PAGECACHE_ISOLATION",VZCTL_PARAM_PAGECACHE_ISOLATION},
 {"NUMMEMORYSUBGROUPS", VZCTL_PARAM_NUMMEMORYSUBGROUPS},
+{"NUMNETIF", VZCTL_PARAM_NUMNETIF},
 
 
 /* TODO */
@@ -383,6 +384,7 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 	case VZCTL_PARAM_NUMIPTENT:
 	case VZCTL_PARAM_AVNUMPROC:
 	case VZCTL_PARAM_NUMMEMORYSUBGROUPS:
+	case VZCTL_PARAM_NUMNETIF:
 		ret = parse_ub(env->res->ub, str, param_id, 0, 0);
 		break;
 	case VZCTL_PARAM_KMEMSIZE:
@@ -1015,6 +1017,7 @@ static char *env_param2str(struct vzctl_env_handle *h,
 	case VZCTL_PARAM_DGRAMRCVBUF:
 	case VZCTL_PARAM_SWAPPAGES:
 	case VZCTL_PARAM_KMEMSIZE:
+	case VZCTL_PARAM_NUMNETIF:
 	{
 		const struct vzctl_2UL_res *res;
 
