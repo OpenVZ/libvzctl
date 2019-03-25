@@ -434,9 +434,6 @@ static int ns_apply_res_param(struct vzctl_env_handle *h,
 			return ret;
 	}
 
-	ret = ns_apply_memory_param(h, env, flags);
-	if (ret)
-		return ret;
 
 	if (env->res->ub->pagecache_isolation) {
 		ret = cg_env_set_memory(EID(h), "memory.disable_cleancache",
@@ -543,7 +540,14 @@ static int setup_env_cgroup(struct vzctl_env_handle *h, struct vzctl_env_param *
 {
 	int ret;
 
+	if (flags & VZCTL_SKIP_SETUP)
+		return 0;
+
 	ret = set_features(h, env->features);
+	if (ret)
+		return ret;
+
+	ret = ns_apply_memory_param(h, h->env_param, flags);
 	if (ret)
 		return ret;
 
@@ -799,7 +803,7 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 
 	ret = create_cgroup(h, flags);
 	if (ret)
-		return ret;
+		goto err;
 
 	ret = cg_enable_pseudosuper(h->ctid);
 	if (ret && errno != ENOENT)
@@ -1322,8 +1326,11 @@ static int ns_env_apply_param(struct vzctl_env_handle *h,
 			ret = set_net_classid(h);
 			if (ret)
 				return ret;
+		} else {
+			ret = ns_apply_memory_param(h, env, flags);
+			if (ret)
+				return ret;
 		}
-
 		ret = ns_apply_res_param(h, env, flags);
 		if (ret)
 			return ret;
@@ -1809,7 +1816,7 @@ int vzctl2_set_limits(struct vzctl_env_handle *h, int release)
 	if (EMPTY_CTID(h->ctid))
 		vzctl2_generate_ctid(EID(h));
 
-	ret = create_cgroup(h, 0);
+	ret = create_cgroup(h, VZCTL_SKIP_SETUP);
 	if (ret)
 		goto err;
 
