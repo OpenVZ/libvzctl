@@ -1631,6 +1631,7 @@ static int env_set_userpasswd(struct vzctl_env_handle *h, const char *user,
 		ret = init_runtime_ctx(h->ctx);
 		if (ret)
 			goto out;
+		h->ctx->state = VZCTL_STATE_STARTING;
 		if ((ret = get_env_ops()->env_create(h, &param)))
 			goto out;
 		close(h->ctx->wait_p[0]); h->ctx->wait_p[0] = -1;
