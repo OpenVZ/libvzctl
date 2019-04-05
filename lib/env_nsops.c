@@ -385,7 +385,7 @@ err:
 }
 
 static int ns_apply_memory_param(struct vzctl_env_handle *h,
-		struct vzctl_env_param *env, int flags)
+		struct vzctl_env_param *env, int update, int flags)
 {
 	int ret;
 	struct vzctl_ub_param *ub;
@@ -407,10 +407,9 @@ static int ns_apply_memory_param(struct vzctl_env_handle *h,
 			 * configuration was activated by vcmmd
 			 */
 			ret = ns_set_memory_param(h, ub, flags);
-			if (!ret)
-				ret = vcmm_register(h, env, ub);
-		} else
-			ret = vcmm_update(h, env);
+		}
+
+		ret = update ? vcmm_update(h, env) : vcmm_register(h, env, ub);
 		if (ret) {
 			free(env->res->memguar);
 			env->res->memguar = NULL;
@@ -547,28 +546,25 @@ static int setup_env_cgroup(struct vzctl_env_handle *h, struct vzctl_env_param *
 	if (ret)
 		return ret;
 
-	ret = ns_apply_memory_param(h, h->env_param, flags);
+	ret = ns_apply_memory_param(h, h->env_param, 0, flags);
 	if (ret)
 		return ret;
 
-	if (flags & VZCTL_RESTORE) {
-		struct vzctl_ub_param *ub;
-		struct vzctl_2UL_res r = {.l = ULONG_MAX, .b = ULONG_MAX};
+	if (flags & VZCTL_RESTORE && h->env_param->res->ub->physpages) {
+		struct vzctl_2UL_res physpages = {
+			.l = h->env_param->res->ub->physpages->l * 2,
+			.b = h->env_param->res->ub->physpages->b * 2,
+		};
+		struct vzctl_2UL_res swappages = {
+			.l = ULONG_MAX,
+			.b = ULONG_MAX
+		};
+		struct vzctl_ub_param ub = {
+			.physpages = &physpages,
+			.swappages = &swappages,
+		};
 
-		ret = get_vswap_param(h, env, &ub);
-		if (ret)
-			return ret;
-
-		ret = vzctl_add_ub_param(ub, VZCTL_PARAM_SWAPPAGES, &r);
-		if (ret) {
-			free_ub_param(ub);
-			return ret;
-		}
-
-		if (ub->physpages)
-			ub->physpages->l *= 2;
-		ret = ns_set_memory_param(h, ub, 0);
-		free_ub_param(ub);
+		ret = ns_set_memory_param(h, &ub, 0);
 	}
 
 	return ret;
@@ -1323,11 +1319,17 @@ static int ns_env_apply_param(struct vzctl_env_handle *h,
 
 	if (ns_is_env_run(h)) {
 		if (h->ctx->state == VZCTL_STATE_STARTING) {
+			ret = vcmm_activate(h);
+			if (ret)
+				return ret;
+
 			ret = set_net_classid(h);
 			if (ret)
 				return ret;
-		} else {
-			ret = ns_apply_memory_param(h, env, flags);
+		}
+
+		if ((flags & VZCTL_RESTORE) || h->ctx->state != VZCTL_STATE_STARTING) {
+			ret = ns_apply_memory_param(h, env, 1, flags);
 			if (ret)
 				return ret;
 		}
@@ -1366,10 +1368,6 @@ static int ns_env_apply_param(struct vzctl_env_handle *h,
 
 		if (h->ctx->state == VZCTL_STATE_STARTING) {
 			ret = env_console_configure(h, flags);
-			if (ret)
-				return ret;
-
-			ret = vcmm_activate(h);
 			if (ret)
 				return ret;
 		}
