@@ -1235,9 +1235,6 @@ force:
 			goto out;
 	}
 
-	if (ret == 0) {
-		ns_env_cleanup(h, 0);
-	}
 out:
 	return ret ? VZCTL_E_ENV_STOP : 0;
 }
