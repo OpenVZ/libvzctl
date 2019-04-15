@@ -1312,20 +1312,25 @@ static int ns_env_apply_param(struct vzctl_env_handle *h,
 				return ret;
 		}
 		unlink(f);
+
+		struct vzctl_ub_param ub = {
+			.physpages = h->env_param->res->ub->physpages,
+			.swappages = h->env_param->res->ub->swappages,
+		};
+
+		ret = ns_set_memory_param(h, &ub, flags);
+		if (ret)
+			return ret;
 	}
 
 	if (ns_is_env_run(h)) {
 		if (h->ctx->state == VZCTL_STATE_STARTING) {
-			ret = vcmm_activate(h);
-			if (ret)
-				return ret;
-
 			ret = set_net_classid(h);
 			if (ret)
 				return ret;
 		}
 
-		if ((flags & VZCTL_RESTORE) || h->ctx->state != VZCTL_STATE_STARTING) {
+		if (h->ctx->state != VZCTL_STATE_STARTING) {
 			ret = ns_apply_memory_param(h, env, 1, flags);
 			if (ret)
 				return ret;
@@ -1365,6 +1370,10 @@ static int ns_env_apply_param(struct vzctl_env_handle *h,
 
 		if (h->ctx->state == VZCTL_STATE_STARTING) {
 			ret = env_console_configure(h, flags);
+			if (ret)
+				return ret;
+
+			ret = vcmm_activate(h);
 			if (ret)
 				return ret;
 		}
