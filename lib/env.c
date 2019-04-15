@@ -778,8 +778,6 @@ int pre_setup_env(const struct start_param *param)
 	if (errcode)
 		return errcode;
 
-	set_def_rlimits();
-
 	/* Create /fastboot to skip run fsck */
 	fd = creat("/fastboot", 0644);
 	if (fd != -1)
@@ -925,6 +923,7 @@ int exec_init(const struct start_param *param)
 		return VZCTL_E_NOMEM;
 
 	setsid();
+	set_def_rlimits();
 
 	execve("/sbin/init", argv, env);
 	execve("/bin/init", argv, env);
