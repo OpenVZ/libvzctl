@@ -40,14 +40,6 @@ for s in $VE_EXT_MOUNT_MAP; do
 	ext_mount_map="$ext_mount_map --ext-mount-map $s"
 done
 
-#
-# When migrating from vz7-u3 to vz7-u4 new cgroup net_prio
-# controller been introduced in kernel, thus add this special
-# mapping here.
-if [ -d /sys/fs/cgroup/net_cls,net_prio ]; then
-	ext_mount_map="$ext_mount_map --ext-mount-map /sys/fs/cgroup/net_cls:net_cls,net_prio"
-fi
-
 external= 
 # VE_PLOOP_DEVS=UUID@ploopN:major:minor:[root]
 for s in $VE_PLOOP_DEVS; do

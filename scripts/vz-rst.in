@@ -57,6 +57,13 @@ cgroup_root="--cgroup-root ve:/$VEID --cgroup-root beancounter:/$VEID"
 for s in $VE_CGROUP_MOUNT_MAP; do
 	ext_mount_map="$ext_mount_map --ext-mount-map $s"
 
+	# For backward compatibility we must keep adding net_cls,net_prio map pointing
+	# to the same location that net_cls points to.
+	netprio=$(echo $s | awk '/net_cls/{sub(/net_cls:/,"net_cls,net_prio:");print}')
+	if [ -n "$netprio" ]; then
+		ext_mount_map="$ext_mount_map --ext-mount-map $netprio"
+	fi
+
 	ctl=${s%%:*}
 	t=${s#*/sys/fs/cgroup/}
 	root=${t#*/}
@@ -66,14 +73,6 @@ done
 for s in $VE_EXT_MOUNT_MAP; do
 	ext_mount_map="$ext_mount_map --ext-mount-map $s"
 done
-
-#
-# When migrating from vz7-u3 to vz7-u4 new cgroup net_prio
-# controller been introduced in kernel, thus add this special
-# mapping here.
-if [ -d /sys/fs/cgroup/net_cls,net_prio ]; then
-	ext_mount_map="$ext_mount_map --ext-mount-map net_cls,net_prio:/sys/fs/cgroup/net_cls,net_prio"
-fi
 
 action_script=@SCRIPTDIR@/vz-rst-action
 
