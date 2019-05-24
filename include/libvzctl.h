@@ -103,6 +103,7 @@ enum {
 	VZ_FEATURE_IPGRE	= (1ULL << 6),
 	VZ_FEATURE_BRIDGE	= (1ULL << 7),
 	VZ_FEATURE_NFSD		= (1ULL << 8),
+	VZ_FEATURE_TIME		= (1ULL << 9),
 };
 
 struct vzctl_feature_param {
