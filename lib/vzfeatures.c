@@ -50,6 +50,7 @@ static struct feature_s features[] = {
 	{ "ipgre",      VZ_FEATURE_IPGRE},
 	{ "bridge",     VZ_FEATURE_BRIDGE},
 	{ "nfsd",       VZ_FEATURE_NFSD},
+	{ "time",       VZ_FEATURE_TIME},
 	{ NULL}
 };
 
