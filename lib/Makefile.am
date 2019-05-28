@@ -1,4 +1,5 @@
 #  Copyright (c) 2000-2017, Parallels International GmbH
+# Copyright (c) 2017-2019 Virtuozzo International GmbH. All rights reserved.
 
 include $(top_srcdir)/paths.am
 
