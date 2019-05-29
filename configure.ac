@@ -1,4 +1,5 @@
 #  Copyright (c) 2000-2017, Parallels International GmbH
+# Copyright (c) 2017-2019 Virtuozzo International GmbH. All rights reserved.
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -14,7 +15,7 @@
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-#  Our contact details: Parallels International GmbH, Vordergasse 59, 8200
+#  Our contact details: Virtuozzo International GmbH, Vordergasse 59, 8200
 #  Schaffhausen, Switzerland.
 
 # Generic configuration

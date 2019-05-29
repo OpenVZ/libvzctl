@@ -1,5 +1,6 @@
 #!/bin/bash
 # Copyright (c) 1999-2017, Parallels International GmbH
+# Copyright (c) 2017-2019 Virtuozzo International GmbH. All rights reserved.
 #
 # This file is part of OpenVZ libraries. OpenVZ is free software; you can
 # redistribute it and/or modify it under the terms of the GNU Lesser General
@@ -16,7 +17,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 # 02110-1301, USA.
 #
-# Our contact details: Parallels International GmbH, Vordergasse 59, 8200
+# Our contact details: Virtuozzo International GmbH, Vordergasse 59, 8200
 # Schaffhausen, Switzerland.
 #
 # Common stuff for vzctl helper scripts
@@ -43,7 +44,6 @@ CONF_DIR=@VPSCONFDIR@
 VZ_IP_CLASSES="${CONF_DIR}/networks_classes"
 SUSPEND_CONF_DIR="/etc/vz/vzreboot"
 PS_START_LOCK_FILE="/var/lock/subsys/ps_start_lock"
-PS_SERVICE="/etc/init.d/parallels-server"
 PRAM_MOUNT_POINT="/mnt/pram"
 
 # tc parameters
@@ -567,35 +567,6 @@ function lockfile()
 		rm -f ${LOCKFILE}
 		sleep 1;
 	done
-}
-
-function is_ps_starting()
-{
-	LANG=en_US.UTF-8 $PS_SERVICE status | grep -q "is running"
-	[ $? -ne 0 ] && return 1
-
-	[ ! -f "$PS_START_LOCK_FILE" ] && return 1
-
-	return 0
-}
-
-# create pram
-function clean_pram()
-{
-	#echo -n $"Waiting for start Parallels Service:"
-	local timeout=0
-	while is_ps_starting ; do
-		if [ $timeout -ge 300 ]; then
-			vzwarning "Timeout wait for start Parallels Service"
-			break;
-		else
-			sleep 1
-			timeout=$((timeout+1))
-		fi
-	done
-
-	echo 0 > "/sys/kernel/pram"
-	echo 1 > "/proc/sys/vm/prune_pswap"
 }
 
 function umount_pram()
