@@ -126,8 +126,8 @@ static void do_destroydir(const char *root)
 int destroydir(const char *dir)
 {
 	int ret;
-	char buf[STR_SIZE];
-	char tmp[STR_SIZE];
+	char buf[PATH_MAX];
+	char tmp[PATH_MAX];
 	char *tmp_dir;
 	int fd_lock = -1, pid;
 	struct stat st;
@@ -180,8 +180,10 @@ int destroydir(const char *dir)
 		return 0;
 
 	int r, s[2] = {-1, -1};
-	if (pipe(s))
+	if (pipe(s)) {
 		vzctl_err(-1, errno, "pipe");
+		goto err;
+	}
 	ret = 0;
 	if (!(pid = fork())) {
 		setsid();
@@ -194,17 +196,21 @@ int destroydir(const char *dir)
 	close(s[1]);
 	if (read(s[0], &r, sizeof(r)) == -1)
 		vzctl_err(-1, errno, "read");
+	close(s[0]);
+
 err:
 	if (fd_lock >= 0)
 		close(fd_lock);
 	if (ret) {
 		logger(-1, 0, "Remove the directory %s in place", dir);
-		ret = del_dir(dir);
-		if (ret)
-			ret = VZCTL_E_FS_DEL_PRVT;
+		if (maketmpdir(dir, tmp, sizeof(tmp)) == 0)
+			dir = tmp;
+
+		if (del_dir(dir))
+			return VZCTL_E_FS_DEL_PRVT;
 	}
 
-	return ret;
+	return 0;
 }
 
 int env_destroy_prvt(const char *dir, int layout)
