@@ -203,7 +203,8 @@ err:
 		close(fd_lock);
 	if (ret) {
 		logger(-1, 0, "Remove the directory %s in place", dir);
-		if (maketmpdir(dir, tmp, sizeof(tmp)) == 0)
+		if (maketmpdir(dir, tmp, sizeof(tmp)) == 0 &&
+				rename(dir, tmp) == 0)
 			dir = tmp;
 
 		if (del_dir(dir))
