@@ -426,22 +426,19 @@ function vzaddrouting()
 	local device=
 	local cmd=
 
-	if ! ${IP_CMD} route list table all $1 | grep "$1 dev venet0" > /dev/null 2>&1;
-	then
-		if [ -n "${VE_ROUTE_SRC_DEV}" -a "${1#*:}" = "${1}" ]; then
-			device="dev ${VE_ROUTE_SRC_DEV}"
-			src_addr=`ip route list table local ${device} | \
-				grep '^local'| \
-				grep -v "dev venet0" | cut -d' ' -f2 | \
-				grep -v '^127\.' | head -1`
-			if [ -z "${src_addr}" ]; then
-				vzerror "Unable to get source ip [${device}]" $VZ_CANT_ADDIP
-			fi
-			src_addr="src ${src_addr}"
+	if [ -n "${VE_ROUTE_SRC_DEV}" -a "${1#*:}" = "${1}" ]; then
+		device="dev ${VE_ROUTE_SRC_DEV}"
+		src_addr=`ip route list table local ${device} | \
+			grep '^local'| \
+			grep -v "dev venet0" | cut -d' ' -f2 | \
+			grep -v '^127\.' | head -1`
+		if [ -z "${src_addr}" ]; then
+			vzerror "Unable to get source ip [${device}]" $VZ_CANT_ADDIP
 		fi
-		cmd="${IP_CMD} route add $1 dev venet0 ${src_addr}"
-		${cmd} || vzerror "Unable to set route: ${cmd}" $VZ_CANT_ADDIP
+		src_addr="src ${src_addr}"
 	fi
+	cmd="${IP_CMD} route replace $1 dev venet0 ${src_addr}"
+	${cmd} || vzerror "Unable to set route: ${cmd}" $VZ_CANT_ADDIP
 }
 
 # Deletes VE0 source routing for given IP
