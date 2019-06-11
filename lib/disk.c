@@ -1660,13 +1660,14 @@ int vzctl2_get_disk_stats(const char *path, struct vzctl_disk_stats *stats,
 	struct vzctl_disk_stats st = {};
 
 	snprintf(buf, sizeof(buf), "%s/" DISKDESCRIPTOR_XML, path);
-	if (ploop_get_fs_info(buf, &i, sizeof(i)))
+	ret = ploop_get_fs_info(buf, &i, sizeof(i));
+	if (ret == 0) {
+		st.total = i.fs.fs_bsize * i.fs.fs_blocks / 1024;
+		st.free = i.fs.fs_bsize * i.fs.fs_bfree / 1024;
+		st.inodes = i.fs.fs_inodes;
+		st.ifree = i.fs.fs_ifree;
+	} else if (ret != SYSEXIT_FSTAT)
 		return VZCTL_E_SYSTEM;
-
-	st.total = i.fs.fs_bsize * i.fs.fs_blocks / 1024;
-	st.free = i.fs.fs_bsize * i.fs.fs_bfree / 1024;
-	st.inodes = i.fs.fs_inodes;
-	st.ifree = i.fs.fs_ifree;
 
 	if (i.dev[0] != '\0') {
 		snprintf(st.device, sizeof(st.device), "%s", i.dev);
