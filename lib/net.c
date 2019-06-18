@@ -844,7 +844,7 @@ static int get_net_info(ctid_t ctid, const char *ifname,
 		if (sscanf(buf, "%d:", &n) == 1 && strstr(buf, ",UP")) {
 			info->if_up = 1;
 			continue;
-		} else if (sscanf(buf, "%*[\t ]inet%*[6 ] %s", ip) != 1)
+		} else if (sscanf(buf, "%*[\t ]ine%*[t6] %s", ip) != 1)
 			continue;
 
 		if (strncmp(ip, "127.", 4) == 0 ||
