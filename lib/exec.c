@@ -471,9 +471,7 @@ int real_env_exec(struct vzctl_env_handle *h, struct exec_param *param, int flag
 		sigaction(SIGPIPE, &act, NULL);
 		execvep(param->argv[0], param->argv,
 				param->envp != NULL ? param->envp : envp_bash);
-
-		ret = vzctl_err(errno == ENOENT ? VZCTL_E_BAD_TMPL : VZCTL_E_RESOURCE,
-				errno, "Failed to exec %s", param->argv[0]);;
+		ret = -errno;
 	} else {
 		sigaction(SIGPIPE, &act, NULL);
 		if (flags & EXEC_NOENV) {
@@ -487,8 +485,7 @@ int real_env_exec(struct vzctl_env_handle *h, struct exec_param *param, int flag
 					param->argv != NULL ? param->argv : argv_bash,
 					param->envp != NULL ? param->envp : envp_bash);
 		}
-		ret = vzctl_err(errno == ENOENT ? VZCTL_E_BAD_TMPL : VZCTL_E_RESOURCE,
-				errno, "Failed to exec /bin/sh");;
+		ret = -errno;
 	}
 
 err:
@@ -514,8 +511,22 @@ int real_env_exec_waiter(struct exec_param *param, int pid, int timeout, int fla
 			return vzctl_err(VZCTL_E_SYSTEM, errno,
 					"Failed to wait status");
 	logger(10, 0, "* Wait done ret=%d", ret);
-	if (ret)
-		return vzctl_err(ret, 0, "Failed to exec ret=%d", ret);
+	if (ret) {
+		int eno = 0;
+		const char *cmd;
+
+		if (ret < 0) {
+			eno = -ret;
+			ret = eno == ENOENT ? VZCTL_E_BAD_TMPL : VZCTL_E_RESOURCE;
+		}
+		if (param->exec_mode == MODE_EXEC)
+			cmd = param->argv[0];
+		else if (param->exec_mode== MODE_EXECFN)
+			cmd = "f()";
+		else
+			cmd = "bash";
+		return vzctl_err(ret, eno, "Failed to exec %s", cmd);
+	}
 
 	if (param->std_in != NULL) {
 		if (write(param->in_p[1], param->std_in, strlen(param->std_in)) < 0) {

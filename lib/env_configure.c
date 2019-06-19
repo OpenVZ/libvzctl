@@ -295,8 +295,8 @@ int env_dns_configure(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 	envp[i] = NULL;
 	ret = vzctl2_wrap_env_exec_vzscript(h, NULL, envp, script,
 			VZCTL_SCRIPT_EXEC_TIMEOUT, EXEC_LOG_OUTPUT);
-
-	logger(0, 0, "File resolv.conf was modified");
+	if (ret == 0)
+		logger(0, 0, "File resolv.conf was modified");
 	free_ar_str(envp);
 	free(r.nameserver);
 	free(r.searchdomain);
