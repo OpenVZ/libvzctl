@@ -292,6 +292,10 @@ static void restore_fin(const char *dumpdir, const char *workdir,
 	if (make_dir(d, 1))
 		return;
 
+	snprintf(s, sizeof(s), "%s/spfs-manager", dumpdir);
+	snprintf(d, sizeof(d), "%s.restore/spfs-manager", dumpdir);
+	rename(s, d);
+
 	snprintf(s, sizeof(s), "%s/dump.log", dumpdir);
 	snprintf(d, sizeof(d), "%s.restore/dump.log", dumpdir);
 	rename(s, d);
