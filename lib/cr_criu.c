@@ -278,6 +278,8 @@ static void restore_fin(const char *dumpdir, const char *workdir,
 {
 	char s[PATH_MAX];
 	char d[PATH_MAX];
+	char *f[] = {"spfs-manager", "dump.log", "restore.log", NULL};
+	char **p;
 
 	if (rc)	{
 		char *arg[] = {"/bin/grep", " Error ", s, NULL};
@@ -293,17 +295,11 @@ static void restore_fin(const char *dumpdir, const char *workdir,
 	if (make_dir(d, 1))
 		return;
 
-	snprintf(s, sizeof(s), "%s/spfs-manager", dumpdir);
-	snprintf(d, sizeof(d), "%s.restore/spfs-manager", dumpdir);
-	rename(s, d);
-
-	snprintf(s, sizeof(s), "%s/dump.log", dumpdir);
-	snprintf(d, sizeof(d), "%s.restore/dump.log", dumpdir);
-	rename(s, d);
-
-	snprintf(s, sizeof(s), "%s/restore.log", dumpdir);
-	snprintf(d, sizeof(d), "%s.restore/restore.log", dumpdir);
-	rename(s, d);
+	for (p = f; *p != NULL; p++) {
+		snprintf(s, sizeof(s), "%s/%s", dumpdir, *p);
+		snprintf(d, sizeof(d), "%s.restore/%s", dumpdir, *p);
+		rename(s, d);
+	}
 
 	logger(0, 0, "The log of successful restore was saved in %s", d);
 }
