@@ -129,7 +129,7 @@ int parse_iolimit(struct vzctl_io_param *io, const char *str, int def_mul)
 	errno = 0;
 	tmp = strtoull(str, &tail, 10);
 	if (errno == ERANGE)
-		return 1;
+		return VZCTL_E_INVAL;
 
 	if (*tail != '\0') {
 		if (get_mul(*tail, &n))
@@ -140,7 +140,7 @@ int parse_iolimit(struct vzctl_io_param *io, const char *str, int def_mul)
 	}
 
 	if (tmp > UINT_MAX)
-		return 1;
+		return VZCTL_E_INVAL;
 
 	io->limit = tmp;
 
