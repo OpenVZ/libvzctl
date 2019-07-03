@@ -210,6 +210,18 @@ int vzctl2_env_mount(struct vzctl_env_handle *h, int flags)
 		}
 	}
 
+	if (h->ctx->state == VZCTL_STATE_STARTING) {
+		const char *v;
+		vzctl2_conf_get_param(h->conf, "REPAIR_MODE", &v);
+		if (v != NULL && strcmp(v, "force") == 0) {
+			char f[PATH_MAX];
+
+			get_running_state_fname(h->env_param->fs->ve_private, f, sizeof(f));
+			if (access(f, F_OK) == 0)
+				flags |= VZCTL_FORCE_REPAIR;
+		}
+	}
+
 	ret = do_env_mount(h, flags);
 	if (ret)
 		return ret;

@@ -38,6 +38,7 @@
 
 #define VZCTL_PARAM_ON		1
 #define VZCTL_PARAM_OFF		2
+#define VZCTL_PARAM_FORCE_REPAIR	3
 
 #define VZCTL_LAYOUT_3  3
 #define VZCTL_LAYOUT_4  4
@@ -129,6 +130,7 @@ enum {
 	VZCTL_SKIP_MOUNT	= 0x01000,
 	VZCTL_APPLY_CONF	= 0x02000,
 	VZCTL_SKIP_HA_REG	= 0x04000,
+	VZCTL_FORCE_REPAIR	= 0x08000,
 };
 
 enum {
@@ -346,6 +348,7 @@ struct vzctl_state_evt {
 	unsigned long long dev;
 };
 
+
 struct vzctl_mount_param {
 	char device[64];
 	int ro;
@@ -356,7 +359,8 @@ struct vzctl_mount_param {
 	char *mount_data;
 	char *component_name;
 	int flags;
-	int fsck;	/* 0 - default. 1 - VZCTL_PARAM_ON, 2 - VZCTL_PARAM_OFF */
+	int fsck; /* 0 - default. 1 - VZCTL_PARAM_ON,
+		     2 - VZCTL_PARAM_OFF, 3 - VZCTL_PARAM_FORCE_REPAIR */
 	char dummy[32];
 };
 
