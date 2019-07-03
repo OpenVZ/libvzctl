@@ -1010,6 +1010,7 @@ int vzctl_env_start(struct vzctl_env_handle *h, int flags)
         if (ret)
 		goto err_pipe;
 
+	h->ctx->state = VZCTL_STATE_STARTING;
 	if (!(flags & VZCTL_SKIP_MOUNT)) {
 		/* If Container mounted umount first to cleanup mount state */
 		if (vzctl2_env_is_mounted(h)) {
@@ -1033,7 +1034,6 @@ int vzctl_env_start(struct vzctl_env_handle *h, int flags)
 
 	fix_param(env);
 
-	h->ctx->state = VZCTL_STATE_STARTING;
 	if ((ret = get_env_ops()->env_create(h, &param)))
 		goto err;
 
@@ -1258,6 +1258,7 @@ int vzctl_env_restore(struct vzctl_env_handle *h,
 	if (vzctl2_env_is_mounted(h))
 		vzctl2_env_umount(h, flags);
 
+	h->ctx->state = VZCTL_STATE_STARTING;
 	if (!vzctl2_env_is_mounted(h)) {
 		/* increase quota to perform initial setup */
 		if ((ret = vzctl2_env_mount(h, flags)))
@@ -1271,7 +1272,6 @@ int vzctl_env_restore(struct vzctl_env_handle *h,
 
 	fix_param(env);
 
-	h->ctx->state = VZCTL_STATE_STARTING;
 	ret = get_env_ops()->env_restore(h, &start_param, param, flags);
 	if (ret)
 		goto err;

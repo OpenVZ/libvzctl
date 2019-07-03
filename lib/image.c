@@ -113,6 +113,26 @@ int vzctl2_is_image_mounted(const char *path)
 	return ret;
 }
 
+
+int fsck_flags2mode(int flags)
+{
+	return (flags & VZCTL_SKIP_FSCK ? VZCTL_PARAM_OFF :
+		(flags & VZCTL_FORCE_REPAIR ? VZCTL_PARAM_FORCE_REPAIR : 0));
+	
+}
+
+static int fsck_mode2flags(int mode)
+{
+	switch (mode) {
+	case VZCTL_PARAM_OFF:
+		return 0;
+	case VZCTL_PARAM_FORCE_REPAIR:
+		return E2FSCK_FORCE_REPAIR;
+	default:
+		return E2FSCK_PREEN;
+	}
+}
+
 int mount_ploop_image(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 		 struct vzctl_mount_param *param)
 {
@@ -133,7 +153,8 @@ int mount_ploop_image(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	mount_param.fstype = DEFAULT_FSTYPE;
 	mount_param.target = param->target;
 	mount_param.mount_data = param->mount_data;
-	mount_param.fsck = (!param->ro && param->fsck != VZCTL_PARAM_OFF);
+	if (!param->ro)
+		mount_param.fsck_flags = fsck_mode2flags(param->fsck);
 	mount_param.fsck_rc = 0;
 	mount_param.flags = MS_REMOUNT;
 
@@ -149,7 +170,7 @@ int mount_ploop_image(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 
 	snprintf(fname, sizeof(fname), "%s/" FS_CORRECTED_MARK,
 			param->target);
-	if (mount_param.fsck && mount_param.fsck_rc) {
+	if (mount_param.fsck_rc) {
 		int fd;
 
 		logger(0, 0, "File system errors were corrected for image=%s",

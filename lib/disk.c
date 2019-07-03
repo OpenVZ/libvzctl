@@ -658,7 +658,7 @@ int get_disk_mount_param(struct vzctl_env_handle *h, struct vzctl_disk *d,
 		param->mount_data = d->mnt_opts;
 
 	param->flags = d->mnt_flags;
-	param->fsck = (flags & VZCTL_SKIP_FSCK) ? VZCTL_PARAM_OFF : 0;
+	param->fsck = fsck_flags2mode(flags);
 
 	return 0;
 }
