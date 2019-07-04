@@ -274,6 +274,12 @@ int vzctl2_env_umount(struct vzctl_env_handle *h, int flags)
 	if (ret)
 		return ret;
 
+	if (!(flags & VZCTL_SKIP_ACTION_SCRIPT)) {
+		ret = run_action_scripts(h, VZCTL_ACTION_POST_UMOUNT);
+		if (ret)
+			return ret;
+	}
+
 	logger(0, 0, "Container is unmounted");
 
 force:

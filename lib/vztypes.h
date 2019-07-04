@@ -75,6 +75,7 @@
 #define VZCTL_PRE_MOUNT_PREFIX	"premount"
 #define VZCTL_MOUNT_PREFIX	"mount"
 #define VZCTL_UMOUNT_PREFIX	"umount"
+#define VZCTL_POST_UMOUNT_PREFIX	"postumount"
 
 #define VZPKGINFO		"/usr/bin/vzpkginfo"
 #define VZPKGADD		"/usr/sbin/vzpkgadd"
@@ -142,6 +143,7 @@ enum {
 	VZCTL_ACTION_MOUNT,
 	VZCTL_ACTION_UMOUNT,
 	VZCTL_ACTION_PRE_MOUNT,
+	VZCTL_ACTION_POST_UMOUNT,
 };
 
 enum {
