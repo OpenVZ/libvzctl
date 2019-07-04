@@ -1608,6 +1608,10 @@ static void get_action_script(struct vzctl_env_handle *h, int action, int step,
 		fname = VZCTL_UMOUNT_PREFIX;
 		global = step == 0 ? 0 : 1;
 		break;
+	case VZCTL_ACTION_POST_UMOUNT:
+		global = step == 0 ? 0 : 1;
+		fname = VZCTL_POST_UMOUNT_PREFIX;
+		break;
 	}
 
 	if (global)
