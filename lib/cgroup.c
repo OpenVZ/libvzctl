@@ -1012,6 +1012,13 @@ static int do_bindmount(const char *src, const char *dst, int mnt_flags)
 	if (mount(src, dst, NULL, mnt_flags, NULL))
 		return vzctl_err(VZCTL_E_MOUNT, errno,
 				"Can't bindmount %s -> %s", src, dst);
+
+	if ((mnt_flags & MS_PRIVATE) && mount("none", dst, NULL, MS_PRIVATE, NULL)) {
+		umount(dst);
+		return  vzctl_err(VZCTL_E_MOUNT, errno,
+				"Can't make MS_PRIVATE,  %s", dst);
+	}
+
 	return 0;
 }
 
@@ -1106,7 +1113,6 @@ static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t *head)
 	struct vzctl_str_param *it;
 	const char *mnt;
 	struct cg_ctl *ctl;
-	int flags;
 	LIST_HEAD(cgroups);
 
 	snprintf(s, sizeof(s), "%s/sys", ve_root);
@@ -1156,14 +1162,10 @@ static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t *head)
 
 		snprintf(d, sizeof(d), "%s%s", ve_root, mnt);
 		get_cgroup_name(EID(h), ctl, s, sizeof(s));
-		flags = MS_BIND;
-		if (!cg_is_systemd(ctl->subsys))
-			flags |= MS_PRIVATE;
 
-		ret = do_bindmount(s, d, flags);
+		ret = do_bindmount(s, d, MS_BIND|MS_PRIVATE);
 		if (ret)
 			goto err;
-
 		ret = create_perctl_symlink(ve_root, mnt);
 		if (ret)
 			goto err;
