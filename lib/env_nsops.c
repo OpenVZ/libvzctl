@@ -222,6 +222,8 @@ static int real_ns_env_create(void *arg)
 		ret = vzctl_err(VZCTL_E_SYSTEM, errno, "Unable to set uid or gid");
 		goto err;
 	}
+	/* preload libnss_files.so */
+	getgrnam("");
 
 	ret = start_container(param->h);
 	if (ret)
