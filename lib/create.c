@@ -1451,8 +1451,8 @@ err:
 		vzctl2_env_stop(h, M_HALT, 0);
 	if (vzctl2_is_image_mounted(old_disk))
 		vzctl2_umount_disk_image(old_disk);
-	if (vzctl2_is_image_mounted(new_prvt))
-		vzctl2_umount_disk_image(new_prvt);
+	if (vzctl2_is_image_mounted(new_disk))
+		vzctl2_umount_disk_image(new_disk);
 err1:
 	destroydir(new_prvt);
 
