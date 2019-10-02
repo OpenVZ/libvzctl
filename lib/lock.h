@@ -39,7 +39,7 @@ void vzctl_unlock(int fd, const char *lockfile);
 
 int get_enter_lock(struct vzctl_env_handle *h);
 void release_enter_lock(int lockfd);
-int is_enter_locked(struct vzctl_env_handle *h);
+int is_enter_locked(struct vzctl_env_handle *h, int flags);
 int vzctl_env_conf_lock(struct vzctl_env_handle *h, int mode);
 int vzctl_env_conf_unlock(int fd);
 const char *get_dir_lock_file(const char *dir, char *buf, int size);
