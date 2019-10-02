@@ -461,10 +461,12 @@ int get_enter_lock(struct vzctl_env_handle *h)
 	return do_enter_lock(h, VZCTL_LOCK_EX);
 }
 
-int is_enter_locked(struct vzctl_env_handle *h)
+int is_enter_locked(struct vzctl_env_handle *h, int flags)
 {
 	int fd;
 
+	if (flags & VZCTL_SKIP_LOCK)
+		return 0;
 	fd = do_enter_lock(h, VZCTL_LOCK_SH | VZCTL_LOCK_NB);
 	if (fd < 0)
 		return 1;

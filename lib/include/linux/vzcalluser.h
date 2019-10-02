@@ -31,7 +31,6 @@ typedef unsigned int envid_t;
 #define VE_ENTER	4	/* Enter existing VE */
 #define VE_TEST		8	/* Test if VE exists */
 #define VE_LOCK		16	/* Do not allow entering created VE */
-#define VE_SKIPLOCK	32	/* Allow entering embrion VE */
 
 struct vzctl_old_env_create {
 	envid_t				veid;
