@@ -821,18 +821,10 @@ static int get_net_info(ctid_t ctid, const char *ifname,
 	int ret = 0;
 	FILE *fp;
 	char ip[STR_SIZE];
-	char pid_s[12];
 	char buf[STR_SIZE];
 	LIST_HEAD(ips);
-	pid_t pid;
-	char *arg[] = {"/usr/bin/nsenter", "-n", "-m", "-t", pid_s,
-		"ip", "a", "l",	ifname ? "dev" : NULL, (char *) ifname, NULL};
-
-	ret = cg_env_get_init_pid(ctid, &pid);
-	if (ret)
-		return ret;
-
-	snprintf(pid_s, sizeof(pid_s), "%lu", (long unsigned)pid);
+	char *arg[] = {"/usr/sbin/ip", "-n", ctid, "a", "l",
+		ifname ? "dev" : NULL, (char *) ifname, NULL};
 
 	fp = vzctl_popen(arg, NULL, 0);
 	if (fp == NULL)
