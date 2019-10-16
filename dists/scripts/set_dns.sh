@@ -41,8 +41,10 @@ set_resolvconf()
 
 	# Use resolvconf static storage
 	if which resolvconf >/dev/null 2>&1; then
-		cfgfile=$RESOLVCONF
-		[ "${VE_STATE}" = "running" ] && post_configure_cmd='resolvconf -u'
+		if [ -e "$RESOLVCONF" ]; then
+			cfgfile=$RESOLVCONF
+			[ "${VE_STATE}" = "running" ] && post_configure_cmd='resolvconf -u'
+		fi
 	fi
 
 	if [ -n "${search}" ]; then
