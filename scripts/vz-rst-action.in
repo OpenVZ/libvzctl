@@ -101,6 +101,14 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 		[ -n "$VE_PID_MAX" ] && cgset -r ve.pid_max="$VE_PID_MAX" $VEID
 	fi
 	;;
+"pre-resume")
+	#
+	# We drop pseudosuper on pre-resume stage since we need to run
+	# iptable helpers inside container during sockets restore. Note
+	# the containers are still in stopped stage, CRIU will kick them
+	# up to run via freezer after this stage.
+	[ -n "$VEID" ] && { cgset -r ve.pseudosuper="0" $VEID || { echo "Failed to drop pseudosuper on $VEID"; exit 1; } }
+	;;
 "post-restore")
 	if [ -z "$CRTOOLS_IMAGE_DIR" ]; then
 		echo "Missing parameter CRTOOLS_IMAGE_DIR"
@@ -121,7 +129,6 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 			{ cgexec -g ve:$VEID echo `cat $CRTOOLS_IMAGE_DIR/vz_randomize_va_space.img` \
 			 > /proc/sys/kernel/randomize_va_space || { echo "Failed to restore randomize_va_space"; exit 1; } }
 	fi
-	[ -n "$VEID" ] && { cgset -r ve.pseudosuper="0" $VEID || { echo "Failed to drop pseudosuper on $VEID"; exit 1; } }
 
 	ret=0
 	[ -n "$CRIU_ACTION_POST_RESUME_READ_FD" ] && printf '\0\0\0\0' >&${CRIU_ACTION_POST_RESUME_READ_FD}
