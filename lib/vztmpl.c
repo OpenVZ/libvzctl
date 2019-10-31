@@ -26,7 +26,12 @@
 #include <errno.h>
 #include <ctype.h>
 
+#ifdef USE_VZTT
 #include <vz/vztt_error.h>
+#else
+#define VZT_TMPL_NOT_CACHED	23
+#define VZT_TMPL_NOT_FOUND	24
+#endif
 
 #include "list.h"
 #include "vzerror.h"
