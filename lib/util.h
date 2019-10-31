@@ -109,7 +109,7 @@ int utf8tostr(const char *src, char *dst, int dst_size, const char *enc);
 
 char *parse_line(char *str, char *ltoken, int lsz);
 int stat_file(const char *file);
-char *subst_VEID(const const ctid_t ctid, const char *src);
+char *subst_VEID(const ctid_t ctid, const char *src);
 int check_var(const void *val, const char *message);
 int make_dir(const char *path, int full);
 int destroydir(const char *dir);

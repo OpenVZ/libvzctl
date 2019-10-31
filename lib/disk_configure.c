@@ -234,8 +234,8 @@ static int env_configure_systemd_unit(const char *uuid, const char *mnt, const c
 {
 	int err = -1;
 	char systemd_unit_name[PATH_MAX];
-	char systemd_unit_path[PATH_MAX];
-	char systemd_link_path[PATH_MAX];
+	char systemd_unit_path[PATH_MAX + 32];
+	char systemd_link_path[PATH_MAX + 64];
 	char options[PATH_MAX] = "";
 	FILE *wfp;
 
@@ -565,7 +565,7 @@ static int env_fin_configure_systemd_unit(struct vzctl_env_disk *env_disk)
 	struct dirent *de;
 	char *ext;
 	char path[PATH_MAX];
-	char unit_link[PATH_MAX];
+	char unit_link[PATH_MAX + 64];
 	struct stat st;
 
 	/* scan directory with systemd units */

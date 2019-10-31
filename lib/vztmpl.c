@@ -432,7 +432,7 @@ static char *skip_trailing_space(char *str)
 int vztmpl_get_applist(ctid_t ctid, list_head_t *head, const char *ostmpl)
 {
 	char buf[STR_SIZE];
-	char package[STR_SIZE];
+	char package[STR_SIZE*2+1];
 	FILE *fd;
 	char *p;
 	int status, exitcode;

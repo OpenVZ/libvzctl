@@ -91,7 +91,7 @@ static int maketmpdir(const char *dir, char *out, int len)
  */
 static void do_destroydir(const char *root)
 {
-	char buf[PATH_MAX];
+	char buf[PATH_MAX *2 +1];
 	struct stat st;
 	struct dirent *ep;
 	DIR *dp;
@@ -126,7 +126,7 @@ static void do_destroydir(const char *root)
 int destroydir(const char *dir)
 {
 	int ret;
-	char buf[PATH_MAX];
+	char buf[PATH_MAX + 15];
 	char tmp[PATH_MAX];
 	char *tmp_dir;
 	int fd_lock = -1, pid;
@@ -223,7 +223,7 @@ static void destroy_conf(struct vzctl_env_handle *h)
 {
 	int i;
         char conf[STR_SIZE];
-        char newconf[STR_SIZE];
+        char newconf[STR_SIZE + 15];
         struct stat st;
 	char *actions[] = {
 		VZCTL_START_PREFIX,

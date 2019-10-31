@@ -654,7 +654,7 @@ int vzctl2_get_free_envid(unsigned *neweid, const char *dst,
 	int i;
 	struct vzctl_conf_simple conf;
 	char file[STR_SIZE];
-	char lckfile[STR_SIZE];
+	char lckfile[STR_SIZE + 15];
 	char dstlck[PATH_MAX];
 	struct stat st;
 	int check_ve_private = 0;
@@ -874,8 +874,8 @@ static int renew_VE_PRIVATE(struct vzctl_env_handle *h, const char *path,
  */
 int vzctl2_env_register(const char *path, struct vzctl_reg_param *param, int flags)
 {
-	char buf[PATH_MAX];
-	char veconf[STR_SIZE];
+	char buf[PATH_MAX + 15];
+	char veconf[PATH_MAX + 15];
 	char path_r[PATH_MAX];
 	struct stat st;
 	int ret, err;

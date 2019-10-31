@@ -39,7 +39,7 @@
 int add_sysfs_dir(struct vzctl_env_handle *h, const char *sysfs,
 		const char *devname, const char *mode)
 {
-	char buf[PATH_MAX];
+	char buf[PATH_MAX + 15];
 	char t[PATH_MAX];
 	char *p;
 

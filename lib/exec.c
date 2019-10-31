@@ -268,9 +268,9 @@ void writeoutput(int level)
 		while (*pse && *pse != '\n') ++pse;
 		len = pse - ps;
 		len2 = (bp + len < ep) ? len : ep - bp;
-		strncpy(bp, ps, len2);
+		memcpy(bp, ps, len2);
 		bp += len2;
-		*bp = 0;
+		*bp = '\0';
 		if (*pse == '\n') {
 			log_quiet(level, 0, "%s", buf);
 			while (*pse && *pse == '\n') ++pse;
@@ -876,8 +876,8 @@ static int env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
 				logger(1, errno, "Failed write(st[1])");
 			_exit(ret);
 		} else if (pid == 0) {
-			char prompt[32];
-			char id[12];
+			char prompt[128];
+			char id[64];
 			char buf[64];
 			char *term;
 			char *arg[] = {"-bash", NULL};

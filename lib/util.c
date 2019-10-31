@@ -43,6 +43,7 @@
 #include <limits.h>
 #include <ploop/libploop.h>
 #include <uuid/uuid.h>
+#include <sys/sysmacros.h>
 
 #include <math.h>
 
