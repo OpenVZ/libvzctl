@@ -38,7 +38,9 @@
 #include "env.h"
 #include "util.h"
 #include "exec.h"
+#ifdef USE_VCMMD
 #include "vcmm.h"
+#endif
 #include "vzerror.h"
 #include "logger.h"
 #include "disk.h"
@@ -221,8 +223,9 @@ static int chkpnt(struct vzctl_env_handle *h, int cmd,
 	ret = dump(h, cmd, param);
 	if (ret)
 		return ret;
-
+#ifdef USE_VCMMD
 	vcmm_unregister(h);
+#endif
 	clear_init_pid(h->ctid);
 
 	return 0;

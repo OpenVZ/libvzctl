@@ -132,20 +132,21 @@ static int get_ub_resources_proc(ctid_t ctid, unsigned long *ram, unsigned long 
 static int get_ub_resources(ctid_t ctid, unsigned long *ram,
 		unsigned long *swap)
 {
-	int ret;
-	unsigned long ram_bytes, swap_bytes, x;
+#ifdef USE_VCMMD
+	if (is_managed_by_vcmmd()) {
+		int ret;
+		unsigned long ram_bytes, swap_bytes, x;
+		ret = vcmm_get_param(ctid, &ram_bytes, &swap_bytes, &x);
+		if (ret)
+			return ret;
 
-	if (!is_managed_by_vcmmd())
-		return get_ub_resources_proc(ctid, ram, swap);
+		ram[0] = ram[1] = ram_bytes / get_pagesize();
+		swap[0] = swap[1] = swap_bytes / get_pagesize();
 
-	ret = vcmm_get_param(ctid, &ram_bytes, &swap_bytes, &x);
-	if (ret)
-		return ret;
-
-	ram[0] = ram[1] = ram_bytes / get_pagesize();
-	swap[0] = swap[1] = swap_bytes / get_pagesize();
-
-	return 0;
+		return 0;
+	}
+#endif
+	return get_ub_resources_proc(ctid, ram, swap);
 }
 
 int vzctl2_get_env_total_meminfo(unsigned long *limit_bytes, unsigned long *usage_bytes)

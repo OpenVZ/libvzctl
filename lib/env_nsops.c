@@ -402,7 +402,7 @@ static int ns_apply_memory_param(struct vzctl_env_handle *h,
 	ret = get_vswap_param(h, env, &ub);
 	if (ret)
 		return ret;
-
+#ifdef USE_VCMMD
 	if (is_managed_by_vcmmd()) {
 		if (h->ctx->state == VZCTL_STATE_STARTING) {
 			/* apply parameters to avoid running with
@@ -418,6 +418,7 @@ static int ns_apply_memory_param(struct vzctl_env_handle *h,
 			env->res->memguar = NULL;
 		}
 	} else
+#endif
 		ret = ns_set_memory_param(h, ub, flags);
 
 	free_ub_param(ub);
@@ -888,7 +889,9 @@ err:
 	if (ret) {
 		if (pid != -1)
 			kill(pid, SIGKILL);
+#if USE_VCMMD
 		vcmm_unregister(h);
+#endif
 	}
 
 	if (param->pseudosuper_fd != -1)
@@ -1180,8 +1183,9 @@ static int ns_env_stop_force(struct vzctl_env_handle *h)
 static int ns_env_cleanup(struct vzctl_env_handle *h, int flags)
 {
 	char x[] = "XXXX";
-
+#ifdef USE_VCMMD
 	vcmm_unregister(h);
+#endif
 	clear_init_pid(EID(h));
 	if (get_global_param("SKIP_CGROUP_DESTROY", x, sizeof(x)) == 0 &&
 			strcmp(x, "yes") == 0)
@@ -1375,8 +1379,9 @@ static int ns_env_apply_param(struct vzctl_env_handle *h,
 			ret = env_console_configure(h, flags);
 			if (ret)
 				return ret;
-
+#ifdef USE_VCMMD
 			ret = vcmm_activate(h);
+#endif
 			if (ret)
 				return ret;
 		}
