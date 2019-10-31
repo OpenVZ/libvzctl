@@ -81,11 +81,19 @@ AC_CHECK_LIB([ploop], [ploop_replace_image], PLOOP_LIBS="-lploop",
 AC_SUBST(PLOOP_LIBS)
 
 # Checks for libvcmmd lib
-AC_CHECK_HEADER([libvcmmd/vcmmd.h], ,
-	AC_MSG_ERROR([Please install libvcmmd devel package]))
-AC_CHECK_LIB([vcmmd], [vcmmd_strerror], VCMMD_LIBS="-lvcmmd",
-	AC_MSG_ERROR([Please install libvcmmd package]))
-AC_SUBST(VCMMD_LIBS)
+AC_ARG_WITH([vcmmd],
+	    [AS_HELP_STRING([--without-vcmmd],
+	            [disable vcmmd support])],
+            [],
+            [with_vcmmd=yes])
+VCMMD_LIBS=
+AS_IF([test "x$with_vcmmd" = xyes],
+	AC_CHECK_HEADER([libvcmmd/vcmmd.h], ,
+		AC_MSG_ERROR([Please install libvcmmd devel package]))
+	AC_CHECK_LIB([vcmmd], [vcmmd_strerror], VCMMD_LIBS="-lvcmmd",
+		AC_MSG_ERROR([Please install libvcmmd package]))
+	AC_SUBST(VCMMD_LIBS)
+	AC_DEFINE(USE_VCMMD))
 
 # Checks for e2fsprogs lib
 AC_CHECK_HEADER([ext2fs/ext2_fs.h], ,
