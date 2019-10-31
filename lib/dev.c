@@ -32,6 +32,7 @@
 #include <string.h>
 #include <mntent.h>
 #include <dirent.h>
+#include <sys/sysmacros.h>
 
 #include <linux/vzcalluser.h>
 

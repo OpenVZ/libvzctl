@@ -108,7 +108,7 @@ static int get_mount_path(const char *subsys, char *out, int size)
 		if (has_substr(ops, !cg_is_systemd(subsys) ?
 					subsys : "name=systemd"))
 		{
-			strncpy(out, target, size -1);
+			strncpy(out, target, size);
 			out[size-1] = '\0';
 			ret = 0;
 			break;

@@ -229,7 +229,7 @@ int vzctl2_conf_save(struct vzctl_config *conf, const char *fname)
 {
 	char str[64 * 1024];
 	FILE *fp_in, *fp_out;
-	char tmp_path[4096], r_path[4096];
+	char tmp_path[4100], r_path[4096];
 	char *rtoken;
 	char ltoken[4096];
 	int i;

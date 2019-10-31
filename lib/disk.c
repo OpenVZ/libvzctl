@@ -37,6 +37,7 @@
 #include <libgen.h>
 #include <dirent.h>
 #include <string.h>
+#include <sys/sysmacros.h>
 
 #include "libvzctl.h"
 #include "vzerror.h"
@@ -1023,7 +1024,7 @@ int configure_disk_perm(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 static int configure_sysfsperm(struct vzctl_env_handle *h, struct vzctl_disk *d,
 		int del)
 {
-	char buf[STR_SIZE];
+	char buf[PATH_MAX + 15];
 	char sys_dev[PATH_MAX];
 	char sys_part[PATH_MAX];
 	char sys_dm[PATH_MAX];

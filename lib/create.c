@@ -298,11 +298,11 @@ static int update_param(struct vzctl_env_handle *h)
 static int create_private_ploop(struct vzctl_env_handle *h, const char *dst,
 		const char *tarball, int layout, int flags)
 {
-	char buf[PATH_MAX];
+	char buf[PATH_MAX + 15];
 	char script[PATH_MAX];
 	char data_root[PATH_MAX];
-	char private_template[PATH_MAX];
-	char ve_prvt[PATH_MAX];
+	char private_template[PATH_MAX + 17];
+	char ve_prvt[PATH_MAX + 15];
 	int ret;
 	char *arg[2];
 	char *env[5];
@@ -817,7 +817,7 @@ static int custom_reinstall(struct vzctl_env_handle *h, char *script_nm,
 int custom_configure(struct vzctl_env_handle *h, const char *script)
 {
 	int ret;
-	char buf[32];
+	char buf[64];
 	char *arg[2] = {(char *)script, NULL};
 	char *env[2] = {buf, NULL};
 
@@ -858,8 +858,8 @@ static void sort_str_list(list_head_t *head)
 
 int get_reinstall_scripts(char *root, list_head_t *head, list_head_t *filter)
 {
-	char buf[STR_SIZE];
-	char dir[STR_SIZE];
+	char buf[PATH_MAX *2 +1];
+	char dir[PATH_MAX];
 	struct stat st;
 	struct dirent *ep;
 	DIR *dp;
@@ -1217,7 +1217,7 @@ int vzctl2_env_reinstall(struct vzctl_env_handle *h,
 {
 	int ret;
 	char buf[PATH_MAX];
-	char tmp[PATH_MAX];
+	char tmp[PATH_MAX +15];
 	char old_disk[PATH_MAX];
 	char old_root[PATH_MAX];
 	char new_disk[PATH_MAX];

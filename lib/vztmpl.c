@@ -26,7 +26,12 @@
 #include <errno.h>
 #include <ctype.h>
 
+#ifdef USE_VZTT
 #include <vz/vztt_error.h>
+#else
+#define VZT_TMPL_NOT_CACHED	23
+#define VZT_TMPL_NOT_FOUND	24
+#endif
 
 #include "list.h"
 #include "vzerror.h"
@@ -427,7 +432,7 @@ static char *skip_trailing_space(char *str)
 int vztmpl_get_applist(ctid_t ctid, list_head_t *head, const char *ostmpl)
 {
 	char buf[STR_SIZE];
-	char package[STR_SIZE];
+	char package[STR_SIZE*2+1];
 	FILE *fd;
 	char *p;
 	int status, exitcode;

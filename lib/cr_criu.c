@@ -30,6 +30,7 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/param.h>
+#include <sys/sysmacros.h>
 
 #include "libvzctl.h"
 #include "disk.h"
@@ -38,7 +39,9 @@
 #include "env.h"
 #include "util.h"
 #include "exec.h"
+#ifdef USE_VCMMD
 #include "vcmm.h"
+#endif
 #include "vzerror.h"
 #include "logger.h"
 #include "disk.h"
@@ -133,7 +136,7 @@ static int dump(struct vzctl_env_handle *h, int cmd,
 		struct vzctl_cpt_param *param)
 {
 	char path[PATH_MAX];
-	char buf[PATH_MAX];
+	char buf[PATH_MAX + 15];
 	char script[PATH_MAX];
 	char *arg[2];
 	char *env[13] = {};
@@ -221,8 +224,9 @@ static int chkpnt(struct vzctl_env_handle *h, int cmd,
 	ret = dump(h, cmd, param);
 	if (ret)
 		return ret;
-
+#ifdef USE_VCMMD
 	vcmm_unregister(h);
+#endif
 	clear_init_pid(h->ctid);
 
 	return 0;
@@ -312,7 +316,7 @@ static int restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 	char *logfile = NULL;
 	char path[PATH_MAX];
 	char script[PATH_MAX];
-	char buf[PATH_MAX];
+	char buf[PATH_MAX + 14];
 	char *arg[2];
 	char *env[20] = {};
 	struct vzctl_veth_dev *veth;

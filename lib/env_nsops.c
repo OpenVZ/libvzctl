@@ -41,6 +41,7 @@
 #include <sys/ioctl.h>
 #include <libgen.h>
 #include <sched.h>
+#include <sys/sysmacros.h>
 
 #include "env.h"
 #include "env_ops.h"
@@ -286,7 +287,6 @@ static int ns_set_ub(struct vzctl_env_handle *h,
 		if (cg_env_set_memory(h->ctid, CG_KMEM_LIMIT, ub->kmemsize->l))
 			return VZCTL_E_SETUBC;
 	}
-
 	return 0;
 }
 
@@ -402,7 +402,7 @@ static int ns_apply_memory_param(struct vzctl_env_handle *h,
 	ret = get_vswap_param(h, env, &ub);
 	if (ret)
 		return ret;
-
+#ifdef USE_VCMMD
 	if (is_managed_by_vcmmd()) {
 		if (h->ctx->state == VZCTL_STATE_STARTING) {
 			/* apply parameters to avoid running with
@@ -418,6 +418,7 @@ static int ns_apply_memory_param(struct vzctl_env_handle *h,
 			env->res->memguar = NULL;
 		}
 	} else
+#endif
 		ret = ns_set_memory_param(h, ub, flags);
 
 	free_ub_param(ub);
@@ -888,7 +889,9 @@ err:
 	if (ret) {
 		if (pid != -1)
 			kill(pid, SIGKILL);
+#if USE_VCMMD
 		vcmm_unregister(h);
+#endif
 	}
 
 	if (param->pseudosuper_fd != -1)
@@ -1180,8 +1183,9 @@ static int ns_env_stop_force(struct vzctl_env_handle *h)
 static int ns_env_cleanup(struct vzctl_env_handle *h, int flags)
 {
 	char x[] = "XXXX";
-
+#ifdef USE_VCMMD
 	vcmm_unregister(h);
+#endif
 	clear_init_pid(EID(h));
 	if (get_global_param("SKIP_CGROUP_DESTROY", x, sizeof(x)) == 0 &&
 			strcmp(x, "yes") == 0)
@@ -1245,7 +1249,7 @@ out:
 static int ns_set_devperm(struct vzctl_env_handle *h, struct vzctl_dev_perm *dev)
 {
 	char dev_str_part[STR_SIZE];
-	char dev_str[STR_SIZE];
+	char dev_str[STR_SIZE + 15];
 	char perms[5];
 	int i = 0;
 	int deny = 0;
@@ -1375,8 +1379,9 @@ static int ns_env_apply_param(struct vzctl_env_handle *h,
 			ret = env_console_configure(h, flags);
 			if (ret)
 				return ret;
-
+#ifdef USE_VCMMD
 			ret = vcmm_activate(h);
+#endif
 			if (ret)
 				return ret;
 		}
@@ -1554,8 +1559,8 @@ static int _set_mac_filter(struct vzctl_env_handle *h,
 	if (sk < 0)
 		return vzctl_err(-1, errno, "Can't create socket");
 
-	strncpy(req.ifr_ifrn.ifrn_name, veth->dev_name_ve,
-			sizeof(req.ifr_ifrn.ifrn_name) - 1);
+	memcpy(req.ifr_ifrn.ifrn_name, veth->dev_name_ve,
+			sizeof(req.ifr_ifrn.ifrn_name));
 	req.ifr_ifru.ifru_flags = deny;
 
 	ret = ioctl(sk, SIOCSFIXEDADDR, &req);
@@ -1589,10 +1594,10 @@ static int veth_configure(struct vzctl_env_handle *h,
 
 	sk = socket(AF_UNIX, SOCK_DGRAM, 0);
 	if (sk < 0)
-		return vzctl_err(VZCTL_E_VETH, errno, "Can't creaet socket");
+		return vzctl_err(VZCTL_E_VETH, errno, "Can't create socket");
 
-	strncpy(req.ifr_ifrn.ifrn_name, veth->dev_name,
-			sizeof(req.ifr_ifrn.ifrn_name)-1);
+	memcpy(req.ifr_ifrn.ifrn_name, veth->dev_name,
+			sizeof(req.ifr_ifrn.ifrn_name));
 	ret = VZCTL_E_VETH;
 	if (ioctl(sk, SIOCSVENET, &req)) {
 		logger(-1, errno, "ioctl SIOCSVENET %s",

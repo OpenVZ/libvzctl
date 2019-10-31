@@ -164,7 +164,7 @@ int read_dist_actions(struct vzctl_env_handle *h)
 {
 	char buf[256];
 	char ltoken[256];
-	char file[256];
+	char file[PATH_MAX];
 	char *rtoken;
 	FILE *fp;
 	int ret = 0;

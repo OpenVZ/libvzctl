@@ -34,6 +34,7 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
+#include <sys/sysmacros.h>
 
 #include <string.h>
 #include <assert.h>

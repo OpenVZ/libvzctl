@@ -20,7 +20,7 @@
  * Our contact details: Virtuozzo International GmbH, Vordergasse 59, 8200
  * Schaffhausen, Switzerland.
  */
-
+#ifdef USE_VCMMD
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -276,3 +276,4 @@ int vcmm_update(struct vzctl_env_handle *h, struct vzctl_env_param *env)
 
 	return 0;
 }
+#endif

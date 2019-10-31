@@ -156,7 +156,7 @@ static int _lock_file(const ctid_t ctid, char *dir, const char *status)
 	int fd, pid;
 	char buf[STR_SIZE];
 	char lockfile[STR_SIZE];
-	char tmp_file[STR_SIZE];
+	char tmp_file[STR_SIZE + 15];
 	struct stat st;
 	int retry = 0;
 	int ret = -1;

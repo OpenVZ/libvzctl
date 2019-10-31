@@ -53,7 +53,7 @@ typedef char ctid_t[CTID_SIZE];
 #define SET_CTID(a, b)						\
 	do {							\
 		if ((b) != NULL) {				\
-			strncpy((a), (b), sizeof(ctid_t) - 1);	\
+			strncpy((a), (b), sizeof(ctid_t));	\
 			(a[sizeof(ctid_t) - 1]) = '\0';		\
 		} else						\
 			(a[0]) = '\0';				\
