@@ -181,7 +181,7 @@ int mount_ploop_image(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	} else
 		unlink(fname);
 
-	snprintf(param->device, sizeof(param->device), mount_param.device);
+	snprintf(param->device, sizeof(param->device), "%s", mount_param.device);
 
 	return 0;
 }
