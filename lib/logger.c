@@ -298,7 +298,7 @@ int vzctl2_init_log(const char *progname)
 	vzctl2_set_log_level(level);
 	vzctl2_set_log_verbose(verbose);
 	if (progname != NULL)
-		snprintf(_g_log.prog, sizeof(_g_log.prog), progname);
+		snprintf(_g_log.prog, sizeof(_g_log.prog), "%s", progname);
 	vzctl2_set_log_file(log_file);
 
 	return 0;
