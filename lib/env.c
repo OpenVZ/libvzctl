@@ -1875,7 +1875,7 @@ int vzctl2_env_save_conf(struct vzctl_env_handle *h, const char *fname)
 	if (fname == NULL)
 		vzctl2_get_env_conf_path(EID(h), path, sizeof(path));
 	else
-		snprintf(path, sizeof(path), fname);
+		snprintf(path, sizeof(path), "%s", fname);
 
 	lckfd = vzctl_env_conf_lock(h, VZCTL_LOCK_EX);
 	ret = vzctl2_conf_save(h->conf, path);
