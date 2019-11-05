@@ -2330,10 +2330,10 @@ static char *get_pfcache_opts(char *buf, int len)
 	struct vzctl_config *c;
 	const char *fname = "/etc/vz/pfcache.conf";
 
-	snprintf(buf, len, ",pfcache_csum");
 	if (access(fname, F_OK))
 		return buf;
 
+	snprintf(buf, len, ",pfcache_csum");
 	c = vzctl2_conf_open(fname, 0, &err);
 	if (c == NULL)
 		return buf;

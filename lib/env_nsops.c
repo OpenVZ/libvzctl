@@ -142,9 +142,11 @@ static int setup_rootfs(struct vzctl_env_handle *h)
 	if (ret)
 		return ret;
 
+#ifdef USE_UB
 	ret = bindmount_env_cgroup(h);
 	if (ret)
 		return ret;
+#endif
 
 	if (access(oldroot, F_OK) && mkdir(oldroot, 0755))
 		return vzctl_err(-1, errno, "Can't make dir %s", oldroot);
@@ -604,16 +606,17 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 		"cpuset.cpus",
 		"cpuset.mems"
 	};
-	char *bc[] = {
-		"beancounter.memory",
-		"beancounter.blkio",
-		"beancounter.pids"
-	};
 
 	logger(10, 0, "* init Container cgroup");
 	if (h->veid && cg_set_veid(EID(h), h->veid) == -1)
 		return vzctl_err(VZCTL_E_SYSTEM, 0,
 				"Failed to set VEID=%u", h->veid);
+#ifdef USE_UB
+	char *bc[] = {
+		"beancounter.memory",
+		"beancounter.blkio",
+		"beancounter.pids"
+	};
 
 	/* Bind beancounter with blkio/memory/pids cgroups */
 	for (i = 0; i < sizeof(bc)/sizeof(bc[0]); i++) {
@@ -622,7 +625,7 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 		if (ret == -1)
 			return ret;
 	}
-
+#endif
 	ret = cg_env_set_memory(h->ctid, "memory.use_hierarchy", 1);
 	if (ret)
 		return ret;
@@ -783,6 +786,10 @@ static int reset_loginuid()
 	return 0;
 }
 
+#ifndef        CLONE_NEWCGROUP
+#define CLONE_NEWCGROUP	0x02000000
+#endif
+
 static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 {
 	char child_stack[4096 * 10];
@@ -853,7 +860,7 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 		param->init_p = init_p;
 
 		clone_flags |= CLONE_NEWUTS|CLONE_NEWPID|CLONE_NEWIPC|
-			CLONE_NEWNET|CLONE_NEWNS|CLONE_NEWUSER;
+			CLONE_NEWNET|CLONE_NEWNS|CLONE_NEWUSER | CLONE_NEWCGROUP;
 		pid = clone(real_ns_env_create,
 				child_stack + sizeof(child_stack),
 				clone_flags|SIGCHLD , (void *) param);
