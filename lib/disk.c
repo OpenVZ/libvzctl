@@ -745,7 +745,6 @@ int update_disk_info(struct vzctl_env_handle *h, struct vzctl_disk *disk)
 {
 	char devname[STR_SIZE];
 	char partname[STR_SIZE];
-	char x[STR_SIZE];
 	int ret;
 	struct stat st;
 
@@ -781,19 +780,6 @@ int update_disk_info(struct vzctl_env_handle *h, struct vzctl_disk *disk)
 			return VZCTL_E_DISK_CONFIGURE;
 		else if (ret)
 			return VZCTL_E_FS_NOT_MOUNTED;
-
-		ret = get_part_device(devname, x, sizeof(x));
-		if (ret)
-			return ret;
-
-		if (strcmp(partname, x)) {
-			if (stat(partname, &st))
-				return vzctl_err(VZCTL_E_SYSTEM, errno, "stat %s", partname);
-			disk->dm_dev = st.st_rdev;
-			free(disk->dmname);
-			disk->dmname = strdup(partname);
-			strcpy(partname, x);
-		}
 		break;
 	}
 
@@ -801,13 +787,13 @@ int update_disk_info(struct vzctl_env_handle *h, struct vzctl_disk *disk)
 		return vzctl_err(VZCTL_E_SYSTEM, errno, "stat %s", devname);
 	disk->dev = st.st_rdev;
 	free(disk->devname);
-	disk->devname = strdup(devname);
+	disk->devname = realpath(devname, NULL);
 
 	if (stat(partname, &st))
 		return vzctl_err(VZCTL_E_SYSTEM, errno, "stat %s", partname);
 	disk->part_dev = st.st_rdev;
 	free(disk->partname);
-	disk->partname = strdup(partname);
+	disk->partname = realpath(partname, NULL);
 
 	logger(5, 0, "Disk info dev=%s part=%s %s",
 			disk->devname, disk->partname, disk->dmname ?: "");
