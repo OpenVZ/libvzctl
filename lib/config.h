@@ -72,7 +72,6 @@ typedef int (* param_filter_f)(const char *name);
 #ifdef __cplusplus
 extern "C" {
 #endif
-int local_param_filter(const char *name);
 const struct vzctl_config_param *get_conf_param(const struct vzctl_config_param *param, struct vzctl_data_param *data);
 const struct vzctl_config_param *param_get_by_name( const struct vzctl_config_param *param, const char *name);
 const struct vzctl_config *vzctl_global_conf();
@@ -84,6 +83,7 @@ int vzctl_conf_add_param(struct vzctl_config *conf, const char *name, const char
 int vzctl_set_param(struct vzctl_env_handle *h, const char *name, const char *str);
 struct vzctl_config *alloc_conf();
 int conf_parse(struct vzctl_config *conf, const char *fname, int flags);
+int get_global_param(const char *name, char *buf, int size);
 
 #ifdef __cplusplus
 }

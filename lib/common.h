@@ -22,14 +22,26 @@
  *
  */
 
-#ifndef __ENV_CONFIG_H__
-#define __ENV_CONFIG_H__
+#ifndef __COMMON_H__
+#define __COMMON_H__
+void xfree(void *p);
+int xstrdup(char **dst, const char *src);
+void free_ar_str(char *ar[]);
+void free_str(list_head_t *head);
+struct vzctl_str_param *add_str_param(list_head_t *head, const char *str);
+const struct vzctl_str_param *find_str(list_head_t *head, const char *str);
+int stat_file(const char *file);
+int make_dir(const char *path, int full);
+void strip_end(char *str);
+int parse_int(const char *str, int *val);
+int parse_ul(const char *str, unsigned long *val);
+int read_pid(const char *path, pid_t *pid);
+int set_personality32(void);
+int reset_loginuid(void);
+void _close_fds(int close_mode, int *skip_fds);
+int env_wait(int pid, int timeout, int *retcode);
+int wait_on_fifo(void *data);
+int set_ns(pid_t pid, const char *name, int flags);
+int env_enter(ctid_t ctid, int flags);
+#endif /* __COMMON_H__ */
 
-#include "config.h"
-
-int vzctl2_add_env_param(struct vzctl_env_param *env, struct vzctl_data_param *data, int flags);
-int vzctl_update_env_param(struct vzctl_env_handle *h, int flags);
-int merge_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
-		param_filter_f filter, int flags);
-
-#endif /* __ENV_CONFIG_H__ */

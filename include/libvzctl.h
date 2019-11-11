@@ -1091,6 +1091,7 @@ int vzctl2_env_exec(struct vzctl_env_handle *h, exec_mode_e exec_mode,
  * @return              0 on success.
  */
 int vzctl2_env_exec_fn2(struct vzctl_env_handle *h, execFn fn, void *data, int timeout, int flags);
+int vzctl2_env_exec_fn3(ctid_t ctid, execFn fn, void *data, int *data_fd, int flags);
 
 /** Execute function inside VE in no wait mode.
  * Enter into VE and run user defined function. All file descriptiors

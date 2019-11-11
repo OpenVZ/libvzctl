@@ -109,78 +109,6 @@ int execvep(const char *path, char *const argv[], char *const envp[])
 		return execve(path, argv, envp);
 }
 
-static int is_fd_in_list(int *fds, int fd)
-{
-	int i;
-
-	if (fds == NULL)
-		return 0;
-
-	for (i = 0; fds[i] != -1; i++)
-		if (fds[i] == fd)
-			return 1;
-	return 0;
-}
-
-static void _close_fds(int close_mode, int *skip_fds)
-{
-	int n, max, i;
-	struct stat st;
-	int delta;
-	struct pollfd *a = NULL;
-	struct pollfd fds[1024];
-	int nelem;
-
-	max = sysconf(_SC_OPEN_MAX);
-	if (max < NR_OPEN)
-		max = NR_OPEN;
-
-	delta = max > 102400 ? 102400 : max;
-
-	if (close_mode & VZCTL_CLOSE_STD) {
-		int fd = open("/dev/null", O_RDWR);
-		if (fd != -1) {
-			dup2(fd, 0); dup2(fd, 1); dup2(fd, 2);
-			close(fd);
-		} else {
-			close(0); close(1); close(2);
-		}
-	}
-
-	a = malloc(delta * sizeof(struct pollfd));
-	if (a == NULL) {
-		delta = sizeof(fds) / sizeof(fds[0]);
-		a = fds;
-	}
-	bzero(a, delta * sizeof(struct pollfd));
-
-	for (n = 0, nelem = delta; n < max; n += nelem) {
-		if (n + nelem > max)
-			nelem = max - n;
-
-		for (i = 0; i < nelem; i++)
-			a[i].fd = n == 0 ? i + 3 : n + i;
-
-		poll(a, nelem, 0);
-
-		for (i = 0; i < nelem; i++) {
-			if (a[i].revents == POLLNVAL)
-				continue;
-
-			if (is_fd_in_list(skip_fds, a[i].fd)) {
-				if ((close_mode & VZCTL_CLOSE_NOCHECK) ||
-						(fstat(a[i].fd, &st) == 0 &&
-						 S_ISFIFO(st.st_mode)))
-					continue;
-			}
-
-			close(a[i].fd);
-		}
-	}
-	if (a != fds)
-		free(a);
-}
-
 #define MAX_SKIP_FD	255
 void close_array_fds(int close_std, int *fds, ...)
 {
@@ -346,31 +274,6 @@ static void timeout_handler(int sig)
 	alarm_flag = 1;
 	if (s_timeout_pid > 0)
 		kill(s_timeout_pid, SIGTERM);
-}
-
-int env_wait(int pid, int timeout, int *retcode)
-{
-	int ret, status;
-
-	while ((ret = waitpid(pid, &status, 0)) == -1)
-		if (errno != EINTR)
-			return vzctl_err(VZCTL_E_SYSTEM, errno,
-					"Error in waitpid(%d)", pid);
-
-	ret = VZCTL_E_SYSTEM;
-	if (WIFEXITED(status)) {
-		ret = WEXITSTATUS(status);
-		if (retcode != NULL) {
-			*retcode = ret;
-			ret = 0;
-		}
-	} else if (WIFSIGNALED(status)) {
-		logger(-1, 0, "Got signal %d", WTERMSIG(status));
-		if (timeout && alarm_flag)
-			return VZCTL_E_TIMEOUT;
-	}
-
-	return ret;
 }
 
 void set_timeout_handler(pid_t pid, int timeout)

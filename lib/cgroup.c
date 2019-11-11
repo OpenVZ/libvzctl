@@ -41,6 +41,7 @@
 #include "vzerror.h"
 #include "logger.h"
 #include "util.h"
+#include "config.h"
 #include "net.h"
 
 struct cg_ctl {
