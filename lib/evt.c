@@ -29,12 +29,19 @@
 
 int vzctl2_register_evt(vzevt_handle_t **h)
 {
+#ifdef USE_VZEVENT
 	return vzevt_register(h);
+#else
+	return 0;
+#endif
 }
 
 void vzctl2_unregister_evt(vzevt_handle_t *h)
 {
+
+#ifdef USE_VZEVENT
 	vzevt_unregister(h);
+#endif
 }
 
 int vzctl2_get_evt_fd(vzevt_handle_t *h)
@@ -44,6 +51,7 @@ int vzctl2_get_evt_fd(vzevt_handle_t *h)
 
 int vzctl2_get_state_evt(vzevt_handle_t *h, struct vzctl_state_evt *evt, int size)
 {
+#ifdef USE_VZEVENT
 	vzevt_t *e;
 	int ret;
 	struct vzctl_state_evt state_evt;
@@ -63,12 +71,13 @@ int vzctl2_get_state_evt(vzevt_handle_t *h, struct vzctl_state_evt *evt, int siz
 		return -1;
 
 	memcpy(evt, &state_evt, size);
-
+#endif
 	return 0;
 }
 
 int vzctl2_send_state_evt(const ctid_t ctid, int state)
 {
+#ifdef USE_VZEVENT
 	int ret;
 	struct vzctl_state_evt evt = {};
 
@@ -81,12 +90,15 @@ int vzctl2_send_state_evt(const ctid_t ctid, int state)
 
 	ret = vzevt_send(NULL, VZEVENT_VZCTL_EVENT_TYPE,
 			sizeof(struct vzctl_state_evt), &evt);
-
-	return ret;
+	if (ret)
+		return ret;
+#endif
+	return 0;
 }
 
 int vzctl2_send_umount_evt(const ctid_t ctid, dev_t dev)
 {
+#ifdef USE_VZEVENT
 	int ret;
 	struct vzctl_state_evt evt = {};
 
@@ -97,7 +109,8 @@ int vzctl2_send_umount_evt(const ctid_t ctid, dev_t dev)
 
 	ret = vzevt_send(NULL, VZEVENT_VZCTL_EVENT_TYPE,
 			sizeof(struct vzctl_state_evt), &evt);
-
-	return ret;
+	if (ret)
+		return ret;
+#endif
+	return 0;
 }
-
