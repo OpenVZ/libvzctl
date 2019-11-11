@@ -61,32 +61,49 @@ AC_PROG_LIBTOOL
 AC_PROG_INSTALL
 AC_PROG_LN_S
 
-# Checks for libraries.
+AC_ARG_WITH([vzevent],
+	[AS_HELP_STRING([--without-vzevent],
+		[disable vzevent support])],
+	[],
+	[with_vzevent=yes])
+AC_ARG_WITH([ploop],
+	[AS_HELP_STRING([--without-ploop],
+		[disable ploop support])],
+	[],
+	[with_ploop=yes])
+AC_ARG_WITH([vcmmd],
+	[AS_HELP_STRING([--without-vcmmd],
+		[disable vcmmd support])],
+	[],
+	[with_vcmmd=yes])
+AC_ARG_WITH([ub],
+	[AS_HELP_STRING([--with-ub],
+		[enable UB support (default is no)])],
+	[with_ub=yes],
+	[])
+
+# Checks for e2fsprogs lib
+AC_CHECK_HEADER([ext2fs/ext2_fs.h], ,
+	AC_MSG_ERROR([Please install e2fsprogs devel package]))
+
 AC_CHECK_LIB(util, openpty,
 	UTIL_LIBS="-lutil", AC_MSG_ERROR([libutil not found]),)
-
 AC_SUBST(UTIL_LIBS)
-
-# Checks for libvzevent
-AC_CHECK_HEADER([vz/vzevent.h], ,
-	AC_MSG_ERROR([Please install libvzevent devel package]))
-AC_CHECK_LIB([vzevent], [vzevt_register], ,
-	AC_MSG_ERROR([Please install libvzevent devel package]))
-
-# Checks for ploop lib
 AC_CHECK_HEADER([ploop/libploop.h], ,
 	AC_MSG_ERROR([Please install ploop devel package]))
 AC_CHECK_LIB([ploop], [ploop_replace_image], PLOOP_LIBS="-lploop",
-	AC_MSG_ERROR([Please install ploop package]))
+		AC_MSG_ERROR([Please install ploop package]))
 AC_SUBST(PLOOP_LIBS)
 
-# Checks for libvcmmd lib
-AC_ARG_WITH([vcmmd],
-	    [AS_HELP_STRING([--without-vcmmd],
-	            [disable vcmmd support])],
-            [],
-            [with_vcmmd=yes])
-VCMMD_LIBS=
+AS_IF([test "x$with_ub" = xyes], AC_DEFINE(USE_UB))
+AS_IF([test "x$with_ploop" = xyes], AC_DEFINE(USE_PLOOP))
+AS_IF([test "x$with_vzevent" = xyes],
+	AC_CHECK_HEADER([vz/vzevent.h], ,
+		AC_MSG_ERROR([Please install libvzevent devel package]))
+	AC_CHECK_LIB([vzevent], [vzevt_register], VZEVENT_LIBS="-lvzevent",
+		AC_MSG_ERROR([Please install libvzevent devel package]))
+	AC_SUBST(VZEVENT_LIBS)
+	AC_DEFINE(USE_VZEVENT))
 AS_IF([test "x$with_vcmmd" = xyes],
 	AC_CHECK_HEADER([libvcmmd/vcmmd.h], ,
 		AC_MSG_ERROR([Please install libvcmmd devel package]))
@@ -95,9 +112,6 @@ AS_IF([test "x$with_vcmmd" = xyes],
 	AC_SUBST(VCMMD_LIBS)
 	AC_DEFINE(USE_VCMMD))
 
-# Checks for e2fsprogs lib
-AC_CHECK_HEADER([ext2fs/ext2_fs.h], ,
-	AC_MSG_ERROR([Please install e2fsprogs devel package]))
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
