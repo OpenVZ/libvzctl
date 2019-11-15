@@ -20,7 +20,11 @@
 
 include $(top_srcdir)/paths.am
 
+if FULL_BUILD
 SUBDIRS = dists lib scripts src
+else
+SUBDIRS = lib
+endif
 
 noinst_HEADERS = $(wildcard include/linux/*.h)
 pkginclude_HEADERS = include/libvzctl.h

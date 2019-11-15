@@ -40,6 +40,27 @@
 
 static pthread_mutex_t gconf_mtx = PTHREAD_MUTEX_INITIALIZER;
 static struct vzctl_config *__gconf;
+static char *_s_conf_private_paran[] = {
+	"HOSTNAME", "IP_ADDRESS", "OSTEMPLATE", "TEMPLATE",
+	"TEMPLATES", "VE_ROOT", "VE_PRIVATE", "NETIF", "VEID", "UUID",
+	"DISTRIBUTION", "VEFORMAT", "VEFSTYPE", "TECHNOLOGIES", "PCI", "DISK",
+	NULL,
+	};
+
+static char *_s_conf_local_param[] = {
+	"NETFILTER", "VEID", "UUID",
+	NULL,
+	};
+
+static int is_private_param(const char *name)
+{
+	return (find_ar_str(_s_conf_private_paran, name) != NULL);
+}
+
+static int local_param_filter(const char *name)
+{
+	return (find_ar_str(_s_conf_local_param, name) != NULL);
+}
 
 const struct vzctl_config_param *param_get_by_name(
 		const struct vzctl_config_param *param, const char *name)
@@ -435,5 +456,25 @@ int vzctl_conf_add_param(struct vzctl_config *conf, const char *name, const char
 int vzctl2_conf_set_param(struct vzctl_config *conf, const char *name, const char *str)
 {
 	return vzctl_conf_add_param(conf, name, str);
+}
+
+int get_global_param(const char *name, char *buf, int size)
+{       
+	const struct vzctl_config *gconf;
+	const char *val;
+	int ret = -1;
+
+	buf[0] = '\0';
+	pthread_mutex_lock(get_global_conf_mtx());
+	if ((gconf = vzctl_global_conf()) != NULL &&
+			vzctl2_conf_get_param(gconf, name, &val) == 0 &&
+			val != NULL)
+	{
+		snprintf(buf, size, "%s", val);
+		ret = 0;
+	}
+	pthread_mutex_unlock(get_global_conf_mtx());
+
+	return ret;
 }
 

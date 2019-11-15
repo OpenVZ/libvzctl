@@ -38,6 +38,7 @@
 #include "env.h"
 #include "list.h"
 #include "logger.h"
+#include "common.h"
 
 enum {
 	CLOSE_STDOUT    = 0x1,
@@ -108,7 +109,6 @@ int strtoutf8(const char *src, char *dst, int dst_size, const char *enc);
 int utf8tostr(const char *src, char *dst, int dst_size, const char *enc);
 
 char *parse_line(char *str, char *ltoken, int lsz);
-int stat_file(const char *file);
 char *subst_VEID(const ctid_t ctid, const char *src);
 int check_var(const void *val, const char *message);
 int make_dir(const char *path, int full);
@@ -120,11 +120,9 @@ const char *id2yesno(int id);
 int get_netaddr(const char *ip_str, unsigned int *addr);
 int check_ipv4(const char *ip);
 int make_sockaddr(int family, unsigned int *addr, struct sockaddr *sa);
-int parse_int(const char *str, int *val);
 int parse_ul(const char *str, unsigned long *val);
 
 void str_tolower(const char *from, char *to);
-char *unescapestr(char *src);
 
 double max(double val1, double val2);
 unsigned long max_ul(unsigned long val1, unsigned long val2);
@@ -142,7 +140,6 @@ int set_hwaddr(const char *str, char **dst);
 char *hwaddr2str(char *hwaddr);
 int _lock(char *lockfile, int mode);
 void _unlock(int fd, char *lockfile);
-int env_wait(int pid, int timeout, int *retcode);
 int execvep(const char *path, char *const argv[], char *const envp[]);
 void free_str(list_head_t *head);
 int copy_str(list_head_t *dst, list_head_t *src);
@@ -158,7 +155,6 @@ void vzctl_merge_conf_simple(struct vzctl_conf_simple *src,
 void vzctl_free_conf_simple(struct vzctl_conf_simple *conf);
 int is_str_valid(const char *name);
 int vzctl_get_dump_file(struct vzctl_env_handle *h, char *buf, int size);
-int wait_on_fifo(void *data);
 int vzctl_check_owner(const char *ve_private);
 char *get_ip4_name(unsigned int ip);
 char *get_mnt_root(const char *path);
@@ -207,7 +203,6 @@ int vztmpl_get_osrelease(const char *ostemplate, char *buf, int size);
 int run_action_scripts(struct vzctl_env_handle *h, int action);
 const char* get_jquota_format(int mode);
 int get_user_quota_mode(const struct vzctl_dq_param *dq);
-int get_global_param(const char *name, char *buf, int size);
 char *get_fs_root(const char *dirk);
 char *get_script_path(const char *name, char *buf, int size);
 int onoff2id(const char *str);
@@ -226,7 +221,6 @@ const char *get_devname(const char *device);
 int get_dir_list(list_head_t *head, const char *root, int level);
 void p_close(int p[2]);
 int read_p(int fd);
-int read_pid(const char *path, pid_t *pid);
 const char *get_init_pidfile(const ctid_t ctid, char *path);
 const char *get_criu_pidfile(const ctid_t ctid, char *path);
 int write_init_pid(const ctid_t ctid, pid_t pid);

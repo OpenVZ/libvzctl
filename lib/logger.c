@@ -29,7 +29,10 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <stdio.h>
+
+#ifdef USE_PLOOP
 #include <ploop/libploop.h>
+#endif
 
 #include "logger.h"
 #include "config.h"
@@ -189,8 +192,9 @@ int vzctl2_set_log_file(const char *file)
 			return -1;
 		_g_log.fp = fp;
 	}
-
+#ifdef USE_PLOOP
 	ploop_set_log_file(file);
+#endif
 	return 0;
 }
 
@@ -214,8 +218,9 @@ int vzctl2_set_log_level(int level)
 
 	tmp = _g_log.level;
 	 _g_log.level = level;
-
+#ifdef USE_PLOOP
 	ploop_set_log_level(level);
+#endif
 	return tmp;
 }
 
@@ -225,7 +230,9 @@ int vzctl2_set_log_enable(int enable)
 
 	tmp = _g_log.enable;
 	_g_log.enable = enable;
+#ifdef USE_PLOOP
 	ploop_set_verbose_level(enable ? _g_log.level : PLOOP_LOG_NOCONSOLE);
+#endif
 	return tmp;
 }
 
@@ -235,7 +242,9 @@ int vzctl2_set_log_quiet(int quiet)
 
 	tmp = _g_log.quiet;
 	_g_log.quiet = quiet;
+#ifdef USE_PLOOP
 	ploop_set_verbose_level(PLOOP_LOG_NOCONSOLE);
+#endif
 	return tmp;
 }
 
@@ -255,8 +264,9 @@ int vzctl2_set_log_verbose(int verbose)
 
 	tmp = _g_log.verbose;
 	_g_log.verbose = (verbose < -1 ? -1 : verbose);
-
+#ifdef USE_PLOOP
 	ploop_set_verbose_level(verbose);
+#endif
 
 	return tmp;
 }

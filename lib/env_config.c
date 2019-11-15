@@ -205,28 +205,6 @@ static struct vzctl_config_param config_param_map[] = {
 {NULL,		-1}
 };
 
-static char *_s_conf_private_paran[] = {
-	"HOSTNAME", "IP_ADDRESS", "OSTEMPLATE", "TEMPLATE",
-	"TEMPLATES", "VE_ROOT", "VE_PRIVATE", "NETIF", "VEID", "UUID",
-	"DISTRIBUTION", "VEFORMAT", "VEFSTYPE", "TECHNOLOGIES", "PCI", "DISK",
-	NULL,
-	};
-
-static char *_s_conf_local_param[] = {
-	"NETFILTER", "VEID", "UUID",
-	NULL,
-	};
-
-int is_private_param(const char *name)
-{
-	return (find_ar_str(_s_conf_private_paran, name) != NULL);
-}
-
-int local_param_filter(const char *name)
-{
-	return (find_ar_str(_s_conf_local_param, name) != NULL);
-}
-
 static int parse_str(char **dst, const char *src, int replace)
 {
 	if (*dst != NULL && !replace)

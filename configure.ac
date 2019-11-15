@@ -61,43 +61,60 @@ AC_PROG_LIBTOOL
 AC_PROG_INSTALL
 AC_PROG_LN_S
 
-# Checks for libraries.
-AC_CHECK_LIB(util, openpty,
-	UTIL_LIBS="-lutil", AC_MSG_ERROR([libutil not found]),)
-
-AC_SUBST(UTIL_LIBS)
-
-# Checks for libvzevent
-AC_CHECK_HEADER([vz/vzevent.h], ,
-	AC_MSG_ERROR([Please install libvzevent devel package]))
-AC_CHECK_LIB([vzevent], [vzevt_register], ,
-	AC_MSG_ERROR([Please install libvzevent devel package]))
-
-# Checks for ploop lib
-AC_CHECK_HEADER([ploop/libploop.h], ,
-	AC_MSG_ERROR([Please install ploop devel package]))
-AC_CHECK_LIB([ploop], [ploop_replace_image], PLOOP_LIBS="-lploop",
-	AC_MSG_ERROR([Please install ploop package]))
-AC_SUBST(PLOOP_LIBS)
-
-# Checks for libvcmmd lib
+AC_ARG_WITH([vzevent],
+	[AS_HELP_STRING([--without-vzevent],
+		[disable vzevent support])],
+	[],
+	[with_vzevent=yes])
+AC_ARG_WITH([vzlibexeconly],
+	[AS_HELP_STRING([--with-vzlibexeconly],
+		[build libvzctlexec only])],
+	[vzlibexec_only=yes],
+	[])
 AC_ARG_WITH([vcmmd],
-	    [AS_HELP_STRING([--without-vcmmd],
-	            [disable vcmmd support])],
-            [],
-            [with_vcmmd=yes])
-VCMMD_LIBS=
-AS_IF([test "x$with_vcmmd" = xyes],
-	AC_CHECK_HEADER([libvcmmd/vcmmd.h], ,
-		AC_MSG_ERROR([Please install libvcmmd devel package]))
-	AC_CHECK_LIB([vcmmd], [vcmmd_strerror], VCMMD_LIBS="-lvcmmd",
-		AC_MSG_ERROR([Please install libvcmmd package]))
-	AC_SUBST(VCMMD_LIBS)
-	AC_DEFINE(USE_VCMMD))
+	[AS_HELP_STRING([--without-vcmmd],
+		[disable vcmmd support])],
+	[],
+	[with_vcmmd=yes])
+AC_ARG_WITH([ub],
+	[AS_HELP_STRING([--with-ub],
+		[enable UB support (default is no)])],
+	[with_ub=yes],
+	[])
 
 # Checks for e2fsprogs lib
 AC_CHECK_HEADER([ext2fs/ext2_fs.h], ,
 	AC_MSG_ERROR([Please install e2fsprogs devel package]))
+
+AC_CHECK_LIB(util, openpty,
+	UTIL_LIBS="-lutil", AC_MSG_ERROR([libutil not found]),)
+AC_SUBST(UTIL_LIBS)
+
+
+AS_IF([test "x$with_ub" = xyes], AC_DEFINE(USE_UB))
+AS_IF([test "x$vzlibexec_only" != xyes],
+	AC_CHECK_HEADER([ploop/libploop.h], ,
+		AC_MSG_ERROR([Please install ploop devel package]))
+	AC_CHECK_LIB([ploop], [ploop_replace_image], PLOOP_LIBS="-lploop",
+		AC_MSG_ERROR([Please install ploop package]))
+	AC_SUBST(PLOOP_LIBS)
+	AC_DEFINE(USE_PLOOP)
+	AS_IF([test "x$with_vzevent" = xyes],
+		AC_CHECK_HEADER([vz/vzevent.h], ,
+			AC_MSG_ERROR([Please install libvzevent devel package]))
+		AC_CHECK_LIB([vzevent], [vzevt_register], VZEVENT_LIBS="-lvzevent",
+			AC_MSG_ERROR([Please install libvzevent devel package]))
+		AC_SUBST(VZEVENT_LIBS)
+		AC_DEFINE(USE_VZEVENT))
+	AS_IF([test "x$with_vcmmd" = xyes],
+		AC_CHECK_HEADER([libvcmmd/vcmmd.h], ,
+			AC_MSG_ERROR([Please install libvcmmd devel package]))
+		AC_CHECK_LIB([vcmmd], [vcmmd_strerror], VCMMD_LIBS="-lvcmmd",
+			AC_MSG_ERROR([Please install libvcmmd package]))
+		AC_SUBST(VCMMD_LIBS)
+		AC_DEFINE(USE_VCMMD))
+)
+
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -138,12 +155,16 @@ AC_CONFIG_COMMANDS_PRE([SUMMARY="$PACKAGE_STRING configured successfully:
 "])
 
 # Output
-AC_CONFIG_FILES([dists/Makefile
-		lib/Makefile
+
+AM_CONDITIONAL([FULL_BUILD], [test "x$vzlibexec_only" != xyes])
+
+AM_COND_IF([FULL_BUILD],
+	[AC_CONFIG_FILES([dists/Makefile
 		scripts/Makefile
 		src/Makefile
-		test/Makefile
-		Makefile])
+		test/Makefile])])
+
+AC_CONFIG_FILES([lib/Makefile Makefile])
 AC_OUTPUT
 
 AC_MSG_NOTICE([$SUMMARY])

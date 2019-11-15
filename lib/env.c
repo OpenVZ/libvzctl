@@ -41,7 +41,6 @@
 #include <sys/ioctl.h>
 #include <sys/mount.h>
 #include <linux/vzcalluser.h>
-#include <sys/personality.h>
 #include <time.h>
 #include <grp.h>
 #include <sys/utsname.h>
@@ -80,27 +79,6 @@
 #define ENVRETRY	3
 
 int create_venet_link(void);
-
-int set_personality(unsigned long mask)
-{
-	unsigned long per;
-
-	per = personality(0xffffffff) | mask;
-	logger(3, 0, "Set personality %#10.8lx", per);
-	if (personality(per) == -1)
-		return vzctl_err(VZCTL_E_SET_PERSONALITY, errno,
-				"Unable to set personality");
-	return 0;
-}
-
-int set_personality32(void)
-{
-#ifdef  __x86_64__
-	if (get_arch_from_elf("/sbin/init") == elf_32)
-		return set_personality(PER_LINUX32);
-#endif
-	return 0;
-}
 
 #define LINUX_REBOOT_MAGIC1     0xfee1dead
 #define LINUX_REBOOT_MAGIC2     672274793
@@ -1692,7 +1670,7 @@ static void free_runtime_ctx(struct vzctl_runtime_ctx *ctx)
 	free(ctx);
 }
 
-void vzctl_free_env_handle(struct vzctl_env_handle *h)
+static void vzctl_free_env_handle(struct vzctl_env_handle *h)
 {
 	if (h == NULL)
 		return;

@@ -61,26 +61,7 @@
 #include "sysfs_perm.h"
 #include "exec.h"
 #include "cleanup.h"
-
-#ifndef HAVE_SETNS
-
-#ifndef __NR_setns
-#if defined __i386__
-#define __NR_setns	346
-#elif defined __x86_64__
-#define __NR_setns	308
-#else
-#error "No setns syscall known for this arch"
-#endif
-#endif /* ! __NR_setns */
-#endif /* ! HAVE_SETNS */
-
-
-static int sys_setns(int fd, int nstype)
-{
-	return syscall(__NR_setns, fd, nstype);
-}
-#define setns sys_setns
+#include "config.h"
 
 int ns_open(void)
 {
@@ -761,31 +742,6 @@ static int write_id_maps(int pid)
 	return 0;
 }
 
-static int reset_loginuid()
-{
-	int fd;
-	static const char luid[] = "4294967295";
-
-	logger(10, 0, "Reset loginuid");
-	fd = open("/proc/self/loginuid", O_RDWR);
-	if (fd == -1) {
-		if (errno == ENOENT)
-			return 0;
-		return vzctl_err(-1, errno, "Cannot open /proc/self/loginuid");
-	}
-
-	if (write(fd, luid, sizeof(luid) -1) == -1) {
-		vzctl_err(-1, errno, "Cannot reset loginuid");
-		close(fd);
-
-		return -1;
-	}
-
-	close(fd);
-
-	return 0;
-}
-
 #ifndef        CLONE_NEWCGROUP
 #define CLONE_NEWCGROUP	0x02000000
 #endif
@@ -937,24 +893,6 @@ static int ns_is_env_run(struct vzctl_env_handle *h)
 	return cg_env_get_ve_state(EID(h));
 }
 
-int set_ns(pid_t pid, const char *name, int flags)
-{
-	int ret, fd;
-	char path[PATH_MAX];
-
-	snprintf(path, sizeof(path), "/proc/%d/ns/%s", pid, name);
-	if ((fd = open(path, O_RDONLY)) < 0)
-		return vzctl_err(-1, errno, "Failed to open %s", path);
-
-	logger(10, 0, "* attach to %s", name);
-	ret = setns(fd, flags);
-	if (ret)
-		logger(-1, errno, "Failed to set context for %s", name);
-	close(fd);
-
-	return ret;
-}
-
 int enter_net_ns(struct vzctl_env_handle *h, pid_t *ct_pid)
 {
 	pid_t pid;
@@ -976,52 +914,7 @@ int enter_net_ns(struct vzctl_env_handle *h, pid_t *ct_pid)
 
 static int ns_env_enter(struct vzctl_env_handle *h, int flags)
 {
-	DIR *dp;
-	struct dirent *ep;
-	pid_t pid;
-	char path[PATH_MAX];
-	int ret;
-
-	ret = reset_loginuid();
-	if (ret)
-		return ret;
-
-	if (cg_env_get_init_pid(h->ctid, &pid))
-		return vzctl_err(VZCTL_E_SYSTEM, 0, "Unable to get init pid");
-
-	logger(10, 0, "* Attach by pid %d", pid);
-
-	snprintf(path, sizeof(path), "/proc/%d/ns", pid);
-	dp = opendir(path);
-	if (dp == NULL)
-		return vzctl_err(-1, errno, "Unable to open dir %s", path);
-
-	ret = cg_attach_task(EID(h), getpid(), NULL);
-	if (ret)
-		goto err;
-
-	while ((ep = readdir (dp))) {
-		if (!strcmp(ep->d_name, ".") ||
-		    !strcmp(ep->d_name, ".."))
-			continue;
-
-		ret = set_ns(pid, ep->d_name, 0);
-		if (ret)
-			goto err;
-	}
-
-	/* Clear supplementary group IDs */
-	if (setgroups(0, NULL)) {
-		ret = vzctl_err(-1, errno, "ns_env_enter: setgroups()");
-		goto err;
-	}
-	
-	ret = set_personality32();
-
-err:
-	closedir(dp);
-
-	return ret;
+	return env_enter(EID(h), flags);
 }
 
 static int ns_env_exec(struct vzctl_env_handle *h, struct exec_param *param,

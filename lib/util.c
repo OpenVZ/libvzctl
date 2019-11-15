@@ -66,6 +66,7 @@
 #include "disk.h"
 #include "vztmpl.h"
 #include "exec.h"
+#include "common.h"
 
 #ifndef NR_OPEN
 #define NR_OPEN 1024
@@ -82,25 +83,6 @@ void *xmalloc(size_t size)
                 logger(-1, 0, "Unable to allocate %llu bytes",
 				(unsigned long long) size);
         return p;
-}
-
-void xfree(void *p)
-{
-        if (p != NULL) free(p);
-}
-
-int xstrdup(char **dst, const char *src)
-{
-	char *t;
-
-	if (src == NULL || *dst == src)
-		return 0;
-	if ((t = strdup(src)) == NULL)
-		return vzctl_err(VZCTL_E_NOMEM, ENOMEM, "xstrdup");
-	if (*dst != NULL)
-		free(*dst);
-	*dst = t;
-	return 0;
 }
 
 int vzctl2_get_env_conf_path(const ctid_t ctid, char *buf, int len)
@@ -275,163 +257,6 @@ char *get_description(char *desc)
 	return dst;
 }
 
-char *unescapestr(char *src)
-{
-	char *p1, *p2;
-	int fl;
-
-	if (src == NULL)
-		return NULL;
-	p2 = src;
-	p1 = p2;
-	fl = 0;
-	while (*p2) {
-		if (*p2 == '\\' && !fl)	{
-			fl = 1;
-			p2++;
-		} else {
-			*p1 = *p2;
-	                p1++; p2++;
-			fl = 0;
-		}
-	}
-	*p1 = 0;
-
-	return src;
-}
-/*
- *   man bash
- *  ...a word beginning with # causes that word and all remaining characters on that line to be
- *  ignored.
- */
-char *uncommentstr(char * str)
-{
-        char * p1;
-        int inb1 = 0, inb2 = 0, inw = 1;
-
-        for (p1 = str; *p1; p1++) {
-                if (inb1 && (*p1 != '\''))
-                        continue;
-
-                if (inb2 && (*p1 != '"'))
-                        continue;
-
-                switch(*p1) {
-                case '\'':
-                        inb1 ^= 1;
-                        inw = 0;
-                        break;
-                case '"':
-                        inb2 ^= 1;
-                        inw = 0;
-                        break;
-                case '#':
-                        if( !inw )
-                                break;
-                        *p1 = 0;
-                        return str;
-                default:
-                        if(isspace(*p1))
-                                inw = 1;
-                        else
-                                inw = 0;
-                        break;
-                }
-        }
-
-        return str;
-}
-
-void strip_end(char *str)
-{
-	char *ep = str + strlen(str) - 1;
-
-	while (ep >= str && (isspace(*ep) || *ep == '\n')) *ep-- = '\0';
-}
-
-char *parse_line(char *str, char *ltoken, int lsz)
-{
-	char *sp = str;
-	char *ep, *p;
-	int len;
-
-	unescapestr(str);
-	uncommentstr(str);
-	while (*sp && isspace(*sp)) sp++;
-	if (!*sp || *sp == '#')
-		return NULL;
-
-	strip_end(sp);
-
-	ep = sp + strlen(sp) - 1;
-	if (*ep == '"' || *ep == '\'')
-		*ep = 0;
-	if (!(p = strchr(sp, '=')))
-		return NULL;
-	len = p - sp;
-	if (len >= lsz)
-		return NULL;
-	strncpy(ltoken, sp, len);
-	ltoken[len] = 0;
-	p++;
-	if (*p == '"' || *p == '\'' )
-		p++;
-
-	return p;
-}
-
-/*
-	1 - exist
-	0 - does't exist
-	-1 - error
-*/
-int stat_file(const char *file)
-{
-	struct stat st;
-
-	if (stat(file, &st)) {
-		if (errno != ENOENT) {
-			logger(-1, errno, "unable to stat %s", file);
-			return -1;
-		}
-		return 0;
-	}
-	return 1;
-}
-
-int make_dir(const char *path, int full)
-{
-	char buf[4096];
-	const char *ps, *p;
-	int len;
-
-	if (path == NULL)
-		return 0;
-
-	if (access(path, F_OK) == 0)
-		return 0;
-
-	ps = path + 1;
-	while ((p = strchr(ps, '/'))) {
-		len = p - path + 1;
-		snprintf(buf, len, "%s", path);
-		ps = p + 1;
-		if (!stat_file(buf)) {
-			if (mkdir(buf, 0700) && errno != EEXIST)
-				return vzctl_err(VZCTL_E_CREATE_DIR, errno,
-					"Can't create directory %s", buf);
-		}
-	}
-	if (!full)
-		return 0;
-	if (!stat_file(path)) {
-		if (mkdir(path, 0700) && errno != EEXIST)
-			return vzctl_err(VZCTL_E_CREATE_DIR, errno,
-				"Can't create directory %s", path);
-	}
-	return 0;
-}
-
 int get_mul(char c, unsigned long long *n)
 {
         *n = 1;
@@ -535,38 +360,6 @@ int parse_twoul_sfx(const char *str, struct vzctl_2UL_res *res,
 
 err:
 	return vzctl_err(VZCTL_E_INVAL, 0, "An incorrect value: %s", str);;
-}
-
-int parse_int(const char *str, int *val)
-{
-	char *tail;
-	long int n;
-
-	if (*str == '\0')
-		return 1;
-
-	errno = 0;
-	n = strtol(str, (char **)&tail, 10);
-	if (*tail != '\0' || errno == ERANGE || n > INT_MAX)
-		return 1;
-	*val = (int)n;
-
-	return 0;
-}
-
-int parse_ul(const char *str, unsigned long *val)
-{
-	char *tail;
-
-	if (*str == '\0')
-		return 1;
-
-	errno = 0;
-	*val = strtoul(str, (char **)&tail, 10);
-	if (*tail != '\0' || errno == ERANGE)
-		return 1;
-
-	return 0;
 }
 
 void str_tolower(const char *from, char *to)
@@ -741,21 +534,6 @@ static char *arg2str(char *const arg[])
                 sp += sprintf(sp, "%s ", *p++);
 
         return str;
-}
-
-void free_ar_str(char *ar[])
-{
-	char **p;
-
-	for (p = ar; *p != NULL; p++) free(*p);
-}
-
-const char *find_ar_str(char *ar[], const char *str)
-{
-	for (; *ar != NULL; ar++)
-		if (strcmp(*ar, str) == 0)
-			return *ar;
-	return NULL;
 }
 
 inline double max(double val1, double val2)
@@ -952,24 +730,7 @@ int make_sockaddr(int family, unsigned int *addr, struct sockaddr *sa)
 
 }
 
-int is_ip6(const char *ip)
-{
-	return (strchr(ip, ':') != NULL);
-}
 
-static int get_net_family(const char *ip)
-{
-	return is_ip6(ip) ? AF_INET6 : AF_INET;
-}
-
-int get_netaddr(const char *ip, unsigned int *addr)
-{
-	int family = get_net_family(ip);
-
-	if (inet_pton(family, ip, addr) <= 0)
-		return vzctl_err(-1, errno, "An incorrect ip address %s", ip);
-	return family;
-}
 
 int parse_ip(const char *str, struct vzctl_ip_param **ip)
 {
@@ -1062,19 +823,6 @@ char *get_ip4_name(unsigned int ip)
 
 	addr.s_addr = ip;
 	return inet_ntoa(addr);
-}
-
-int get_ip_name(const char *ipstr, char *buf, int size)
-{
-	unsigned int addr[4];
-	int family;
-
-	family = get_netaddr(ipstr, addr);
-	if (family == -1)
-		return -1;
-	inet_ntop(family, addr, buf, size);
-
-	return 0;
 }
 
 /* parse hwaddr in format:
@@ -1386,7 +1134,6 @@ static int vzctl_env_convert_layout5(struct vzctl_env_handle *h)
 	argv[argc++] = EID(h);
 	argv[argc++] = NULL;
 
-
 	return vzctl2_wrap_exec_script(argv, NULL, 0);
 }
 
@@ -1590,7 +1337,7 @@ void get_action_script_path(struct vzctl_env_handle *h, const char *name, char *
 		snprintf(out, size, VZ_ENV_CONF_DIR"%s.%s", EID(h), name);
 }
 
-static void get_action_script(struct vzctl_env_handle *h, int action, int step,
+void get_action_script(struct vzctl_env_handle *h, int action, int step,
 		char *out, int size)
 {
 	int global = 1;
@@ -1644,48 +1391,6 @@ int run_action_scripts(struct vzctl_env_handle *h, int action)
 				"Error on executing the mount script %s",
 				script);
 	}
-	return ret;
-}
-
-#define MAX_WAIT_TIMEOUT	60 * 30
-volatile sig_atomic_t alarm_flag;
-static void alarm_handler(int sig)
-{
-	alarm_flag = 1;
-}
-
-int wait_on_fifo(void *data)
-{
-	int fd, buf, ret;
-	struct sigaction act, actold;
-
-	ret = 0;
-	alarm_flag = 0;
-	act.sa_flags = 0;
-	act.sa_handler = alarm_handler;
-	sigemptyset(&act.sa_mask);
-	sigaction(SIGALRM, &act, &actold);
-
-	alarm(MAX_WAIT_TIMEOUT);
-	fd = open(VZFIFO_FILE, O_RDONLY);
-	if (fd == -1) {
-		fprintf(stderr, "Unable to open " VZFIFO_FILE " %s\n",
-			strerror(errno));
-		ret = VZCTL_E_WAIT;
-		goto err;
-	}
-	if (read(fd, &buf, sizeof(buf)) == -1)
-		ret = VZCTL_E_WAIT;
-err:
-	if (alarm_flag)
-		ret = VZCTL_E_TIMEOUT;
-	alarm(0);
-	sigaction(SIGALRM, &actold, NULL);
-	unlink(VZFIFO_FILE);
-
-	if (fd != -1)
-		close(fd);
-
 	return ret;
 }
 
@@ -1879,53 +1584,6 @@ int move_config(const ctid_t ctid, int action)
 }
 
 #endif
-
-static void free_str_param(struct vzctl_str_param *p)
-{
-	free(p->str);
-}
-
-void free_str(list_head_t *head)
-{
-	struct vzctl_str_param *tmp, *it;
-
-	if (list_empty(head))
-		return;
-	list_for_each_safe(it, tmp, head, list) {
-		list_del(&it->list);
-		free_str_param(it);
-		free(it);
-	}
-	list_head_init(head);
-}
-
-struct vzctl_str_param *add_str_param(list_head_t *head, const char *str)
-{
-	struct vzctl_str_param *p;
-
-	if ((p = malloc(sizeof(struct vzctl_str_param))) == NULL)
-		goto err;
-	if ((p->str = strdup(str)) == NULL) {
-		free(p);
-		goto err;
-	}
-	list_add_tail(&p->list, head);
-	return p;
-err:
-	vzctl_err(-1, ENOMEM, "Unable to allocate memory");
-	return NULL;
-}
-
-const struct vzctl_str_param *find_str(list_head_t *head, const char *str)
-{
-	struct vzctl_str_param *it;
-
-	list_for_each(it, head, list) {
-		if (!strcmp(it->str, str))
-			return it;
-	}
-	return NULL;
-}
 
 int parse_str_param(list_head_t *head, const char *val)
 {
@@ -2303,26 +1961,6 @@ static const char *get_quota_mount_opts(int mode, char *out, int size)
 	return out;
 }
 
-int get_global_param(const char *name, char *buf, int size)
-{
-	const struct vzctl_config *gconf;
-	const char *val;
-	int ret = -1;
-
-	buf[0] = '\0';
-	pthread_mutex_lock(get_global_conf_mtx());
-	if ((gconf = vzctl_global_conf()) != NULL &&
-			vzctl2_conf_get_param(gconf, name, &val) == 0 &&
-			val != NULL)
-	{
-		snprintf(buf, size, "%s", val);
-		ret = 0;
-	}
-	pthread_mutex_unlock(get_global_conf_mtx());
-
-	return ret;
-}
-
 static char *get_pfcache_opts(char *buf, int len)
 {
 	int err;
@@ -2383,17 +2021,15 @@ int vzctl2_get_mount_opts(const char *opts, int user_quota, char *out, int size)
 
 int vzctl_get_mount_opts(struct vzctl_disk *d, char *out, int size)
 {
-	int ret;
-	struct ploop_disk_images_data *di;
-
 	if (get_mount_opts(d->mnt_opts, d->user_quota, out, size))
 		return vzctl_err(VZCTL_E_INVAL, 0,
 			"Not enough buffer size to store mnt_ops result");
 
 	if (get_disk_type(d) == DISK_DEVICE)
 		return 0;
-
-	ret = open_dd(d->path, &di);
+#ifdef USE_PLOOP
+	struct ploop_disk_images_data *di;
+	int ret = open_dd(d->path, &di);
 	if (ret)
 		return ret;
 
@@ -2411,7 +2047,7 @@ int vzctl_get_mount_opts(struct vzctl_disk *d, char *out, int size)
 	}
 
 	ploop_close_dd(di);
-
+#endif
 	return 0;
 }
 
@@ -2607,85 +2243,6 @@ void p_close(int p[2])
 		close(p[0]);
 	if (p[1] != -1)
 		close(p[1]);
-}
-
-static const char *get_pidfile(const ctid_t ctid, const char *sfx, char *out)
-{
-	sprintf(out, VZCTL_VE_RUN_DIR "/%s.%s" , ctid, sfx);
-	return out;
-}
-
-const char *get_init_pidfile(const ctid_t ctid, char *out)
-{
-	return get_pidfile(ctid, "init.pid", out);
-}
-
-const char *get_criu_pidfile(const ctid_t ctid, char *out)
-{
-	return get_pidfile(ctid, "criu.pid", out);
-}
-
-int write_init_pid(const ctid_t ctid, pid_t pid)
-{
-	int ret = 0;
-	char path[PATH_MAX];
-	FILE *fp;
-
-	get_init_pidfile(ctid, path);
-
-	logger(10, 0, "Write init pid=%d %s", pid, path);
-	if ((ret = make_dir(path, 0)))
-		return ret;
-
-	if ((fp = fopen(path, "w")) == NULL)
-		return vzctl_err(-1, errno, "Failed to create %s", path);
-
-	if ((fprintf(fp, "%d", pid)) < 0)
-		ret = vzctl_err(-1, 0, "Failed to write Container init pid");
-
-	if (fclose(fp))
-		return vzctl_err(-1, errno, "Failed to write pid %s", path);
-	return ret;
-}
-
-int read_pid(const char *path, pid_t *pid)
-{
-	int ret = 0;
-	FILE *fp;
-
-	*pid = 0;
-	if ((fp = fopen(path, "r")) == NULL) {
-		if (errno != ENOENT)
-			vzctl_err(-1, errno, "Unable to open %s", path);
-
-		return -1;
-	}
-
-	if (fscanf(fp, "%d", pid) < 1)
-		ret = vzctl_err(-1, 0, "Unable to read pid from %s", path);
-
-	fclose(fp);
-	return ret;
-}
-
-int read_init_pid(const ctid_t ctid, pid_t *pid)
-{
-	char path[PATH_MAX];
-
-	get_init_pidfile(ctid, path);
-	return read_pid(path, pid);
-}
-
-int clear_init_pid(const ctid_t ctid)
-{
-	char f[PATH_MAX];
-
-	get_init_pidfile(ctid, f);
-
-	if (remove(f) < 0 && errno != ENOENT)
-		return vzctl_err(-1, 0, "Unable to clear Container init pid file: %s", f);
-
-	return 0;
 }
 
 char *get_netns_path(struct vzctl_env_handle *h, char *buf, int size)
