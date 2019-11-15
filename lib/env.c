@@ -184,32 +184,14 @@ int wait_env_state(struct vzctl_env_handle *h, int state, unsigned int timeout)
 
 static int do_env_stop(struct vzctl_env_handle *h, int stop_mode)
 {
-	int ret;
-
 	/* Unregister before real stop to avoid races with vzevend */
 	vzctl2_unregister_running_state(h->env_param->fs->ve_private);
 
-	if (stop_mode == M_KILL)
-		goto kill;
-
-	if (stop_mode == M_KILL_FORCE)
-		goto kill_force;
-
-	ret = get_env_ops()->env_stop(h, stop_mode);
-	if (ret == 0)
-		return 0;
-kill:
-	ret = get_env_ops()->env_stop(h, M_KILL);
-	if (ret == 0)
-		return 0;
-kill_force:
-	ret = get_env_ops()->env_stop(h, M_KILL_FORCE);
-	if (ret == 0)
-		return 0;
-
-	return vzctl_err(VZCTL_E_ENV_STOP, 0,
+	if (get_env_ops()->env_stop(h, stop_mode))
+		return vzctl_err(VZCTL_E_ENV_STOP, 0,
 			"Unable to stop the Container:"
 			" operation timed out");
+	return 0;
 }
 
 static int do_env_post_stop(struct vzctl_env_handle *h, int flags)
