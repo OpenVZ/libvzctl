@@ -50,8 +50,6 @@ struct exec_disk_param {
 	struct vzctl_env_handle *h;
 	struct vzctl_disk *disk;
 	int automount;
-	char *partname;
-	dev_t partdev;
 };
 
 int get_fs_uuid(const char *device, struct vzctl_disk *disk)
@@ -380,31 +378,20 @@ static int env_configure_disk(struct exec_disk_param *param)
 	ret = do_mknod(disk->devname, disk->dev);
 	if (ret)
 		return ret;
-	if (send_uevent(disk->devname))
+	if (send_uevent(disk->sys_devname))
 		return -1;
 
 	ret = do_mknod(disk->partname, disk->part_dev);
 	if (ret)
 		return ret;
-	if (send_uevent(disk->partname))
+	if (send_uevent(disk->sys_partname))
 		return -1;
-
-	if (disk->dmname) {
-		ret = do_mknod(disk->dmname, disk->dm_dev);
-		if (ret)
-			return ret;
-		ret = do_mknod(param->partname, disk->dm_dev);
-		if (ret)
-			return ret;
-		if (send_uevent(param->partname))
-			return -1;
-	}
 
 	if (disk->mnt != NULL && !is_root_disk(disk)) {
 		if (access(disk->mnt, F_OK))
 			make_dir(disk->mnt, 1);
 
-		if (disk->dmname)
+		if (is_dm_device(disk->sys_partname))
 			goto skip_configure;
 
 		if (is_systemd()) {
@@ -421,10 +408,9 @@ static int env_configure_disk(struct exec_disk_param *param)
 
 skip_configure:
 		if (param->automount) {
-			const char *partname = get_fs_partname(disk);
-			if (mount(partname, disk->mnt, disk->fstype, 0, NULL))
+			if (mount(disk->partname, disk->mnt, disk->fstype, 0, NULL))
 				return vzctl_err(-1, errno, "Failed to mount %s %s",
-					partname, disk->mnt);
+					disk->partname, disk->mnt);
 		}
 	}
 
@@ -434,18 +420,13 @@ skip_configure:
 int configure_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 		int flags, int automount)
 {
-	char partname[PATH_MAX + 1];
 	struct exec_disk_param param = {
 		.h = h,
 		.disk = disk,
 		.automount = (flags & VZCTL_RESTORE) ? 0 : automount,
-		.partname = partname,
-		.partdev = get_fs_partdev(disk),
 	};
 
-	if (realpath(get_fs_partname(disk), partname) == NULL)
-		snprintf(partname, sizeof(partname), "%s", get_fs_partname(disk));
-
+	logger(3, 0, "Configure %s automount=%d", disk->partname, automount);
 	if (vzctl_env_exec_fn(h, (execFn) env_configure_disk, &param,
 			VZCTL_SCRIPT_EXEC_TIMEOUT))
 		return vzctl_err(VZCTL_E_DISK_CONFIGURE, 0, "Failed to configure disk");

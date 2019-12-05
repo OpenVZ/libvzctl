@@ -58,11 +58,11 @@ struct vzctl_disk {
 	char *storage_url;
 	int use_device;
 	char *devname;
+	char *sys_devname;
 	dev_t dev;
 	char *partname;
+	char *sys_partname;
 	dev_t part_dev;
-	char *dmname;
-	dev_t dm_dev;
 	char *enc_keyid;
 	int updated;
 	disk_type type;
@@ -116,4 +116,5 @@ int get_mnt_by_dev(const char *device, char *out, int size);
 int get_disk_mount_param(struct vzctl_env_handle *h, struct vzctl_disk *d,
 		struct vzctl_mount_param *param, int flags,
 		char *mnt_opts, int mnt_opts_size);
+int is_dm_device(const char *devname);
 #endif
