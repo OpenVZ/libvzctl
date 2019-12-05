@@ -542,8 +542,11 @@ static void set_fs_uuid(struct vzctl_env_handle *h)
 		tune2fs[2] = (char *)get_fs_partname(d);
 		vzctl2_wrap_exec_script(tune2fs, NULL, 0);
 
-		sgdisk[2] = d->devname;
-		vzctl2_wrap_exec_script(sgdisk, NULL, 0);
+		// Check for partition
+		if (strcmp(d->devname, d->partname)) {
+			sgdisk[2] = d->devname;
+			vzctl2_wrap_exec_script(sgdisk, NULL, 0);
+		}
 	}
 }
 

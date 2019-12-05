@@ -88,8 +88,11 @@ static int move_self_to_systemd(void)
 	len = snprintf(self, sizeof(self), "%d", getpid());
 
 	fd = open("/sys/fs/cgroup/systemd/tasks", O_RDWR);
-	if (fd < 0)
+	if (fd < 0) {
+		if (errno == ENOENT)
+			return 0;
 		return vzctl_err(-1, errno, "Can't open /sys/fs/cgroup/systemd/tasks");
+	}
 
 	if (write(fd, self, len) == -1) {
 		close(fd);
