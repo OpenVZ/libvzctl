@@ -752,13 +752,18 @@ int env_enter(ctid_t ctid, int flags)
 
 	while ((ep = readdir (dp))) {
 		if (!strcmp(ep->d_name, ".") ||
-		    !strcmp(ep->d_name, ".."))
+		    !strcmp(ep->d_name, "..") ||
+		    !strcmp(ep->d_name, "mnt"))
 			continue;
 
 		ret = set_ns(pid, ep->d_name, 0);
 		if (ret)
 			goto err;
 	}
+
+	ret = set_ns(pid, "mnt", 0);
+	if (ret)
+		goto err;
 
 	/* Clear supplementary group IDs */
 	if (setgroups(0, NULL)) {
