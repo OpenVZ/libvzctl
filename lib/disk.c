@@ -82,8 +82,9 @@ void free_disk(struct vzctl_disk *disk)
 	free(disk->mnt_opts);
 	free(disk->storage_url);
 	free(disk->devname);
+	free(disk->sys_devname);
 	free(disk->partname);
-	free(disk->dmname);
+	free(disk->sys_partname);
 	free(disk->enc_keyid);
 	free(disk);
 }
@@ -608,12 +609,12 @@ static int get_real_device(const char *device, char *out, int size)
 
 const char *get_fs_partname(struct vzctl_disk *disk)
 {
-	return disk->dmname ? disk->dmname : disk->partname;
+	return disk->partname;
 }
 
 dev_t get_fs_partdev(struct vzctl_disk *disk)
 {
-	return disk->dmname ? disk->dm_dev : disk->part_dev;
+	return disk->part_dev;
 }
 
 static int get_part_device(const char *device, char *out, int size)
@@ -632,8 +633,7 @@ static int get_part_device(const char *device, char *out, int size)
 		}
 	}
 
-	return vzctl_err(VZCTL_E_INVAL, 0, "Unable to find first partition for %s",
-			device);
+	return 1;
 }
 
 int get_disk_mount_param(struct vzctl_env_handle *h, struct vzctl_disk *d,
@@ -757,14 +757,11 @@ int update_disk_info(struct vzctl_env_handle *h, struct vzctl_disk *disk)
 			return vzctl_err(VZCTL_E_SYSTEM, errno, "stat %s", devname);
 		if (gnu_dev_major(st.st_rdev) == 253) {
 			disk->dev = st.st_rdev;
-			disk->dm_dev = st.st_rdev;
 			disk->part_dev = st.st_rdev;
 			free(disk->devname);
 			disk->devname = strdup(devname);
 			free(disk->partname);
 			disk->partname = strdup(devname);
-			free(disk->dmname);
-			disk->dmname = strdup(devname);
 			
 			return 0;
 		}
@@ -792,11 +789,9 @@ int update_disk_info(struct vzctl_env_handle *h, struct vzctl_disk *disk)
 	if (stat(partname, &st))
 		return vzctl_err(VZCTL_E_SYSTEM, errno, "stat %s", partname);
 	disk->part_dev = st.st_rdev;
-	free(disk->partname);
-	disk->partname = realpath(partname, NULL);
+	xstrdup(&disk->partname, partname);
 
-	logger(5, 0, "Disk info dev=%s part=%s %s",
-			disk->devname, disk->partname, disk->dmname ?: "");
+	logger(5, 0, "Disk info dev=%s part=%s", disk->devname, disk->partname);
 	return 0;
 }
 
@@ -997,13 +992,16 @@ int configure_disk_perm(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	if (ret)
 		return ret;
 
-	if (disk->dmname != NULL) {
-		devperms.dev = disk->dm_dev;
-		ret = get_env_ops()->env_set_devperm(h, &devperms);
-		if (ret)
-			return ret;
-	}
+	return 0;
+}
 
+int is_dm_device(const char *devname)
+{
+	char x[PATH_MAX];
+
+	snprintf(x, sizeof(x), "/sys/class/block/%s/dm", get_devname(devname));
+	if (access(x, F_OK) == 0)
+		return 1;
 	return 0;
 }
 
@@ -1012,25 +1010,23 @@ static int configure_sysfsperm(struct vzctl_env_handle *h, struct vzctl_disk *d,
 {
 	char buf[PATH_MAX + 15];
 	char sys_dev[PATH_MAX];
-	char sys_part[PATH_MAX];
-	char sys_dm[PATH_MAX];
+	char sys_part[512];
 	int ret;
 
 	ret = get_sysfs_device_path("block", d->devname, sys_dev,
 			sizeof(sys_dev));
 	if (ret)
 		return ret;
-	ret = get_sysfs_device_path("block", d->partname, sys_part,
-			sizeof(sys_part));
+	ret = xstrdup(&d->sys_devname, get_devname(sys_dev));
 	if (ret)
 		return ret;
-
-	if (d->dmname != NULL) {
-		ret = get_sysfs_device_path("block", d->dmname, sys_dm,
-				sizeof(sys_dm));
-		if (ret)
-			return ret;
-	}
+	ret = get_sysfs_device_path("block", d->partname, sys_part,
+			sizeof(sys_dev));
+	if (ret)
+		return ret;
+	ret = xstrdup(&d->sys_partname, get_devname(sys_part));
+	if (ret)
+		return ret;
 
 	if (del) {
 		snprintf(buf, sizeof(buf), "%s -", sys_dev);
@@ -1040,12 +1036,6 @@ static int configure_sysfsperm(struct vzctl_env_handle *h, struct vzctl_disk *d,
 		snprintf(buf, sizeof(buf), "%s -", sys_part);
 		if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
 			return VZCTL_E_DISK_CONFIGURE;
-
-		if (d->dmname) {
-			snprintf(buf, sizeof(buf), "%s -", sys_dm);
-			if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
-				return VZCTL_E_DISK_CONFIGURE;
-		}
 
 		return 0;
 	}
@@ -1064,13 +1054,24 @@ static int configure_sysfsperm(struct vzctl_env_handle *h, struct vzctl_disk *d,
 	if (ret)
 		return ret;
 
-	if (d->dmname != NULL) {
-		ret = add_sysfs_entry(h, sys_dm);
+	if (is_dm_device(d->sys_partname)) {
+		char part[64];
+		if (get_part_device(d->devname, part, sizeof(part)) == 0) {
+			ret = get_sysfs_device_path("block", part, sys_dev,
+					sizeof(sys_dev));
+			if (ret)
+				return ret;
+			ret = add_sysfs_entry(h, sys_dev);
+			if (ret)
+				return ret;
+		}
+
+		snprintf(sys_dev, sizeof(sys_dev), "%s/dm", sys_part);
+		ret = add_sysfs_entry(h, sys_dev);
 		if (ret)
 			return ret;
-
-		strcat(sys_dm, "/dm");
-		ret = add_sysfs_entry(h, sys_dm);
+		snprintf(sys_dev, sizeof(sys_dev), "%s/slaves", sys_part);
+		ret = add_sysfs_entry(h, sys_dev);
 		if (ret)
 			return ret;
 	}
@@ -1553,7 +1554,7 @@ int vzctl_setup_disk(struct vzctl_env_handle *h, struct vzctl_env_disk *env_disk
 		if (disk->enabled == VZCTL_PARAM_OFF)
 			continue;
 
-		int automount = (disk->dmname && !is_root_disk(disk)) ? 1 : 0;
+		int automount = (is_dm_device(disk->sys_partname) && !is_root_disk(disk)) ? 1 : 0;
 
 		ret = do_setup_disk(h, disk, flags, automount);
 		if (ret && is_permanent_disk(disk))
