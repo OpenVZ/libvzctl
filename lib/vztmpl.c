@@ -361,11 +361,11 @@ int vztmpl_get_cache_tarball(const char *config, char **ostmpl,
 	 */
 	if (use_ostmpl) {
 		config_name = NULL;
-		ret = vztmpl_get_appcache_tarball(config_name, *ostmpl,
+		ret = vztmpl_get_appcache_tarball(NULL, *ostmpl,
 				fstype, &unsupported_applist, tarball, len);
 		if (ret != 0 && ret != VZT_TMPL_NOT_CACHED) {
-			logger(-1, 0, "Unable to get appcache tarball name for %s with "
-				"ostemplate %s", config_name, *ostmpl);
+			logger(-1, 0, "Unable to get appcache tarball name for %s",
+					*ostmpl);
 			goto err;
 		}
 	}
@@ -373,8 +373,9 @@ int vztmpl_get_cache_tarball(const char *config, char **ostmpl,
 	if (tarball[0] == '\0') {
 		if (applist && *applist != NULL && !use_ostmpl) {
 			logger(0, 0, "Cached package set '%s' with applications"
-					" from config %s is not found, run create "
-					"appcache utility...", *ostmpl, config_name);
+					" from config '%s' is not found, run create "
+					"appcache utility...",
+					*ostmpl, config_name ?: "" );
 
 			if (vztmpl_create_appcache(config_name, *ostmpl, fstype))
 				goto err;
@@ -397,8 +398,8 @@ int vztmpl_get_cache_tarball(const char *config, char **ostmpl,
 	if (vztmpl_get_appcache_tarball(config_name, full_ostmpl, fstype,
 				&unsupported_applist, tarball, len))
 	{
-		logger(-1, 0, "Unable to get appcache tarball name for %s with "
-			"ostemplate %s", config_name, full_ostmpl);
+		logger(-1, 0, "Unable to get appcache tarball name for '%s' with "
+			"ostemplate %s", config_name ?: "", full_ostmpl);
 		goto err;
 	}
 
