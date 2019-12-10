@@ -1001,7 +1001,7 @@ int is_dm_device(const char *devname)
 	struct stat st;
 
 	if (stat(devname, &st))
-		return vzctl_err(VZCTL_E_SYSTEM, errno,
+		return vzctl_err(-1, errno,
 			"is_dm_device: stat %s", devname);
 
 	snprintf(x, sizeof(x), "/sys/dev/block/%d:%d/dm",
