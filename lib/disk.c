@@ -995,17 +995,12 @@ int configure_disk_perm(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	return 0;
 }
 
-int is_dm_device(const char *devname)
+int is_dm_device(dev_t dev)
 {
 	char x[PATH_MAX];
-	struct stat st;
-
-	if (stat(devname, &st))
-		return vzctl_err(-1, errno,
-			"is_dm_device: stat %s", devname);
 
 	snprintf(x, sizeof(x), "/sys/dev/block/%d:%d/dm",
-			major(st.st_rdev), minor(st.st_rdev));
+			major(dev), minor(dev));
 	if (access(x, F_OK) == 0)
 		return 1;
 	return 0;
@@ -1060,7 +1055,7 @@ static int configure_sysfsperm(struct vzctl_env_handle *h, struct vzctl_disk *d,
 	if (ret)
 		return ret;
 
-	if (is_dm_device(d->partname)) {
+	if (is_dm_device(d->part_dev)) {
 		char part[64];
 		if (get_part_device(d->devname, part, sizeof(part)) == 0) {
 			ret = get_sysfs_device_path("block", part, sys_dev,
@@ -1560,7 +1555,7 @@ int vzctl_setup_disk(struct vzctl_env_handle *h, struct vzctl_env_disk *env_disk
 		if (disk->enabled == VZCTL_PARAM_OFF)
 			continue;
 
-		int automount = (is_dm_device(disk->partname) && !is_root_disk(disk)) ? 1 : 0;
+		int automount = (is_dm_device(disk->part_dev) && !is_root_disk(disk)) ? 1 : 0;
 
 		ret = do_setup_disk(h, disk, flags, automount);
 		if (ret && is_permanent_disk(disk))
