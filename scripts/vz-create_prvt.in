@@ -30,7 +30,7 @@
 # Optional parameters:
 . @SCRIPTDIR@/vz-functions
 PKG_DB_DIRS="/var/lib/rpm /var/lib/dpkg"
-VZTAR=/bin/tar
+VZTAR="/bin/tar --sparse"
 vzcheckvar VE_PRVT PRIVATE_TEMPLATE
 
 # 10Gbytes disk space reserved by default
