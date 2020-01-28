@@ -524,8 +524,8 @@ static int merge_create_param(struct vzctl_env_handle *h, struct vzctl_env_param
 static void set_fs_uuid(struct vzctl_env_handle *h)
 {
 	struct vzctl_disk *d;
+	struct stat st_d, st_p;
 	char *tune2fs[] = {"/sbin/tune2fs", "-Urandom", NULL, NULL};
-	char *sgdisk[] = {"/usr/sbin/sgdisk", "-G", NULL, NULL};
 
 	list_for_each(d, &h->env_param->disk->disks, list) {
 		if (d->use_device)
@@ -543,8 +543,11 @@ static void set_fs_uuid(struct vzctl_env_handle *h)
 		vzctl2_wrap_exec_script(tune2fs, NULL, 0);
 
 		// Check for partition
-		if (strcmp(d->devname, d->partname)) {
-			sgdisk[2] = d->devname;
+		if (stat(d->devname, &st_d) == 0 &&
+			stat(d->partname, &st_p) == 0 &&
+			st_d.st_rdev != st_p.st_rdev)
+		{
+			char *sgdisk[] = {"/usr/sbin/sgdisk", "-G", d->devname, NULL};
 			vzctl2_wrap_exec_script(sgdisk, NULL, 0);
 		}
 	}
