@@ -686,7 +686,7 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 
 
 	if (param->root_disk != VZCTL_ROOT_DISK_SKIP) {
-		ret = vzctl2_env_mount(h, 8);
+		ret = vzctl2_env_mount(h, 0);
 		if (ret)
 			goto err;
 
