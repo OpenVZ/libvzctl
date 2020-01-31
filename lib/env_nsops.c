@@ -126,11 +126,9 @@ static int setup_rootfs(struct vzctl_env_handle *h)
 	if (ret)
 		return ret;
 
-#ifdef USE_UB
 	ret = bindmount_env_cgroup(h);
 	if (ret)
 		return ret;
-#endif
 
 	if (access(oldroot, F_OK) && mkdir(oldroot, 0755))
 		return vzctl_err(-1, errno, "Can't make dir %s", oldroot);
@@ -595,7 +593,6 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 	if (h->veid && cg_set_veid(EID(h), h->veid) == -1)
 		return vzctl_err(VZCTL_E_SYSTEM, 0,
 				"Failed to set VEID=%u", h->veid);
-#ifdef USE_UB
 	char *bc[] = {
 		"beancounter.memory",
 		"beancounter.blkio",
@@ -605,11 +602,13 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 	/* Bind beancounter with blkio/memory/pids cgroups */
 	for (i = 0; i < sizeof(bc)/sizeof(bc[0]); i++) {
 		snprintf(buf, sizeof(buf), "/%s/%s", cg_get_slice_name(), EID(h));
+		if (access(buf, F_OK))
+			continue;
 		ret = cg_set_param(EID(h), CG_UB, bc[i], buf);
 		if (ret == -1)
 			return ret;
 	}
-#endif
+
 	ret = cg_env_set_memory(h->ctid, "memory.use_hierarchy", 1);
 	if (ret)
 		return ret;

@@ -76,11 +76,6 @@ AC_ARG_WITH([vcmmd],
 		[disable vcmmd support])],
 	[],
 	[with_vcmmd=yes])
-AC_ARG_WITH([ub],
-	[AS_HELP_STRING([--with-ub],
-		[enable UB support (default is no)])],
-	[with_ub=yes],
-	[])
 
 # Checks for e2fsprogs lib
 AC_CHECK_HEADER([ext2fs/ext2_fs.h], ,
@@ -91,7 +86,6 @@ AC_CHECK_LIB(util, openpty,
 AC_SUBST(UTIL_LIBS)
 
 
-AS_IF([test "x$with_ub" = xyes], AC_DEFINE(USE_UB))
 AS_IF([test "x$vzlibexec_only" != xyes],
 	AC_CHECK_HEADER([ploop/libploop.h], ,
 		AC_MSG_ERROR([Please install ploop devel package]))

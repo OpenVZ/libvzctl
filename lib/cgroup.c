@@ -58,9 +58,7 @@ static struct cg_ctl cg_ctl_map[] = {
 	{CG_DEVICES},
 	{CG_BLKIO},
 	{CG_FREEZER},
-#ifdef USE_UB
 	{CG_UB, 1},
-#endif
 	{CG_VE, 1},
 	{CG_PERF_EVENT},
 	{CG_HUGETLB},
@@ -742,9 +740,11 @@ int cg_env_set_memory(const char *ctid, const char *name, unsigned long value)
 
 int cg_env_set_ub(const char *ctid, const char *name, unsigned long b, unsigned long l)
 {
-#ifdef USE_UB
 	int rc;
 	char _name[STR_SIZE];
+
+	if (!is_ub_supported())
+		return 0;
 
 	snprintf(_name, sizeof(_name), "beancounter.%s.barrier", name);
 	rc = cg_set_ul(ctid, CG_UB, _name, b);
@@ -753,9 +753,6 @@ int cg_env_set_ub(const char *ctid, const char *name, unsigned long b, unsigned 
 
 	snprintf(_name, sizeof(_name), "beancounter.%s.limit", name);
 	return cg_set_ul(ctid, CG_UB, _name, l);
-#else
-	return 0;
-#endif
 }
 
 static int cg_env_set_io(const char *ctid, const char *name, unsigned int speed,
@@ -1201,6 +1198,9 @@ int bindmount_env_cgroup(struct vzctl_env_handle *h)
 {
 	int ret;
 	LIST_HEAD(head);
+
+	if (!is_ub_supported())
+		return 0;
 
 	ret = cg_bindmount_cgroup(h, &head);
 	free_str(&head);
