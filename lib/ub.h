@@ -82,6 +82,7 @@ int parse_ub(struct vzctl_ub_param *ub, const char *val, int id,
 		int divisor, int def_devisor);
 const struct vzctl_2UL_res *vzctl_get_ub_res(struct vzctl_ub_param *ub, int id);
 const char *get_ub_param_name(int id);
+int is_ub_supported();
 #ifdef __cplusplus
 }
 #endif
