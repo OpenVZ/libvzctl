@@ -43,8 +43,8 @@ for IP in $IP_ADDR; do
 	vzarp del $IP
 	# Update ip address information
 	if [ "${VE_STATE}" = "running" ]; then
-		cat ${VE_STATE_DIR}/${VEID} | tr ' ' '\n' | \
-		grep -w -v "${IP}" | tr '\n' ' ' > ${VE_STATE_DIR}/${VEID}
+		awk -v ip=$IP -F' ' '//{for(i=1; i<=NF; i++) if ($i != ip) print $i}' ${VE_STATE_DIR}/${VEID} > \
+			${VE_STATE_DIR}/${VEID}.tmp && mv -f ${VE_STATE_DIR}/${VEID}.tmp ${VE_STATE_DIR}/${VEID}
 	fi
 done
 
