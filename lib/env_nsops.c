@@ -593,20 +593,21 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 	if (h->veid && cg_set_veid(EID(h), h->veid) == -1)
 		return vzctl_err(VZCTL_E_SYSTEM, 0,
 				"Failed to set VEID=%u", h->veid);
-	char *bc[] = {
-		"beancounter.memory",
-		"beancounter.blkio",
-		"beancounter.pids"
-	};
 
-	/* Bind beancounter with blkio/memory/pids cgroups */
-	for (i = 0; i < sizeof(bc)/sizeof(bc[0]); i++) {
-		snprintf(buf, sizeof(buf), "/%s/%s", cg_get_slice_name(), EID(h));
-		if (access(buf, F_OK))
-			continue;
-		ret = cg_set_param(EID(h), CG_UB, bc[i], buf);
-		if (ret == -1)
-			return ret;
+	if (is_ub_supported()) {
+		char *bc[] = {
+			"beancounter.memory",
+			"beancounter.blkio",
+			"beancounter.pids"
+		};
+
+		/* Bind beancounter with blkio/memory/pids cgroups */
+		for (i = 0; i < sizeof(bc)/sizeof(bc[0]); i++) {
+			snprintf(buf, sizeof(buf), "/%s/%s", cg_get_slice_name(), EID(h));
+			ret = cg_set_param(EID(h), CG_UB, bc[i], buf);
+			if (ret == -1)
+				return ret;
+		}
 	}
 
 	ret = cg_env_set_memory(h->ctid, "memory.use_hierarchy", 1);
