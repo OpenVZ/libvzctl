@@ -394,6 +394,8 @@ static int ns_apply_memory_param(struct vzctl_env_handle *h,
 			 * configuration was activated by vcmmd
 			 */
 			ret = ns_set_memory_param(h, ub, flags);
+			if (ret)
+				return ret;
 		}
 
 		ret = update ? vcmm_update(h, env) : vcmm_register(h, env, ub);

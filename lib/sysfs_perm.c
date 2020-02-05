@@ -106,7 +106,7 @@ int get_sysfs_device_path(const char *class, const char *devname, char *out,
 {
 	int n;
 	char x[STR_SIZE];
-	char buf[PATH_MAX];
+	char buf[STR_SIZE];
 	char *p = realpath(devname, NULL);
 
 	snprintf(x, sizeof(x), "/sys/class/%s/%s", class,
