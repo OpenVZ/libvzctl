@@ -1011,7 +1011,7 @@ static int configure_sysfsperm(struct vzctl_env_handle *h, struct vzctl_disk *d,
 {
 	char buf[PATH_MAX + 15];
 	char sys_dev[PATH_MAX];
-	char sys_part[512];
+	char sys_part[STR_SIZE];
 	int ret;
 
 	ret = get_sysfs_device_path("block", d->devname, sys_dev,
