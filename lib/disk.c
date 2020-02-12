@@ -1683,7 +1683,7 @@ int vzctl2_env_get_disk_stats(struct vzctl_env_handle *h, const char *uuid,
 		return vzctl_err(VZCTL_E_INVAL, 0, "Unable to get disk "
 			"statistics: disk %s is not found", uuid);
 
-	if (d->use_device)
+	if (d->use_device || !is_permanent_disk(d))
 		return VZCTL_E_INVAL;
 
 	return vzctl2_get_disk_stats(d->path, stats, size);
