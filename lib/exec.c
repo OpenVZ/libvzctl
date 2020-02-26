@@ -844,7 +844,7 @@ err:
 	/* wait for pts allocation */
 	ret = read(st[0], &status, sizeof(status));
 	if (!ret) {
-		fprintf(stdout, "entered into CT\n");
+		fprintf(stdout, "entered into CT %s\n", h->ctid);
 		raw_on();
 		raw_flag = 1;
 		redirect_loop(fileno(stdin), in[1], out[0], fileno(stdout), info[1]);
@@ -856,6 +856,7 @@ err:
 	ret = env_wait(pid, timeout, NULL);
 	if (raw_flag)
 		raw_off();
+	fprintf(stdout, "exited from CT %s\n", h->ctid);
 out:
 
 	for (i = 0; i < 2; i++)
