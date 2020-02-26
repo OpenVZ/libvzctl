@@ -107,11 +107,24 @@ function set_screenrc()
 	echo "defshell -/bin/bash" >> "$file"
 }
 
+# Just in case template cache was originally an actual container,
+# we would like to remove vzquota service #PSBM-97223
+function cleanup_vzquota()
+{
+	local vzquota_service=${VE_ROOT}"/etc/init.d/vzquota"
+	if [ -f "$vzquota_service" ]; then
+		rm -f "$vzquota_service"
+		echo "vzquota service removed"
+	fi
+}
+
+
 umask 0022
 randcrontab /etc/crontab
 randcrontab /etc/cron.d/dailyjobs
 set_localhost
 disableroot
+cleanup_vzquota
 
 [ -f ${VE_ROOT}/etc/debian_version ] && set_screenrc
 
