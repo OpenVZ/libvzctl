@@ -735,7 +735,14 @@ int cg_env_set_devices(const char *ctid, const char *name, const char *data)
 
 int cg_env_set_memory(const char *ctid, const char *name, unsigned long value)
 {
-	return cg_set_ul(ctid, CG_MEMORY, name, value);
+	int rc;
+
+	rc = cg_set_ul(ctid, CG_MEMORY, name, value);
+	if (rc == -1 && errno == EBUSY)
+		vzctl_err(rc, 0, "Lowering the current memory limit (%s) is prohibited.",
+			name);
+
+	return rc;
 }
 
 int cg_env_set_ub(const char *ctid, const char *name, unsigned long b, unsigned long l)
