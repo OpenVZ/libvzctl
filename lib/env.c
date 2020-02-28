@@ -603,13 +603,14 @@ static void restore_mtab(void)
 {
 	struct stat st;
 
-	if (stat("/etc/mtab", &st) == 0 && S_ISREG(st.st_mode)) {
-		logger(3, 0, "restore /etc/mtab");
-		if (unlink("/etc/mtab"))
-			logger(-1, errno, "failed to unlink /etc/mtab");
-		if (symlink("/proc/mounts", "/etc/mtab"))
-			logger(-1, errno, "symlink(/etc/mtab, /proc/mounts");
-	}
+	if (stat("/etc/mtab", &st) == 0 && S_ISLNK(st.st_mode))
+		return;
+
+	if (unlink("/etc/mtab") && errno != ENOENT)
+		logger(-1, errno, "failed to unlink /etc/mtab");
+
+	if (symlink("/proc/mounts", "/etc/mtab"))
+		logger(-1, errno, "symlink(/etc/mtab, /proc/mounts");
 }
 
 static struct devnode {
