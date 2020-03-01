@@ -101,7 +101,9 @@
 #define VZCTL_SCRIPT_EXEC_TIMEOUT	600
 
 /* Default enviroment variable PATH */
-#define	ENV_PATH	"PATH=/bin:/sbin:/usr/bin:/usr/sbin:"
+#define	DEF_PATH	"/usr/local/sbin:/usr/local/bin:" \
+			"/bin:/sbin:/usr/bin:/usr/sbin:"
+#define	ENV_PATH	"PATH=" DEF_PATH
 
 #define MAX_ARGS	255
 

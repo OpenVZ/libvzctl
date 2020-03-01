@@ -73,7 +73,7 @@
 #endif
 
 static char *envp_bash[] = {"HOME=/", "TERM=linux",
-	"PATH=/bin:/sbin:/usr/bin:/usr/sbin:.", NULL};
+	ENV_PATH ".", NULL};
 
 void *xmalloc(size_t size)
 {
