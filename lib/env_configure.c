@@ -48,7 +48,7 @@ static char *envp_s[] =
 {
 	"HOME=/",
 	"TERM=linux",
-	"PATH=/bin:/sbin:/usr/bin:/usr/sbin",
+	ENV_PATH,
 	NULL
 };
 

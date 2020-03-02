@@ -64,7 +64,7 @@ static int _proc_title_len = sizeof(_proc_title);
 
 static char *argv_bash[] = {"bash", NULL};
 static char *envp_bash[] = {"HOME=/", "TERM=linux",
-	"PATH=/bin:/sbin:/usr/bin:/usr/sbin",
+	ENV_PATH,
 	"SHELL=/bin/bash",
 	NULL};
 
@@ -76,7 +76,7 @@ static void exec_handler(int sig)
 int execvep(const char *path, char *const argv[], char *const envp[])
 {
 	if (!strchr(path, '/')) {
-		char *p = "/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin";
+		char *p = DEF_PATH;
 		for (; p && *p;) {
 			char partial[FILENAME_MAX];
 			char *p2;
@@ -784,7 +784,7 @@ static int env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
 			char buf[64];
 			char *term;
 			char *arg[] = {"-bash", NULL};
-			char *env[] = {"PATH=/bin:/sbin:/usr/bin:/usr/sbin:",
+			char *env[] = {ENV_PATH,
 				"HISTFILE=/dev/null",
 				"USER=root", "HOME=/root", "LOGNAME=root",
 				prompt,
