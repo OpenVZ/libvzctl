@@ -1234,28 +1234,41 @@ int cg_set_veid(const char *ctid, int veid)
 
 static int cg_set_freezer_state(const char *ctid, const char *state)
 {
-	int ret;
-	char buf[STR_SIZE];
-	int len;
+	struct vzctl_str_param *it;
+	char buf[PATH_MAX];
+	int len, ret = VZCTL_E_SYSTEM;
+	LIST_HEAD(head);
 
-	ret = cg_set_param(ctid, CG_FREEZER, "freezer.state", state);
-	if (ret)
-		return ret;
+	if (cg_get_path(ctid, CG_FREEZER, "", buf, sizeof(buf)))
+		return VZCTL_E_SYSTEM;
+	
+	if (get_dir_list(&head, buf, -1))
+		return VZCTL_E_SYSTEM;
+
+	list_for_each(it, &head, list) {
+		snprintf(buf, sizeof(buf), "%s/freezer.state", it->str);
+		if (access(buf, F_OK))
+			continue;
+		if (write_data(buf, state))
+			goto err;
+	}
 
 	len = strlen(state);
 	while (1) {
-		ret = cg_get_param(ctid, CG_FREEZER, "freezer.state",
-				buf, sizeof(buf));
-		if (ret)
-			return ret;
+		if (cg_get_param(ctid, CG_FREEZER, "freezer.state",
+				buf, sizeof(buf)))
+			goto err;
 
 		if (strncmp(buf, state, len) == 0)
 			break;
 
 		sleep(1);
 	}
+	ret = 0;
+err:
+	free_str(&head);
 
-	return 0;
+	return ret;
 }
 
 int cg_freezer_cmd(const char *ctid, int cmd)
