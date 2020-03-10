@@ -444,6 +444,119 @@ static int ns_apply_res_param(struct vzctl_env_handle *h,
 	return 0;
 }
 
+static int set_cpuid_sysfs_perms(struct vzctl_env_handle *h, const char *coreid, int add_sysfs)
+{
+	int ret, n;
+	char cpath[PATH_MAX], buf[PATH_MAX];
+	struct dirent **namelist;
+
+	snprintf(cpath, sizeof(cpath), "devices/system/cpu/%s", coreid);
+	logger(2, 0, "%s %s sysfs permissions",add_sysfs ? "Adding" : "Removing" , cpath);
+
+	snprintf(buf, sizeof(buf), "%s %s", cpath, add_sysfs ? "rx" : "");
+	if (cg_set_param(EID(h), CG_VE, "ve.sysfs_permissions", buf))
+		return VZCTL_E_SYSFS_PERM;
+
+	// It is sufficient just to blacklist parent directory to hide entire subtree
+	// "removal" case ends here, rest is to add
+	if (!add_sysfs)
+		return 0;
+
+	snprintf(buf, sizeof(buf), "%s/online", cpath);
+	ret = add_sysfs_entry(h, buf);
+	if (ret)
+		return ret;
+
+	snprintf(buf, sizeof(buf), "%s/topology", cpath);
+	ret = add_sysfs_entry(h, buf);
+	if (ret)
+		return ret;
+
+	snprintf(buf, sizeof(buf), "%s/cache/", cpath);
+	ret = add_sysfs_entry(h, buf);
+	if (ret)
+		return ret;
+
+	// Whitelist cache/indexX
+	snprintf(buf, sizeof(buf), "/sys/%s/cache/", cpath);
+	n = scandir(buf, &namelist, NULL, NULL);
+	if (n <= 0)
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "Unable to open %s",
+				buf);
+
+	while (n--) {
+		if (strcmp(namelist[n]->d_name, ".") == 0 ||
+				strcmp(namelist[n]->d_name, "..") == 0)
+			continue;
+
+		snprintf(buf, sizeof(buf), "%s/cache/%s", cpath, namelist[n]->d_name);
+		add_sysfs_entry(h, buf);
+
+		free(namelist[n]);
+	}
+	free(namelist);
+
+	return ret;
+}
+
+static int cpu_filter(const struct dirent *entry)
+{
+	if (strncmp(entry->d_name, "cpu", 3) == 0 &&
+			entry->d_name[3] >= '0' && entry->d_name[3] <= '9')
+		return 1;
+	return 0;
+}
+
+static int set_cpu_sysfs_perms(struct vzctl_env_handle *h, unsigned long int new_count)
+{
+	int ret = 0, i = 0, cpus = 0, entries, start, end;
+	struct dirent **list;
+	int add_sysfs;
+
+	// Get total amount of CPUs
+	entries = scandir("/sys/devices/system/cpu", &list, cpu_filter, versionsort);
+	if (entries <= 0)
+		return vzctl_err(VZCTL_E_SYSFS_PERM, 0, "Unable to set sysfs CPU permissions");
+
+	cpus = entries;
+	if (h->env_param->cpu->vcpus != NULL && *h->env_param->cpu->vcpus != 0)
+		cpus = *h->env_param->cpu->vcpus > entries ? entries : *h->env_param->cpu->vcpus;
+
+	// "0" is "unlimited", hence we reset it to total amount of CPUs
+	if (new_count == 0)
+		new_count = entries;
+
+	// if "new_count" is equal to ULONG_MAX that means its a startup routine,
+	// config contains new amount, 0 is the old amount
+	if (new_count == ULONG_MAX) {
+		start = 0;
+		end = cpus;
+		add_sysfs = 1;
+	} else if (new_count > cpus) { // Otherwise config keeps old amount, new_count contains new amount
+		start = cpus;
+		end = new_count;
+		add_sysfs = 1;
+	} else {
+		start = new_count;
+		end = cpus;
+		add_sysfs = 0;
+	}
+
+	for (i = start; i < end; i++) {
+		ret = set_cpuid_sysfs_perms(h, list[i]->d_name, add_sysfs);
+		if (ret) {
+			logger(0, VZCTL_E_SYSFS_PERM, "Unable to configure sysfs CPU permission for %s", list[i]->d_name);
+			break;
+		}
+	}
+
+	for (i = 0; i < entries; i++)
+		free(list[i]);
+	free(list);
+
+	return ret;
+}
+
 static int ns_apply_cpu_param(struct vzctl_env_handle *h, struct vzctl_cpu_param *cpu)
 {
 	int ret;
@@ -461,6 +574,10 @@ static int ns_apply_cpu_param(struct vzctl_env_handle *h, struct vzctl_cpu_param
 	}
 	if (cpu->vcpus) {
 		ret = cg_env_set_vcpus(h->ctid, *cpu->vcpus);
+		if (ret)
+			return ret;
+
+		ret = set_cpu_sysfs_perms(h, *cpu->vcpus);
 		if (ret)
 			return ret;
 	}
@@ -555,8 +672,11 @@ static int setup_env_cgroup(struct vzctl_env_handle *h, struct vzctl_env_param *
 		};
 
 		ret = ns_set_memory_param(h, &ub, 0);
+		if (ret)
+			return ret;
 	}
 
+	ret = set_cpu_sysfs_perms(h, ULONG_MAX);
 	return ret;
 }
 
