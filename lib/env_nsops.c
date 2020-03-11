@@ -522,8 +522,9 @@ static int set_cpu_sysfs_perms(struct vzctl_env_handle *h, unsigned long int new
 	if (h->env_param->cpu->vcpus != NULL && *h->env_param->cpu->vcpus != 0)
 		cpus = *h->env_param->cpu->vcpus > entries ? entries : *h->env_param->cpu->vcpus;
 
-	// "0" is "unlimited", hence we reset it to total amount of CPUs
-	if (new_count == 0)
+	// "0" is "unlimited", hence we reset it to total amount of CPUs if its 0 or
+	// exceeds the total amount of CPUs on host
+	if (new_count == 0 || new_count > entries)
 		new_count = entries;
 
 	// if "new_count" is equal to ULONG_MAX that means its a startup routine,
