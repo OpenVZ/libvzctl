@@ -464,8 +464,11 @@ static int create_env_private(struct vzctl_env_handle *h, const char *ve_private
 	}
 
 err:
-	if (ret)
+	if (ret) {
 		destroydir(dst_tmp);
+		free(h->env_param->fs->ve_private);
+		h->env_param->fs->ve_private = NULL;
+	}
 
 	vzctl2_unlock(lckfd, lockfile);
 
