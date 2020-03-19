@@ -195,6 +195,7 @@
 #define VZCTL_E_NOT_INITIALIZED		229
 #define VZCTL_E_AUTH_PSASHADOW		230
 #define VZCTL_E_UMOUNT_BUSY		231
+#define VZCTL_E_PLOOP			232
 
 #define debug(level, fmt, args...)      logger(level, 0, fmt, ##args)
 

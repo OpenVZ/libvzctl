@@ -3530,3 +3530,21 @@ int vzctl2_cpt_cmd(struct vzctl_env_handle *h, int action, int cmd,
 {
 	return get_env_ops()->env_cpt_cmd(h, action, cmd, param, flags);
 }
+
+int vzctl2_env_compact(struct vzctl_env_handle *h,
+		struct vzctl_compact_param *param, int size)
+{
+	int ret = 0, rc;
+	struct vzctl_disk *d;
+	struct vzctl_compact_param p = {};
+
+	memcpy(&p, param, size);
+	list_for_each(d, &h->env_param->disk->disks, list) {
+		rc = vzctl_compact_disk_image(d, &p);
+		if (rc)
+			ret = rc;
+		
+	}
+
+	return ret;
+}
