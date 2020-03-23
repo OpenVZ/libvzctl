@@ -129,5 +129,32 @@ function create_prvt()
 	[ "x${RECOVER_VE}" = "xyes" ] && remove_backup
 }
 
-create_prvt
+
+_err()
+{
+	ploop umount $VE_PRVT/DiskDescriptor.xml
+	vzerror "$1" $VZ_FS_NEW_VE_PRVT
+}
+
+create_from_dockerimage()
+{
+	name="${PRIVATE_TEMPLATE#*://}"
+	ID=`docker images -q $name`
+	[ -z "$ID" ] && vzerror "Docker image $name is not found" $VZ_FS_NEW_VE_PRVT
+	mnt="$VE_PRVT/mnt"
+	ploop init -s 10G $VE_PRVT/root.hds || \
+		vzerror "Unable to create $VE_PRVT/root.hds" $VZ_FS_NEW_VE_PRVT
+	mkdir -p $mnt
+	ploop mount -m $mnt $VE_PRVT/DiskDescriptor.xml || \
+		_err "Unable to mount $VE_PRVT/root.hds"
+	docker image save $ID | tar -x -O --wildcards --no-anchored '*.tar' | tar -C $mnt -xf - || \
+		_err "Unable to save docker image $name ID=$ID"
+	ploop umount $VE_PRVT/DiskDescriptor.xml
+}
+
+if [ "${PRIVATE_TEMPLATE%://*}" = "dockerimage" ]; then
+	create_from_dockerimage
+else
+	create_prvt
+fi
 exit 0

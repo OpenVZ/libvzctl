@@ -30,7 +30,7 @@
 
 enum {
         TM_EZ,
-        TM_ST,
+	TM_DC
 };
 
 struct vzctl_tmpl_param {
@@ -38,6 +38,7 @@ struct vzctl_tmpl_param {
 	char *templates;
 	char *dist;
 	char *osrelease;
+	int type;
 };
 
 /* Data structure for distribution specific action scripts.
