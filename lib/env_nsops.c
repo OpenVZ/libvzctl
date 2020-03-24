@@ -527,9 +527,8 @@ static int set_cpu_sysfs_perms(struct vzctl_env_handle *h, unsigned long int new
 	if (new_count == 0 || new_count > entries)
 		new_count = entries;
 
-	// if "new_count" is equal to ULONG_MAX that means its a startup routine,
-	// config contains new amount, 0 is the old amount
-	if (new_count == ULONG_MAX) {
+	// On startup old value will always be 0, and config will contain the amount we want to configure
+	if (h->ctx->state == VZCTL_STATE_STARTING) {
 		start = 0;
 		end = cpus;
 		add_sysfs = 1;
