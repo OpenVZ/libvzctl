@@ -78,6 +78,7 @@ struct vzctl_opts {
 	unsigned long *ha_prio;
 	int setmode;
 	int autostop;
+	int apply_settings;
 };
 
 struct vzctl_name_param {

@@ -368,6 +368,7 @@ static int do_create_private(struct vzctl_env_handle *h, const char *dst,
 			xstrdup(&h->env_param->tmpl->dist, buf);
 			vzctl_conf_add_param(h->conf, "DIST", buf);
 		}
+		vzctl_conf_add_param(h->conf, "APPLY_SETTINGS", "host");
 		snprintf(tarball, sizeof(tarball), "%s", ostmpl);
 	} else {
 		/* vztmpl_get_cache_tarball do call 'vzpkg info' that implicitly

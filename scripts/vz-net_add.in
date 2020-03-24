@@ -48,6 +48,8 @@ for IP in $IP_ADDR; do
 	vzarp add $IP
 done
 vzarpipset "$IP_ADDR"
+
+[ -n "$APPLY_SETTINGS" ] && vzaddip "$IP_ADDR" venet0
 # Save ip address information
 mkdir -p ${VE_STATE_DIR} >/dev/null 2>&1
 if [ "${VE_STATE}" == "starting" ]; then

@@ -192,7 +192,7 @@ int run_net_script(struct vzctl_env_handle *h, const char *script,
 		list_head_t *ip, int flags)
 {
 	char *argv[2];
-	char *envp[5];
+	char *envp[6];
 	char veid_str[64];
 	char *ip_str;
 	char buf[STR_SIZE];
@@ -207,6 +207,8 @@ int run_net_script(struct vzctl_env_handle *h, const char *script,
 	envp[i++] = ip_str;
 	if (flags & VZCTL_SKIP_ARPDETECT)
 		envp[i++] = "SKIP_ARPDETECT=yes";
+	if (h->env_param->opts->apply_settings == VZCTL_PARAM_ON)
+		envp[i++] = "APPLY_SETTINGS=host";
 	snprintf(s_state, sizeof(s_state), "VE_STATE=%s", get_state(h));
 	envp[i++] = s_state;
 	envp[i] = NULL;
@@ -383,8 +385,7 @@ static int del_ip(struct vzctl_env_handle *h, struct vzctl_env_param *env, int f
 	/* Setup on node */
 	run_net_script(h, VZCTL_NET_DEL, &ipdel, flags);
 	/* Setup inside Container */
-	if (!(flags & VZCTL_SKIP_CONFIGURE))
-		env_ip_configure(h, VZCTL_IP_DEL_CMD, &ipdel, delall, flags);
+	env_ip_configure(h, VZCTL_IP_DEL_CMD, &ipdel, delall, flags);
 	/* Setup in kernel */
 	env_ip_ctl(h, VE_IP_DEL, &ipdel, 1, flags);
 out:

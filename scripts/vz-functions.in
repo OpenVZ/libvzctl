@@ -134,6 +134,32 @@ function vzcheckvar()
 	done
 }
 
+vzaddip()
+{
+	dev="$2"
+	v6=
+
+	${IP_CMD} -n $VEID l s dev $dev up
+	for ip in $1; do
+		[ "${ip}#*:}" != "$ip" ] && v6=true
+		${IP_CMD} -n $VEID a r $ip dev $dev
+	done
+
+	${IP_CMD} -n $VEID r r default dev venet0
+	if [ "$v6" = "true" ]; then
+		${IP_CMD} -n $VEID -6 r r default dev venet0
+	fi
+}
+
+vzdelip()
+{
+	dev="$2"
+
+	for ip in $1; do
+		 ${IP_CMD} -n $VEID a d $ip dev $dev
+	done
+}
+ 
 # Creates a pair of veth devices, being one of them in the host, and the other
 # inside the container The function should be called with the following env
 # variables set:

@@ -48,5 +48,7 @@ for IP in $IP_ADDR; do
 	fi
 done
 
+[ -n "$APPLY_SETTINGS" ] && vzdelip "$IP_ADDR" venet0
+
 exit 0
 # end of script

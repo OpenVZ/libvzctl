@@ -468,6 +468,8 @@ int env_ip_configure(struct vzctl_env_handle *h, int cmd,
 
 	if (flags & (VZCTL_SKIP_CONFIGURE | VZCTL_RESTORE))
 		return 0;
+	if (h->env_param->opts->apply_settings == VZCTL_PARAM_ON)
+		return 0;
 
 	if (list_empty(ip) && !delall)
 		return 0;

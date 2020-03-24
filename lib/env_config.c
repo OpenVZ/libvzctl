@@ -194,6 +194,7 @@ static struct vzctl_config_param config_param_map[] = {
 {"PAGECACHE_ISOLATION",VZCTL_PARAM_PAGECACHE_ISOLATION},
 {"NUMMEMORYSUBGROUPS", VZCTL_PARAM_NUMMEMORYSUBGROUPS},
 {"NUMNETIF", VZCTL_PARAM_NUMNETIF},
+{"APPLY_SETTINGS", VZCTL_PARAM_APPLY_SETTINGS},
 
 
 /* TODO */
@@ -632,6 +633,14 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 		if ((n = yesno2id(str)) == -1)
 			goto err_inval;
 		env->opts->apply_iponly = n;
+		break;
+	case VZCTL_PARAM_APPLY_SETTINGS:
+		if (strcmp(str, "host") == 0)
+			 env->opts->apply_settings = VZCTL_PARAM_ON;
+		else if (strcmp(str, "guest") == 0)
+			 env->opts->apply_settings = VZCTL_PARAM_OFF;
+		else
+			goto err_inval;
 		break;
 	case VZCTL_PARAM_HA_ENABLE:
 		if ((n = yesno2id(str)) == -1)
@@ -1234,6 +1243,12 @@ static char *env_param2str(struct vzctl_env_handle *h,
 			if (str != NULL)
 				return strdup(str);
 		}
+		break;
+	case VZCTL_PARAM_APPLY_SETTINGS:
+		if (env->opts->apply_settings == VZCTL_PARAM_ON)
+			return strdup("host");
+		else if (env->opts->apply_settings == VZCTL_PARAM_OFF)
+			return strdup("guest");
 		break;
 	case VZCTL_PARAM_HA_ENABLE:
 		if (env->opts->ha_enable) {
