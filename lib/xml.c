@@ -331,13 +331,13 @@ int vzctl_store_snapshot_tree(const char *fname, struct vzctl_snapshot_tree *tre
 		vzctl_err(-1, 0, "Error at xmlTextWriterStartDocument");
 		goto err;
 	}
-	rc = xmlTextWriterStartElement(writer, BAD_CAST "ParallelsSavedStates");
+	rc = xmlTextWriterStartElement(writer, BAD_CAST "VirtuozzoSavedStates");
 	if (rc < 0) {
-		vzctl_err(-1, 0, "Error at ParallelsSavedStates");
+		vzctl_err(-1, 0, "Error at VirtuozzoSavedStates");
 		goto err;
 	}
 	if (tree->nsnapshots == 0) {
-		// ParallelsSavedStates
+		// VirtuozzoSavedStates
 		xmlTextWriterEndElement(writer);
 		goto out;
 	}
@@ -348,7 +348,7 @@ int vzctl_store_snapshot_tree(const char *fname, struct vzctl_snapshot_tree *tre
 	}
 	rc = xmlTextWriterStartElement(writer, BAD_CAST "SavedStateItem");
 	if (rc < 0) {
-		vzctl_err(-1, 0, "Error at ParallelsSavedStates");
+		vzctl_err(-1, 0, "Error at SavedStateItem");
 		goto err;
 	}
 	rc = xmlTextWriterWriteAttribute(writer, BAD_CAST "guid", BAD_CAST "");
@@ -391,7 +391,7 @@ int vzctl_store_snapshot_tree(const char *fname, struct vzctl_snapshot_tree *tre
 out:
 	// <SavedStateItem guid ="">
 	xmlTextWriterEndElement(writer);
-	// ParallelsSavedStates
+	// VirtuozzoSavedStates
 	xmlTextWriterEndElement(writer);
 
 	xmlFreeTextWriter(writer);
