@@ -42,6 +42,7 @@
 #include "vzctl.h"
 #include "disk.h"
 #include "cluster.h"
+#include "config.h"
 
 #define DEFAULT_FSTYPE		"ext4"
 #define SNAPSHOT_MOUNT_ID	"snap"
@@ -208,15 +209,20 @@ int vzctl2_mount_image(const char *ve_private, struct vzctl_mount_param *param)
 int vzctl2_umount_disk_image(const char *path)
 {
 	int ret;
+	char val[12];
+	int timeout = 190;
 	struct ploop_disk_images_data *di;
 
-	logger(0, 0, "Unmount image: %s", path);
 	ret = open_dd(path, &di);
 	if (ret)
 		return ret;
 
-	ploop_set_umount_timeout(di, 190);
+	if (get_global_param("UMOUNT_TIMEOUT", val, sizeof(val)) == 0)
+		parse_int(val, &timeout);
 
+	ploop_set_umount_timeout(di, timeout);
+
+	logger(0, 0, "Unmount image: %s (%d)", path, timeout);
 	ret = ploop_umount_image(di);
 	ploop_close_dd(di);
 	if (ret && ret != SYSEXIT_DEV_NOT_MOUNTED)
