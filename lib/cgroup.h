@@ -57,7 +57,7 @@ int cg_get_path(const char *ctid, const char *subsys, const char *name,
 int write_data(const char *path, const char *data);
 int cg_get_cgroup_env_param(const char *ctid, char *out, int size);
 int cg_new_cgroup(const char *ctid);
-int cg_destroy_cgroup(const char *ctid);
+int cg_destroy_cgroup(const char *ctid, int release);
 int cg_enable_pseudosuper(const char *ctid);
 int cg_pseudosuper_open(const char *ctid, int *fd);
 int cg_disable_pseudosuper(const int pseudosuper_fd);
