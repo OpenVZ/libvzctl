@@ -803,7 +803,7 @@ static int destroy_cgroup(struct vzctl_env_handle *h)
 		kill(pid, SIGKILL);
 	}
 
-	return cg_destroy_cgroup(h->ctid);
+	return cg_destroy_cgroup(h->ctid, 0);
 }
 
 static int create_cgroup(struct vzctl_env_handle *h, int flags)
@@ -1845,10 +1845,8 @@ int vzctl2_set_limits(struct vzctl_env_handle *h, int release)
 {
 	int ret;
 
-	if (release) {
-		cg_set_ul("", CG_UB, "tasks", getpid());
-		return cg_destroy_cgroup(EID(h));
-	}
+	if (release)
+		return cg_destroy_cgroup(EID(h), 1);
 
 	if (EMPTY_CTID(h->ctid))
 		vzctl2_generate_ctid(EID(h));
@@ -1879,7 +1877,7 @@ int vzctl2_set_limits(struct vzctl_env_handle *h, int release)
 	return 0;
 
 err:
-	cg_destroy_cgroup(EID(h));
+	cg_destroy_cgroup(EID(h), 1);
 	return ret;
 }
 

@@ -66,6 +66,7 @@ static struct cg_ctl cg_ctl_map[] = {
 	{"systemd"},
 };
 
+static int cg_get_tasks(const char *ctid, const char *name, list_head_t *list);
 static pthread_mutex_t cg_ctl_map_mtx = PTHREAD_MUTEX_INITIALIZER;
 typedef int (*cgroup_filter_f)(const char *subsys);
 
@@ -510,6 +511,29 @@ static int rm_tree(const char *path)
 	return ret;
 }
 
+static int cg_move_tasks(const char *from, const char *to, const char *name)
+{
+	int ret;
+	struct vzctl_str_param *it;
+	LIST_HEAD(pids);
+
+	ret = cg_get_tasks(from, name, &pids);
+	if (ret)
+		return ret;
+
+	list_for_each(it, &pids, list) {
+		unsigned long pid;
+
+		if (parse_ul(it->str, &pid)) {
+			vzctl_err(-1, 0, "cg_move_tasks: invalid pid %s", it->str);
+			continue;
+		}
+		cg_set_ul(to, name, "tasks", pid);
+	}
+
+	return 0;
+}
+
 static int cg_destroy(const char *ctid, struct cg_ctl *ctl)
 {
 	char path[PATH_MAX];
@@ -519,6 +543,7 @@ static int cg_destroy(const char *ctid, struct cg_ctl *ctl)
 
 	get_cgroup_name(ctid, ctl, path, sizeof(path));
 
+	logger(4, 0, "Destroy cgroup %s", path);
 	if (rm_tree(path))
 		return VZCTL_E_SYSTEM;
 
@@ -581,15 +606,17 @@ err:
 	return ret;
 }
 
-int cg_destroy_cgroup(const char *ctid)
+int cg_destroy_cgroup(const char *ctid, int release)
 {
-	int rc, i, ret = 0;
+	int i, ret = 0;
 	struct cg_ctl *ctl;
 
 	for (i = 0; i < sizeof(cg_ctl_map)/sizeof(cg_ctl_map[0]); i++) {
-		rc = cg_get_ctl(cg_ctl_map[i].subsys, &ctl);
-		if (rc)
+		if (cg_get_ctl(cg_ctl_map[i].subsys, &ctl))
 			continue;
+
+		if (release)
+			cg_move_tasks(ctid, "", ctl->subsys);
 
 		ret |= cg_destroy(ctid, ctl);
 	}
@@ -873,7 +900,7 @@ int cg_env_get_ve_state(const char *ctid)
 	return (strcmp(buf, "STOPPED") != 0);
 }
 
-int cg_env_get_pids(const char *ctid, list_head_t *list)
+static int cg_get_tasks(const char *ctid, const char *name, list_head_t *list)
 {
 	FILE *fp;
 	char path[PATH_MAX];
@@ -882,7 +909,7 @@ int cg_env_get_pids(const char *ctid, list_head_t *list)
 	char *p;
 	int n, ret = 0;
 
-	ret = cg_get_path(ctid, CG_VE, "tasks", path, sizeof(path));
+	ret = cg_get_path(ctid, name, "tasks", path, sizeof(path));
 	if (ret)
 		return ret;
 
@@ -918,6 +945,11 @@ int cg_env_get_pids(const char *ctid, list_head_t *list)
 	fclose(fp);
 
 	return ret;
+}
+
+int cg_env_get_pids(const char *ctid, list_head_t *list)
+{
+	return cg_get_tasks(ctid, CG_VE, list);
 }
 
 int cg_get_legacy_veid(const char *ctid, unsigned long *value)
