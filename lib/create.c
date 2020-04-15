@@ -161,11 +161,11 @@ static int check_cache_layout(const char *cache, const char *private,
 		if (ret) {
 			if (new_layout == VZCTL_LAYOUT_5)
 				logger(-1, 0, "The cached package set '%s' is not"
-						" compatible with Virtuozzo Storage",
+						" compatible with Parallels Cloud Storage",
 						cache);
 			else
 				logger(-1, 0, "VZFS Containers cannot be created in"
-						" Virtuozzo Storage.");
+						" Parallels Cloud Storage.");
 			return VZCTL_E_INVAL;
 		}
 	}
