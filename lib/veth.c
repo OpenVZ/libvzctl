@@ -149,6 +149,8 @@ static int fill_veth_dev(struct vzctl_veth_dev *dst,
 	dst->ip_delall = src->ip_delall;
 	if (src->nettype)
 		dst->nettype = src->nettype;
+	if (src->vporttype)
+		dst->vporttype = src->vporttype;
 
 	return 0;
 }
@@ -266,7 +268,7 @@ static int run_vznetcfg(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
 {
 	char fname[PATH_MAX];
 	char veid[sizeof(ctid_t) + sizeof("VEID=")];
-	char *env[3] = {};
+	char *env[4] = {};
 
 	char *arg[] = {
 		fname,
@@ -280,6 +282,8 @@ static int run_vznetcfg(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
 	env[0] = veid;
 	if (dev->nettype == VZCTL_NETTYPE_BRIDGE)
 		env[1] = "NETWORK_TYPE=bridge";
+	if (dev->vporttype == VZCTL_VPORTTYPE_OVS)
+		env[2] = "VPORT_TYPE=ovs";
 
 	get_script_path("vznetcfg", fname, sizeof(fname));
 	if (access(fname, F_OK))
@@ -779,6 +783,12 @@ char *veth2str(struct vzctl_env_param *env, struct vzctl_veth_param *new,
 			if (sp >= ep)
 				break;
 		}
+		if (it->vporttype == VZCTL_VPORTTYPE_OVS) {
+			sp += snprintf(sp, ep - sp, "vport=ovs,");
+			if (sp >= ep)
+				break;
+		}
+
 		if (it->gw != NULL && it->gw[0] != 0) {
 			sp += snprintf(sp, ep - sp, "gw=%s,", it->gw);
 			if (sp >= ep)
@@ -890,6 +900,16 @@ static int get_nettype(const char *str, int *type)
 {
 	if (strcmp("bridge", str) == 0)
 		*type = VZCTL_NETTYPE_BRIDGE;
+	else
+		return VZCTL_E_INVAL;
+
+	return 0;
+}
+
+static int get_vporttype(const char *str, int *type)
+{
+	if (strcmp("ovs", str) == 0)
+		*type = VZCTL_VPORTTYPE_OVS;
 	else
 		return VZCTL_E_INVAL;
 
@@ -1065,6 +1085,14 @@ static int parse_netif_str(struct vzctl_env_handle *h, const char *str,
 			if (get_nettype(tmp, &dev->nettype))
 				return vzctl_err(VZCTL_E_INVAL,	0, "Incorrect"
 					" veth network type '%s'", tmp);
+		} else if (!strncmp("vport=", p, 6)) {
+			p += 6;
+			len = next - p;
+			strncpy(tmp, p, len);
+			tmp[len] = 0;
+			if (get_vporttype(tmp, &dev->vporttype))
+				return vzctl_err(VZCTL_E_INVAL,	0, "Incorrect"
+					" virtual port type '%s'", tmp);
 		} else if (!strncmp("ip=", p, 3)) {
 			p += 3;
 			do {
@@ -1215,6 +1243,11 @@ int parse_netif_ifname(struct vzctl_veth_param *veth, const char *str, int op,
 		break;
 	case VZCTL_PARAM_NETIF_NETTYPE:
 		ret = get_nettype(str, &dev->nettype);
+		if (ret)
+			return ret;
+		break;
+	case VZCTL_PARAM_NETIF_VPORT_TYPE:
+		ret = get_vporttype(str, &dev->vporttype);
 		if (ret)
 			return ret;
 		break;
