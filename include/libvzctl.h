@@ -210,6 +210,11 @@ enum vzctl_veth_nettype {
 	VZCTL_NETTYPE_BRIDGE	= 1,
 };
 
+enum vzctl_veth_vport_type {
+	VZCTl_VPORTTYPE_NONE	= 0,
+	VZCTL_VPORTTYPE_OVS	= 1,
+};
+
 struct vzctl_veth_dev_param {
 	const char *mac;		/**< device MAC address. */
 	const char *dev_name;		/**< device name. */
@@ -228,6 +233,7 @@ struct vzctl_veth_dev_param {
 	int configure_mode;
 	int allow_ip_spoof;
 	int nettype;
+	int vporttype;			/* 0 - none, 1- openvswitch */
 };
 
 struct vzctl_rate_param {

@@ -72,7 +72,11 @@ addif()
 		fi
 	fi
 
-	brctl addif $br $iface
+	if [ "$VPORT_TYPE" = "ovs" ]; then
+		ovs-vsctl add-port "$br" "$iface"
+	elif
+		brctl addif "$br" "$iface"
+	fi
 	if [ $? -ne 0 ]; then
 		echo "Unable to attach $iface to bridge $br/$2"
 		exit 1

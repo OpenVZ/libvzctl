@@ -60,6 +60,7 @@ struct vzctl_veth_dev {
 	char *gw6;			/**< gateway ip6 */
 	int configure_mode;		/*** VZCTL_VETH_CONFIGURE_* */
 	int nettype;
+	int vporttype;
 };
 
 /** Devices list.
