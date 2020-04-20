@@ -388,6 +388,10 @@ static int bind_mount(struct vzctl_env_handle *h, struct vzctl_bindmount *mnt)
 		return vzctl_err(VZCTL_E_MOUNT, errno,
 			"Cannot bind-mount: %s %s", s, d);
 
+	if (mount(NULL, d, NULL, MS_PRIVATE | MS_REC, NULL) < 0)
+		return vzctl_err(VZCTL_E_MOUNT, errno,
+			"Cannot remount bind mount %s as private", d);
+
 	/* apply flags */
 	if (flags && mount(s, d, "", flags | MS_REMOUNT | MS_BIND, NULL))
 		return vzctl_err(VZCTL_E_MOUNT, errno,
