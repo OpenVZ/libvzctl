@@ -147,7 +147,7 @@ static int setup_rootfs(struct vzctl_env_handle *h)
 		return vzctl_err(-1, errno, "Can't chdir /");
 
 	if (mount("", oldroot, NULL, MS_SLAVE|MS_REC, NULL) < 0)
-		return vzctl_err(-1, errno, "Can't remount root with MS_PRIVATE");
+		return vzctl_err(-1, errno, "Can't remount root with MS_SLAVE");
 
 	if (umount2(oldroot, MNT_DETACH))
 		return vzctl_err(-1, errno, "Can't umount old root");
@@ -159,6 +159,9 @@ static int setup_rootfs(struct vzctl_env_handle *h)
 	if (rmdir(oldroot))
 		logger(-1, errno, "Can't rmdir %s", oldroot);
 
+	if (mount(NULL, "/", NULL, MS_PRIVATE | MS_REC, NULL) < 0)
+		return vzctl_err(-1, errno, "Can't remount root as private %s",
+				root);
 	if (mount(NULL, "/", NULL, MS_SHARED | MS_REC, NULL) < 0)
 		return vzctl_err(-1, errno, "Can't remount root as a shared %s",
 				root);
