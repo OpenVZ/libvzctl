@@ -78,6 +78,7 @@ struct vzctl_opts {
 	unsigned long *ha_prio;
 	int setmode;
 	int autostop;
+	char *cidata_fname;
 };
 
 struct vzctl_name_param {
@@ -196,4 +197,6 @@ int vzctl2_cpt_cmd(struct vzctl_env_handle *h, int action, int cmd,
 		struct vzctl_cpt_param *param, int flags);
 int criu_cmd(struct vzctl_env_handle *h, int cmd,
 		struct vzctl_cpt_param *param, struct start_param *data);
+int setup_cloud_init_data(struct vzctl_env_handle *h, const char *fname,
+		char **cidata_mnt);
 #endif /* _ENV_H_ */

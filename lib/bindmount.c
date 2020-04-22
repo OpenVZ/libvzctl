@@ -89,7 +89,7 @@ struct vzctl_bindmount_param *alloc_bindmount_param(void)
 	return p;
 }
 
-static int add_bindmount(struct vzctl_bindmount_param *mnt,
+int add_bindmount(struct vzctl_bindmount_param *mnt,
 		struct vzctl_bindmount *data)
 {
 	int ret;

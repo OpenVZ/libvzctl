@@ -1155,6 +1155,7 @@ int vzctl2_get_normalized_uuid(const char *str, char *buf, int len);
 int vzctl2_set_tc_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 		int flags);
 int vzctl2_env_set_setmode(struct vzctl_env_param *env, vzctl_setmode_t mode);
+int vzctl2_env_set_cidata_fname(struct vzctl_env_param *env, const char *fname);
 int vzctl2_set_limits(struct vzctl_env_handle *h, int release);
 int vzctl2_get_def_ostemplate_name(char *out, int size);
 int vzctl2_bitmap_parse(const char *str, unsigned long *maskp, int size);
