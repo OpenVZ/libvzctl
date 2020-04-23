@@ -926,6 +926,7 @@ int vzctl_env_start(struct vzctl_env_handle *h, int flags)
 	int ret;
 	struct vzctl_env_param *env = h->env_param;
 	struct vzctl_env_status env_status = {};
+	char *cidata_mnt = NULL;
 	struct start_param param = {
 		.h = h,
 		.pseudosuper_fd = -1,
@@ -971,6 +972,13 @@ int vzctl_env_start(struct vzctl_env_handle *h, int flags)
         ret = get_virt_osrelease(h);
         if (ret)
 		goto err_pipe;
+
+	if (h->env_param->opts->cidata_fname) {
+		ret = setup_cloud_init_data(h, h->env_param->opts->cidata_fname,
+				&cidata_mnt);
+		if (ret)
+			goto err_pipe;
+	}
 
 	h->ctx->state = VZCTL_STATE_STARTING;
 	if (!(flags & VZCTL_SKIP_MOUNT)) {
@@ -1088,6 +1096,10 @@ err:
 
 err_pipe:
 	deinit_runtime_ctx(h->ctx);
+	if (cidata_mnt) {
+		umount(cidata_mnt);
+		free(cidata_mnt);
+	}
 
 	return ret;
 }
@@ -3518,6 +3530,11 @@ int vzctl2_env_set_setmode(struct vzctl_env_param *env, vzctl_setmode_t mode)
 	return 0;
 }
 
+int vzctl2_env_set_cidata_fname(struct vzctl_env_param *env, const char *fname)
+{
+	return xstrdup(&env->opts->cidata_fname, fname);
+}
+
 int vzctl2_env_get_disabled(struct vzctl_env_param *env, int *disabled)
 {
 	*disabled = (env->misc->start_disabled == VZCTL_PARAM_ON) ? 1 : 0;
@@ -3547,4 +3564,62 @@ int vzctl2_env_compact(struct vzctl_env_handle *h,
 	}
 
 	return ret;
+}
+
+#define CIDATA_DIR	"/var/lib/cloud/seed/nocloud-net"
+extern int loop_create(const char *delta, char *ldev, int size);
+static int mount_iso(const char *fname, const char *dst)
+{
+	int fd;
+	int rc = 0;
+	char ldev[STR_SIZE];
+
+	rc = make_dir(dst, 1);
+	if (rc)
+		return rc;
+
+	fd = loop_create(fname, ldev, sizeof(ldev));
+	if (fd == -1)
+		return VZCTL_E_SYSTEM;
+
+	if (mount(ldev, dst, "iso9660", MS_RDONLY, NULL))
+		rc = vzctl_err(VZCTL_E_SYSTEM, errno, "Cannot mount %s %s",
+				ldev, dst);
+	close(fd);
+
+	return rc;
+}
+
+int setup_cloud_init_data(struct vzctl_env_handle *h, const char *fname,
+		char **cidata_mnt)
+{
+	int rc;
+	char dst[PATH_MAX];
+	const char *p;
+	struct vzctl_bindmount m = {};
+
+	logger(0, 0, "Setup cloud init data %s", fname);
+	if (access(fname, F_OK))
+		return vzctl_err(VZCTL_E_INVAL, errno, "Unable to access cloud-init file '%s'",
+				fname);
+
+	p = strrchr(fname, '.');
+	if (p && strcmp(p, ".iso") == 0) {
+		snprintf(dst, sizeof(dst), "%s/cidata_mnt",
+				h->env_param->fs->ve_private);
+		rc = xstrdup(cidata_mnt, dst);
+		if (rc)
+			return rc;
+
+		rc = mount_iso(fname, dst);
+		if (rc)
+			return rc;
+		m.src = dst;
+	} else {
+		m.src = (char *)fname;
+	}
+	m.dst = CIDATA_DIR;
+	m.mntopt = MS_RDONLY;
+
+	return add_bindmount(h->env_param->bindmount, &m);
 }

@@ -1411,6 +1411,7 @@ static void free_opts(struct vzctl_opts *opts)
 	free(opts->bootorder);
 	free(opts->lockdir);
 	free(opts->ha_prio);
+	free(opts->cidata_fname);
 	free(opts);
 }
 

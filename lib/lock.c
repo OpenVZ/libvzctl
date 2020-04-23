@@ -1,6 +1,4 @@
-/*
- *  Copyright (c) 1999-2017, Parallels International GmbH
- * Copyright (c) 2017-2019 Virtuozzo International GmbH. All rights reserved.
+/* Copyright (c) 2020 Virtuozzo International GmbH. All rights reserved.
  *
  * This file is part of OpenVZ libraries. OpenVZ is free software; you can
  * redistribute it and/or modify it under the terms of the GNU Lesser General
@@ -21,6 +19,7 @@
  * Schaffhausen, Switzerland.
  *
  */
+
 #define _GNU_SOURCE
 #include <stdlib.h>
 #include <unistd.h>

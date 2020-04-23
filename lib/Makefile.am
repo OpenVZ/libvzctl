@@ -47,6 +47,7 @@ libvzctl2_la_SOURCES =  bitmap.c \
 			iptables.c \
 			lock.c \
 			logger.c \
+			loop.c \
 			meminfo.c \
 			name.c \
 			net.c \
