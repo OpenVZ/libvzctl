@@ -124,17 +124,17 @@ int vzctl_wrap_env_destroy(struct vzctl_env_handle *h, int flags)
 
 int vzctl2_unwrap_env_start(struct vzctl_env_handle *h, int argc, char **argv)
 {
-        int flags;
+	int flags;
 
-        if (argc != 1 && argc != 2)
-                return VZCTL_E_INVAL;
+	if (argc != 1 && argc != 2)
+		return VZCTL_E_INVAL;
 
-        if (parse_int(argv[0], &flags))
-                return VZCTL_E_INVAL;
+	if (parse_int(argv[0], &flags))
+		return VZCTL_E_INVAL;
 	if (argv[1] != NULL)
 		vzctl2_env_set_cidata_fname(vzctl2_get_env_param(h), argv[1]);
 
-        return vzctl_env_start(h, flags);
+	return vzctl_env_start(h, flags);
 }
 
 int vzctl_wrap_env_start(struct vzctl_env_handle *h, int flags)
@@ -146,7 +146,7 @@ int vzctl_wrap_env_start(struct vzctl_env_handle *h, int flags)
 	char *const arg[] = {f, h->env_param->opts->cidata_fname, NULL};
 
 	snprintf(f, sizeof(f), "%d", flags);
-	
+
 	return exec_action(h, "start", arg);
 }
 
