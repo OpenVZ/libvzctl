@@ -74,7 +74,7 @@ addif()
 
 	if [ "$VPORT_TYPE" = "ovs" ]; then
 		ovs-vsctl add-port "$br" "$iface"
-	elif
+	else
 		brctl addif "$br" "$iface"
 	fi
 	if [ $? -ne 0 ]; then
