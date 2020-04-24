@@ -465,10 +465,16 @@ static int set_cpuid_sysfs_perms(struct vzctl_env_handle *h, const char *coreid,
 	if (!add_sysfs)
 		return 0;
 
-	snprintf(buf, sizeof(buf), "%s/online", cpath);
-	ret = add_sysfs_entry(h, buf);
-	if (ret)
-		return ret;
+	// According to kernel's Documentation/cpu-hotplug.txt file "online" might be missing for some cores.
+	// It depends on CPU architecture and whether it allows cpuX to be offline. If cpuX is not allowed
+	// to ever go offline, file simply wont exist.
+	snprintf(buf, sizeof(buf), "/sys/%s/online", cpath);
+	if (!access(buf, F_OK)) {
+		snprintf(buf, sizeof(buf), "%s/online", cpath);
+		ret = add_sysfs_entry(h, buf);
+		if (ret)
+			return ret;
+	}
 
 	snprintf(buf, sizeof(buf), "%s/topology", cpath);
 	ret = add_sysfs_entry(h, buf);
