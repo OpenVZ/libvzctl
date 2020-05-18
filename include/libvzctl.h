@@ -233,7 +233,7 @@ struct vzctl_veth_dev_param {
 	int configure_mode;
 	int allow_ip_spoof;
 	int nettype;
-	int vporttype;			/* 0 - none, 1- openvswitch */
+	int vporttype;			/* vzctl_veth_vport_type */
 };
 
 struct vzctl_rate_param {
