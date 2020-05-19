@@ -2368,7 +2368,7 @@ int vzctl2_env_set_veth_param(struct vzctl_veth_dev *dev,
 		dev->dhcp6 = tmp.dhcp6 ? VZCTL_PARAM_ON : VZCTL_PARAM_OFF;
 
 	dev->ip_delall = tmp.ip_apply_mode;
-	dev->vporttype = dev->vporttype;
+	dev->vporttype = tmp.vporttype;
 
 	return 0;
 }
