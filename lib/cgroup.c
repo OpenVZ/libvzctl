@@ -1264,11 +1264,11 @@ int cg_set_veid(const char *ctid, int veid)
 	return write_data(path, id);
 }
 
-static int cg_set_freezer_state(const char *ctid, const char *state)
+static int cg_write_freezer_state(const char *ctid, const char *state)
 {
-	struct vzctl_str_param *it;
 	char buf[PATH_MAX];
-	int len, ret = VZCTL_E_SYSTEM;
+	struct vzctl_str_param *it;
+	int ret = 0;
 	LIST_HEAD(head);
 
 	if (cg_get_path(ctid, CG_FREEZER, "", buf, sizeof(buf)))
@@ -1281,36 +1281,67 @@ static int cg_set_freezer_state(const char *ctid, const char *state)
 		snprintf(buf, sizeof(buf), "%s/freezer.state", it->str);
 		if (access(buf, F_OK))
 			continue;
-		if (write_data(buf, state))
-			goto err;
-	}
-
-	len = strlen(state);
-	while (1) {
-		if (cg_get_param(ctid, CG_FREEZER, "freezer.state",
-				buf, sizeof(buf)))
-			goto err;
-
-		if (strncmp(buf, state, len) == 0)
+		if (write_data(buf, state) == -1) {
+			ret = VZCTL_E_SYSTEM;
 			break;
-
-		sleep(1);
+		}
 	}
-	ret = 0;
-err:
 	free_str(&head);
 
 	return ret;
 }
 
+static int cg_wait_freezer_state(const char *ctid, const char *state)
+{
+	char buf[64];
+	int i, len;
+
+	len = strlen(state);
+	for (i = 0; i < MAX_SHTD_TM; i++) {
+		if (cg_get_param(ctid, CG_FREEZER, "freezer.state",
+					buf, sizeof(buf)))
+			return VZCTL_E_SYSTEM;
+
+		if (strncmp(buf, state, len) == 0)
+			return 0;
+		sleep(1);
+	}
+	return vzctl_err(VZCTL_E_TIMEOUT, 0, "Waiting for state '%s' timed out",
+			state);
+}
+
 int cg_freezer_cmd(const char *ctid, int cmd)
 {
-	if (cmd == VZCTL_CMD_RESUME) {
+	int ret;
+	const char *state, *rollback;
+	const char *freeze = "FROZEN";
+	const char *unfreeze =  "THAWED";
+
+	switch (cmd) {
+	case VZCTL_CMD_RESUME:
 		logger(0, 0, "\tunfreeze");
-		return cg_set_freezer_state(ctid, "THAWED");
-	} else if (cmd == VZCTL_CMD_SUSPEND) {
+		state = unfreeze;
+		rollback = freeze;
+		break;
+	case VZCTL_CMD_SUSPEND:
 		logger(0, 0, "\tfreeze");
-		return cg_set_freezer_state(ctid, "FROZEN");
+		state = freeze;
+		rollback = unfreeze;
+		break;
+	default:
+		return vzctl_err(-1, 0, "Unsupported freezer command %d", cmd);
 	}
-	return vzctl_err(-1, 0, "Unsupported freezer command %d", cmd);
+
+	ret = cg_write_freezer_state(ctid, state);
+	if (ret)
+		goto err;
+
+	ret = cg_wait_freezer_state(ctid, state);
+
+err:
+	if (ret)
+		cg_write_freezer_state(ctid, rollback);
+
+	return ret;
 }
+
