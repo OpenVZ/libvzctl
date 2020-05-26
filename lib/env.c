@@ -1853,6 +1853,8 @@ int vzctl2_env_save_conf(struct vzctl_env_handle *h, const char *fname)
 	lckfd = vzctl_env_conf_lock(h, VZCTL_LOCK_EX);
 	ret = vzctl2_conf_save(h->conf, path);
 	vzctl_env_conf_unlock(lckfd);
+	if (ret == 0)
+		vzctl2_send_state_evt(EID(h), VZCTL_ENV_CONFIG_CHANGED);
 
 	return ret;
 }
