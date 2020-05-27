@@ -450,7 +450,7 @@ static int ns_apply_res_param(struct vzctl_env_handle *h,
 static int set_cpuid_sysfs_perms(struct vzctl_env_handle *h, const char *coreid, int add_sysfs)
 {
 	int ret, n;
-	char cpath[PATH_MAX], buf[PATH_MAX];
+	char cpath[STR_SIZE], buf[PATH_MAX];
 	struct dirent **namelist;
 
 	snprintf(cpath, sizeof(cpath), "devices/system/cpu/%s", coreid);
