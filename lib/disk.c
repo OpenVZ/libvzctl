@@ -1218,6 +1218,14 @@ static int register_ploop_image(struct vzctl_disk *disk,
 	return 0;
 }
 
+static void update_DISKSPACE(struct vzctl_env_handle *h, unsigned long size)
+{
+	char s[64];
+
+	snprintf(s, sizeof(s), "%lu:%lu", size, size);
+	vzctl2_env_set_param(h, "DISKSPACE", s);
+}
+
 int vzctl2_add_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param,
 		int flags)
 {
@@ -1287,8 +1295,10 @@ out:
 	/* add disk to list */
 	add_disk(env_disk, d);
 
-	if (is_root_disk(d))
+	if (is_root_disk(d)) {
+		update_DISKSPACE(h, d->size);
 		env_disk->root = VZCTL_PARAM_ON;
+	}
 
 	logger(0, 0, "The %s %s uuid=%s has been successfully added.",
 			d->use_device ? "device" : "image",
@@ -1470,12 +1480,8 @@ int vzctl2_resize_disk(struct vzctl_env_handle *h, const char *guid,
 	if (ret)
 		return ret;
 
-	if (root) {
-		char s[64];
-
-		snprintf(s, sizeof(s), "%lu:%lu", size, size);
-		vzctl2_env_set_param(h, "DISKSPACE", s);
-	}
+	if (root)
+		update_DISKSPACE(h, size);
 
 	d->size = size;
 
