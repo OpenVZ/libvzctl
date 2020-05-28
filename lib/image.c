@@ -423,6 +423,7 @@ int vzctl2_get_ploop_dev(const char *path, char *dev, int len)
 int vzctl2_get_ploop_dev2(const char *path, char *dev, int dlen, char *part,
 		int plen)
 {
+	char device[64];
 	struct ploop_disk_images_data *di;
 	int ret;
 
@@ -433,7 +434,7 @@ int vzctl2_get_ploop_dev2(const char *path, char *dev, int dlen, char *part,
 	if (open_dd(path, &di))
 		return -1;
 
-	ret = ploop_get_dev(di, dev, dlen);
+	ret = ploop_get_dev(di, device, sizeof(device));
 	if (ret) {
 		if (ret == -1)
 			vzctl_err(-1, 0, "ploop_get_dev path=%s: %s",
@@ -441,8 +442,8 @@ int vzctl2_get_ploop_dev2(const char *path, char *dev, int dlen, char *part,
 		goto err;
 	}
 
-	if (ploop_get_part(di, dev, part, plen)) {
-		ret = vzctl_err(-1, 0, "loop_get_part devs: %s: %s",
+	if (ploop_get_devname(di, device, dev, dlen, part, plen)) {
+		ret = vzctl_err(-1, 0, "loop_get_devname(%s): %s",
 				dev, ploop_get_last_error());
 		goto err;
 	}
