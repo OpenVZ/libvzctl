@@ -105,7 +105,7 @@ if [ -f "$autofs_actions_path" ]; then
 	autofs_actions="--action-script $autofs_actions_path"
 fi
 
-eval $(. /etc/vz/vz.conf && echo RESTORE_EXTRA_OPT="$RESTORE_EXTRA_OPT")
+eval $(. /etc/vz/vz.conf && echo RESTORE_EXTRA_OPT=\"$RESTORE_EXTRA_OPT\")
 CRIU_LOGLEVEL=4
 [ -n "$VE_CRIU_PIDFILE" ] && echo $$ > $VE_CRIU_PIDFILE
 exec criu restore -v$CRIU_LOGLEVEL $RESTORE_EXTRA_OPT	\
