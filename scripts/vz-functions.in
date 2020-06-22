@@ -264,17 +264,8 @@ function vzgetnetdev()
 }' | sed -e 's/:$//' -e 's/@.*//'`
 
 	local tmp_list=""
-	# Open vSwitch mode - IP assigned to bridge over device
-	if [ -d "/sys/module/openvswitch" ]; then
-		for dev in $NETDEVICES; do
-			local tmp=`$OVSCTL_CMD iface-to-br $dev 2>/dev/null`
-			[ $? -ne 0 ] && tmp="$dev"
-			tmp_list="$tmp_list $tmp"
-		done
-		NETDEVICES="$tmp_list"
-	fi
 
-	# step 2 - filter out devices without IP address
+	# filter out devices without IP address
 	tmp_list=""
 	for dev in $NETDEVICES; do
 		if ! [[ -e "/sys/class/net/$dev/device" \
