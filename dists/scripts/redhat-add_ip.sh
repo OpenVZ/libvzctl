@@ -66,6 +66,7 @@ IPADDR=127.0.0.1
 NETMASK=255.255.255.255
 BROADCAST=0.0.0.0
 NM_CONTROLLED=\"no\"
+ARPUPDATE=\"no\"
 ARPCHECK=\"no\"" > $IFCFG || error "Can't write to file $IFCFG" $VZ_FS_NO_DISK_SPACE
 
 	if_restart=yes
