@@ -1110,6 +1110,11 @@ static char *env_param2str(struct vzctl_env_handle *h,
 		break;
 	case VZCTL_PARAM_CPUS:
 		if (env->cpu->vcpus != NULL) {
+			if (*env->cpu->vcpus == 0) {
+				vzctl_conf_del_param(h->conf, "CPUS");
+				break;
+			}
+	
 			snprintf(buf, sizeof(buf), "%lu",
 					*env->cpu->vcpus);
 			return strdup(buf);
