@@ -264,17 +264,8 @@ function vzgetnetdev()
 }' | sed -e 's/:$//' -e 's/@.*//'`
 
 	local tmp_list=""
-	# Open vSwitch mode - IP assigned to bridge over device
-	if [ -d "/sys/module/openvswitch" ]; then
-		for dev in $NETDEVICES; do
-			local tmp=`$OVSCTL_CMD iface-to-br $dev 2>/dev/null`
-			[ $? -ne 0 ] && tmp="$dev"
-			tmp_list="$tmp_list $tmp"
-		done
-		NETDEVICES="$tmp_list"
-	fi
 
-	# step 2 - filter out devices without IP address
+	# filter out devices without IP address
 	tmp_list=""
 	for dev in $NETDEVICES; do
 		if ! [[ -e "/sys/class/net/$dev/device" \
@@ -373,7 +364,8 @@ function vzarpipdetect()
 			fi
 		done
 	done
-	parallel_execution 1000000 "! ${ARPING_CMD} ${ARPING_ARGS} -w 1 -I" ipv4_pairs[@]
+	# Duplicate address detection mode (DAD). Returns 0, if DAD succeeded i.e. no replies are received
+	parallel_execution 1000000 "! ${ARPING_CMD} ${ARPING_ARGS} -w 1 -D -I" ipv4_pairs[@]
 }
 
 # Send ARP request to update neighbour ARP caches
