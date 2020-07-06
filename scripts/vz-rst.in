@@ -93,7 +93,7 @@ if [ -n "$VEID" ]; then
 	[ -f $VE_DUMP_DIR/vz_os_release.img ] && export VE_OS_RELEASE=`cat $VE_DUMP_DIR/vz_os_release.img`
 	[ -f $VE_DUMP_DIR/vz_features.img ] && export VE_FEATURES=`cat $VE_DUMP_DIR/vz_features.img`
 	[ -f $VE_DUMP_DIR/vz_aio_max_nr.img ] && export VE_AIO_MAX_NR=`cat $VE_DUMP_DIR/vz_aio_max_nr.img`
-	[ -f $VE_DUMP_DIR/vz_pid_max.img ] && export VE_PID_MAX=`cat $VE_DUMP_DIR/vz_pid_max.img`
+	[ -f $VE_DUMP_DIR/vz_pid_max.img ] && export VE_PID_MAX=`cat $VE_DUMP_DIR/vz_pid_max.img` || export VE_PID_MAX=4194304
 fi
 
 # Setup default log name if not explicitly specified
