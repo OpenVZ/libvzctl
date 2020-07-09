@@ -66,6 +66,7 @@ struct vzctl_disk {
 	char *enc_keyid;
 	int updated;
 	disk_type type;
+	int automount;
 };
 
 struct vzctl_env_disk {
@@ -87,8 +88,11 @@ int configure_disk_perm(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 		int del);
 int update_disk_info(struct vzctl_env_handle *h, struct vzctl_disk *disk);
 struct vzctl_env_disk *alloc_env_disk(void);
+void add_disk(struct vzctl_env_disk *env_disk, struct vzctl_disk *disk);
 struct vzctl_disk *find_root_disk(const struct vzctl_env_disk *env_disk);
 int is_secondary_disk_present(const struct vzctl_env_disk *env_disk);
+struct vzctl_disk *disk_param2disk(struct vzctl_env_handle *h,
+		struct vzctl_disk_param *param);
 int set_disk_param(struct vzctl_env_param *env, int flags);
 int parse_disk(struct vzctl_env_disk *env_disk, const char *str);
 char *disk2str(struct vzctl_env_handle *h, struct vzctl_env_disk *env_disk);
@@ -117,4 +121,5 @@ int get_disk_mount_param(struct vzctl_env_handle *h, struct vzctl_disk *d,
 		struct vzctl_mount_param *param, int flags,
 		char *mnt_opts, int mnt_opts_size);
 int is_dm_device(dev_t dev);
+
 #endif

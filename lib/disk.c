@@ -111,7 +111,7 @@ struct vzctl_env_disk *alloc_env_disk(void)
 	return d;
 }
 
-static void add_disk(struct vzctl_env_disk *env_disk, struct vzctl_disk *disk)
+void add_disk(struct vzctl_env_disk *env_disk, struct vzctl_disk *disk)
 {
 	list_add_tail(&disk->list, &env_disk->disks);
 }
@@ -179,7 +179,7 @@ char *get_abs_path(const char *basedir, const char *fname, char *buf, int len)
 	return buf;
 }
 
-static struct vzctl_disk *disk_param2disk(struct vzctl_env_handle *h,
+struct vzctl_disk *disk_param2disk(struct vzctl_env_handle *h,
 		struct vzctl_disk_param *param)
 {
 	struct vzctl_disk *d;
@@ -187,7 +187,7 @@ static struct vzctl_disk *disk_param2disk(struct vzctl_env_handle *h,
 
 	d = calloc(1, sizeof(struct vzctl_disk));
 	if (d == NULL)
-		return NULL;
+		goto err;
 
 	memcpy(d->uuid, param->uuid, sizeof(d->uuid));
 	d->enabled = param->enabled;
@@ -223,7 +223,9 @@ static struct vzctl_disk *disk_param2disk(struct vzctl_env_handle *h,
 	return d;
 
 err:
-	free_disk(d);
+	vzctl_err(-1, ENOMEM, "disk_param2disk");
+	if (d)
+		free_disk(d);
 	return NULL;
 }
 
