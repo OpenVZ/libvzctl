@@ -159,7 +159,7 @@ int stat_file(const char *file)
 	return 1;
 }
 
-int make_dir(const char *path, int full)
+int make_dir2(const char *path, mode_t mode, int full)
 {
 	char buf[4096];
 	const char *ps, *p;
@@ -177,7 +177,7 @@ int make_dir(const char *path, int full)
 		snprintf(buf, len, "%s", path);
 		ps = p + 1;
 		if (!stat_file(buf)) {
-			if (mkdir(buf, 0700) && errno != EEXIST)
+			if (mkdir(buf, mode) && errno != EEXIST)
 				return vzctl_err(VZCTL_E_CREATE_DIR, errno,
 					"Can't create directory %s", buf);
 		}
@@ -190,6 +190,11 @@ int make_dir(const char *path, int full)
 				"Can't create directory %s", path);
 	}
 	return 0;
+}
+
+int make_dir(const char *path, int full)
+{
+	return make_dir2(path, 0700, full);
 }
 
 static const char *get_pidfile(const ctid_t ctid, const char *sfx, char *out)

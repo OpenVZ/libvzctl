@@ -365,7 +365,7 @@ static int cg_create(const char *ctid, struct cg_ctl *ctl)
 	get_cgroup_name(ctid, ctl, path, sizeof(path));
 
 	logger(3, 0, "Create cgroup %s", path);
-	return make_dir(path, 1);
+	return make_dir2(path, 0755, 1);
 }
 
 static int rmdir_retry(int fd, const char *name)
