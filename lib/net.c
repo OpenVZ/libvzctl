@@ -702,8 +702,9 @@ int vzctl2_get_env_netstat(const ctid_t ctid, const char *dev,
 {
 	char d[PATH_MAX];
 	struct vzctl_netstat s = {};
+	int venet = strcmp(dev, "venet0") == 0;
 
-	if (strcmp(dev, "venet0") == 0) {
+	if (venet) {
 		pid_t pid;
 
 		if (read_init_pid(ctid, &pid))
@@ -720,7 +721,10 @@ int vzctl2_get_env_netstat(const ctid_t ctid, const char *dev,
 			get_netstat(d, "tx_packets", &s.outgoing_pkt))
 		return -1;
 
-	memcpy(stat, &s, size);
+	stat->incoming = venet ? s.incoming : s.outgoing;
+	stat->incoming_pkt = venet ? s.incoming_pkt : s.outgoing_pkt;
+	stat->outgoing = venet ? s.outgoing : s.incoming;
+	stat->outgoing_pkt = venet? s.outgoing_pkt :s.incoming_pkt;
 
 	return 0;
 }
