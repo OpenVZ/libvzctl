@@ -185,7 +185,7 @@ int make_dir2(const char *path, mode_t mode, int full)
 	if (!full)
 		return 0;
 	if (!stat_file(path)) {
-		if (mkdir(path, 0700) && errno != EEXIST)
+		if (mkdir(path, mode) && errno != EEXIST)
 			return vzctl_err(VZCTL_E_CREATE_DIR, errno,
 				"Can't create directory %s", path);
 	}
