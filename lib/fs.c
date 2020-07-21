@@ -43,6 +43,7 @@
 #include "env.h"
 #include "env_ops.h"
 #include "evt.h"
+#include "create.h"
 
 #ifndef MNT_DETACH
 #define MNT_DETACH      0x00000002
@@ -256,6 +257,9 @@ int vzctl2_env_umount(struct vzctl_env_handle *h, int flags)
 	if (is_env_run(h))
 		return vzctl_err(VZCTL_E_ENV_RUN, 0, "Unable to unmount"
 				" running Container: stop it first");
+
+	repair_finish(h);
+
 	if (!vzctl2_env_is_mounted(h)) {
 		if (flags & VZCTL_FORCE)
 			goto force;

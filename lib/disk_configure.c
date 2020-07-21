@@ -410,7 +410,7 @@ static int env_configure_disk(struct exec_disk_param *param)
 		}
 
 skip_configure:
-		if (param->automount) {
+		if (param->automount || disk->automount) {
 			if (mount(disk->partname, disk->mnt, disk->fstype, 0, NULL))
 				return vzctl_err(-1, errno, "Failed to mount %s %s",
 					disk->partname, disk->mnt);

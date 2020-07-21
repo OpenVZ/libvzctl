@@ -75,6 +75,7 @@
 #include "env_ops.h"
 #include "ha.h"
 #include "wrap.h"
+#include "create.h"
 
 #define ENVRETRY	3
 
@@ -981,6 +982,13 @@ int vzctl_env_start(struct vzctl_env_handle *h, int flags)
 	}
 
 	h->ctx->state = VZCTL_STATE_STARTING;
+	if (flags & VZCTL_ENV_START_REPAIR)
+	{
+		ret = repair_start(h);
+		if (ret)
+			goto err_pipe;
+	}
+
 	if (!(flags & VZCTL_SKIP_MOUNT)) {
 		/* If Container mounted umount first to cleanup mount state */
 		if (vzctl2_env_is_mounted(h)) {
@@ -1013,6 +1021,11 @@ int vzctl_env_start(struct vzctl_env_handle *h, int flags)
 
 	if (!(flags & VZCTL_SKIP_SETUP)) {
 		ret = vzctl2_apply_param(h, env, flags);
+		if (ret)
+			goto err;
+	}
+	if (flags & VZCTL_ENV_START_REPAIR) {
+		ret = repair_configure(h);
 		if (ret)
 			goto err;
 	}
@@ -1095,6 +1108,9 @@ err:
 		env_wait(param.pid, 0, NULL);
 
 err_pipe:
+	if (ret && (flags & VZCTL_ENV_START_REPAIR))
+		repair_finish(h);
+
 	deinit_runtime_ctx(h->ctx);
 	if (cidata_mnt) {
 		umount(cidata_mnt);

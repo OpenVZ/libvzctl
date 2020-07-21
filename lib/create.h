@@ -40,6 +40,9 @@ extern "C" {
 
 int vzctl_env_create(unsigned veid, struct vzctl_env_param *param, int flags);
 char *get_distribution(const char *ostmpl);
+int repair_start(struct vzctl_env_handle *h);
+int repair_configure(struct vzctl_env_handle *h);
+void repair_finish(struct vzctl_env_handle *h);
 
 #ifdef __cplusplus
 }

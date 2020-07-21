@@ -1476,3 +1476,88 @@ err1:
 	logger(-1, 0, "Container reinstall failed");
 	return VZCTL_E_REINSTALL;
 }
+
+static const char *get_repair_dir(struct vzctl_env_handle *h, char *out, int size)
+{
+	snprintf(out, size, "%s/disk.repair", h->env_param->fs->ve_private);
+	return out;
+}
+
+#define REPAIR_MNT	 "/ORIGINAL_MNT"
+
+static int add_repair_disk(struct vzctl_env_handle *h,
+		char *repair_disk, struct vzctl_disk *root_disk)
+{
+	struct vzctl_disk *d;
+	struct vzctl_disk_param p = {
+		.path = repair_disk,
+		.mnt = "/",
+	};
+
+	d = disk_param2disk(h, &p);
+	if (d == NULL)
+		return VZCTL_E_NOMEM;
+	add_disk(h->env_param->disk, d);
+
+	xstrdup(&root_disk->mnt, REPAIR_MNT);
+	root_disk->automount = 1;
+
+	return 0;
+}
+
+int repair_start(struct vzctl_env_handle *h)
+{
+	int ret;
+	struct vzctl_disk *root_disk;
+	const char *ostmpl = h->env_param->tmpl->ostmpl;
+	char repair_dir[PATH_MAX];
+	char repair_disk[PATH_MAX];
+
+	root_disk = find_root_disk(h->env_param->disk);
+	if (root_disk == NULL)
+		return vzctl_err(VZCTL_E_REINSTALL, 0, "Root disk is not configured"); 
+
+	get_repair_dir(h, repair_dir, sizeof(repair_dir));
+	get_root_disk_path(repair_dir, repair_disk, sizeof(repair_disk));
+	if (access(repair_dir, F_OK) == 0) {
+		logger(1, 0, "Old repair dir %s found will be deleted.", repair_dir);
+		vzctl2_umount_disk_image(repair_disk);
+		destroydir(repair_dir);
+	}
+
+	logger(0, 0, "Create repair disk %s", repair_dir);
+	ret = do_create_private(h, repair_dir, ostmpl, NULL, NULL,
+			h->env_param->fs->layout, 1, 0);
+	if (ret)
+		return ret;
+	ret = add_repair_disk(h, repair_disk, root_disk);
+	if (ret)
+		 destroydir(repair_dir);
+
+	return ret;
+}
+
+int repair_configure(struct vzctl_env_handle *h)
+{
+	struct cp_data data = {REPAIR_MNT "/etc", "/etc"};
+
+	logger(0, 0, "Copying Container credentials...");
+	if (vzctl_env_exec_fn(h, (execFn) copy_credentials, (void *) &data, 0))
+		return vzctl_err(-1, 0, "Failed to copy Container credentials");
+
+	return 0;
+}
+
+void repair_finish(struct vzctl_env_handle *h)
+{
+	char repair_dir[PATH_MAX];
+
+	get_repair_dir(h, repair_dir, sizeof(repair_dir));
+	if (access(repair_dir, F_OK) == 0) {
+		char repair_disk[PATH_MAX];
+
+		get_root_disk_path(repair_dir, repair_disk, sizeof(repair_disk));
+		vzctl2_umount_disk_image(repair_disk);
+		destroydir(repair_dir);
+	}
+}
