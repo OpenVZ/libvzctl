@@ -196,6 +196,7 @@
 #define VZCTL_E_AUTH_PSASHADOW		230
 #define VZCTL_E_UMOUNT_BUSY		231
 #define VZCTL_E_PLOOP			232
+#define VZCTL_E_NOTSUPP			233
 
 #define debug(level, fmt, args...)      logger(level, 0, fmt, ##args)
 

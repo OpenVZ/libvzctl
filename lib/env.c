@@ -2375,7 +2375,7 @@ int vzctl2_env_set_veth_param(struct vzctl_veth_dev *dev,
 		dev->configure_mode = tmp.configure_mode;
 
 	if (tmp.nettype) {
-		if (tmp.nettype != VZCTL_NETTYPE_BRIDGE)
+		if (tmp.nettype > VZCTL_NETTYPE_VNET)
 			return VZCTL_E_INVAL;
 		dev->nettype = tmp.nettype;
 	}
@@ -2462,7 +2462,10 @@ int vzctl2_env_get_veth_param(struct vzctl_veth_dev *dev, struct vzctl_veth_dev_
 	tmp.gw6 = dev->gw6;
 	tmp.configure_mode = dev->configure_mode;
 	tmp.nettype = dev->nettype;
-	tmp.vporttype = dev->vporttype;
+	if (dev->vporttype == 0)
+		tmp.vporttype = VZCTL_NETTYPE_VNET;
+	else
+		tmp.vporttype = dev->vporttype;
 
 	memcpy(res, &tmp, size);
 
