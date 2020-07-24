@@ -2461,11 +2461,11 @@ int vzctl2_env_get_veth_param(struct vzctl_veth_dev *dev, struct vzctl_veth_dev_
 	tmp.dhcp6 = dev->dhcp6 == VZCTL_PARAM_ON ? 1 : 0;
 	tmp.gw6 = dev->gw6;
 	tmp.configure_mode = dev->configure_mode;
-	tmp.nettype = dev->nettype;
-	if (dev->vporttype == 0)
-		tmp.vporttype = VZCTL_NETTYPE_VNET;
+	if (dev->nettype == 0)
+		tmp.nettype = VZCTL_NETTYPE_VNET;
 	else
-		tmp.vporttype = dev->vporttype;
+		tmp.nettype = dev->nettype;
+	tmp.vporttype = dev->vporttype;
 
 	memcpy(res, &tmp, size);
 
