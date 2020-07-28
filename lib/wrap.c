@@ -36,6 +36,11 @@ static int do_exec(char *const arg[])
 {
 	int pid;
 
+	if (vzctl2_get_log_quiet())
+		setenv("VZCTL_LOG_QUIET", "yes", 1);
+	if (vzctl2_get_log_progname())
+		 setenv("VZCTL_LOG_PROGNAME", vzctl2_get_log_progname(), 1);
+
 	pid = vfork();
 	if (pid == -1) {
 		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");

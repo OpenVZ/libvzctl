@@ -54,7 +54,11 @@ int main(int argc, char **argv)
 	if (vzctl2_parse_ctid(argv[2], ctid))
 		return VZCTL_E_INVAL;
 
-	vzctl2_init_log(basename(argv[0]));
+	vzctl2_init_log(getenv("VZCTL_LOG_PROGNAME") ?
+				getenv("VZCTL_LOG_PROGNAME") : basename(argv[0]));
+	if (getenv("VZCTL_LOG_QUIET"))
+		vzctl2_set_log_quiet(1);
+
 	vzctl2_set_ctx(ctid);
 	if ((ret = vzctl2_lib_init()))
 		return ret;
