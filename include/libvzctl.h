@@ -977,6 +977,7 @@ int vzctl2_set_log_verbose(int verbose);
 int vzctl2_get_log_verbose(void);
 int vzctl2_get_log_quiet(void);
 int vzctl2_set_log_quiet(int quiet);
+const char *vzctl2_get_log_progname();
 const char *vzctl2_get_last_error(void);
 void vzctl2_set_ctx(const ctid_t ctid);
 int vzctl2_set_log_file(const char *file);

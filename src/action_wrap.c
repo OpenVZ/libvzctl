@@ -45,14 +45,6 @@ int main(int argc, char **argv)
 	ctid_t ctid = {};
 	struct vzctl_env_handle *h;
 
-	vzctl2_init_log(basename(argv[0]));
-	while (argc > 1) {
-		if (!strcmp(argv[1], "--quiet")) {
-			vzctl2_set_log_quiet(1);
-		} else
-			break;
-		argc--; argv++;
-	}
 	if (argc < 3)
 		return usage();
 
@@ -61,6 +53,11 @@ int main(int argc, char **argv)
 	/* CTID */
 	if (vzctl2_parse_ctid(argv[2], ctid))
 		return VZCTL_E_INVAL;
+
+	vzctl2_init_log(getenv("VZCTL_LOG_PROGNAME") ?
+				getenv("VZCTL_LOG_PROGNAME") : basename(argv[0]));
+	if (getenv("VZCTL_LOG_QUIET"))
+		vzctl2_set_log_quiet(1);
 
 	vzctl2_set_ctx(ctid);
 	if ((ret = vzctl2_lib_init()))

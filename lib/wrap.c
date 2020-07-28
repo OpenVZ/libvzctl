@@ -36,6 +36,11 @@ static int do_exec(char *const arg[])
 {
 	int pid;
 
+	if (vzctl2_get_log_quiet())
+		setenv("VZCTL_LOG_QUIET", "yes", 1);
+	if (vzctl2_get_log_progname())
+		 setenv("VZCTL_LOG_PROGNAME", vzctl2_get_log_progname(), 1);
+
 	pid = vfork();
 	if (pid == -1) {
 		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
@@ -51,21 +56,14 @@ static int exec_action(struct vzctl_env_handle *h, char *action,
 		char *const arg[])
 {
 	int ret;
-	char **n, **t;
-	char *a[] = {VZCTL_ACTION_WRAP_BIN, !vzctl2_get_log_quiet() ? "--quiet" : "NULL", NULL};
-	char *o[] = {action, EID(h), NULL};
+	char **n;
+	char *a[] = {VZCTL_ACTION_WRAP_BIN, action, EID(h), NULL};
 
-	t = build_arg(a, o);
-	if (t == NULL)
+	n = build_arg(a, arg);
+	if (n == NULL)
 		return VZCTL_E_NOMEM;
-	n = build_arg(t, arg);
-	if (n == NULL) {
-		free(t);
-		return VZCTL_E_NOMEM;
-	}
 
 	ret = do_exec(n);
-	free(t);
 	free(n);
 
 	return ret;
