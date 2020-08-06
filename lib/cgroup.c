@@ -241,7 +241,7 @@ const char *cg_get_slice_name(void)
 
 	if (!inited) {
 		if (get_global_param("VE_CGROUP_SLICE", slice, sizeof(slice)))
-			strcat(slice, "machine.slice");
+			sprintf(slice, "machine.slice");
 		inited = 1;
 	}
 
