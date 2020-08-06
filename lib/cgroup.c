@@ -1264,6 +1264,21 @@ int cg_set_veid(const char *ctid, int veid)
 	return write_data(path, id);
 }
 
+int cg_read_freezer_state(const char *ctid, char *out, int size)
+{
+	int ret;
+	char path[STR_SIZE];
+
+	ret = cg_get_path(ctid, CG_FREEZER, "freezer.state", path, sizeof(path));
+	if (ret)
+		return ret;
+
+	if (access(path, F_OK))
+		return 0;
+
+	return cg_read(path, out, size);
+}
+
 static int cg_write_freezer_state(const char *ctid, const char *state)
 {
 	char buf[PATH_MAX];
