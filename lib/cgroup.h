@@ -97,4 +97,5 @@ int cg_get_veip(const char *ctid, list_head_t *list);
 int bindmount_env_cgroup(struct vzctl_env_handle *h);
 int cg_set_veid(const char *ctid, int veid);
 int cg_freezer_cmd(const char *ctid, int cmd);
+int cg_read_freezer_state(const char *ctid, char *out, int size);
 #endif
