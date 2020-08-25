@@ -19,7 +19,7 @@
 include $(top_srcdir)/pathsubst.am
 
 script_SCRIPTS = \
-		 criu-cgroup.conf \
+		 cgroup-props.conf \
 		 vz-announce_ips \
 		 vz-cpt-action \
 		 vz-cpt \
