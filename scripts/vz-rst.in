@@ -76,6 +76,7 @@ for s in $VE_EXT_MOUNT_MAP; do
 done
 
 action_script=@SCRIPTDIR@/vz-rst-action
+props_config=@SCRIPTDIR@/cgroup-props.conf
 
 d=$(dirname $VE_INIT_PIDFILE)
 [ ! -d "$d" ] && mkdir -p "$d"
@@ -112,7 +113,8 @@ exec criu restore -v$CRIU_LOGLEVEL $RESTORE_EXTRA_OPT	\
 		--file-locks				\
 		--tcp-established			\
 		--evasive-devices			\
-		--manage-cgroups			\
+		--manage-cgroups=full			\
+		--cgroup-props-file $props_config	\
 		--link-remap				\
 		--root $VE_ROOT				\
 		--restore-detached			\

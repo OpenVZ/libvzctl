@@ -31,6 +31,7 @@
 exec 1>&2
 
 action_script=@SCRIPTDIR@/vz-cpt-action
+props_config=@SCRIPTDIR@/cgroup-props.conf
 dumpdir="$VE_DUMP_DIR".tmp
 ext_mount_map=
 for s in $VE_CGROUP_MOUNT_MAP; do
@@ -114,6 +115,7 @@ criu dump -v$CRIU_LOGLEVEL -o dump.log				\
 		--tcp-established			\
 		--evasive-devices			\
 		--manage-cgroups			\
+		--cgroup-props-file $props_config	\
 		--link-remap				\
 		--root $VE_ROOT				\
 		--freeze-cgroup $VE_FREEZE_CG		\

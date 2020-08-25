@@ -1,0 +1,3 @@
+"name=systemd":
+ - "strategy": "merge"
+ - "properties": ["release_agent"]
