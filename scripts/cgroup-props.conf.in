@@ -1,3 +1,42 @@
+"blkio":
+ - "strategy": "merge"
+ - "properties": ["release_agent"]
+"cpu":
+ - "strategy": "merge"
+ - "properties": ["release_agent"]
+"cpuacct":
+ - "strategy": "merge"
+ - "properties": ["release_agent"]
+"cpuset":
+ - "strategy": "merge"
+ - "properties": ["release_agent"]
+"devices":
+ - "strategy": "merge"
+ - "properties": ["release_agent"]
+"freezer":
+ - "strategy": "merge"
+ - "properties": ["release_agent"]
+"hugetlb":
+ - "strategy": "merge"
+ - "properties": ["release_agent"]
+"memory":
+ - "strategy": "merge"
+ - "properties": ["release_agent"]
+"net_cls":
+ - "strategy": "merge"
+ - "properties": ["release_agent"]
+"net_prio":
+ - "strategy": "merge"
+ - "properties": ["release_agent"]
+"perf_event":
+ - "strategy": "merge"
+ - "properties": ["release_agent"]
+"pids":
+ - "strategy": "merge"
+ - "properties": ["release_agent"]
+"ve":
+ - "strategy": "merge"
+ - "properties": ["release_agent"]
 "name=systemd":
  - "strategy": "merge"
  - "properties": ["release_agent"]
