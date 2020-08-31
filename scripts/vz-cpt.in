@@ -33,6 +33,8 @@ exec 1>&2
 action_script=@SCRIPTDIR@/vz-cpt-action
 props_config=@SCRIPTDIR@/cgroup-props.conf
 dumpdir="$VE_DUMP_DIR".tmp
+cgroup_root="--cgroup-root /machine.slice/$VEID \
+--cgroup-root ve:/$VEID --cgroup-root beancounter:/$VEID --cgroup-root systemd:/$VEID"
 ext_mount_map=
 for s in $VE_CGROUP_MOUNT_MAP; do
 	ext_mount_map="$ext_mount_map --ext-mount-map $s"
@@ -128,6 +130,7 @@ criu dump -v$CRIU_LOGLEVEL -o dump.log				\
 		$nfs_actions				\
 		$ext_mount_map				\
 		$external				\
+		$cgroup_root				\
 		$CRIU_EXTRA_ARGS
 
 if [ $? -ne 0 ]; then
