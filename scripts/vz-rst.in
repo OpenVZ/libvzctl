@@ -54,7 +54,9 @@ for s in $VE_PLOOP_DEVS; do
 done
 
 ext_mount_map=
-cgroup_root="--cgroup-root ve:/$VEID --cgroup-root beancounter:/$VEID"
+cgroup_root="--cgroup-root /machine.slice/$VEID \
+--cgroup-root ve:/$VEID --cgroup-root beancounter:/$VEID --cgroup-root name=systemd:/$VEID"
+
 for s in $VE_CGROUP_MOUNT_MAP; do
 	ext_mount_map="$ext_mount_map --ext-mount-map $s"
 
@@ -64,11 +66,6 @@ for s in $VE_CGROUP_MOUNT_MAP; do
 	if [ -n "$netprio" ]; then
 		ext_mount_map="$ext_mount_map --ext-mount-map $netprio"
 	fi
-
-	ctl=${s%%:*}
-	t=${s#*/sys/fs/cgroup/}
-	root=${t#*/}
-	cgroup_root="$cgroup_root --cgroup-root $ctl:/$root"
 done
 
 for s in $VE_EXT_MOUNT_MAP; do
