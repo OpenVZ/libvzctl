@@ -30,11 +30,30 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <mntent.h>
+#include <fcntl.h>
+#include <linux/fs.h>
 
 #include "vzerror.h"
 #include "util.h"
 #include "logger.h"
 #include "bindmount.h"
+#include "exec.h"
+
+#ifndef OPEN_TREE_CLONE
+#define OPEN_TREE_CLONE	1
+#endif
+
+#ifndef MOVE_MOUNT_F_EMPTY_PATH
+#define MOVE_MOUNT_F_EMPTY_PATH	0x00000004
+#endif
+
+struct exec_bind_param {
+	int fd;
+	const char *src;
+	const char *dst;
+	int flags;
+	int op;
+};
 
 static struct mount_opt {
 	char *name;
@@ -345,7 +364,98 @@ static int get_mount_flags(const char *dir, int *flags)
 	return 0;
 }
 
-static int bind_mount(struct vzctl_env_handle *h, struct vzctl_bindmount *mnt)
+static int open_tree(int dirfd, const char *pathname, unsigned int flags) {
+	return syscall(428, dirfd, pathname, flags);
+}
+
+static int move_mount(int from_dirfd, const char *from_pathname, int to_dirfd,
+		const char *to_pathname, unsigned int flags) {
+	return syscall(429, from_dirfd, from_pathname, to_dirfd, to_pathname, flags);
+}
+
+static int set_mount_flags(const char *mnt, int flags)
+{
+	if (flags && mount("", mnt, "", flags | MS_REMOUNT | MS_BIND, NULL))
+                return vzctl_err(1, errno, "Cannot apply bind-mount flags: %s", mnt);
+	return 0;
+}
+
+static int live_bind_mount(struct exec_bind_param *param)
+{
+	if (param->op == DEL) {
+		if (umount2(param->dst, MNT_DETACH))
+			return vzctl_err(VZCTL_E_UMOUNT, errno, "Can't umount %s", param->dst);
+		return 0;
+	}
+
+	if (move_mount(param->fd, "", AT_FDCWD, param->dst, MOVE_MOUNT_F_EMPTY_PATH))
+		return vzctl_err(1, errno, "Can't move_mount %s -> %s",\
+				param->src, param->dst);
+
+	if (set_mount_flags(param->dst, param->flags)) {
+		umount(param->dst);
+		return 1;
+	}
+
+	return 0;
+}
+
+static int do_live_bind_mount(struct vzctl_env_handle *h, const char *src,
+		const char *dst, int op, int flags)
+{
+	int ret = VZCTL_E_MOUNT;
+	char path[64];
+	struct exec_bind_param param = {
+		.fd = -1,
+		.src = src,
+		.dst = dst,
+		.flags = flags,
+		.op = op,
+	};
+
+	if (op == DEL)
+		return vzctl_env_exec_fn(h, (execFn) live_bind_mount, &param, 0);
+
+	param.fd = open_tree(AT_FDCWD, src, OPEN_TREE_CLONE);
+	if (param.fd == -1)
+		return vzctl_err(VZCTL_E_MOUNT, errno, "open_tree(%s)", src);
+
+	snprintf(path, sizeof(path), "/proc/self/fd/%d", param.fd);
+	if (mount(NULL, path, NULL, MS_PRIVATE, NULL)) {
+		vzctl_err(VZCTL_E_MOUNT, errno,
+				"Cannot remount bind mount %s as private", dst);
+		goto err;
+	}
+
+	if (vzctl_env_exec_fn(h, (execFn) live_bind_mount, &param, 0))
+		goto err;
+	ret = 0;
+
+err:
+	close(param.fd);
+
+	return ret;
+}
+
+static int do_bind_mount(const char *src, const char *dst, int flags)
+{
+	if (mount(src, dst, "", MS_BIND, NULL) < 0)
+		return vzctl_err(VZCTL_E_MOUNT, errno,
+			"Cannot bind-mount: %s %s", src, dst);
+
+	if (mount(NULL, dst, NULL, MS_PRIVATE | MS_REC, NULL) < 0)
+		return vzctl_err(VZCTL_E_MOUNT, errno,
+			"Cannot remount bind mount %s as private", dst);
+
+	if (set_mount_flags(dst, flags)) {
+		umount(dst);
+		return VZCTL_E_MOUNT;
+	}
+
+	return 0;
+}
+
+static int bind_mount(struct vzctl_env_handle *h, struct vzctl_bindmount *mnt, int live)
 {
 	char s[STR_SIZE];
 	char d[PATH_MAX];
@@ -354,6 +464,9 @@ static int bind_mount(struct vzctl_env_handle *h, struct vzctl_bindmount *mnt)
 	char *root = h->env_param->fs->ve_root;
 
 	snprintf(d, sizeof(d), "%s/%s", root, mnt->dst);
+	if (mnt->op == DEL)
+		goto set;
+
 	if (lstat(d, &st)) {
 		if (errno != ENOENT)
 			return vzctl_err(VZCTL_E_MOUNT, 0,
@@ -382,26 +495,19 @@ static int bind_mount(struct vzctl_env_handle *h, struct vzctl_bindmount *mnt)
 			return VZCTL_E_MOUNT;
 	}
 
-	logger(0, 0, "Set up the bind mount: %s", s);
+set:
+	if (mnt->op == ADD)
+		logger(0, 0, "Set up the bind mount: %s at %s", s, d);
+	else
+		logger(0, 0, "Unmount %s", d);
+	if (live)
+		return do_live_bind_mount(h, s, mnt->dst, mnt->op, flags);
 
-	if (mount(s, d, "", MS_BIND, NULL) < 0)
-		return vzctl_err(VZCTL_E_MOUNT, errno,
-			"Cannot bind-mount: %s %s", s, d);
-
-	if (mount(NULL, d, NULL, MS_PRIVATE | MS_REC, NULL) < 0)
-		return vzctl_err(VZCTL_E_MOUNT, errno,
-			"Cannot remount bind mount %s as private", d);
-
-	/* apply flags */
-	if (flags && mount(s, d, "", flags | MS_REMOUNT | MS_BIND, NULL))
-		return vzctl_err(VZCTL_E_MOUNT, errno,
-				"Cannot apply bind-mount flags: %s %s", s, d);
-
-	return 0;
+	return do_bind_mount(s, d, flags);
 }
 
 int vzctl2_bind_mount(struct vzctl_env_handle *h,
-		struct vzctl_bindmount_param *mnt, int flags)
+		struct vzctl_bindmount_param *mnt, int live)
 {
 	int ret;
 	struct vzctl_bindmount *it;
@@ -410,7 +516,7 @@ int vzctl2_bind_mount(struct vzctl_env_handle *h,
 		return 0;
 
 	list_for_each(it, &mnt->mounts, list) {
-		ret = bind_mount(h, it);
+		ret = bind_mount(h, it, live);
 		if (ret)
 			return ret;
 	}

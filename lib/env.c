@@ -1475,11 +1475,6 @@ static int check_setmode(struct vzctl_env_handle *h, struct vzctl_env_param *env
 			h->env_param->dq->journaled_quota != env->dq->journaled_quota)
 		ret = vzctl_err(VZCTL_E_ENV_RUN, 0, "Unable to change quota mode"
 				" for the running Container");
-
-	if (!list_empty(&env->bindmount->mounts))
-		ret = vzctl_err(VZCTL_E_ENV_RUN, 0, "Unable to set bind mounts"
-				" for the running Container");
-
 	if (env->features->nf_mask &&
 			env->features->nf_mask != h->env_param->features->nf_mask)
 		ret = vzctl_err(VZCTL_E_ENV_RUN, 0, "Unable to set"
@@ -1558,6 +1553,12 @@ int vzctl2_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 			}
 		}
 
+
+		if (!list_empty(&env->bindmount->mounts)) {
+			ret = vzctl2_bind_mount(h, env->bindmount, 1);
+			if (ret)
+				goto err;
+		}
 		if (!run && env->dq->ugidlimit && *env->dq->ugidlimit == 0 &&
 			h->env_param->dq->ugidlimit && *h->env_param->dq->ugidlimit)
 		{
