@@ -537,6 +537,7 @@ struct vzctl_reinstall_param {
 enum {
 	VZCTL_MEM_GUARANTEE_AUTO = 0,
 	VZCTL_MEM_GUARANTEE_PCT,
+	VZCTL_MEM_GUARANTEE_BYTES,
 };
 
 struct vzctl_mem_guarantee {

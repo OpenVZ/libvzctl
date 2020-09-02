@@ -155,7 +155,10 @@ static int get_vcmm_config(struct vzctl_env_handle *h,
 		mem = ub->physpages->l * get_pagesize();
 		mem_p = &mem;
 		/* scale guaranty on memlimit change */
-		if (guar == NULL && guar_bytes_cur != 0) {
+		if (guar == NULL && guar_bytes_cur != 0 &&
+			h->env_param->res->memguar != NULL &&
+			h->env_param->res->memguar->type == VZCTL_MEM_GUARANTEE_PCT)
+		{
 			guar_def.type = VZCTL_MEM_GUARANTEE_PCT;
 			if (mem_cur)
 				guar_def.value = ((float)guar_bytes_cur / mem_cur) * 100;
@@ -169,12 +172,18 @@ static int get_vcmm_config(struct vzctl_env_handle *h,
 	}
 
 	if (guar != NULL) {
-		x = (guar->type == VZCTL_MEM_GUARANTEE_AUTO) ?
-				0 : guar->value;
-
-		guar_bytes = ((float)mem * x) / 100;
-
-		logger(0, 0, "Configure memguarantee: %lu%%", x);
+		switch (guar->type) {
+		case VZCTL_MEM_GUARANTEE_AUTO:
+			guar_bytes = 0;
+			break;
+		case VZCTL_MEM_GUARANTEE_PCT:
+			logger(0, 0, "Configure memguarantee: %lu%%", guar->value);
+			guar_bytes = ((float)mem * guar->value) / 100;
+			break;
+		case VZCTL_MEM_GUARANTEE_BYTES:
+			guar_bytes = guar->value;
+			break;
+		}
 		guar_p = &guar_bytes;
 	}
 

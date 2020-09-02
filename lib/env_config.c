@@ -191,6 +191,7 @@ static struct vzctl_config_param config_param_map[] = {
 {"RATEBOUND",	VZCTL_PARAM_RATEBOUND},
 
 {"MEMGUARANTEE",VZCTL_PARAM_MEM_GUARANTEE},
+{"MEMGUARANTEE_BYTES", VZCTL_PARAM_MEM_GUARANTEE_BYTES},
 {"PAGECACHE_ISOLATION",VZCTL_PARAM_PAGECACHE_ISOLATION},
 {"NUMMEMORYSUBGROUPS", VZCTL_PARAM_NUMMEMORYSUBGROUPS},
 {"NUMNETIF", VZCTL_PARAM_NUMNETIF},
@@ -212,16 +213,17 @@ static int parse_str(char **dst, const char *src, int replace)
 	return xstrdup(dst, src);
 }
 
-static int parse_memguar(struct vzctl_res_param *res, const char *str)
+static int parse_memguar(struct vzctl_res_param *res, const char *str,
+		int in_bytes)
 {
-	struct vzctl_mem_guarantee x = {};
+	struct vzctl_mem_guarantee x = {
+		.type = in_bytes ? VZCTL_MEM_GUARANTEE_BYTES :
+				VZCTL_MEM_GUARANTEE_PCT};
 
 	if (strcmp(str, "auto") == 0) {
 		x.type = VZCTL_MEM_GUARANTEE_AUTO;
-	} else {
-		x.type = VZCTL_MEM_GUARANTEE_PCT;
-		if (parse_ul(str, &x.value))
-			return VZCTL_E_INVAL;
+	} else if (parse_ul(str, &x.value)) {
+		return VZCTL_E_INVAL;
 	}
 
 	if (res->memguar == NULL) {
@@ -239,7 +241,7 @@ static char *memguar2str(struct vzctl_mem_guarantee *memguar)
 {
 	char x[12] = "auto";
 
-	if (memguar->type == VZCTL_MEM_GUARANTEE_PCT)
+	if (memguar->type != VZCTL_MEM_GUARANTEE_AUTO)
 		snprintf(x, sizeof(x), "%lu", memguar->value);
 
 	return strdup(x);
@@ -755,9 +757,11 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 		env->vz->tc->ratebound = id;
 		break;
 	case VZCTL_PARAM_MEM_GUARANTEE:
+	case VZCTL_PARAM_MEM_GUARANTEE_BYTES:
 		if (env->res->memguar != NULL && !replace)
 			break;
-		ret = parse_memguar(env->res, str);
+		ret = parse_memguar(env->res, str,
+				param_id == VZCTL_PARAM_MEM_GUARANTEE_BYTES);
 		break;
 	case VZCTL_PARAM_PAGECACHE_ISOLATION:
 		if ((id = yesno2id(str)) == -1)
@@ -1334,8 +1338,16 @@ static char *env_param2str(struct vzctl_env_handle *h,
 			return strdup(id2yesno(env->vz->tc->ratebound ));
 		break;
 	case VZCTL_PARAM_MEM_GUARANTEE:
-		if (env->res->memguar != NULL)
+		if (env->res->memguar != NULL) {
+			vzctl_conf_del_param(h->conf, "MEMGUARANTEE_BYTES");
 			return memguar2str(env->res->memguar);
+		}
+		break;
+	case VZCTL_PARAM_MEM_GUARANTEE_BYTES:
+		if (env->res->memguar != NULL) {
+			vzctl_conf_del_param(h->conf, "MEMGUARANTEE");
+			return memguar2str(env->res->memguar);
+		}
 		break;
 	case VZCTL_PARAM_PAGECACHE_ISOLATION:
 		if (env->res->ub->pagecache_isolation)
