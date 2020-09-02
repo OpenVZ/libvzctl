@@ -39,7 +39,6 @@
 #include "bitmap.h"
 
 #define VCMMCTL_BIN     "/usr/sbin/vcmmdctl"
-#define DEFAULT_MEM_GUARANTEE_PCT	0
 static int vcmm_error(int rc, const char *msg)
 {
 	char buf[STR_SIZE];
@@ -137,21 +136,14 @@ static int get_vcmm_config(struct vzctl_env_handle *h,
 	int ret;
 	unsigned long *mem_p = NULL, *swap_p = NULL, *guar_p = NULL;
 	unsigned long mem, swap, guar_bytes;
-	unsigned long mem_cur, guar_bytes_cur;
+	unsigned long mem_cur, guar_bytes_cur = 0;
 	unsigned long x;
 	struct vzctl_mem_guarantee *guar = env->res->memguar;
 	struct vzctl_mem_guarantee guar_def = {
 		.type = VZCTL_MEM_GUARANTEE_AUTO
 	};
 
-	if (init) {
-		if (ub->physpages == NULL)
-			return vzctl_err(VZCTL_E_INVAL, 0,
-				"physpages parameter is not set");
-		/* use default garanty if not set */
-		if (guar == NULL)
-			guar = &guar_def;
-	} else if (ub->physpages == NULL || guar == NULL) {
+	if (!init && (ub->physpages == NULL || guar == NULL)) {
 		ret = vcmm_get_param(EID(h), &mem_cur, &x, &guar_bytes_cur);
 		if (ret)
 			return ret;
@@ -162,8 +154,8 @@ static int get_vcmm_config(struct vzctl_env_handle *h,
 	if (ub->physpages != NULL) {
 		mem = ub->physpages->l * get_pagesize();
 		mem_p = &mem;
-		/* scale guaranty on memlimit chage */
-		if (guar == NULL) {
+		/* scale guaranty on memlimit change */
+		if (guar == NULL && guar_bytes_cur != 0) {
 			guar_def.type = VZCTL_MEM_GUARANTEE_PCT;
 			if (mem_cur)
 				guar_def.value = ((float)guar_bytes_cur / mem_cur) * 100;
@@ -178,7 +170,7 @@ static int get_vcmm_config(struct vzctl_env_handle *h,
 
 	if (guar != NULL) {
 		x = (guar->type == VZCTL_MEM_GUARANTEE_AUTO) ?
-				DEFAULT_MEM_GUARANTEE_PCT : guar->value;
+				0 : guar->value;
 
 		guar_bytes = ((float)mem * x) / 100;
 
