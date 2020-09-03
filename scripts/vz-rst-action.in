@@ -31,9 +31,40 @@ exec 1>&2
 
 action_script=@SCRIPTDIR@/vz-rst-action
 
+update_devices()
+{
+	local olddev=$1
+	local newdev=$2
+	local major=$3
+	local minor=$4
+	local omj omr mj mr
+	local dir=${olddev%/*}
+
+	rm -f $newdev
+	mknod -m 660 $newdev b $major $minor
+	[ -e "$olddev" ] || return
+
+	omj=$(stat -c %t $olddev)
+	omj=$(printf "%d" 0x$omj)
+	omr=$(stat -c %T $olddev)
+	omr=$(printf "%d" 0x$omr)
+	for n in `ls -1 $dir`; do
+		mj=$(stat -c %t $dir/$n)
+		mj=$(printf "%d" 0x$mj)
+
+		mr=$(stat -c %T $dir/$n)
+		mr=$(printf "%d" 0x$mr)
+
+		if [ "$mj" = "$omj" -a "$mr" = "$omr" ]; then
+			rm -f $dir/$n
+			mknod -m 660 $dir/$n b $major $minor
+		fi
+	done
+}
+
 restore_devices()
 {
-	local s d t major minor old dir device
+	local s d t major minor old dir device pfx
 	local pid=$CRTOOLS_INIT_PID
 
 	if [ -z "$VZ_RST_USE_NSENTER" ]; then
@@ -42,7 +73,13 @@ restore_devices()
 		exit 0
 	fi
 
-	for root in $CRIU_DEVTMPFS $CRIU_MNT_NS_ROOTS; do
+	if [ -n "$CRIU_DEVTMPFS" ]; then
+		MNT=$CRIU_DEVTMPFS
+	else
+		MNT=$CRIU_MNT_NS_ROOTS
+		pfx=dev
+	fi
+	for root in $MNT; do
 		# VE_PLOOP_DEVS=UUID@ploopN:major:minor:[root]
 		for s in $VE_PLOOP_DEVS; do
 			uuid=${s%%@*}
@@ -53,22 +90,14 @@ restore_devices()
 			t=${t#*:}
 			minor=${t%%:*}
 
-			[ ! -L "$root/dev/$uuid" ] && continue
+			[ ! -L "$root/$pfx/$uuid" ] && continue
 
-			old=$(readlink $root/dev/$uuid)
+			old=$(readlink $root/$pfx/$uuid)
 			[ -z "$old" ] && continue
+			# /dev/ploopXXX -> ploopXXX
+			old=${old##*/}
 
-			for d in "${old}" "${device}"; do
-				dir=$root/$d
-				dir=${dir%/*}
-				if [ -e "$dir" ]; then
-					rm -f $root/$d
-				else
-					mkdir -p $dir
-				fi
-				mknod -m 660 $root/$d b $major $minor
-			done
-
+			update_devices "$root/$pxf/$old" "$root/$pfx/$device" $major $minor
 			rm -f $root/dev/$uuid
 		done
 	done
