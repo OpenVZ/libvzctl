@@ -2121,8 +2121,8 @@ int vzctl2_env_get_ramsize(struct vzctl_env_param *env, unsigned long *ramsize)
 int vzctl2_env_set_memguarantee(vzctl_env_param_ptr env,
                 struct vzctl_mem_guarantee *param)
 {
-	if (param->type != VZCTL_MEM_GUARANTEE_AUTO &&
-			param->type != VZCTL_MEM_GUARANTEE_PCT)
+	if (param->type < 0 || 
+			param->type > VZCTL_MEM_GUARANTEE_BYTES)
 		return VZCTL_E_INVAL;
 
 	if (env->res->memguar == NULL) {
