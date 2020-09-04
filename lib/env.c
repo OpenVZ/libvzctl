@@ -2140,11 +2140,13 @@ int vzctl2_env_set_memguarantee(vzctl_env_param_ptr env,
 int vzctl2_env_get_memguarantee(vzctl_env_param_ptr env,
 		struct vzctl_mem_guarantee *param)
 {
-	if (env->res->memguar == NULL)
-		return VZCTL_E_NOT_INITIALIZED;
-
-	param->type = env->res->memguar->type;
-	param->value = env->res->memguar->value;
+	if (env->res->memguar == NULL) {
+		param->type = VZCTL_MEM_GUARANTEE_AUTO;
+		param->value = 0;
+	} else {
+		param->type = env->res->memguar->type;
+		param->value = env->res->memguar->value;
+	}
 
 	return 0;
 }
