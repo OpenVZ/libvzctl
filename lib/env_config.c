@@ -1338,13 +1338,15 @@ static char *env_param2str(struct vzctl_env_handle *h,
 			return strdup(id2yesno(env->vz->tc->ratebound ));
 		break;
 	case VZCTL_PARAM_MEM_GUARANTEE:
-		if (env->res->memguar != NULL) {
+		if (env->res->memguar != NULL &&
+				env->res->memguar->type != VZCTL_MEM_GUARANTEE_BYTES) {
 			vzctl_conf_del_param(h->conf, "MEMGUARANTEE_BYTES");
 			return memguar2str(env->res->memguar);
 		}
 		break;
 	case VZCTL_PARAM_MEM_GUARANTEE_BYTES:
-		if (env->res->memguar != NULL) {
+		if (env->res->memguar != NULL &&
+				env->res->memguar->type == VZCTL_MEM_GUARANTEE_BYTES) {
 			vzctl_conf_del_param(h->conf, "MEMGUARANTEE");
 			return memguar2str(env->res->memguar);
 		}
