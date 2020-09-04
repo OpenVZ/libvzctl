@@ -1554,7 +1554,7 @@ int vzctl2_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 		}
 
 
-		if (!list_empty(&env->bindmount->mounts)) {
+		if (!list_empty(&env->bindmount->mounts) && run) {
 			ret = vzctl2_bind_mount(h, env->bindmount, 1);
 			if (ret)
 				goto err;
