@@ -1279,7 +1279,7 @@ int cg_read_freezer_state(const char *ctid, char *out, int size)
 	return cg_read(path, out, size);
 }
 
-static int cg_write_freezer_state(const char *ctid, const char *state)
+static int cg_write_freezer_state(const char *ctid, const char *state, int rec)
 {
 	char buf[PATH_MAX];
 	struct vzctl_str_param *it;
@@ -1288,9 +1288,12 @@ static int cg_write_freezer_state(const char *ctid, const char *state)
 
 	if (cg_get_path(ctid, CG_FREEZER, "", buf, sizeof(buf)))
 		return VZCTL_E_SYSTEM;
-	
-	if (get_dir_list(&head, buf, -1))
-		return VZCTL_E_SYSTEM;
+
+	if (rec) {
+		if (get_dir_list(&head, buf, -1))
+			return VZCTL_E_SYSTEM;
+	} else
+		add_str_param(&head, buf);
 
 	list_for_each(it, &head, list) {
 		snprintf(buf, sizeof(buf), "%s/freezer.state", it->str);
@@ -1325,7 +1328,7 @@ static int cg_wait_freezer_state(const char *ctid, const char *state)
 			state);
 }
 
-int cg_freezer_cmd(const char *ctid, int cmd)
+int cg_freezer_cmd(const char *ctid, int cmd, int rec)
 {
 	int ret;
 	const char *state, *rollback;
@@ -1347,7 +1350,7 @@ int cg_freezer_cmd(const char *ctid, int cmd)
 		return vzctl_err(-1, 0, "Unsupported freezer command %d", cmd);
 	}
 
-	ret = cg_write_freezer_state(ctid, state);
+	ret = cg_write_freezer_state(ctid, state, rec);
 	if (ret)
 		goto err;
 
@@ -1355,7 +1358,7 @@ int cg_freezer_cmd(const char *ctid, int cmd)
 
 err:
 	if (ret)
-		cg_write_freezer_state(ctid, rollback);
+		cg_write_freezer_state(ctid, rollback, rec);
 
 	return ret;
 }
