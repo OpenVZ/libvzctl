@@ -1197,14 +1197,14 @@ static int ns_env_stop_force(struct vzctl_env_handle *h)
 	if (ret)
 		return ret;
 
-	ret = cg_freezer_cmd(EID(h), VZCTL_CMD_FREEZE);
+	ret = cg_freezer_cmd(EID(h), VZCTL_CMD_FREEZE, 1);
 	if (ret)
 		return ret;
 
 	rc = ns_env_kill(h);
 
 	/* Unfreeze unconditionally */
-	ret = cg_freezer_cmd(EID(h), VZCTL_CMD_RESUME);
+	ret = cg_freezer_cmd(EID(h), VZCTL_CMD_RESUME, 1);
 	if (ret || rc)
 		return ret ?: rc;
 
@@ -1480,7 +1480,7 @@ static int env_resume(struct vzctl_env_handle *h, int status)
 	env_wait(h->ctx->pid, 0, &ret);
 	h->ctx->pid = -1;
 
-	cg_freezer_cmd(EID(h), VZCTL_CMD_RESUME);
+	cg_freezer_cmd(EID(h), VZCTL_CMD_RESUME, 0);
 
 	return ret;
 }
@@ -1490,11 +1490,11 @@ static int ns_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 {
 	switch(cmd) {
 	case VZCTL_CMD_SUSPEND:
-		return cg_freezer_cmd(EID(h), VZCTL_CMD_SUSPEND);
+		return cg_freezer_cmd(EID(h), VZCTL_CMD_SUSPEND, 0);
 	case VZCTL_CMD_RESUME:
 		if (h->ctx->state == VZCTL_STATE_CHECKPOINTING)
 			return env_resume(h, flags);
-		return cg_freezer_cmd(EID(h), cmd);
+		return cg_freezer_cmd(EID(h), cmd, 0);
 	case VZCTL_CMD_DUMP:
 	case VZCTL_CMD_DUMP_LEAVE_FROZEN:
 		return env_dump(h, cmd, param);
