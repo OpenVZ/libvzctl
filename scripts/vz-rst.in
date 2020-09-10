@@ -107,6 +107,7 @@ eval $(. /etc/vz/vz.conf && echo RESTORE_EXTRA_OPT=\"$RESTORE_EXTRA_OPT\")
 CRIU_LOGLEVEL=4
 [ -n "$VE_CRIU_PIDFILE" ] && echo $$ > $VE_CRIU_PIDFILE
 exec criu restore -v$CRIU_LOGLEVEL $RESTORE_EXTRA_OPT	\
+		--skip-freezer-state			\
 		--file-locks				\
 		--tcp-established			\
 		--evasive-devices			\
