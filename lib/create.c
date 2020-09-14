@@ -1483,7 +1483,7 @@ static const char *get_repair_dir(struct vzctl_env_handle *h, char *out, int siz
 	return out;
 }
 
-#define REPAIR_MNT	 "/ORIGINAL_MNT"
+#define REPAIR_MNT	 "/repair"
 
 static int add_repair_disk(struct vzctl_env_handle *h,
 		char *repair_disk, struct vzctl_disk *root_disk)
