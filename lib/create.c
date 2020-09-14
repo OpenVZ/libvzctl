@@ -295,7 +295,7 @@ static int update_param(struct vzctl_env_handle *h)
 	return 0;
 }
 
-static int create_private_ploop(struct vzctl_env_handle *h, const char *dst,
+static int create_private_ploop(const char *dst, unsigned long size,
 		const char *tarball, int layout, int flags)
 {
 	char buf[PATH_MAX + 15];
@@ -352,13 +352,8 @@ static int create_private_ploop(struct vzctl_env_handle *h, const char *dst,
 					buf);
 	}
 
-	if (h->env_param->dq->diskspace != NULL) {
-		unsigned long size = get_disk_size(h->env_param->dq->diskspace->l);
-		ret = vzctl2_resize_disk_image(data_root, size, 0);
-		if (ret)
-			return ret;
-		h->env_param->dq->diskspace->b = h->env_param->dq->diskspace->l = size;
-	}
+	if (size)
+		return vzctl2_resize_disk_image(data_root, size, 0);
 
 	return 0;
 }
@@ -369,6 +364,8 @@ static int do_create_private(struct vzctl_env_handle *h, const char *dst,
 {
 	int ret;
 	char tarball[PATH_MAX];
+	unsigned long size = h->env_param->dq->diskspace ?
+		get_disk_size(h->env_param->dq->diskspace->l) : 0;
 
 	if (h->env_param->disk->root == VZCTL_PARAM_OFF ||
 			ostmpl[0] == '\0')
@@ -393,7 +390,81 @@ static int do_create_private(struct vzctl_env_handle *h, const char *dst,
 
 	logger(0, 0, "Creating Container private area (%s) with applications "
 			"from config (%s)", h->env_param->tmpl->ostmpl, vzpkg_conf);
-	return create_private_ploop(h, dst, tarball, layout, flags);
+	ret = create_private_ploop(dst, size, tarball, layout, flags);
+	if (ret == 0 && size)
+		h->env_param->dq->diskspace->b = h->env_param->dq->diskspace->l = size;
+
+	return ret;
+}
+
+static int do_set_fs_uuid(struct vzctl_disk *disk)
+{
+	struct stat st_d, st_p;
+	char *tune2fs[] = {"/sbin/tune2fs", "-Urandom", NULL, NULL};
+
+	tune2fs[2] = (char *)get_fs_partname(disk);
+	vzctl2_wrap_exec_script(tune2fs, NULL, 0);
+
+	// Check for partition
+	if (stat(disk->devname, &st_d) == 0 &&
+			stat(disk->partname, &st_p) == 0 &&
+			st_d.st_rdev != st_p.st_rdev)
+	{
+		char *sgdisk[] = {"/usr/sbin/sgdisk", "-G", disk->devname, NULL};
+		vzctl2_wrap_exec_script(sgdisk, NULL, 0);
+	}
+
+	return 0;
+}
+
+int vzctl2_prepare_root_image(const char *dst, const char *ostemplate,
+		struct vzctl_create_image_param *param)
+{
+	int ret;
+	char *ostmpl;
+	char tarball[PATH_MAX];
+	struct vzctl_mount_param m = {};
+	struct vzctl_disk d = {.path = (char *)dst};
+
+	if (dst == NULL || ostemplate == NULL)
+		return VZCTL_E_INVAL;
+
+	if (access(dst, F_OK) == 0)
+		return vzctl_err(VZCTL_E_INVAL, EEXIST, "Cannot create %s", dst);
+
+	ostmpl = strdup(ostemplate);
+	ret = vztmpl_get_cache_tarball(NULL, &ostmpl,
+				vzctl2_layout2fstype(VZCTL_LAYOUT_5),
+				NULL, 1, tarball, sizeof(tarball));
+	if (ret)
+		goto err;
+
+	logger(0, 0, "Creating Container root image at %s (%s)", dst, ostmpl);
+
+	ret = create_private_ploop(dst, param->size, tarball, VZCTL_LAYOUT_4, 0);
+	if (ret)
+		goto err;
+
+	ret = mount_ploop_image(NULL, &d, &m);
+	if (ret)
+		goto err;
+
+	ret = update_disk_info(NULL, &d);
+	if (ret) {
+		vzctl2_umount_disk_image(dst);
+		goto err;
+	}
+	do_set_fs_uuid(&d);
+
+	vzctl2_umount_disk_image(dst);
+	
+	ret = 0;
+	logger(0, 0, "Image was succesfully created at %s", dst);
+err:
+	if (ret)
+		destroydir(dst);
+	free(ostmpl);
+	return ret;
 }
 
 #define TMP_SFX	".private_temporary"
@@ -527,8 +598,6 @@ static int merge_create_param(struct vzctl_env_handle *h, struct vzctl_env_param
 static void set_fs_uuid(struct vzctl_env_handle *h)
 {
 	struct vzctl_disk *d;
-	struct stat st_d, st_p;
-	char *tune2fs[] = {"/sbin/tune2fs", "-Urandom", NULL, NULL};
 
 	list_for_each(d, &h->env_param->disk->disks, list) {
 		if (d->use_device)
@@ -542,17 +611,7 @@ static void set_fs_uuid(struct vzctl_env_handle *h)
 			}
 		}
 
-		tune2fs[2] = (char *)get_fs_partname(d);
-		vzctl2_wrap_exec_script(tune2fs, NULL, 0);
-
-		// Check for partition
-		if (stat(d->devname, &st_d) == 0 &&
-			stat(d->partname, &st_p) == 0 &&
-			st_d.st_rdev != st_p.st_rdev)
-		{
-			char *sgdisk[] = {"/usr/sbin/sgdisk", "-G", d->devname, NULL};
-			vzctl2_wrap_exec_script(sgdisk, NULL, 0);
-		}
+		do_set_fs_uuid(d);
 	}
 }
 
