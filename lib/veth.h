@@ -35,7 +35,8 @@
 
 #define PROC_VETH	"/proc/vz/veth"
 
-#define SW_OUI		0x001851
+/* #define SW_OUI		0x001851 */
+#define VZ_OUI		0xC43772
 
 #define VETH_ACTIVE		0x0001
 

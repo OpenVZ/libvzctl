@@ -727,7 +727,7 @@ void test_config_VETH_ip(vzctl_env_handle_ptr h)
 	dev.gw = "1.1.1.1";
 	dev.network = "bridged";
 	dev.mac = "00C4B2010000";
-	dev.mac_ve = "001851A38559";
+	dev.mac_ve = "C43772A38559";
 
 	CHECK_PTR(it_dev, vzctl2_create_veth_dev(&dev, sizeof(struct vzctl_veth_dev_param)))
 

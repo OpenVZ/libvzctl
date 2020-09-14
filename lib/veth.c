@@ -196,9 +196,9 @@ void generate_mac(char **mac, int fix)
 	uuid_generate(u);
 	hash = hash32(u);
 
-	hwaddr[0] = (char) (SW_OUI >> 0xf);
-	hwaddr[1] = (char) (SW_OUI >> 0x8);
-	hwaddr[2] = (char) SW_OUI;
+	hwaddr[0] = (char) (VZ_OUI >> 0x10);
+	hwaddr[1] = (char) (VZ_OUI >> 0x8);
+	hwaddr[2] = (char) VZ_OUI;
 	hwaddr[3] = (char) hash;
 	hwaddr[4] = (char) (hash >> 0x8);
 	hwaddr[5] = (char) (hash >> 0xf);
