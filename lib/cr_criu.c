@@ -106,13 +106,6 @@ static int make_ext_mount_args(struct vzctl_env_handle *h, int cpt, char *out,
 	return 0;
 }
 
-static const char *get_basename(const char *path)
-{
-	char *x = strrchr(path, '/');
-
-	return x ? ++x : path;
-}
-
 static int make_ploop_dev_args(struct vzctl_env_handle *h, char *out, int size)
 {
 	char *ep, *pbuf = out;
@@ -128,7 +121,7 @@ static int make_ploop_dev_args(struct vzctl_env_handle *h, char *out, int size)
 
 		pbuf += snprintf(pbuf, ep - pbuf, "%s@%s:%d:%d:%s\n",
 				d->uuid,
-				get_basename(get_fs_partname(d)),
+				get_fs_partname(d),
 				gnu_dev_major(part_dev),
 				gnu_dev_minor(part_dev),
 				is_root_disk(d) ? "root" : "");

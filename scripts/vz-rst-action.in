@@ -64,7 +64,7 @@ update_devices()
 
 restore_devices()
 {
-	local s d t major minor old dir device pfx
+	local s d t major minor old dir device
 	local pid=$CRTOOLS_INIT_PID
 
 	if [ -z "$VZ_RST_USE_NSENTER" ]; then
@@ -77,7 +77,6 @@ restore_devices()
 		MNT=$CRIU_DEVTMPFS
 	else
 		MNT=$CRIU_MNT_NS_ROOTS
-		pfx=dev
 	fi
 	for root in $MNT; do
 		# VE_PLOOP_DEVS=UUID@ploopN:major:minor:[root]
@@ -85,19 +84,19 @@ restore_devices()
 			uuid=${s%%@*}
 			t=${s#*@}
 			device=${t%%:*}
+			[ -n "$CRIU_DEVTMPFS" ] &&  device=${device#/dev}
 			t=${t#*:}
 			major=${t%%:*}
 			t=${t#*:}
 			minor=${t%%:*}
 
-			[ ! -L "$root/$pfx/$uuid" ] && continue
+			[ ! -L "$root/$uuid" ] && continue
 
-			old=$(readlink $root/$pfx/$uuid)
+			old=$(readlink $root/$uuid)
 			[ -z "$old" ] && continue
-			# /dev/ploopXXX -> ploopXXX
-			old=${old##*/}
+			[ -n "$CRIU_DEVTMPFS" ] && old=${old#/dev}
 
-			update_devices "$root/$pxf/$old" "$root/$pfx/$device" $major $minor
+			update_devices "$root/$pxf/$old" "$root/$device" $major $minor
 			rm -f $root/dev/$uuid
 		done
 	done
