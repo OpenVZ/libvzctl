@@ -130,29 +130,60 @@ static int run_start_script(struct vzctl_env_handle *h)
 
 int run_stop_script(struct vzctl_env_handle *h)
 {
+	char script[STR_SIZE];
 	char buf[STR_SIZE];
-	char *env[4];
-	char s_veid[STR_SIZE];
-	char env_bandwidth[STR_SIZE];
-	int i = 0;
+	char *env[5] = {};
+	int ret, i = 0;
 	const char *bandwidth = NULL;
-	char *arg[] = {get_script_path(VZCTL_STOP, buf, sizeof(buf)), NULL};
+	char *arg[] = {get_script_path(VZCTL_STOP, script, sizeof(script)), NULL};
 
-	snprintf(s_veid, sizeof(s_veid), "VEID=%s", EID(h));
-	env[i++] = s_veid;
+	snprintf(buf, sizeof(buf), "VEID=%s", EID(h));
+	ret = xstrdup(&env[i++], buf);
+	if (ret)
+		return ret;
+
 	if (h->env_param->vz->tc->traffic_shaping == VZCTL_PARAM_ON) {
-		env[i++] = "TRAFFIC_SHAPING=yes";
+		ret = xstrdup(&env[i++], "TRAFFIC_SHAPING=yes");
+		if (ret)
+			goto err;
+
 		/* BANDWIDTH is needed for tc class removal */
 		vzctl2_env_get_param(h, "BANDWIDTH", &bandwidth);
 		if (bandwidth != NULL) {
-			snprintf(env_bandwidth, sizeof(env_bandwidth), "BANDWIDTH=%s", bandwidth);
-			env[i++] = env_bandwidth;
+			snprintf(buf, sizeof(buf), "BANDWIDTH=%s", bandwidth);
+			ret = xstrdup(&env[i++], buf);
+			if (ret)
+				goto err;
 		}
+	}
+
+	struct vzctl_veth_param *veth = h->env_param->veth;
+	if (!list_empty(&veth->dev_list)) {
+		char *p;
+		struct vzctl_veth_dev *it;
+		int len = sizeof("VETH=");
+
+		list_for_each(it, &veth->dev_list, list)
+			len += strlen(it->dev_name) + 1;
+		p = malloc(len);
+		if (p == NULL) {
+			ret = VZCTL_E_NOMEM;
+			goto err;
+		}
+
+		env[i++] = p;
+		p += sprintf(p, "VETH=");
+		list_for_each(it, &veth->dev_list, list)
+			p += sprintf(p, "%s ", it->dev_name);
 	}
 
 	env[i] = NULL;
 
-	return vzctl2_wrap_exec_script(arg, env, 0);
+	ret = vzctl2_wrap_exec_script(arg, env, 0);
+err:
+	free_ar_str(env);
+
+	return ret;
 }
 
 int is_env_run(struct vzctl_env_handle *h)

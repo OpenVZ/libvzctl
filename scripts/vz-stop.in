@@ -46,5 +46,10 @@ fi
 
 [ "${TRAFFIC_SHAPING}" == "yes" ] && @SCRIPTDIR@/vz-setrate del
 
+for v in $VETH; do
+	ip link set $v down >/dev/null 2>&1 && \
+		ip link set $v name "${v}M$(( $$ % 100 ))" >/dev/null 2>&1
+done
+
 exit 0
 # end of script
