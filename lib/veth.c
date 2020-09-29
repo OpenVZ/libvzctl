@@ -512,6 +512,7 @@ static int env_veth_configure(struct vzctl_env_handle *h, int add,
 	int changed = 0;
 	const char *script;
 	int ipv6 = 0;
+	char *ip_p, *ip_e = ip_buf +  sizeof(ip_buf);
 
 	if (flags & (VZCTL_SKIP_CONFIGURE | VZCTL_RESTORE))
 		return 0;
@@ -589,13 +590,22 @@ static int env_veth_configure(struct vzctl_env_handle *h, int add,
 			changed++;
 			snprintf(buf, sizeof(buf), "IPDEL=all");
 			env[i++] = strdup(buf);
+		} else if (!list_empty(&it_dev->ip_del_list)) {
+			r = sprintf(ip_buf, "IPDEL=");
+			ip_p = ip_buf + r;
+			ip_list_head = &it_dev->ip_del_list;
+			list_for_each(it_ip, ip_list_head, list) {
+				changed++;
+				r = snprintf(ip_p, ip_e - ip_p, "%s ", it_ip->ip);
+				ip_p += r;
+				if (r < 0 || ip_p > ip_e)
+					break;
+			}
+			env[i++] = strdup(ip_buf);
 		}
 
 		if (!list_empty(&it_dev->ip_list)) {
-			char *ip_p, *ip_e;
-
 			r = sprintf(ip_buf, "IPADD=");
-			ip_e = ip_buf +  sizeof(ip_buf);
 			ip_p = ip_buf + r;
 			ip_list_head = &it_dev->ip_list;
 			list_for_each(it_ip, ip_list_head, list) {
@@ -626,20 +636,6 @@ static int env_veth_configure(struct vzctl_env_handle *h, int add,
 				ip_p += r;
 				if (r < 0 || ip_p > ip_e)
 					break;
-			}
-			env[i++] = strdup(ip_buf);
-
-			if (!it_dev->ip_delall) {
-				r = sprintf(ip_buf, "IPDEL=");
-				ip_p = ip_buf + r;
-				ip_list_head = &it_dev->ip_del_list;
-				list_for_each(it_ip, ip_list_head, list) {
-					changed++;
-					r = snprintf(ip_p, ip_e - ip_p, "%s ", it_ip->ip);
-					ip_p += r;
-					if (r < 0 || ip_p > ip_e)
-						break;
-				}
 			}
 			env[i++] = strdup(ip_buf);
 		}
