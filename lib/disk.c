@@ -1712,19 +1712,13 @@ int vzctl2_env_encrypt_disk(struct vzctl_env_handle *h, const char *uuid,
 	return vzctl_encrypt_disk_image(d->path, keyid, flags);
 }
 
-int vzctl2_get_disk_usage(struct vzctl_env_handle *h, const char *uuid,
-		unsigned long long *out)
+int vzctl2_get_disk_usage(const char *path, unsigned long long *out)
 {
 	int ret, i;
 	struct stat st;
-	struct vzctl_disk *d;
 	struct ploop_disk_images_data *di;
 
-	d = find_disk(h->env_param->disk, uuid);
-	if (d == NULL)
-		return VZCTL_E_INVAL;
-
-	ret = open_dd(d->path, &di);
+	ret = open_dd(path, &di);
 	if (ret)
 		return ret;
 	ret = read_dd(di);
