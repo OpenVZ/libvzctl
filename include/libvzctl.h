@@ -1067,8 +1067,7 @@ int vzctl2_get_disk_stats(const char *path, struct vzctl_disk_stats *stats,
 		int size);
 int vzctl2_env_get_disk_stats(struct vzctl_env_handle *h, const char *uuid,
 	struct vzctl_disk_stats *stats, int size);
-int vzctl2_get_disk_usage(struct vzctl_env_handle *h, const char *uuid,
-	unsigned long long *out);
+int vzctl2_get_disk_usage(const char *path, unsigned long long *out);
 int vzctl2_get_ploop_dev(const char *path, char *dev, int len);
 int vzctl2_get_ploop_dev_by_mnt(const char *mnt, char *out, int len);
 int vzctl2_get_ploop_dev2(const char *path, char *dev, int dlen, char *part,
