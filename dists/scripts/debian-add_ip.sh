@@ -79,61 +79,38 @@ iface ${VENET_DEV} inet static
 		echo -e "\tup route add default dev ${VENET_DEV}" >> ${CFGFILE}
 	fi
 
-	if [ "${IPV6}" = "yes" ]; then
-		if [ "${USE_INET6}" = "yes" ]; then
-			echo -e "
-iface ${VENET_DEV} inet6 static
-	address ::2
-	netmask 128" >> ${CFGFILE}
-		else
-			echo -e "\tup ip -6 a a ::2/128 dev ${VENET_DEV}" >> ${CFGFILE}
-		fi
-		if [ "x${VE_STATE}" = "xstarting" -o "$(is_default_route_configured '' '-6')" = "no" ]; then
-			echo -e "\tup ip -6 r a default dev ${VENET_DEV}" >> ${CFGFILE}
-		fi
-	fi
-
 	fix_networking_conf
 }
 
-function create_config()
+function add_ip()
 {
-	local ip=$1
-	local mask=$2
-	local ifnum=$3
+	local dev=$1
+	local ip=$2
+	local mask=$3
+	local cfg=
 
+	if ! grep -qe "auto $dev$" ${CFGFILE} 2>/dev/null; then
+		cfg="auto ${dev}"
+	fi
+	cfg="$cfg
+iface ${dev} inet static
+	address ${ip}"
 	if [ -z "${mask}" ]; then
 		mask=255.255.255.255
 	fi
-	echo -e "auto ${VENET_DEV}:${ifnum}
-iface ${VENET_DEV}:${ifnum} inet static
-	address ${ip}
-	netmask $mask
-" >> ${CFGFILE}.bak
+	cfg="${cfg}
+	netmask ${mask}"
+	echo -e "${cfg}\n" >> ${CFGFILE}
 }
 
-function add_ip6()
+function add_ip6_alias()
 {
 	local ip=$1
-	local mask=$2
-	local proto=inet6
-
-	[ "${IPV6}" != "yes" ] && return
-
-	if [ "${USE_INET6}" != "yes" ]; then
-		proto=inet
-	fi
-
-	if [ -n "${mask}" ]; then
-		ip="${ip}/${mask}"
-	else
-		ip="${ip}/128"
-	fi
 
 	awk '
 		BEGIN {found = 0}
 		NF == 0 {next}
-		!found && $1 == "iface" && $2 ~/'${VENET_DEV}'$/ && $3 == "'$proto'" {
+		!found && $1 == "iface" && $2 ~/'${VENET_DEV}'$/ && $3 == "inet6" {
 			found = 1;
 			print;
 			next;
@@ -148,8 +125,7 @@ function add_ip6()
 				print "\tup ip addr add '$ip' dev venet0";
 			}
 		}
-	' < ${CFGFILE}.bak > ${CFGFILE}.$$ && mv -f ${CFGFILE}.$$ ${CFGFILE}.bak
-
+	' < ${CFGFILE} > ${CFGFILE}.$$ && mv -f ${CFGFILE}.$$ ${CFGFILE}
 	rm -f ${CFGFILE}.$$ 2>/dev/null
 	if_restart=yes
 }
@@ -157,33 +133,33 @@ function add_ip6()
 function get_all_aliasid()
 {
 	IFNUM=-1
-
-	IFNUMLIST=`grep -e "^auto ${VENET_DEV}:.*$" 2> /dev/null ${CFGFILE}.bak | sed "s/.*${VENET_DEV}://"`
+	IFNUMLIST=`grep -e "^auto ${VENET_DEV}:.*$" ${CFGFILE} 2>/dev/null | sed 's/^auto '${VENET_DEV}'://'`
 }
 
 function get_free_aliasid()
 {
-	local found=
+	# no main iface
+	grep -qe "^iface ${VENET_DEV} inet " ${CFGFILE} >/dev/null || return 0
 
 	[ -z "${IFNUMLIST}" ] && get_all_aliasid
-	while test -z ${found}; do
+	while true; do
 		let IFNUM=IFNUM+1
-		echo "${IFNUMLIST}" | grep -q -E "^${IFNUM}$" 2>/dev/null || \
-			found=1
+		echo "${IFNUMLIST}" | grep -q -E "^${IFNUM}$" 2>/dev/null || break
 	done
+	return 1
 }
 
-function add_ip()
+function setup()
 {
 	local ipm ip mask
 	local found
+	local dev=$VENET_DEV
 
 	# IPv6 is not supported for ubuntu-8.04
 	if grep -q "lenny" /etc/debian_version 2>/dev/null; then
 		USE_INET6=no
 	fi
 	if [ "${VE_STATE}" = "starting" ]; then
-		remove_debian_interface "${VENET_DEV}:[0-9]*" ${CFGFILE}
 		setup_network
 	elif ! grep -q "^auto ${VENET_DEV}\$" ${CFGFILE} 2>/dev/null; then
 		setup_network
@@ -193,32 +169,39 @@ function add_ip()
 		remove_debian_interface "${VENET_DEV}:[0-9]*" ${CFGFILE}
 		setup_network
 	fi
-	cp -f ${CFGFILE} ${CFGFILE}.bak
 	for ipm in ${IP_ADDR}; do
 		ip=${ipm%%/*}
+		[ -z "${ip}" ] && continue
 		mask=
 		if echo "${ipm}" | grep -q '/'; then
 			mask=${ipm##*/}
 		fi
-		found=
 
-		if grep -qw -e "^[[:space:]]*address $ip" -e "^[[:space:]]*up ip addr add $ip" ${CFGFILE}.bak 2>/dev/null; then
+		if grep -qw -e "^[[:space:]]*address $ip" -e "^[[:space:]]*up ip addr add $ip" ${CFGFILE} 2>/dev/null; then
 			continue
 		fi
 
-		if is_ipv6 ${ip}; then
-			add_ip6 "${ip}" "${mask}"
+		if is_ipv6 "${ip}"; then
+			[ -z "$mask" ] && mask=128
+			if grep -q "iface ${dev} inet6" ${CFGFILE} 2>/dev/null; then
+				add_ip6_alias "${ip}/${mask}"
+			else
+				add_debian_ip6 "${ip}/${mask}"
+			fi
 		else
 			get_free_aliasid
-			create_config "${ip}" "${mask}" "${IFNUM}"
+			if [ $? -ne 0 ]; then
+				add_ip "${dev}:${IFNUM}" "${ip}" "${mask}"
+			else
+				add_ip "${dev}" "${ip}" "${mask}"
+			fi
 		fi
 	done
-	mv -f ${CFGFILE}.bak ${CFGFILE}
 	if [ "x${VE_STATE}" = "xrunning" ]; then
 		[ -n "${if_restart}" ] && /sbin/ifdown venet0 2>/dev/null
 		/sbin/ifup -a --force 2>/dev/null
 	fi
 }
 
-add_ip
+setup
 exit 0

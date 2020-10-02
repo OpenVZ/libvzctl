@@ -32,11 +32,51 @@
 VENET_DEV=venet0
 CFGFILE=/etc/network/interfaces
 
+function get_ip6_alias()
+{
+	local dev=$1
+
+	awk '
+		BEGIN {ip=""}
+		NF == 0 {next}
+		$1 == "iface" && $2 ~/'${dev}'$/ && $3 ~/inet6/ {
+			while (1==1) {
+				if (!getline) break;
+				if ($0 ~ "\tup ip addr add") { ip = ip " " $5; }
+				else if ($1 == "address" || $1 == "netmask" || $0 ~ "\tup ip") continue
+				else break
+			}
+		}
+		END {
+			print ip
+		}
+	' < ${CFGFILE}
+}
+
+function rm_if_by_ip()
+{
+	local ip=$1
+	local dev
+	local
+
+	dev=`grep -B 1 -w "${ip}" ${CFGFILE} 2>/dev/null | grep iface | \
+		sed 's/^iface \(.*\) inet.*/\1/'`
+	if [ -z "${dev}" ]; then
+		sed -i "/${ip}\/[0-9]*/d" ${CFGFILE}
+		return
+	fi
+	if is_ipv6 "${ip}"; then
+		ips=`get_ip6_alias "${dev}"`
+		remove_debian_interface_by_proto "$dev" inet6 ${CFGFILE}
+		add_debian_ip6 "${ips}"
+	else
+		remove_debian_interface_by_proto "$dev" inet ${CFGFILE}
+	fi
+}
+
 function del_ip()
 {
-	local ifname
 	local ipm ip mask
-	local restart_venet0
 
 	if [ "x${IPDELALL}" = "xyes" ]; then
 		ifdown ${VENET_DEV} 2>/dev/null
@@ -47,24 +87,12 @@ function del_ip()
 	fi
 	for ipm in ${IP_ADDR}; do
 		ip=${ipm%%/*}
-		if is_ipv6 "${ip}"; then
-			sed -i "/${ip}\/[0-9]*/d" ${CFGFILE}
-			mask=`get_netmask "${VENET_DEV}" "${ip}"`
-			ifconfig ${VENET_DEV} del "${ip}/${mask}" 2>/dev/null
-			continue
-		fi
-		ifname=`grep -B 1 -w "${ip}" ${CFGFILE} | \
-			grep "${VENET_DEV}:" | cut -d' ' -f2`
-		if [ -n "${ifname}" ]; then
-			restart_venet0=true
-			ifconfig ${ifname} down
-			remove_debian_interface "${ifname}" ${CFGFILE}
-		fi
+		rm_if_by_ip "${ip}"
+		mask=`get_netmask "${VENET_DEV}" "${ip}"`
+		for m in $mask; do
+			ip a d dev ${VENET_DEV} "${ip}/$m" 2>/dev/null
+		done
 	done
-	if [ "${restart_venet0}" = "true" ]; then
-		# synchronyze config files & interfaces
-                /sbin/ifup -a --force #2>/dev/null
-	fi
 }
 
 del_ip

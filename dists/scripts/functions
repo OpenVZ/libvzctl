@@ -440,6 +440,37 @@ restore_debian_venet_route()
 	rm -f ${cfg}.$$
 }
 
+function add_debian_ip6()
+{
+	local ips=$1
+	local cfg=/etc/network/interfaces
+	local i c ip
+
+	[ "${IPV6}" != "yes" ] && return
+
+	${CP} ${cfg} ${cfg}.$$ || \
+		error "Can't copy file ${cfg}" $VZ_FS_NO_DISK_SPACE
+
+	for ip in $ips; do
+		if [ -z "$i" ]; then
+			i="address $ip"
+		else
+			i="$i
+	up ip addr add $ip dev venet0"
+		fi
+	done
+
+	if ! grep -qe "auto ${VENET_DEV}" ${CFGFILE} 2>/dev/null; then
+		c="auto ${VENET_DEV}"
+	fi
+
+	echo "$c
+iface ${VENET_DEV} inet6 static
+	${i}
+	up ip -6 r a default dev ${VENET_DEV}" >> ${cfg}.$$ && mv -f ${cfg}.$$ ${cfg}
+	rm -f ${cfg}.$$
+}
+
 function change_hostname()
 {
 	local cfg="$1"
