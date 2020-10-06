@@ -91,6 +91,8 @@ int real_env_stop(int stop_mode)
 	close_fds(1, -1);
 	/* Disable fsync. The fsync will be done by umount() */
 	configure_sysctl("/proc/sys/fs/fsync-enable", "0");
+	configure_sysctl("/sys/fs/cgroup/systemd/release_agent", "");
+	configure_sysctl("/sys/fs/cgroup/systemd/notify_on_release", "0");
 	switch (stop_mode) {
 	case M_HALT: {
 		char *argv[] = {"halt", NULL};
