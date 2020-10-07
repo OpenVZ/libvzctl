@@ -2185,6 +2185,8 @@ int kver_cmp(const char *v1, const char *v2)
 int is_permanent_disk(struct vzctl_disk *d)
 {
 	const char scheme[] = "backup://";
+	if (d->use_device)
+		return 0;
 	return !d->storage_url || strncmp(d->storage_url, scheme, sizeof(scheme) - 1) != 0;
 }
 
