@@ -1637,8 +1637,8 @@ static int get_disk_iostat(const char *device, struct vzctl_iostat *stat)
 	   10 - time spent doing I/Os (ms)
 	   11 - weighted time spent doing I/Os (ms)
 	   */
-	if (fscanf(f, "%*s %*s %llu  %*s %*s %*s %llu",
-				&stat->read, &stat->write) == 2) {
+	if (fscanf(f, "%llu %*s %llu  %*s %llu %*s %llu",
+				&stat->read_reqs, &stat->read, &stat->write_reqs, &stat->write) == 2) {
 		stat->read *= 512;
 		stat->write *= 512;
 	}

@@ -292,6 +292,8 @@ struct vzctl_cpustat {
 struct vzctl_iostat {
 	unsigned long long read;
 	unsigned long long write;
+	unsigned long long read_reqs;
+	unsigned long long write_reqs;
 };
 
 #define TC_MAX_CLASSES	16
