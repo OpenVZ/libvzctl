@@ -2103,28 +2103,15 @@ int vzctl2_env_get_ub_resource(struct vzctl_env_param *env, int id, struct vzctl
 
 int vzctl2_env_set_ramsize(struct vzctl_env_param *env, unsigned long ramsize)
 {
-	if (is_vswap_mode()) {
-		unsigned long pages = ramsize << 8;
-		if (env->res->ub->physpages == NULL) {
-			env->res->ub->physpages = malloc(sizeof(struct vzctl_2UL_res));
-			if (env->res->ub->physpages == NULL)
-				return VZCTL_E_NOMEM;
-		}
-		env->res->ub->physpages->b = pages;
-		env->res->ub->physpages->l = pages;
-	} else {
-		unsigned long bytes = ramsize << 20;
-		if (env->res->slm->memorylimit == NULL) {
-			env->res->slm->memorylimit =
-				malloc(sizeof(struct vzctl_slm_memorylimit));
-			if (env->res->slm->memorylimit == NULL)
-				return VZCTL_E_NOMEM;
-		}
-		env->res->slm->mode = VZCTL_MODE_SLM;
-		env->res->slm->memorylimit->avg = bytes;
-		env->res->slm->memorylimit->quality = bytes;
-		env->res->slm->memorylimit->inst = bytes;
+	unsigned long pages = ramsize << 8;
+
+	if (env->res->ub->physpages == NULL) {
+		env->res->ub->physpages = malloc(sizeof(struct vzctl_2UL_res));
+		if (env->res->ub->physpages == NULL)
+			return VZCTL_E_NOMEM;
 	}
+	env->res->ub->physpages->b = pages;
+	env->res->ub->physpages->l = pages;
 
 	return 0;
 }

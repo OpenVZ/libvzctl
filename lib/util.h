@@ -187,7 +187,6 @@ char *get_description(char *desc);
 int str2env_type(struct vzctl_misc_param *p, const char *str);
 const char* env_type2str(struct vzctl_misc_param *p);
 int get_mul(char c, unsigned long long *n);
-int is_vswap_mode();
 int get_env_conf_lockfile(struct vzctl_env_handle *h, char *buf, int len);
 int vzctl2_get_config_fname(const char *param_conf, char *config, int len);
 int vzctl2_get_config_full_fname(const char *param_conf, char *config, int len);
