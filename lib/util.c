@@ -1743,11 +1743,6 @@ char *get_mnt_root(const char *path)
 	return p;
 }
 
-int is_vswap_mode()
-{
-	return (stat_file("/proc/vz/vswap") == 1);
-}
-
 int vzctl2_get_config_fname(const char *param_conf, char *config, int len)
 {
 	return snprintf(config, len, VZ_SAMPLE_CONF_PATTERN, param_conf);
