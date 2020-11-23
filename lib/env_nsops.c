@@ -476,10 +476,17 @@ static int set_cpuid_sysfs_perms(struct vzctl_env_handle *h, const char *coreid,
 			return ret;
 	}
 
-	snprintf(buf, sizeof(buf), "%s/topology", cpath);
-	ret = add_sysfs_entry(h, buf);
-	if (ret)
-		return ret;
+	snprintf(buf, sizeof(buf), "/sys/%s/topology", cpath);
+	if (!access(buf, F_OK)) {
+		snprintf(buf, sizeof(buf), "%s/topology", cpath);
+		ret = add_sysfs_entry(h, buf);
+		if (ret)
+			return ret;
+	}
+
+	snprintf(buf, sizeof(buf), "/sys/%s/cache/", cpath);
+	if (access(buf, F_OK))
+		return 0;
 
 	snprintf(buf, sizeof(buf), "%s/cache/", cpath);
 	ret = add_sysfs_entry(h, buf);
