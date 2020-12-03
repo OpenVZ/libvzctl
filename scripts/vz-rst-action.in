@@ -147,9 +147,10 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 		[ -f "$CRTOOLS_IMAGE_DIR/vz_core_pattern.img" ] && \
 			{ cgexec -g ve:$VEID echo `cat $CRTOOLS_IMAGE_DIR/vz_core_pattern.img` \
 			 > /proc/sys/kernel/core_pattern || { echo "Failed to restore core_pattern"; exit 1; } }
-		[ -f "$CRTOOLS_IMAGE_DIR/vz_fsync-enable.img" ] && \
-			{ cgexec -g ve:$VEID echo `cat $CRTOOLS_IMAGE_DIR/vz_fsync-enable.img` \
-			 > /proc/sys/fs/fsync-enable || { echo "Failed to restore fsync-enable"; exit 1; } }
+		if [ -f "/proc/sys/fs/fsync-enable" ] && [ -f "$CRTOOLS_IMAGE_DIR/vz_fsync-enable.img" ]; then
+			cgexec -g ve:$VEID echo `cat $CRTOOLS_IMAGE_DIR/vz_fsync-enable.img` \
+				> /proc/sys/fs/fsync-enable || { echo "Failed to restore fsync-enable"; exit 1; }
+		fi
 		[ -f "$CRTOOLS_IMAGE_DIR/vz_odirect_enable.img" ] && \
 			{ cgexec -g ve:$VEID echo `cat $CRTOOLS_IMAGE_DIR/vz_odirect_enable.img` \
 			 > /proc/sys/fs/odirect_enable || { echo "Failed to restore odirect_enable"; exit 1; } }

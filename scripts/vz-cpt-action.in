@@ -56,8 +56,10 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 	if [ -n "$VEID" ]; then
 		cgexec -g ve:$VEID cat /proc/sys/kernel/core_pattern > \
 			$CRTOOLS_IMAGE_DIR/vz_core_pattern.img || { echo "Failed to dump core_pattern"; exit 1; }
-		cgexec -g ve:$VEID cat /proc/sys/fs/fsync-enable > \
-			$CRTOOLS_IMAGE_DIR/vz_fsync-enable.img || { echo "Failed to dump fsync-enable"; exit 1; }
+		if [ -f "/proc/sys/fs/fsync-enable" ]; then
+			cgexec -g ve:$VEID cat /proc/sys/fs/fsync-enable > \
+				$CRTOOLS_IMAGE_DIR/vz_fsync-enable.img || { echo "Failed to dump fsync-enable"; exit 1; }
+		fi
 		cgexec -g ve:$VEID cat /proc/sys/fs/odirect_enable > \
 			$CRTOOLS_IMAGE_DIR/vz_odirect_enable.img || { echo "Failed to dump odirect_enable"; exit 1; }
 		cgexec -g ve:$VEID cat /proc/sys/kernel/randomize_va_space > \
