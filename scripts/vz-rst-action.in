@@ -119,7 +119,6 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 		[ -n "$VE_IPTABLES_MASK" ] && cgset -r ve.iptables_mask="$VE_IPTABLES_MASK" $VEID
 		[ -n "$VE_FEATURES" ] && cgset -r ve.features="$VE_FEATURES" $VEID
 		[ -n "$VE_AIO_MAX_NR" ] && cgset -r ve.aio_max_nr="$VE_AIO_MAX_NR" $VEID
-		cgset -r ve.state="START $pid" $VEID || { echo "Failed to start $VEID"; exit 1; }
 	fi
 	;;
 "post-setup-namespaces")
