@@ -31,6 +31,12 @@
 # Optional parameters:
 #   VE_VETH_DEVS  - pair of veth names (CT=HW\n)
 exec 1>&2
+
+if [ -z "$VEID" ]; then
+	echo "Missing parameter VEID"
+	exit 1
+fi
+
 veth_args=""
 for dev in $VE_VETH_DEVS; do
 	veth_args="$veth_args --veth-pair $dev"
@@ -107,6 +113,7 @@ eval $(. /etc/vz/vz.conf && echo RESTORE_EXTRA_OPT=\"$RESTORE_EXTRA_OPT\")
 CRIU_LOGLEVEL=4
 [ -n "$VE_CRIU_PIDFILE" ] && echo $$ > $VE_CRIU_PIDFILE
 exec criu restore -v$CRIU_LOGLEVEL $RESTORE_EXTRA_OPT	\
+		--ve $VEID				\
 		--skip-freezer-state			\
 		--file-locks				\
 		--tcp-established			\
