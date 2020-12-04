@@ -30,6 +30,11 @@
 #   VE_PID      - PID of CT init process
 exec 1>&2
 
+if [ -z "$VEID" ]; then
+	echo "Missing parameter VEID"
+	exit 1
+fi
+
 action_script=@SCRIPTDIR@/vz-cpt-action
 props_config=@SCRIPTDIR@/cgroup-props.conf
 dumpdir="$VE_DUMP_DIR".tmp
