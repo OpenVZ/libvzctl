@@ -116,7 +116,8 @@ cg_controllers="--cgroup-dump-controller hugetlb \
  --cgroup-dump-controller blkio"
 
 CRIU_LOGLEVEL=4
-criu dump -v$CRIU_LOGLEVEL -o dump.log				\
+criu dump -v$CRIU_LOGLEVEL -o dump.log			\
+		--ve $VEID				\
 		--skip-freezer-state			\
 		--skip-in-flight			\
 		--file-locks				\
