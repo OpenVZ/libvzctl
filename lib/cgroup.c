@@ -651,20 +651,14 @@ int cg_disable_pseudosuper(const int pseudosuper_fd)
 
 int cg_attach_task(const char *ctid, pid_t pid, char *cg_subsys_except)
 {
-	int ret, i;
+	int i;
 
 	for (i = 0; i < sizeof(cg_ctl_map)/sizeof(cg_ctl_map[0]); i++) {
 		if (cg_subsys_except &&
 			 !strcmp(cg_ctl_map[i].subsys, cg_subsys_except))
 			continue;
-		ret = cg_set_ul(ctid, cg_ctl_map[i].subsys, "tasks", pid);
-		if (ret == -1)
+		if (cg_set_ul(ctid, cg_ctl_map[i].subsys, "tasks", pid))
 			return -1;
-		/* Skip non exists */
-		if (ret) {
-			ret = 0;
-			continue;
-		}
 	}
 
 	return 0;
