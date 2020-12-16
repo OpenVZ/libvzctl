@@ -563,7 +563,7 @@ static int cg_destroy(const char *ctid, struct cg_ctl *ctl)
 
 int cg_get_cgroup_env_param(const char *ctid, char *out, int size)
 {
-	int i, ret;
+	int i;
 	struct cg_ctl *ctl;
 	char *p = out;
 	char *ep = p + size;
@@ -574,13 +574,10 @@ int cg_get_cgroup_env_param(const char *ctid, char *out, int size)
 		if (!cg_is_supported(cg_ctl_map[i].subsys))
 			continue;
 
-		ret = cg_get_ctl(cg_ctl_map[i].subsys, &ctl);
-		if (ret == -1)
+		if (cg_get_ctl(cg_ctl_map[i].subsys, &ctl))
 			return 1;
+
 		if (ctl->is_prvt)
-			continue;
-		/* Skip non exists */
-		if (ret)
 			continue;
 		if (ctid) {
 			get_cgroup_name(ctid, ctl, path, sizeof(path));
@@ -605,11 +602,8 @@ int cg_new_cgroup(const char *ctid)
 			continue;
 
 		ret = cg_get_ctl(cg_ctl_map[i].subsys, &ctl);
-		if (ret == -1)
-			goto err;
-		/* Skip non exists */
 		if (ret)
-			continue;
+			goto err;
 
 		ret = cg_create(ctid, ctl);
 		if (ret)
@@ -1200,7 +1194,7 @@ static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t *head)
 			continue;
 
 		ret = cg_get_ctl(cg_ctl_map[i].subsys, &ctl);
-		if (ret == -1)
+		if (ret)
 			goto err;
 		if (ctl->is_prvt)
 			continue;
