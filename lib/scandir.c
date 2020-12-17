@@ -190,34 +190,4 @@ err:
 	return -1;
 }
 
-/** Get list of private areas
- * This function scan file system and return found VE_PRIBVATE.
- * Algo: Read shared file system from STORAGE_LIST if not exists read from
- * /proc/mounts and look for fs && ve.conf && .ve_layout pattern.
- *
- * @return	Return array of (char *) found Container private areas terminated by 0
- *		NULL in case error
- */
-char **vzctl2_scan_private(void)
-{
-	list_head_t head;
-	char **storage, **p;
-	char **out = NULL;
 
-	if ((storage = vzctl2_get_storage()) == NULL)
-		return NULL;
-	list_head_init(&head);
-	for (p = storage; *p != NULL; p++) {
-		if (get_dir_list(&head, *p, 5))
-			goto err;
-	}
-
-	out = list2ar_str(&head);
-err:
-
-	free_ar_str(storage);
-	free(storage);
-	free_str(&head);
-
-	return out;
-}

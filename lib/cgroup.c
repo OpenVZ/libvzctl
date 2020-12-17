@@ -45,7 +45,7 @@
 #include "net.h"
 
 struct cg_ctl {
-	char subsys[64];
+	char *subsys;
 	int is_prvt;
 	char *mount_path;
 };
@@ -73,6 +73,13 @@ typedef int (*cgroup_filter_f)(const char *subsys);
 static int cg_is_systemd(const char *subsys)
 {
 	return strcmp(subsys, "systemd") == 0;
+}
+
+static int cg_is_supported(const char *subsys)
+{
+	if (strcmp(subsys, CG_UB) == 0 && !is_ub_supported())
+		return 0;
+	return 1;
 }
 
 static int has_substr(char *buf, const char *str)
@@ -125,9 +132,13 @@ static struct cg_ctl *find_cg_ctl(const char *subsys)
 {
 	int i;
 
-	for (i = 0; i < sizeof(cg_ctl_map)/sizeof(cg_ctl_map[0]); i++)
+	for (i = 0; i < sizeof(cg_ctl_map)/sizeof(cg_ctl_map[0]); i++) {
+		if (!cg_is_supported(cg_ctl_map[i].subsys))
+			continue;
+
 		if (!strcmp(cg_ctl_map[i].subsys, subsys))
 			return &cg_ctl_map[i];
+	}
 
 	return NULL;
 }
@@ -552,7 +563,7 @@ static int cg_destroy(const char *ctid, struct cg_ctl *ctl)
 
 int cg_get_cgroup_env_param(const char *ctid, char *out, int size)
 {
-	int i, ret;
+	int i;
 	struct cg_ctl *ctl;
 	char *p = out;
 	char *ep = p + size;
@@ -560,13 +571,13 @@ int cg_get_cgroup_env_param(const char *ctid, char *out, int size)
 
 	p += snprintf(p, ep - p, "VE_CGROUP_MOUNT_MAP=");
 	for (i = 0; i < sizeof(cg_ctl_map)/sizeof(cg_ctl_map[0]); i++) {
-		ret = cg_get_ctl(cg_ctl_map[i].subsys, &ctl);
-		if (ret == -1)
-			return 1;
-		if (ctl->is_prvt)
+		if (!cg_is_supported(cg_ctl_map[i].subsys))
 			continue;
-		/* Skip non exists */
-		if (ret)
+
+		if (cg_get_ctl(cg_ctl_map[i].subsys, &ctl))
+			return 1;
+
+		if (ctl->is_prvt)
 			continue;
 		if (ctid) {
 			get_cgroup_name(ctid, ctl, path, sizeof(path));
@@ -587,12 +598,12 @@ int cg_new_cgroup(const char *ctid)
 	struct cg_ctl *ctl;
 
 	for (i = 0; i < sizeof(cg_ctl_map)/sizeof(cg_ctl_map[0]); i++) {
-		ret = cg_get_ctl(cg_ctl_map[i].subsys, &ctl);
-		if (ret == -1)
-			goto err;
-		/* Skip non exists */
-		if (ret)
+		if (!cg_is_supported(cg_ctl_map[i].subsys))
 			continue;
+
+		ret = cg_get_ctl(cg_ctl_map[i].subsys, &ctl);
+		if (ret)
+			goto err;
 
 		ret = cg_create(ctid, ctl);
 		if (ret)
@@ -612,6 +623,9 @@ int cg_destroy_cgroup(const char *ctid, int release)
 	struct cg_ctl *ctl;
 
 	for (i = 0; i < sizeof(cg_ctl_map)/sizeof(cg_ctl_map[0]); i++) {
+		if (!cg_is_supported(cg_ctl_map[i].subsys))
+			continue;
+
 		if (cg_get_ctl(cg_ctl_map[i].subsys, &ctl))
 			continue;
 
@@ -654,6 +668,9 @@ int cg_attach_task(const char *ctid, pid_t pid, char *cg_subsys_except)
 	int i;
 
 	for (i = 0; i < sizeof(cg_ctl_map)/sizeof(cg_ctl_map[0]); i++) {
+		if (!cg_is_supported(cg_ctl_map[i].subsys))
+			continue;
+
 		if (cg_subsys_except &&
 			 !strcmp(cg_ctl_map[i].subsys, cg_subsys_except))
 			continue;
@@ -1173,8 +1190,11 @@ static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t *head)
 		return ret;
 
 	for (i = 0; i < sizeof(cg_ctl_map)/sizeof(cg_ctl_map[0]); i++) {
+		if (!cg_is_supported(cg_ctl_map[i].subsys))
+			continue;
+
 		ret = cg_get_ctl(cg_ctl_map[i].subsys, &ctl);
-		if (ret == -1)
+		if (ret)
 			goto err;
 		if (ctl->is_prvt)
 			continue;
@@ -1356,4 +1376,3 @@ err:
 
 	return ret;
 }
-

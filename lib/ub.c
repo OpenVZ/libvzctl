@@ -304,7 +304,3 @@ int parse_ub(struct vzctl_ub_param *ub, const char *val, int id,
 	return ret;
 }
 
-int is_ub_supported()
-{
-	return (access("/sys/fs/cgroup/beancounter", F_OK) == 0);
-}
