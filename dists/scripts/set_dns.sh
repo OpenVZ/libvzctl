@@ -112,8 +112,27 @@ set_resolved()
 	[ "${VE_STATE}" = "running" ] && service systemd-resolved restart
 }
 
+set_network_config()
+{
+	local cfg=/etc/sysconfig/network/config
+
+	if [ -n "$NAMESERVER" ]; then
+		[ "$NAMESERVER" = '#' ] && NAMESERVER=""
+		put_param "$cfg" NETCONFIG_DNS_STATIC_SERVERS "$NAMESERVER"
+	fi
+
+	if [ -n "$SEARCHDOMAIN" ]; then
+		[ "$SEARCHDOMAIN" = '#' ] && SEARCHDOMAIN=""
+		put_param "$cfg" NETCONFIG_DNS_STATIC_SEARCHLIST "$SEARCHDOMAIN"
+	fi
+
+	[ -n "$NAMESERVER" -o  -n "$SEARCHDOMAIN" ] && netconfig -v update -m dns-resolver
+}
+
 if [ -e /etc/systemd/system/dbus-org.freedesktop.resolve1.service ]; then
 	set_resolved "${NAMESERVER}" "${SEARCHDOMAIN}"
+elif [ -e /sbin/netconfig -a -e /etc/sysconfig/network/config ]; then
+	set_network_config
 else
 	set_resolvconf "${NAMESERVER}" "${SEARCHDOMAIN}"
 fi
