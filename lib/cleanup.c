@@ -119,6 +119,13 @@ void cleanup_kill_process(void *data)
 	kill(pid, SIGTERM);
 }
 
+void cleanup_kill_force(void *data)
+{
+	pid_t pid = *(pid_t *) data;
+
+	kill(pid, SIGKILL);
+}
+
 void cleanup_destroydir(void *data)
 {
 	char *dir = (char *) data;

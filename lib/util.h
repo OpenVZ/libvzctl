@@ -115,6 +115,7 @@ int make_dir2(const char *path, mode_t mode, int full);
 int make_dir(const char *path, int full);
 int destroydir(const char *dir);
 int set_not_blk(int fd);
+int drop_cloexec(int fd, int drop);
 int reset_std(void);
 int yesno2id(const char *str);
 const char *id2yesno(int id);
@@ -234,6 +235,8 @@ int init_runtime_ctx(struct vzctl_runtime_ctx *ctx);
 void deinit_runtime_ctx(struct vzctl_runtime_ctx *ctx);
 void get_dumpfile(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,
 		char *dumpfile, int size);
+char *arg2str(char *const arg[]);
+
 #ifdef __cplusplus
 }
 #endif

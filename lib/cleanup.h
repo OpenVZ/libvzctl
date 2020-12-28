@@ -44,6 +44,7 @@ extern "C" {
 struct vzctl_cleanup_hook *register_cleanup_hook(cleanup_FN f, void *data);
 void unregister_cleanup_hook(struct vzctl_cleanup_hook *h);
 void cleanup_kill_process(void *data);
+void cleanup_kill_force(void *data);
 void cleanup_destroydir(void *data);
 void cleanup_quota_off(void *data);
 void cleanup_kill_ve(void *data);

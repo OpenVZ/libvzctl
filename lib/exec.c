@@ -22,6 +22,7 @@
  *
  */
 
+#define _GNU_SOURCE
 #include <sys/ioctl.h>
 #include <linux/limits.h>
 
@@ -54,6 +55,27 @@
 #include "cleanup.h"
 #include "lock.h"
 
+enum {
+	EXEC_MSG_TERMIOS,
+	EXEC_MSG_WINSIZE,
+};
+
+struct exec_msg_hdr {
+	int type;
+};
+
+struct exec_msg_data {
+	union {
+		struct termios tios;
+		struct winsize ws;
+	};
+};
+
+struct exec_msg {
+	struct exec_msg_hdr hdr;
+	struct exec_msg_data data;
+};
+
 #define DEV_TTY		"/dev/tty"
 static struct termios _tios;
 
@@ -62,11 +84,56 @@ static __thread int s_timeout_pid;
 static char _proc_title[PATH_MAX];
 static int _proc_title_len = sizeof(_proc_title);
 
-static char *argv_bash[] = {"bash", NULL};
 static char *envp_bash[] = {"HOME=/", "TERM=linux",
 	ENV_PATH,
 	"SHELL=/bin/bash",
-	NULL};
+	NULL, NULL};
+
+static size_t get_msg_size(int type)
+{
+	switch (type) {
+	case EXEC_MSG_TERMIOS:
+		return sizeof(struct termios);
+	case EXEC_MSG_WINSIZE:
+		return sizeof(struct winsize);
+	default:
+		return -1;
+	}
+}
+
+static int send_exec_msg(int fd, struct exec_msg *m)
+{
+	size_t n, size;
+
+	n = TEMP_FAILURE_RETRY(write(fd, &m->hdr, sizeof(struct exec_msg_hdr)));
+	if (n != sizeof(struct exec_msg_hdr))
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "Cannot write exec message header");
+
+	size = get_msg_size(m->hdr.type);
+
+	n = TEMP_FAILURE_RETRY(write(fd, &m->data, size));
+	if (n != size)
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "Cannot write exec msg data");
+
+	return 0;	
+}
+
+static int read_exec_msg(int fd, struct exec_msg *m)
+{
+	ssize_t n, size;
+
+	n = TEMP_FAILURE_RETRY(read(fd, &m->hdr, sizeof(struct exec_msg_hdr)));
+	if (n != sizeof(struct exec_msg_hdr))
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "Cannot read msg header ret: %lu", n);
+
+	size = get_msg_size(m->hdr.type);
+
+	n = TEMP_FAILURE_RETRY(read(fd, &m->data, size));
+	if (n != size)
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "Cannot read exec msg data ret: %lu", n);
+
+	return 0;
+}
 
 static void exec_handler(int sig)
 {
@@ -94,7 +161,10 @@ int execvep(const char *path, char *const argv[], char *const envp[])
 				strcat(partial, "/");
 			strcat(partial, path);
 
-			execve(partial, argv, envp != NULL ? envp : envp_bash);
+			if (envp)
+				execve(partial, argv, envp);
+			else
+				execv(partial, argv);
 
 			if (errno != ENOENT)
 				return -1;
@@ -330,7 +400,7 @@ int real_env_exec(struct vzctl_env_handle *h, struct exec_param *param, int flag
 {
 	int ret;
 	int skip_fds[7];
-	int n, i = 0;
+	int i = 0;
 	struct sigaction act = {.sa_handler = SIG_DFL};
 
 	if (param->stdfd != NULL) {
@@ -366,44 +436,54 @@ int real_env_exec(struct vzctl_env_handle *h, struct exec_param *param, int flag
 		close(param->status_p[1]);
 		return param->fn(param->data);
 	} else if (param->exec_mode == MODE_EXEC) {
-		if (param->argv == NULL) {
-			ret = VZCTL_E_INVAL;
-			goto err;
-		}
+		if (param->argv == NULL)
+			return VZCTL_E_INVAL;
 
-		sigaction(SIGPIPE, &act, NULL);
-		execvep(param->argv[0], param->argv,
-				param->envp != NULL ? param->envp : envp_bash);
-		ret = -errno;
-	} else {
 		sigaction(SIGPIPE, &act, NULL);
 		if (flags & EXEC_NOENV) {
-			execv("/bin/bash", param->argv != NULL ? param->argv : argv_bash);
-			execv("/bin/sh", param->argv != NULL ? param->argv : argv_bash);
+			execvep(param->argv[0], param->argv, NULL);
 		} else {
-			execve("/bin/bash",
-					param->argv != NULL ? param->argv : argv_bash,
-					param->envp != NULL ? param->envp : envp_bash);
-			execve("/bin/sh",
-					param->argv != NULL ? param->argv : argv_bash,
-					param->envp != NULL ? param->envp : envp_bash);
+			execvep(param->argv[0], param->argv,
+				param->envp != NULL ? param->envp : envp_bash);
 		}
 		ret = -errno;
-	}
+	} else {
+		char *arg[] = {"bash", "-c", NULL, NULL};
+		char *cmd;
 
-err:
-	n = write(param->status_p[1], &ret, sizeof(ret));
-	if (n != sizeof(ret))
-		logger(-1, errno, "failed to write to status pipe");
+		if (param->argv == NULL)
+			arg[1] = NULL;
+		else {
+			cmd = arg2str(param->argv);
+			if (cmd == NULL)
+				return vzctl_err(-ENOMEM, ENOMEM, "real_env_exec malloc"); 
+			arg[2] = cmd;
+		}
+
+		sigaction(SIGPIPE, &act, NULL);
+		if (flags & EXEC_NOENV) {
+			execv("/bin/bash", arg);
+			execv("/bin/sh", arg);
+		} else {
+			execve("/bin/bash" , arg,
+					param->envp != NULL ? param->envp : envp_bash);
+			execve("/bin/sh", arg,
+					param->envp != NULL ? param->envp : envp_bash);
+		}
+		free(arg[2]);
+		ret = -errno;
+	}
 
 	return ret;
 }
 
-int real_env_exec_waiter(struct exec_param *param, int pid, int timeout, int flags)
+static int real_env_exec_waiter(struct exec_param *param, int timeout, int pid, int flags)
 {
+	struct vzctl_cleanup_hook *hook;
 	int log = flags & EXEC_LOG_OUTPUT;
 	int ret = 0;
 
+	hook = register_cleanup_hook(cleanup_kill_process, (void *) &pid);
 	close(param->status_p[1]); param->status_p[1] = -1;
 	close(param->out_p[1]); param->out_p[1] = -1;
 	close(param->err_p[1]); param->err_p[1] = -1;
@@ -431,6 +511,12 @@ int real_env_exec_waiter(struct exec_param *param, int pid, int timeout, int fla
 		return vzctl_err(ret, eno, "Failed to exec %s", cmd);
 	}
 
+	/* The std processed by external handler */
+	if (param->stdfd != NULL) {
+		ret = 0;
+		goto out;
+	}
+
 	if (param->std_in != NULL) {
 		if (write(param->in_p[1], param->std_in, strlen(param->std_in)) < 0) {
 			close(param->in_p[1]);
@@ -446,13 +532,6 @@ int real_env_exec_waiter(struct exec_param *param, int pid, int timeout, int fla
 	if (param->exec_mode == MODE_BASH_NOSTDIN) {
 		close(param->in_p[1]);
 		param->in_p[1] = -1;
-	}
-	/* The std processed by external handler */
-	if (param->stdfd != NULL) {
-		close(param->stdfd[0]);
-		close(param->stdfd[1]);
-		close(param->stdfd[2]);
-		goto out;
 	}
 
 	initoutput();
@@ -500,19 +579,20 @@ int real_env_exec_waiter(struct exec_param *param, int pid, int timeout, int fla
 	} while (param->out_p[0] != -1 || param->err_p[0] != -1);
 
 	writeoutput(0);
-out:
 
-	return env_wait(pid, timeout, NULL);
+out:
+	ret = env_wait(pid, timeout, NULL);
+	unregister_cleanup_hook(hook);
+
+	return ret;
 }
 
 static int do_env_exec(struct vzctl_env_handle *h, exec_mode_e exec_mode,
 		char *const argv[], char *const envp[], char *std_in,
 		execFn fn, void *data, int *data_fd, int timeout,
-		int flags, int stdfd[3])
+		int flags, int stdfd[3], int comm)
 {
-	int ret;
-	pid_t pid;
-	struct vzctl_cleanup_hook *hook;
+	int ret, pid;
 	struct exec_param param = {
 		.exec_mode = exec_mode,
 		.argv = argv,
@@ -526,9 +606,12 @@ static int do_env_exec(struct vzctl_env_handle *h, exec_mode_e exec_mode,
 		.out_p = {-1, -1},
 		.err_p = {-1, -1},
 		.status_p = {-1, -1},
+		.comm = comm,
 		.timeout = timeout,
 	};
 
+	if (!is_env_run(h))
+		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
 
 	if (is_enter_locked(h, flags))
 		return VZCTL_E_LOCK;
@@ -541,10 +624,8 @@ static int do_env_exec(struct vzctl_env_handle *h, exec_mode_e exec_mode,
 	if (ret)
 		goto err;
 
-	hook = register_cleanup_hook(cleanup_kill_process, (void *) &pid);
-	ret = real_env_exec_waiter(&param, pid, timeout, flags);
+	ret = real_env_exec_waiter(&param, param.timeout, pid, flags);
 
-	unregister_cleanup_hook(hook);
 err:
 	real_env_exec_close(&param);
 
@@ -632,34 +713,30 @@ static void raw_on(void)
 
 static int winchange(int info, int ptyfd)
 {
-	int ret;
-	struct winsize ws;
+	struct exec_msg m;
 
-	ret = read(info, &ws, sizeof(ws));
-	if (ret < 0)
+	if (read_exec_msg(info, &m))
 		return -1;
-	else if (ret != sizeof(ws))
-		return 0;
-	ioctl(ptyfd, TIOCSWINSZ, &ws);
+	if (m.hdr.type != EXEC_MSG_WINSIZE)
+		return -1;
+
+	ioctl(ptyfd, TIOCSWINSZ, &m.data.ws);
+
 	return 0;
 }
 
 void redirect_loop(int r_in, int w_in,  int r_out, int w_out, int info)
 {
-	int n, fl = 0;
+	int n, fl = info == -1 ? 4 : 0;
 	fd_set rd_set;
 
 	set_not_blk(r_in);
 	set_not_blk(r_out);
 	while (!child_exited) {
-		/* Process SIGWINCH
-		 * read winsize from stdin and send announce to the other end.
-		 */
 		if (win_changed) {
 			struct winsize ws;
-
 			if (!ioctl(r_in, TIOCGWINSZ, &ws))
-				n = write(info, &ws, sizeof(ws));
+				ioctl(w_in, TIOCSWINSZ, &ws);
 			win_changed = 0;
 		}
 		FD_ZERO(&rd_set);
@@ -673,13 +750,10 @@ void redirect_loop(int r_in, int w_in,  int r_out, int w_out, int info)
 		n = select(FD_SETSIZE, &rd_set, NULL, NULL, NULL);
 		if (n > 0) {
 			if (FD_ISSET(r_in, &rd_set))
-				if (stdredir(r_in, w_in, 0) < 0) {
-					close(w_in);
+				if (stdredir(r_in, w_in, 0) < 0)
 					fl |= 1;
-				}
 			if (FD_ISSET(r_out, &rd_set))
 				if (stdredir(r_out, w_out, 0) < 0) {
-					close(r_out);
 					fl |= 2;
 					break;
 				}
@@ -688,7 +762,6 @@ void redirect_loop(int r_in, int w_in,  int r_out, int w_out, int info)
 					fl |= 4;
 			}
 		} else if (n < 0 && errno != EINTR) {
-			close(r_out);
 			logger(-1, errno, "Error in select()");
 			break;
 		}
@@ -707,189 +780,128 @@ static void preload_lib(void)
 	endgrent();
 }
 
-static int env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
-		char *const argv[], char *const envp[], char *std_in,
-		execFn fn, void *data, int *data_fd, int timeout, int flags)
+static int do_env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
+                char *const argv[], char *const envp[],
+		struct termios *tios, struct winsize *ws, int fds[4], int flags)
 {
-	int pid, ret, status, raw_flag;
-	int in[2] = {-1, -1};
-	int out[2] = {-1, -1};
+	int ret, pid, status;
+	int master, slave;
 	int st[2] = {-1, -1};
-	int info[2] = {-1, -1};
-	struct sigaction act = {};
-	int i;
-	int fd_flags[2];
+	struct vzctl_cleanup_hook *hook;
 
-	for (i = 0; i < 2; i++) {
-		fd_flags[i] = fcntl(i, F_GETFL);
-		if (fd_flags[i] < 0)
-			return vzctl_err(VZCTL_E_SYSTEM, errno,
-					"Unable to get fd%d flags", i);
-	}
-
-	if (is_enter_locked(h, flags))
-		return VZCTL_E_LOCK;
-
-	if (pipe(in) < 0 || pipe(out) < 0 || pipe(st) < 0 || pipe(info) < 0) {
-		ret = vzctl_err(VZCTL_E_PIPE, errno,  "Unable to create pipe");
-		goto out;
-	}
+	if (fds == NULL)
+		return vzctl_err(VZCTL_E_INVAL, 0, "fds is not set");
 
 	preload_lib();
-	act.sa_handler = SIG_IGN;
-	act.sa_flags = 0;
-	sigaction(SIGPIPE, &act, NULL);
+	set_not_blk(fds[0]);
+	set_not_blk(fds[1]);
 
-	act.sa_handler = winchange_handler;
-	sigaction(SIGWINCH, &act, NULL);
-
-	ret = get_env_ops()->env_setluid(h);
+	ret = get_env_ops()->env_enter(h, flags);
 	if (ret)
-		goto out;
+		return ret;
 
-	if ((pid = fork()) < 0) {
-		ret = vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
-		goto out;
+	close_fds(VZCTL_CLOSE_NOCHECK, fds[0], fds[1], fds[3], -1);
+
+	if ((ret = pty_alloc(&master, &slave, tios, ws)))
+		return ret;
+
+	if (pipe2(st, O_CLOEXEC) < 0) {
+		ret = vzctl_err(VZCTL_E_PIPE, errno,  "Unable to create pipe");
+		goto err;
+	}
+
+	pid = fork();
+	if (pid < 0) {
+		ret = vzctl_err(VZCTL_E_FORK, errno, "Unable to fork");
+		goto err;
 	} else if (pid == 0) {
-		int master, slave;
-		struct termios tios;
-		struct winsize ws;
+		struct sigaction act = {};
+		char prompt[128];
+		char id[64];
+		char buf[64];
+		char *term;
+		char *arg[] = {"-bash", NULL};
+		char *env[] = {ENV_PATH,
+			"HISTFILE=/dev/null",
+			"USER=root", "HOME=/root", "LOGNAME=root",
+			prompt, NULL, /* for TERM */ NULL};
+		set_ctty(slave);
+		dup2(slave, 0);
+		dup2(slave, 1);
+		dup2(slave, 2);
+		close_fds(0, -1);
+		snprintf(id, sizeof(id), "CT-%s", EID(h));
+		snprintf(prompt, sizeof(prompt), "PS1=%s \\W\\$ ", id);
 
-		/* get terminal settings from 0 */
-		ioctl(0, TIOCGWINSZ, &ws);
-		tcgetattr(0, &tios);
-		close(in[1]); close(out[0]); close(st[0]); close(info[1]);
-		fcntl(st[1], F_SETFD, FD_CLOEXEC);
+		act.sa_handler = SIG_DFL;
+		sigaction(SIGPIPE, &act, NULL);
+		sigaction(SIGWINCH, &act, NULL);
 
-		ret = get_env_ops()->env_enter(h, flags);
-		if (ret)
-			goto err;
-
-		/* list of skipped fds -1 the end mark */
-		close_fds(1, in[0], out[1], st[1], info[0], -1);
-		dup2(out[1], 1);
-		dup2(out[1], 2);
-
-		if ((ret = pty_alloc(&master, &slave, &tios, &ws)))
-			goto err;
-		pid = fork();
-		if (pid < 0) {
-			ret = vzctl_err(VZCTL_E_FORK, errno, "Unable to fork");
-			if (write(st[1], &ret, sizeof(ret)) == -1)
-				logger(1, errno, "Failed write(st[1])");
-			_exit(ret);
-		} else if (pid == 0) {
-			char prompt[128];
-			char id[64];
-			char buf[64];
-			char *term;
-			char *arg[] = {"-bash", NULL};
-			char *env[] = {ENV_PATH,
-				"HISTFILE=/dev/null",
-				"USER=root", "HOME=/root", "LOGNAME=root",
-				prompt,
-				NULL, /* for TERM */
-				NULL};
-			close(master);
-			set_ctty(slave);
-			dup2(slave, 0);
-			dup2(slave, 1);
-			dup2(slave, 2);
-			close(slave);
-			close(in[0]); close(out[1]); close(st[1]); close(info[0]);
-			snprintf(id, sizeof(id), "CT-%s", EID(h));
-			snprintf(prompt, sizeof(prompt), "PS1=%s \\W\\$ ", id);
-
-			act.sa_handler = SIG_DFL;
-			sigaction(SIGPIPE, &act, NULL);
-			sigaction(SIGWINCH, &act, NULL);
-
-			if ((term = getenv("TERM")) != NULL) {
-				snprintf(buf, sizeof(buf), "TERM=%s", term);
-				env[sizeof(env)/sizeof(env[0]) - 2] = buf;
-			}
-			if (exec_mode == MODE_EXECFN) {
-				ret = fn(data);
-				_exit(ret);
-			} else if (exec_mode == MODE_EXEC) {
-				execvep(argv[0], argv,
-						envp != NULL ? envp : envp_bash);
-			} else {
-				execve("/bin/bash",
-						argv != NULL ? argv : arg,
-						envp != NULL ? envp : env);
-				execve("/bin/sh",
-						argv != NULL ? argv : arg,
-						envp != NULL ? envp : env);
-			}
-			logger(-1, errno, "enter failed: unable to exec bash");
-			_exit(1);
+		if ((term = getenv("TERM")) != NULL) {
+			snprintf(buf, sizeof(buf), "TERM=%s", term);
+			env[sizeof(env)/sizeof(env[0]) - 2] = buf;
 		}
-		close(slave);
-		close(st[1]);
-		redirect_loop(in[0], master, master, out[1], info[0]);
-		ret = env_wait(pid, timeout, NULL);
-		close(master);
-		_exit(0);
-err:
-		if (write(st[1], &ret, sizeof(ret)) == -1)
-			logger(-1, errno, "Failed write(st[1]");
-		_exit(ret);
+		execve("/bin/bash", argv != NULL ? argv : arg,
+				envp != NULL ? envp : env);
+		execve("/bin/sh", argv != NULL ? argv : arg,
+				envp != NULL ? envp : env);
+		logger(-1, errno, "enter failed: unable to exec bash");
+		ret = 1;
+		write(st[1], &ret, sizeof(ret));
+		_exit(1);
 	}
-	close(in[0]); in[0] = -1;
-	close(out[1]); out[1] = -1;
-	close(st[1]); st[1] = -1;
-	close(info[0]); info[0] = -1;
-	raw_flag = 0;
-	/* wait for pts allocation */
+	close_fds(VZCTL_CLOSE_STD|VZCTL_CLOSE_NOCHECK, fds[0], fds[1], fds[3], st[0], master, -1);
+	st[1] = -1;
+	hook = register_cleanup_hook(cleanup_kill_force, (void *) &pid);
 	ret = read(st[0], &status, sizeof(status));
-	if (!ret) {
-		fprintf(stdout, "entered into CT %s\n", h->ctid);
-		raw_on();
-		raw_flag = 1;
-		redirect_loop(fileno(stdin), in[1], out[0], fileno(stdout), info[1]);
+	if (ret == 0) {
+		redirect_loop(fds[0], master, master, fds[1], fds[2]);
 	} else {
-		logger(-1, 0, "enter into CT failed\n");
-		set_not_blk(out[0]);
-		while (stdredir(out[0], fileno(stdout), 0) == 0);
+		while (stdredir(master, fds[1], 0) == 0);
 	}
-	ret = env_wait(pid, timeout, NULL);
-	if (raw_flag)
-		raw_off();
-	fprintf(stdout, "exited from CT %s\n", h->ctid);
-out:
 
-	for (i = 0; i < 2; i++)
-		fcntl(i, F_SETFL, fd_flags[i]);
-
-	p_close(in);
-	p_close(out);
+	ret = env_wait(pid, 0, NULL);
+	unregister_cleanup_hook(hook);
+err:
 	p_close(st);
-	p_close(info);
+	close(master);
+	close(slave);
 
 	return ret;
 }
 
-int vzctl2_env_exec_async(struct vzctl_env_handle *h, exec_mode_e exec_mode,
-		char *const argv[], char *const envp[], char *std_in, int timeout,
-		int flags, int stdfd[3], int *err)
+int vzctl2_env_exec_pty_priv(struct vzctl_env_handle *h, int exec_mode,
+		char *const argv[], char *const envp[], int fds[4], int flags)
 {
-	int pid, ret;
+	int ret;
+	struct sigaction act = {};
+	struct exec_msg m;
+	struct termios tios;
+	struct winsize ws;
 
-	if (!is_env_run(h)) {
-		*err = vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
-		return -1;
-	}
+	act.sa_handler = SIG_IGN;
+	sigaction(SIGPIPE, &act, NULL);
 
-	if ((pid = fork()) < 0) {
-		*err = vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
-		return -1;
-	} else if (pid == 0) {
-		ret = do_env_exec(h, exec_mode, argv, envp, NULL,
-			NULL, NULL, NULL, timeout, flags, stdfd);
-		_exit(ret);
-	}
-	return pid;
+	ret = read_exec_msg(fds[3], &m);
+	if (ret)
+		return ret;
+	memcpy(&tios, &m.data.tios, sizeof(tios));
+
+	ret = read_exec_msg(fds[3], &m);
+	if (ret)
+		return ret;
+	memcpy(&ws, &m.data.ws, sizeof(ws));
+
+	return do_env_exec_pty(h, exec_mode, argv, envp, &tios, &ws, fds, flags);
+}
+
+int vzctl2_env_execve_priv(struct vzctl_env_handle *h, exec_mode_e exec_mode,
+		char *const argv[], char *const envp[], int timeout,
+		int stdfd[4], int flags)
+{
+	int comm = stdfd ? stdfd[3] : -1;
+
+	return do_env_exec(h, exec_mode, argv, envp, NULL, NULL, NULL, NULL, timeout, flags, stdfd, comm);
 }
 
 int vzctl2_env_exec_wait(int pid, int *retcode)
@@ -900,10 +912,7 @@ int vzctl2_env_exec_wait(int pid, int *retcode)
 int vzctl2_env_exec(struct vzctl_env_handle *h, exec_mode_e exec_mode,
 		char *const argv[], char *const envp[], char *std_in, int timeout, int flags)
 {
-	if (!is_env_run(h))
-		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
-
-	return do_env_exec(h, exec_mode, argv, envp, std_in, NULL, NULL, NULL, timeout, flags, NULL);
+	return do_env_exec(h, exec_mode, argv, envp, std_in, NULL, NULL, NULL, timeout, flags, NULL, -1);
 }
 
 static int do_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
@@ -971,23 +980,50 @@ int vzctl2_env_exec_fn_async(struct vzctl_env_handle *h, execFn fn,
 
 int vzctl2_env_enter(struct vzctl_env_handle *h)
 {
-	int pid, ret;
+	int ret;
+	struct termios tios;
+	struct winsize ws;
+	struct sigaction act = {};
+	struct vzctl_cleanup_hook *hook;
+	struct vzctl_exec_handle *exec = NULL;
+	int fds[2];
+	int in[2] = {-1. -1}, out[2] = {-1, -1};
 
 	if (!is_env_run(h))
 		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
 
-	if (get_env_ops()->get_feature() & F_SETLUID) {
-		if ((pid = fork()) < 0) {
-			return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
-		} else if (pid == 0) {
-			ret = env_exec_pty(h, MODE_BASH, NULL, NULL, NULL,
-					NULL, NULL, NULL, 0, 0);
-			_exit(ret);
-		}
-		ret = env_wait(pid, 0, NULL);
-	} else
-		ret = env_exec_pty(h, MODE_BASH, NULL, NULL, NULL,
-				NULL, NULL, NULL, 0, 0);
+	if (pipe2(in, O_CLOEXEC) || pipe2(out, O_CLOEXEC)) {
+		p_close(in);
+		p_close(out);
+		return vzctl_err(VZCTL_E_PIPE, errno, "Unable to create pipe");
+	}
+
+	fds[0] = in[0];
+	fds[1] = out[1];
+
+	act.sa_handler = winchange_handler;
+	sigaction(SIGWINCH, &act, NULL);
+
+	/* get terminal settings from 0 */
+	tcgetattr(0, &tios);
+	ioctl(0, TIOCGWINSZ, &ws);
+
+	ret = vzctl2_env_exec_pty(h, NULL, NULL, fds, &tios, &ws, &exec);
+	close(in[0]);
+	close(out[1]);
+	if (ret)
+		goto err;
+
+	hook = register_cleanup_hook(cleanup_kill_process, (void *) &exec->pid);
+	raw_on();
+	redirect_loop(fileno(stdin), in[1], out[0], fileno(stdout), exec->comm[0]);
+	unregister_cleanup_hook(hook);
+	raw_off();
+
+	ret = env_wait(exec->pid, 0, NULL);
+err:
+	close(in[1]);
+	close(out[0]);
 
 	return ret;
 }
@@ -1032,8 +1068,7 @@ int vzctl2_env_exec_script(struct vzctl_env_handle *h,
 	_envp = make_bash_env(envp);
 
 	ret = do_env_exec(h, MODE_BASH_NOSTDIN, argv, _envp, script,
-			NULL, NULL, NULL, 0, flags, NULL);
-
+			NULL, NULL, NULL, 0, flags, NULL, -1);
 	free(script);
 	free((void*)_envp);
 
@@ -1094,9 +1129,70 @@ char **build_arg(char **a, char *const *b)
 	return ar;
 }
 
+static int do_wrap_env_exec(struct vzctl_env_handle *h,	char *const argv[],
+		char *const envp[], int stdfd[3], exec_mode_e mode,
+		struct vzctl_exec_handle *exec)
+{
+	char *argv_param[8];
+	char stdfd_str[34] = "";
+	char **argv_new;
+	char **envp_new;
+
+	argv_param[0] = VZCTL_EXEC_WRAP_BIN;
+	argv_param[1] = EID(h);
+	argv_param[2] = "";
+	snprintf(stdfd_str, sizeof(stdfd_str), "%d:%d:%d:%d",
+		stdfd[0], stdfd[1], stdfd[2], exec->comm[1]);
+	argv_param[3] = stdfd_str;
+	argv_param[4] = "0"; // timeout
+	switch (mode) {
+	default:
+	case MODE_EXEC:
+		argv_param[5] = "0";
+		break;
+	case MODE_BASH:
+		argv_param[5] = "1";
+		break;
+	case MODE_TTY:
+		argv_param[5] = "4";
+		break;
+	}
+	
+	argv_param[6] = "0";
+	argv_param[7] = NULL;
+
+	argv_new = build_arg(argv_param, argv);
+	envp_new = build_arg(envp_bash, envp);
+	if (argv_new == NULL || envp_new == NULL) {
+		free(argv_new); free(envp_new);
+		return vzctl_err(VZCTL_E_NOMEM, ENOMEM, "malloc");
+	}
+
+	exec->pid = vfork();
+	if (exec->pid == -1) {
+		free(argv_new);
+		free(envp_new);
+		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
+	} else if (exec->pid == 0) {
+		drop_cloexec(stdfd[0], FD_CLOEXEC);
+		drop_cloexec(stdfd[1], FD_CLOEXEC);
+		drop_cloexec(stdfd[2], FD_CLOEXEC);
+		drop_cloexec(exec->comm[1], FD_CLOEXEC);
+		execve(argv_new[0], argv_new, envp_new);
+		vzctl_err(VZCTL_E_EXEC, errno, "failed to exec %s", argv_new[0]);
+		_exit(-1);
+	}
+	close(exec->comm[1]); exec->comm[1] = -1;
+
+	free(argv_new);
+	free(envp_new);
+
+	return 0;
+}
+
 static int do_wrap_env_exec_script(struct vzctl_env_handle *h,
 	char *const argv[], char *const envp[], const char *fname,
-	int timeout, int flags,  int use_vz_func, int *retcode)
+	int timeout, int flags, int use_vz_func)
 {
 	int pid;
 	char *argv_param[8];
@@ -1129,21 +1225,20 @@ static int do_wrap_env_exec_script(struct vzctl_env_handle *h,
 		free(envp_new);
 		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
 	} else if (pid == 0) {
-		execvep(argv_new[0], argv_new, envp_new);
+		execve(argv_new[0], argv_new, envp_new);
 		vzctl_err(VZCTL_E_EXEC, errno, "failed to exec %s", argv_new[0]);
 		_exit(-1);
 	}
 	free(argv_new);
 	free(envp_new);
-
-	return env_wait(pid, 0, retcode);
+	return env_wait(pid, timeout, NULL);
 }
 
 int vzctl2_wrap_env_exec_script(struct vzctl_env_handle *h,
-	char *const argv[], char *const envp[], const char *fname,
-	int timeout, int flags)
+		char *const argv[], char *const envp[], const char *fname,
+		int timeout, int flags)
 {
-	return do_wrap_env_exec_script(h, argv, envp, fname, timeout, flags, 0, NULL);
+	return do_wrap_env_exec_script(h, argv, envp, fname, timeout, flags, 0);
 }
 
 int vzctl2_wrap_env_exec_vzscript(struct vzctl_env_handle *h,
@@ -1153,18 +1248,146 @@ int vzctl2_wrap_env_exec_vzscript(struct vzctl_env_handle *h,
 	if (vzctl2_get_flags() & VZCTL_FLAG_DONT_USE_WRAP)
 		return vzctl2_env_exec_script(h, argv, envp,
 				fname, DIST_FUNC, timeout, flags);
-	return do_wrap_env_exec_script(h, argv, envp, fname,
-			timeout, flags, 1, NULL);
-}
-
-int vzctl2_wrap_exec_script_rc(char *const argv[], char *const env[], int flags, int *retcode)
-{
-	return do_wrap_env_exec_script(NULL, argv, env, argv[0], 0, flags, 0, retcode);
+	return do_wrap_env_exec_script(h, argv, envp, fname, timeout, flags, 1);
 }
 
 int vzctl2_wrap_exec_script(char *const argv[], char *const env[], int flags)
 {
 	if (vzctl2_get_flags() & VZCTL_FLAG_DONT_USE_WRAP)
 		return vzctl2_exec_script(argv, env, flags);
-	return vzctl2_wrap_exec_script_rc(argv, env, flags, NULL);
+	return do_wrap_env_exec_script(NULL, argv, env, argv[0], 0, flags, 0);
+}
+
+
+static struct vzctl_exec_handle *alloc_exec_handle(void)
+{
+	struct vzctl_exec_handle *h;
+	h = calloc(1, sizeof(struct vzctl_exec_handle *));
+	if (h == NULL) {
+		vzctl_err(VZCTL_E_NOMEM, ENOMEM, "alloc_exec_handle");
+		return NULL;
+	}
+
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, h->comm)) {
+		vzctl_err(VZCTL_E_NOMEM, errno, "socketpair");
+		free(h);
+		return NULL;
+	}
+
+	return h;
+}
+
+void vzctl2_release_exec_handle(struct vzctl_exec_handle *exec)
+{
+	p_close(exec->comm);
+	free(exec);
+}
+
+int vzctl2_env_execve(struct vzctl_env_handle *h, char *const argv[], char *const envp[],
+		int stdfd[3], exec_mode_e mode, struct vzctl_exec_handle **exec)
+{
+	int ret, fds[3] = {-1, -1, -1};
+	
+	if (!is_env_run(h))
+		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
+
+	*exec = alloc_exec_handle();
+	if (*exec == NULL)
+		return vzctl_err(VZCTL_E_NOMEM, ENOMEM, "alloc_exec_handle");
+
+	ret = do_wrap_env_exec(h, argv, envp, stdfd ? stdfd : fds, mode, *exec);
+	if (ret) {
+		vzctl2_release_exec_handle(*exec);
+		*exec = NULL;
+	}
+
+	return ret;
+}
+
+int vzctl2_env_waitpid(struct vzctl_exec_handle *exec, int nohang, int *status)
+{
+	int pid;
+
+	while ((pid = waitpid(exec->pid, status, nohang ? WNOHANG : 0)) == -1)
+		if (errno != EINTR)
+			return vzctl_err(-1, errno, "Error in waitpid(%d)",
+					exec->pid);
+	if (pid == exec->pid)
+		exec->exited = 1;
+
+	return pid;
+}
+
+int vzctl2_env_exec_pty(struct vzctl_env_handle *h, char *const argv[], char *const envp[],
+		int fds[2], struct termios *tios, struct winsize *ws,
+		struct vzctl_exec_handle **exec)
+{
+	int ret;
+	struct exec_msg m;
+	int f[4] = {fds[0], fds[1], -1, -1};
+	struct termios t = {
+		.c_iflag = 0x6506,
+		.c_oflag = OPOST|ONLCR,
+		.c_cflag = 0xbf,
+		.c_lflag = ISIG|ICANON|ECHO|ECHOE|ECHOK|ECHOCTL|ECHOKE,
+		.c_cc = "\003\034\177\025\004\000\001\000\021\023\032\377\022\017\027\026\377",
+	};
+
+	if (fds == NULL || ws == NULL || exec == NULL)
+		return vzctl_err(VZCTL_E_INVAL, 0, "Invalid argument");
+
+	if (!is_env_run(h))
+		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
+
+	if (is_enter_locked(h, 0))
+		return vzctl_err(VZCTL_E_LOCK, 0, "ENTER is locked");
+
+	*exec = alloc_exec_handle();
+	if (*exec == NULL)
+		return vzctl_err(VZCTL_E_NOMEM, ENOMEM, "alloc_exec_handle");
+
+	ret = do_wrap_env_exec(h, argv, envp, f, MODE_TTY, *exec);
+	if (ret)
+		goto err;
+
+	m.hdr.type = EXEC_MSG_TERMIOS;
+	memcpy(&m.data, tios ? tios : &t, sizeof(struct termios));
+	ret = send_exec_msg((*exec)->comm[0], &m);
+	if (ret)
+		goto err;
+
+	m.hdr.type = EXEC_MSG_WINSIZE;
+	memcpy(&m.data, ws, sizeof(*ws));
+	ret = send_exec_msg((*exec)->comm[0], &m);
+	if (ret)
+		goto err;
+err:
+	if (ret) {
+		int status;
+
+		vzctl2_env_exec_terminate(*exec);
+		vzctl2_env_waitpid(*exec, 0, &status);
+
+		vzctl2_release_exec_handle(*exec);
+		*exec = NULL;
+	}
+		
+	return ret;
+}
+
+void vzctl2_env_exec_terminate(struct vzctl_exec_handle *exec)
+{
+	if (exec->pid && !exec->exited)
+		kill(exec->pid, SIGTERM);
+}
+
+int vzctl2_env_exec_set_winsize(struct vzctl_exec_handle *exec,
+		struct winsize *ws)
+{
+	struct exec_msg m;
+
+	m.hdr.type = EXEC_MSG_WINSIZE;
+	memcpy(&m.data, ws, sizeof(struct winsize));
+
+	return send_exec_msg(exec->comm[0], &m);
 }

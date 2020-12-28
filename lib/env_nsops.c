@@ -1058,39 +1058,59 @@ static int ns_env_enter(struct vzctl_env_handle *h, int flags)
 	return env_enter(EID(h), flags);
 }
 
+static int do_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
+		int flags, int *pid)
+{
+	int ret;
+	size_t n;
+
+	ret = ns_env_enter(h, flags);
+	if (ret)
+		return ret;
+	/* Extra fork to apply setns() */
+	*pid = fork();
+	if (*pid < 0) {
+		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
+	} else if (*pid == 0) {
+		if (setsid() == -1) {
+			ret = vzctl_err(VZCTL_E_SYSTEM, errno, "setsid");
+			goto err;
+		}
+
+		ret = real_env_exec(h, param, flags);
+err:
+		n = write(param->status_p[1], &ret, sizeof(ret));
+		if (n != sizeof(ret))
+			logger(-1, errno, "failed to write to status pipe");
+
+		_exit(ret);
+	}
+
+	return 0;
+}
+
 static int ns_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
 		int flags, pid_t *pid)
 {
-	int ret;
-	pid_t pid2;
+
+	if (vzctl2_get_flags() & VZCTL_FLAG_WRAP)
+		return do_env_exec(h, param, flags, pid);
 
 	*pid = fork();
 	if (*pid < 0) {
 		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
 	} else if (*pid == 0) {
+		int ret;
+		pid_t pid2;
 		struct vzctl_cleanup_hook *hook;
 
-		ret = ns_env_enter(h, flags);
+		ret = do_env_exec(h, param, flags, &pid2);
 		if (ret)
 			goto err;
-		/* Extra fork to apply setns() */
-		pid2 = fork();
-		if (pid2 < 0) {
-			ret = vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
-			goto err;
-		} else if (pid2 == 0) {
-			if (setsid() == -1) {
-				ret = vzctl_err(VZCTL_E_SYSTEM, errno, "setsid");
-				_exit(ret);
-			}
 
-			ret = real_env_exec(h, param, flags);
-
-			_exit(ret);
-		}
+		close_fds(0, -1);
 
 		hook = register_cleanup_hook(cleanup_kill_process, (void *) &pid2);
-		close_array_fds(VZCTL_CLOSE_STD, NULL, -1);
 
 		if (param->timeout)
 			set_timeout_handler(pid2, param->timeout);
@@ -1098,7 +1118,6 @@ static int ns_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
 		ret = env_wait(pid2, param->timeout, NULL);
 		unregister_cleanup_hook(hook);
 err:
-
 		_exit(ret);
 	}
 
@@ -1128,7 +1147,7 @@ static int ns_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 			goto err;
 		} else if (pid2 == 0) {
 			ret = real_env_exec_fn(h, fn, data, data_fd, timeout, flags);
-			_exit(ret);
+			goto err;
 		}
 
 		if (timeout)

@@ -515,25 +515,33 @@ int cp_file(const char *src, const char *dst)
 	return ret;
 }
 
-static char *arg2str(char *const arg[])
+char *arg2str(char *const arg[])
 {
-        char *const *p;
-        char *str, *sp;
-        int len = 0;
+	char *const *p;
+	char *str, *sp;
+	int len = 0;
 
 	if (arg == NULL)
 		return NULL;
-        p = arg;
-        while (*p)
-                len += strlen(*p++) + 1;
-        if ((str = (char *)malloc(len + 1)) == NULL)
-                return NULL;
-        p = arg;
-        sp = str;
-        while (*p)
-                sp += sprintf(sp, "%s ", *p++);
+	p = arg;
+	while (*p) {
+		len += strlen(*p) + 1;
+		if ((*p)[0] == '\0')
+			len += 2;
+		p++;
+	}
+	if ((str = (char *)malloc(len + 1)) == NULL)
+		return NULL;
+	p = arg;
+	sp = str;
+	while (*p) {
+		if (*p != arg[0])
+			sp += sprintf(sp, "%s", " ");
+		sp += sprintf(sp, "%s", (*p)[0] == '\0' ? "''" : *p);
+		p++;
+	}
 
-        return str;
+	return str;
 }
 
 inline double max(double val1, double val2)
@@ -602,6 +610,15 @@ int set_not_blk(int fd)
 	if ((oldfl = fcntl(fd, F_GETFL)) == -1)
 		return -1;
 	return fcntl(fd, F_SETFL, oldfl | O_NONBLOCK);
+}
+
+int drop_cloexec(int fd, int drop)
+{
+	int f;
+
+	if ((f = fcntl(fd, F_GETFD)) == -1)
+		return -1;
+	return fcntl(fd, F_SETFD, f & ~FD_CLOEXEC);
 }
 
 /*
