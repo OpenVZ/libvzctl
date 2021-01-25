@@ -26,6 +26,7 @@
 #include <string.h>
 #include <libgen.h>
 #include <errno.h>
+#include <signal.h>
 
 #include "libvzctl.h"
 #include "../lib/vzerror.h"
@@ -36,7 +37,13 @@
 
 static void usage()
 {
-	printf("exec_wrap <ID> <SCRIPT> <VE_ROOT> <timeout> <0|1> [arg...arg]\n");
+	printf("exec_wrap <ID> <SCRIPT> <""> <timeout> <0|1> <flags> [arg...arg]\n");
+	printf("          <ID> <""> <in:out:err:comm> <timeout> <0|1|4> <flags> [arg...arg]\n");
+}
+
+static void cleanup(int sig)
+{
+	vzctl2_cancel_last_operation();
 }
 
 int parse_ul(const char *str, unsigned long *val)
@@ -69,32 +76,43 @@ int main(int argc, char **argv)
 	const char *inc = NULL;
 	int flags;
 	ctid_t ctid = {};
+	int stdfd[4] = {-1, -1, -1, -1};
 	struct vzctl_env_handle *h;
+	struct sigaction a = {};
+	exec_mode_e mode = MODE_EXEC;
 
-	if (argc < 6) {
-		usage();
-		return VZCTL_E_INVAL;
-	}
+	if (argc < 6)
+		goto err;
 
 	// ID
 	if (*argv[1] != '\0' && vzctl2_parse_ctid(argv[1], ctid))
-		return VZCTL_E_INVAL;
+		goto err;
 	// SCRIPT
 	fname = argv[2];
-	// VE_ROOT
-	//ve_root = argv[3];
+
 	// timeout
 	if (parse_int(argv[4], &timeout))
-		return VZCTL_E_INVAL;
-	// use_fz_func
-	if (!strcmp(argv[5], "1"))
-		inc = DIST_FUNC;
+		goto err;
+
 	// Flags
 	if (parse_int(argv[6], &flags))
-		return VZCTL_E_INVAL;
+		goto err;
+
+	if (fname[0] == '\0') {
+		if (sscanf(argv[3], "%d:%d:%d:%d", &stdfd[0], &stdfd[1], &stdfd[2], &stdfd[3]) != 4)
+			goto err;
+
+		mode = atoi(argv[5]);
+		flags |= EXEC_NOENV;
+	} else {
+		// use_fz_func
+		if (!strcmp(argv[5], "1"))
+			inc = DIST_FUNC;
+	}
 
 	vzctl2_init_log(basename(argv[0]));
 	vzctl2_set_ctx(ctid);
+	vzctl2_set_flags(VZCTL_FLAG_WRAP);
 	if ((ret = vzctl2_lib_init()))
 		return ret;
 	argv += 7;
@@ -107,10 +125,27 @@ int main(int argc, char **argv)
 	if (h == NULL)
 		return ret;
 
-	ret = vzctl2_env_exec_script(h, argv, NULL, fname, inc,
+	a.sa_handler = cleanup;
+	sigaction(SIGTERM, &a, NULL);
+	sigaction(SIGINT, &a, NULL);
+	sigaction(SIGHUP, &a, NULL);
+
+	if (fname[0] == '\0') {
+		if (mode == MODE_TTY) {
+			vzctl2_set_log_quiet(1);
+			ret = vzctl2_env_exec_pty_priv(h, mode, argv, NULL, stdfd, flags);
+		} else {
+			ret = vzctl2_env_execve_priv(h, mode, argv, NULL,
+					timeout, stdfd, flags);
+		}
+	} else
+		ret = vzctl2_env_exec_script(h, argv, NULL, fname, inc,
 			timeout, flags);
 
 	vzctl2_env_close(h);
-
 	return ret;
+
+err:
+	usage();
+	return VZCTL_E_INVAL;
 }

@@ -47,6 +47,7 @@ struct exec_param {
 	int in_p[2];
 	int out_p[2];
 	int err_p[2];
+	int comm;
 	int timeout;
 };
 
@@ -61,7 +62,6 @@ int real_env_exec(struct vzctl_env_handle *h, struct exec_param *param, int flag
 
 void set_timeout_handler(pid_t pid, int timeout);
 int real_env_exec_init(struct exec_param *param);
-int real_env_exec_waiter(struct exec_param *param, int pid, int timeout, int flags);
 char **build_arg(char **a, char *const *b);
 
 /** Execute function inside VE.
@@ -77,9 +77,11 @@ char **build_arg(char **a, char *const *b);
 int vzctl2_env_exec_fn(unsigned veid, const char *root, execFn fn, void *data,
 	int timeout);
 
-int vzctl2_env_exec_async(struct vzctl_env_handle *h, exec_mode_e exec_mode,
-	char *const argv[], char *const envp[], char *std_in, int timeout,
-	int flags, int stdfd[3], int *err);
+int vzctl2_env_execve_priv(struct vzctl_env_handle *h, exec_mode_e exec_mode,
+		char *const argv[], char *const envp[], int timeout,
+		int stdfd[4], int flags);
+int vzctl2_env_exec_pty_priv(struct vzctl_env_handle *h, int exec_mode,
+		char *const argv[], char *const envp[], int fds[4], int flags);
 
 int vzctl2_exec_script(char *const argv[], char *const env[], int flags);
 
@@ -93,7 +95,6 @@ int vzctl2_wrap_env_exec_script(struct vzctl_env_handle *h,
 int vzctl2_wrap_env_exec_vzscript(struct vzctl_env_handle *h,
         char *const argv[], char *const envp[], const char *fname, int timeout, int flags);
 
-int vzctl2_wrap_exec_script_rc(char *const argv[], char *const env[], int flags, int *retcode);
 int vzctl2_wrap_exec_script(char *const argv[], char *const envp[], int flags);
 void vzctl_stdredir(int rdfd, int wrfd, int log);
 int vzctl_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,

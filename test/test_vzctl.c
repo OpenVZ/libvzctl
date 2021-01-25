@@ -244,51 +244,6 @@ static int process_std(int stdoutfd[2], int stderrfd[2])
 	return 0;
 }
 
-int test_env_exec_async(char **argv, char **envp, int stdfd)
-{
-	int err, pid, ret;
-	vzctl_env_handle_ptr h;
-	int fds[3];
-	int stdoutfd[2] = {-1, -1};
-	int stderrfd[2] = {-1, -1};
-
-	h = vzctl2_env_open(ctid, 0, &err);
-	if (h == NULL) {
-		return -1;
-	}
-	if (stdfd) {
-		pipe(stdoutfd);
-		pipe(stderrfd);
-		fds[0] = -1;
-		fds[1] = stdoutfd[1];
-		fds[2] = stderrfd[1];
-	}
-
-	printf("* test_env_exec_async RUN: %s %s\n", argv[0], stdfd ? "redirect" : "" );
-	pid = vzctl2_env_exec_async(h, MODE_EXEC, argv, envp, NULL, 0, 0,
-			stdfd ? fds : NULL, &ret);
-	if (pid == -1) {
-		ret = err;
-		printf("vzctl2_env_exec_async: pid=-1\n");
-		goto err;
-	}
-
-	if (stdfd)
-		process_std(stdoutfd, stderrfd);
-
-	err = vzctl2_env_exec_wait(pid, &ret);
-	if (ret)
-		printf("vzctl2_env_exec_async: %s ret=%d\n",
-				vzctl2_get_last_error(), ret);
-
-	close(stdoutfd[0]);
-	close(stderrfd[0]);
-
-err:
-	vzctl2_env_close(h);
-	return ret;
-}
-
 int test_env_exec(char **argv, char **envp)
 {
 	int err, ret;
@@ -349,6 +304,47 @@ void test_env_exec_fn(execFn fn,  char *fname)
 	unlink(path);
 }
 
+int test_env_execve(char **argv, char **envp, int stdfd)
+{
+	int err, ret;
+	vzctl_env_handle_ptr h;
+	int fds[3] = {-1, -1, -1};
+	int stdoutfd[2] = {-1, -1};
+	int stderrfd[2] = {-1, -1};
+	struct vzctl_exec_handle *e = NULL;
+
+	h = vzctl2_env_open(ctid, 0, &err);
+	if (h == NULL) {
+		return -1;
+	}
+	if (stdfd) {
+		pipe(stdoutfd);
+		pipe(stderrfd);
+		fds[0] = -1;
+		fds[1] = stdoutfd[1];
+		fds[2] = stderrfd[1];
+	}
+
+	printf("* test_env_execve RUN: %s %s\n", argv[0], stdfd ? "redirect" : "");
+	ret = vzctl2_env_execve(h, argv, envp, fds, MODE_EXEC, &e);
+	if (ret) {
+		ERR("vzctl2_env_execve")
+		return ret;
+	}
+
+	if (stdfd)
+		process_std(stdoutfd, stderrfd);
+
+	ret = vzctl2_env_exec_wait(e->pid, NULL);
+
+	close(stdoutfd[0]);
+	close(stderrfd[0]);
+	vzctl2_release_exec_handle(e);
+	vzctl2_env_close(h);
+
+	return ret;
+}
+
 void test_exec()
 {
 	int ret, i;
@@ -360,29 +356,27 @@ void test_exec()
 		{
 			char *argv[] = {"printenv", NULL};
 			char *envp[] = {"TEST=test",  NULL};
-			CHECK_RET(test_env_exec_async(argv, envp, i))
+			CHECK_RET(test_env_execve(argv, envp, i))
 		}
 
 		{
 			char *argv[] = {"xx", NULL};
-			CHECK_RET(!test_env_exec_async(argv, NULL, i))
-
+			CHECK_RET(!test_env_execve(argv, NULL, i))
 		}
 
 		{
 			char *argv[] = {"ps", NULL};
-			CHECK_RET(test_env_exec_async(argv, NULL, i))
+			CHECK_RET(test_env_execve(argv, NULL, i))
 		}
 
 		{
 			char *argv[] = {"ls", "/proc",  NULL};
-			CHECK_RET(test_env_exec_async(argv, NULL, i))
+			CHECK_RET(test_env_execve(argv, NULL, i))
 		}
-
 
 		{
 			char *argv[] = {"false", NULL};
-			ret = test_env_exec_async(argv, NULL, i);
+			ret = test_env_execve(argv, NULL, i);
 			if (ret != 1) {
 				printf("ret=%d\n", ret);
 				TEST_ERR("vzctl_env_exec: false != 1");
@@ -391,13 +385,17 @@ void test_exec()
 
 		{
 			char *argv[] = {"true", NULL};
-			CHECK_RET(test_env_exec_async(argv, NULL, i))
+			CHECK_RET(test_env_execve(argv, NULL, i))
 		}
 	}
 
 	{
 		char *argv[] = {"ls", NULL};
 		CHECK_RET(test_env_exec(argv, NULL))
+	}
+	{
+		char *argv[] = {"xx", NULL};
+		CHECK_RET(!test_env_exec(argv, NULL))
 	}
 }
 
@@ -423,7 +421,6 @@ void test_env_stop()
 void test_vzlimits()
 {
 	TEST()
-	CHECK_RET(vzctl2_set_vzlimits("VZ_TOOLS"))
 }
 
 void test_mount()

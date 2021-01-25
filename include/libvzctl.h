@@ -151,6 +151,7 @@ enum {
 enum {
 	VZCTL_FLAG_DONT_SEND_EVT = 0x01, /* Do not send vzevent in any case */
 	VZCTL_FLAG_DONT_USE_WRAP = 0x02, 
+	VZCTL_FLAG_WRAP		 = 0x04,
 };
 
 enum {
@@ -182,7 +183,14 @@ typedef enum {
         MODE_BASH,              /**< exec bash, and put command on stdin. */
         MODE_EXECFN,            /**< exec function. */
         MODE_BASH_NOSTDIN,      /**< exec bash & close stdin. */
+	MODE_TTY,
 } exec_mode_e;
+
+struct vzctl_exec_handle {
+	int pid;
+	int exited;
+	int comm[2];
+};
 
 /* Netfilter:
  *    "disabled"   -- no iptables in CT allowed
@@ -243,6 +251,7 @@ struct vzctl_rate_param {
 	int net_class;
 	int rate;
 };
+
 
 #define VZCTL_TRANSITION_MIGRATING	"migrating"
 #define VZCTL_TRANSITION_RESTORING	"restoring"
@@ -1126,9 +1135,20 @@ int vzctl2_env_exec_fn3(ctid_t ctid, execFn fn, void *data, int *data_fd, int fl
  */
 int vzctl2_env_exec_fn_async(struct vzctl_env_handle *h, execFn fn,
 		void *data, int *data_fd, int timeout, int flags, int *err);
-
+void vzctl2_release_exec_handle(struct vzctl_exec_handle *exec);
+int vzctl2_env_execve(struct vzctl_env_handle *h, char *const argv[], char *const envp[],
+                int stdfd[3], exec_mode_e mode, struct vzctl_exec_handle **exec);
+struct termios;
+struct winsize;
+int vzctl2_env_exec_pty(struct vzctl_env_handle *h, char *const argv[], char *const envp[],
+		int fds[2], struct termios *tios, struct winsize *ws,
+		struct vzctl_exec_handle **exec);
 int vzctl2_env_exec_wait(int pid, int *retcode);
+void vzctl2_env_exec_terminate(struct vzctl_exec_handle *exec);
+int vzctl2_env_exec_set_winsize(struct vzctl_exec_handle *exec,
+		struct winsize *ws);
 
+int vzctl2_env_waitpid(struct vzctl_exec_handle *exec, int nohang, int *status);
 int vzctl2_env_enter(struct vzctl_env_handle *h);
 int vzctl2_env_exec_action_script(struct vzctl_env_handle *h, const char *name,
 		char *const env[], int timeout, int flags);
