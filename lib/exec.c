@@ -847,7 +847,8 @@ static int do_env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
 				envp != NULL ? envp : env);
 		logger(-1, errno, "enter failed: unable to exec bash");
 		ret = 1;
-		write(st[1], &ret, sizeof(ret));
+		if (write(st[1], &ret, sizeof(ret)) != sizeof(ret))
+			vzctl_err(0, errno, "do_env_exec_pty: can not write status");
 		_exit(1);
 	}
 	close_fds(VZCTL_CLOSE_STD|VZCTL_CLOSE_NOCHECK, fds[0], fds[1], fds[3], st[0], master, -1);
