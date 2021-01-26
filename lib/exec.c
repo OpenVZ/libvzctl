@@ -733,11 +733,13 @@ void redirect_loop(int r_in, int w_in,  int r_out, int w_out, int info)
 	set_not_blk(r_in);
 	set_not_blk(r_out);
 	while (!child_exited) {
-		if (win_changed) {
-			struct winsize ws;
-			if (!ioctl(r_in, TIOCGWINSZ, &ws))
-				ioctl(w_in, TIOCSWINSZ, &ws);
+		if (win_changed && !(fl & 4)) {
+			struct exec_msg m = {.hdr.type = EXEC_MSG_WINSIZE};
+
 			win_changed = 0;
+			if (ioctl(r_in, TIOCGWINSZ, &m.data.ws))
+				continue;
+			send_exec_msg(info, &m);
 		}
 		FD_ZERO(&rd_set);
 		if (!(fl & 1))
@@ -789,9 +791,13 @@ static int do_env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
 	int master, slave;
 	int st[2] = {-1, -1};
 	struct vzctl_cleanup_hook *hook;
+	struct sigaction act = {};
 
 	if (fds == NULL)
 		return vzctl_err(VZCTL_E_INVAL, 0, "fds is not set");
+
+	act.sa_handler = SIG_DFL;
+	sigaction(SIGWINCH, &act, NULL);
 
 	preload_lib();
 	set_not_blk(fds[0]);
@@ -816,7 +822,6 @@ static int do_env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
 		ret = vzctl_err(VZCTL_E_FORK, errno, "Unable to fork");
 		goto err;
 	} else if (pid == 0) {
-		struct sigaction act = {};
 		char prompt[128];
 		char id[64];
 		char buf[64];
@@ -836,7 +841,6 @@ static int do_env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
 
 		act.sa_handler = SIG_DFL;
 		sigaction(SIGPIPE, &act, NULL);
-		sigaction(SIGWINCH, &act, NULL);
 
 		if ((term = getenv("TERM")) != NULL) {
 			snprintf(buf, sizeof(buf), "TERM=%s", term);
@@ -857,7 +861,7 @@ static int do_env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
 	hook = register_cleanup_hook(cleanup_kill_force, (void *) &pid);
 	ret = read(st[0], &status, sizeof(status));
 	if (ret == 0) {
-		redirect_loop(fds[0], master, master, fds[1], fds[2]);
+		redirect_loop(fds[0], master, master, fds[1], fds[3]);
 	} else {
 		while (stdredir(master, fds[1], 0) == 0);
 	}
