@@ -749,15 +749,16 @@ void redirect_loop(int r_in, int w_in,  int r_out, int w_out, int info)
 
 		n = select(FD_SETSIZE, &rd_set, NULL, NULL, NULL);
 		if (n > 0) {
-			if (FD_ISSET(r_in, &rd_set))
+			if (!(fl & 1) && FD_ISSET(r_in, &rd_set)) {
 				if (stdredir(r_in, w_in, 0) < 0)
 					fl |= 1;
-			if (FD_ISSET(r_out, &rd_set))
+			}
+			if (!(fl & 2) && FD_ISSET(r_out, &rd_set))
 				if (stdredir(r_out, w_out, 0) < 0) {
 					fl |= 2;
 					break;
 				}
-			if (FD_ISSET(info, &rd_set)) {
+			if (!(fl & 4) && FD_ISSET(info, &rd_set)) {
 				if (winchange(info, w_in) < 0)
 					fl |= 4;
 			}
