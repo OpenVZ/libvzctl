@@ -37,25 +37,20 @@ addif()
 
 	if [ "$NETWORK_TYPE" = "bridge" ]; then
 		br=$2
-
-		for i in `ls -1 /sys/class/net/$br/brif`; do
-			if [ ! -d " /sys/class/net/$br/brif/$i" ]; then
-				iface_params=$i
-				break;
-			fi
-		done
 	else
-		br=`prlsrvctl net info "$2" --no-slave || prlsrvctl net info "$2"`
-		if [ $? -ne 0 ]; then
+		br=`virsh net-info $2 | awk '/Bridge:/{print $2}'`
+		if [ -z "$br" ]; then
+			echo "Cannot find bridge interface for $2 network"
 			exit 1
 		fi
-
-		bound_iface=`echo "$br" | awk '/Bound To:/{print $3}'`
-		br=`echo "$br" | awk '/Bridge:/{print $2}'`
-		if [ -z "$br" ]; then
-			br="$2"
-		fi
 	fi
+
+	for i in `ls -1 /sys/class/net/$br/brif`; do
+		if [ ! -d " /sys/class/net/$br/brif/$i" ]; then
+			bound_iface=$i
+			break;
+		fi
+	done
 
 	# propagate params
 	if [ -n "$bound_iface" ]; then
