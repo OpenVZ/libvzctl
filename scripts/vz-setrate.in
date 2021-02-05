@@ -726,11 +726,6 @@ vzcreate_qdisc()
 			vzwarning "Network interface ${dev} is not found in TOTALRATE."
 		fi
 	done
-	if [ "X${1}" != "Xkeepdb" ]; then
-		lockfile ${VZ_TC_CLASSES_LOCK}
-		echo "#VEID TC_CLASS" > ${VZ_TC_CLASSES}
-		rm -f ${VZ_TC_CLASSES_LOCK} >/dev/null 2>&1
-	fi
 }
 
 # Delete VE shaping classes
