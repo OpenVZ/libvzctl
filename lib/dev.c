@@ -232,7 +232,7 @@ int apply_dev_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int
 	struct stat st;
 	char buf[STR_SIZE];
 
-	if (list_empty(&dev->dev))
+	if (list_empty(&dev->dev) || (flags & VZCTL_RESTORE) )
 		return 0;
 
 	if (!is_env_run(h))
