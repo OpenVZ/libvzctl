@@ -85,7 +85,7 @@ void free_disk_param(struct vzctl_disk_param *disk);
 void free_disk(struct vzctl_disk *disk);
 void free_env_disk(struct vzctl_env_disk *env_disk);
 int configure_disk_perm(struct vzctl_env_handle *h, struct vzctl_disk *disk,
-		int del);
+		int del, int flags);
 int update_disk_info(struct vzctl_env_handle *h, struct vzctl_disk *disk);
 struct vzctl_env_disk *alloc_env_disk(void);
 void add_disk(struct vzctl_env_disk *env_disk, struct vzctl_disk *disk);

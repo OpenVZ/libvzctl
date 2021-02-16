@@ -71,7 +71,7 @@ int setup_vzlink_dev(struct vzctl_env_handle *h, int flags)
 	if (!(flags & VZCTL_SKIP_CONFIGURE))
 		vzctl_env_exec_fn(h,(execFn) mk_vzlink, NULL, 0);
 
-	if ((ret = get_env_ops()->env_set_devperm(h, &perm)))
+	if ((ret = get_env_ops()->env_set_devperm(h, &perm, flags)))
 		return ret;
 
 	return 0;
@@ -267,7 +267,7 @@ int apply_dev_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int
 		vzctl_env_exec_fn(h, (execFn) create_devs, (void *)dev, 0);
 
 	list_for_each(it, head, list) {
-		if ((ret = get_env_ops()->env_set_devperm(h, it)))
+		if ((ret = get_env_ops()->env_set_devperm(h, it, flags)))
 			return ret;
 	}
 	return 0;

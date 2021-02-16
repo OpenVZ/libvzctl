@@ -972,7 +972,7 @@ int configure_mount_opts(struct vzctl_env_handle *h, struct vzctl_disk *disk)
 }
 
 int configure_disk_perm(struct vzctl_env_handle *h, struct vzctl_disk *disk,
-		int del)
+		int del, int flags)
 {
 	int ret;
 	struct vzctl_dev_perm devperms = {
@@ -985,12 +985,12 @@ int configure_disk_perm(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 		devperms.mask = 0;
 
 	devperms.dev = disk->dev;
-	ret = get_env_ops()->env_set_devperm(h, &devperms);
+	ret = get_env_ops()->env_set_devperm(h, &devperms, flags);
 	if (ret)
 		return ret;
 
 	devperms.dev = disk->part_dev;
-	ret = get_env_ops()->env_set_devperm(h, &devperms);
+	ret = get_env_ops()->env_set_devperm(h, &devperms, flags);
 	if (ret)
 		return ret;
 
@@ -1107,7 +1107,7 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 			return ret;
 	}
 
-	ret = configure_disk_perm(h, disk, 0);
+	ret = configure_disk_perm(h, disk, 0, flags);
 	if (ret)
 		return ret;
 
@@ -1371,7 +1371,7 @@ static int del_disk(struct vzctl_env_handle *h, struct vzctl_disk *d)
 			vzctl_err(-1, 0, "Failed to unmount %s",
 					get_fs_partname(d));
 
-		ret = configure_disk_perm(h, d, 1);
+		ret = configure_disk_perm(h, d, 1, 0);
 		if (ret)
 			return ret;
 

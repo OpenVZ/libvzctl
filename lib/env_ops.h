@@ -58,7 +58,7 @@ struct vzctl_env_ops {
 	int (* is_env_run)(struct vzctl_env_handle *h);
 	int (* env_enter)(struct vzctl_env_handle *h, int flags);
 	int (* env_setluid)(struct vzctl_env_handle *h);
-	int (* env_set_devperm)(struct vzctl_env_handle *h, struct vzctl_dev_perm *dev);
+	int (* env_set_devperm)(struct vzctl_env_handle *h, struct vzctl_dev_perm *dev, int flags);
 	int (* env_set_cpumask)(struct vzctl_env_handle *h, struct vzctl_cpumask *cpumask);
 	int (* env_set_nodemask)(struct vzctl_env_handle *h, struct vzctl_nodemask *nodemask);
 	int (* env_set_ioprio)(struct vzctl_env_handle *h, int prio);
