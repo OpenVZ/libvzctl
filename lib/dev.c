@@ -45,38 +45,6 @@
 #include "exec.h"
 #include "env_ops.h"
 
-#define VZLINK          "vzlink"
-#define VZLINKDEV       (0x7d << 8) /* major 125, minor 0 */
-#define VZLINKDIR       "/etc/vz/dev/"
-
-static int mk_vzlink(void)
-{
-	make_dir(VZLINKDIR, 1);
-	unlink(VZLINKDIR VZLINK);
-	return mknod(VZLINKDIR VZLINK, S_IFCHR | S_IRUSR | S_IWUSR, VZLINKDEV);
-}
-
-int setup_vzlink_dev(struct vzctl_env_handle *h, int flags)
-{
-	int ret;
-	struct vzctl_dev_perm perm = {
-		.dev = VZLINKDEV,
-		.mask = S_IWOTH,
-		.type = S_IFCHR | VE_USE_MINOR,
-	};
-
-	if (h->veid < 100)
-		perm.mask |= S_IROTH;
-
-	if (!(flags & VZCTL_SKIP_CONFIGURE))
-		vzctl_env_exec_fn(h,(execFn) mk_vzlink, NULL, 0);
-
-	if ((ret = get_env_ops()->env_set_devperm(h, &perm, flags)))
-		return ret;
-
-	return 0;
-}
-
 #define CAP_SYS_MODULE_STR "ConditionCapability=CAP_SYS_MODULE"
 #define SYSTEMD_TMPFILES_SERVICE_CAP "/lib/systemd/system/systemd-tmpfiles-setup-dev.service"
 
