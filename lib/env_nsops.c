@@ -795,7 +795,7 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 				return ret;
 		}
 
-		ret = configure_disk_perm(h, d, 0);
+		ret = configure_disk_perm(h, d, 0, 0);
 		if (ret)
 			return ret;
 	}
@@ -1306,7 +1306,8 @@ out:
 	return ret ? VZCTL_E_ENV_STOP : 0;
 }
 
-static int ns_set_devperm(struct vzctl_env_handle *h, struct vzctl_dev_perm *dev)
+static int ns_set_devperm(struct vzctl_env_handle *h, struct vzctl_dev_perm *dev,
+		int flags)
 {
 	char dev_str_part[STR_SIZE];
 	char dev_str[STR_SIZE + 15];
@@ -1315,6 +1316,8 @@ static int ns_set_devperm(struct vzctl_env_handle *h, struct vzctl_dev_perm *dev
 	int deny = 0;
 	int ret;
 
+	if (flags & VZCTL_RESTORE)
+		return 0;
 	if (dev->mask & S_IXGRP)
 		return 0;
 

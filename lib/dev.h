@@ -52,7 +52,6 @@ int vz_env_set_devperm(struct vzctl_env_handle *h, struct vzctl_dev_perm *perm);
 int parse_devnodes_str(struct vzctl_dev_perm *perm, const char *str, int check);
 int parse_devices_str(struct vzctl_dev_perm *perm, const char *str);
 int add_dev_param(list_head_t *head, struct vzctl_dev_perm *perm);
-int setup_vzlink_dev(struct vzctl_env_handle *h, int flags);
 struct vzctl_dev_param *alloc_dev_param(void);
 int apply_dev_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags);
 int parse_devices(struct vzctl_dev_param *dev, const char *val);

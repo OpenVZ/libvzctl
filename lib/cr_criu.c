@@ -127,6 +127,14 @@ static int make_ploop_dev_args(struct vzctl_env_handle *h, char *out, int size)
 				is_root_disk(d) ? "root" : "");
 		if (pbuf > ep)
 			return vzctl_err(VZCTL_E_INVAL, 0, "make_ploop_dev_args: buffer overflow");
+		pbuf += snprintf(pbuf, ep - pbuf, "%s.0@%s:%d:%d:%s\n",
+				d->uuid, d->devname,
+				gnu_dev_major(d->dev),
+				gnu_dev_minor(d->dev),
+				is_root_disk(d) ? "root" : "");
+		if (pbuf > ep)
+			return vzctl_err(VZCTL_E_INVAL, 0, "make_ploop_dev_args: buffer overflow");
+
 	}
 
 	return 0;
