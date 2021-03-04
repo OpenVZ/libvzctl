@@ -139,7 +139,7 @@ int main(int argc, char **argv)
 					timeout, stdfd, flags);
 		}
 	} else
-		ret = vzctl2_env_exec_script(h, argv, NULL, fname, inc,
+		ret = vzctl2_env_exec_script(h, NULL, NULL, fname, inc,
 			timeout, flags);
 
 	vzctl2_env_close(h);
