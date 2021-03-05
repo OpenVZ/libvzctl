@@ -518,6 +518,10 @@ enum {
 	VZCTL_ROOT_DISK_BLANK	= 2,
 };
 
+enum {
+	VZCTL_GET_PLOOP_ARGS_EXTERNAL	= 1,
+};
+
 struct vzctl_env_create_param {
 	ctid_t ctid;
 	const char *uuid;
@@ -1086,6 +1090,7 @@ int vzctl2_get_ploop_dev2(const char *path, char *dev, int dlen, char *part,
 int vzctl2_get_top_image_fname(char *ve_private, char *out, int len);
 int vzctl2_is_image_mounted(const char *path);
 int vzctl2_get_mount_opts(const char *mnt_opts, int user_quota, char *out, int size);
+int vzctl2_get_criu_arg(struct vzctl_env_handle *h, int op, char *out, int size);
 
 /***************** CPT *********************************/
 int vzctl2_env_chkpnt(struct vzctl_env_handle *h, int cmd, struct vzctl_cpt_param *param, int flags);
