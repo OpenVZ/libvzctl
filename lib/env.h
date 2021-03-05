@@ -199,4 +199,5 @@ int criu_cmd(struct vzctl_env_handle *h, int cmd,
 		struct vzctl_cpt_param *param, struct start_param *data);
 int setup_cloud_init_data(struct vzctl_env_handle *h, const char *fname,
 		char **cidata_mnt);
+int make_ploop_dev_args_no_envvar(struct vzctl_env_handle *h, char *out, int size);
 #endif /* _ENV_H_ */

@@ -108,16 +108,33 @@ static int make_ext_mount_args(struct vzctl_env_handle *h, int cpt, char *out,
 
 static int make_ploop_dev_args(struct vzctl_env_handle *h, char *out, int size)
 {
+	char *pbuf = out;
+	int rc;
+
+	pbuf += snprintf(pbuf, size, "VE_PLOOP_DEVS=");
+	rc = make_ploop_dev_args_no_envvar(h, pbuf, size - (pbuf - out));
+
+	return rc;
+}
+
+int make_ploop_dev_args_no_envvar(struct vzctl_env_handle *h, char *out, int size)
+{
+	int ret;
 	char *ep, *pbuf = out;
 	struct vzctl_disk *d;
 
 	ep = pbuf + size;
-	pbuf += snprintf(pbuf, size, "VE_PLOOP_DEVS=");
 	list_for_each(d, &h->env_param->disk->disks, list) {
-		dev_t part_dev = get_fs_partdev(d);
-
 		if (d->enabled == VZCTL_PARAM_OFF)
 			continue;
+
+		if (d->devname == NULL) {
+			ret = update_disk_info(h, d);
+			if (ret)
+				return ret;
+		}
+
+		dev_t part_dev = get_fs_partdev(d);
 
 		pbuf += snprintf(pbuf, ep - pbuf, "%s@%s:%d:%d:%s\n",
 				d->uuid,

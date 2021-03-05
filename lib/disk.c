@@ -1734,3 +1734,13 @@ err:
 	ploop_close_dd(di);
 	return ret;
 }
+
+int vzctl2_get_criu_arg(struct vzctl_env_handle *h, int op, char *out, int size)
+{
+	switch(op) {
+	case VZCTL_GET_PLOOP_ARGS_EXTERNAL:
+		return make_ploop_dev_args_no_envvar(h, out, size);
+	default:
+		return vzctl_err(VZCTL_E_UNKNOWN_PARM, 0, "Unknown vzctl2_get_ploop_args opcode %d", op);
+	}
+}
