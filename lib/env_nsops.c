@@ -1086,6 +1086,8 @@ err:
 		_exit(ret);
 	}
 
+	close_fds(1, param->status_p[0], -1);
+
 	return 0;
 }
 
@@ -1107,9 +1109,7 @@ static int ns_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
 		ret = do_env_exec(h, param, flags, &pid2);
 		if (ret)
 			goto err;
-
-		close_fds(0, -1);
-
+		close(param->status_p[0]);
 		hook = register_cleanup_hook(cleanup_kill_process, (void *) &pid2);
 
 		if (param->timeout)
@@ -1120,6 +1120,8 @@ static int ns_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
 err:
 		_exit(ret);
 	}
+
+	close_fds(1, param->status_p[0], -1);
 
 	return 0;
 }

@@ -417,14 +417,6 @@ int real_env_exec(struct vzctl_env_handle *h, struct exec_param *param, int flag
 
 	if (param->data_fd != NULL)
 		skip_fds[i++] = *param->data_fd;
-	if (param->stdfd != NULL) {
-		if (param->stdfd[0] != -1)
-			skip_fds[i++] = param->stdfd[0];
-		if (param->stdfd[1] != -1)
-			skip_fds[i++] = param->stdfd[1];
-		if (param->stdfd[2] != -1)
-			skip_fds[i++] = param->stdfd[2];
-	}
 
 	fcntl(param->status_p[1], F_SETFD, FD_CLOEXEC);
 	skip_fds[i++] = param->status_p[1];
