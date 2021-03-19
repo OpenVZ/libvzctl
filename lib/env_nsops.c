@@ -1121,8 +1121,6 @@ err:
 		_exit(ret);
 	}
 
-	close_fds(1, param->status_p[0], -1);
-
 	return 0;
 }
 
