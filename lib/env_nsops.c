@@ -1061,7 +1061,8 @@ static int ns_env_enter(struct vzctl_env_handle *h, int flags)
 static int do_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
 		int flags, int *pid)
 {
-	int ret;
+	int ret, i = 0;
+	int skip_fds[6];
 	size_t n;
 
 	ret = ns_env_enter(h, flags);
@@ -1086,7 +1087,17 @@ err:
 		_exit(ret);
 	}
 
-	close_fds(1, param->status_p[0], -1);
+	skip_fds[i++] = vzctl2_get_log_fd();
+	skip_fds[i++] = param->status_p[0];
+	if (param->in_p[1] != -1)
+		skip_fds[i++] = param->in_p[1];
+	if (param->out_p[0] != -1)
+		skip_fds[i++] = param->out_p[0];
+	if (param->err_p[0] != -1)
+		skip_fds[i++] = param->err_p[0];
+	skip_fds[i] = -1;
+
+	_close_fds(0, skip_fds);
 
 	return 0;
 }
@@ -1094,7 +1105,6 @@ err:
 static int ns_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
 		int flags, pid_t *pid)
 {
-
 	if (vzctl2_get_flags() & VZCTL_FLAG_WRAP)
 		return do_env_exec(h, param, flags, pid);
 
@@ -1109,7 +1119,7 @@ static int ns_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
 		ret = do_env_exec(h, param, flags, &pid2);
 		if (ret)
 			goto err;
-		close(param->status_p[0]);
+		close_fds(VZCTL_CLOSE_STD, -1);
 		hook = register_cleanup_hook(cleanup_kill_process, (void *) &pid2);
 
 		if (param->timeout)
