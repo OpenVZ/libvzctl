@@ -1236,6 +1236,10 @@ int vzctl2_wrap_env_exec_script(struct vzctl_env_handle *h,
 		char *const argv[], char *const envp[], const char *fname,
 		int timeout, int flags)
 {
+
+	if (vzctl2_get_flags() & VZCTL_FLAG_DONT_USE_WRAP)
+		return vzctl2_env_exec_script(h, NULL, NULL, fname, 0,
+				timeout, flags);
 	return do_wrap_env_exec_script(h, argv, envp, fname, timeout, flags, 0);
 }
 
