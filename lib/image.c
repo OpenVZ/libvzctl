@@ -128,7 +128,7 @@ static int fsck_mode2flags(int mode)
 	case VZCTL_PARAM_OFF:
 		return 0;
 	case VZCTL_PARAM_FORCE_REPAIR:
-		return E2FSCK_FORCE_REPAIR;
+		return E2FSCK_FORCE_REPAIR | E2FSCK_FORCE;
 	default:
 		return E2FSCK_PREEN;
 	}

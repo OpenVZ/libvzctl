@@ -423,7 +423,7 @@ int vzctl2_prepare_root_image(const char *dst, const char *ostemplate,
 	int ret;
 	char *ostmpl;
 	char tarball[PATH_MAX];
-	struct vzctl_mount_param m = {};
+	struct vzctl_mount_param m = {.fsck = VZCTL_PARAM_FORCE_REPAIR};
 	struct vzctl_disk d = {.path = (char *)dst};
 
 	if (dst == NULL || ostemplate == NULL)
@@ -598,20 +598,17 @@ static int merge_create_param(struct vzctl_env_handle *h, struct vzctl_env_param
 static void set_fs_uuid(struct vzctl_env_handle *h)
 {
 	struct vzctl_disk *d;
+	struct vzctl_mount_param m = {.fsck = VZCTL_PARAM_FORCE_REPAIR};
 
 	list_for_each(d, &h->env_param->disk->disks, list) {
 		if (d->use_device)
 			continue;
 
-		if (is_root_disk(d)) {
-			if (umount(h->env_param->fs->ve_root)) {
-				logger(-1, errno, "set_fs_uuid: failed to unmount %s",
-						h->env_param->fs->ve_root);
-				continue;
-			}
-		}
-
-		do_set_fs_uuid(d);
+		if (vzctl2_mount_disk_image(d->path, &m))
+			continue;
+		if (update_disk_info(h, d) == 0)
+			do_set_fs_uuid(d);
+		vzctl2_umount_disk_image(d->path);
 	}
 }
 
@@ -753,10 +750,9 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 			goto err;
 
 		post_create(h);
+		vzctl2_env_umount(h, 0);
 		if (layout >= VZCTL_LAYOUT_5)
 			set_fs_uuid(h);
-
-		vzctl2_env_umount(h, 0);
 	}
 
 	if ((ret = vzctl2_env_save_conf(h, conf)))
