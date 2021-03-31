@@ -111,6 +111,8 @@ int main(int argc, char **argv)
 	}
 
 	vzctl2_init_log(basename(argv[0]));
+	if (mode == MODE_TTY)
+		vzctl2_set_log_quiet(1);
 	vzctl2_set_ctx(ctid);
 	vzctl2_set_flags(VZCTL_FLAG_WRAP);
 	if ((ret = vzctl2_lib_init()))
@@ -132,7 +134,6 @@ int main(int argc, char **argv)
 
 	if (fname[0] == '\0') {
 		if (mode == MODE_TTY) {
-			vzctl2_set_log_quiet(1);
 			ret = vzctl2_env_exec_pty_priv(h, mode, argv, NULL, stdfd, flags);
 		} else {
 			ret = vzctl2_env_execve_priv(h, mode, argv, NULL,
