@@ -40,6 +40,11 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 		exit 1
 	fi
 	if [ -n "$VEID" ]; then
+		# Save monotonic offsets for next restore
+		cat /sys/fs/cgroup/ve/$VEID/ve.clock_bootbased  > $CRTOOLS_IMAGE_DIR/vz_clock_bootbased.img || \
+			{ echo "Failed to dump ve.clock_bootbased"; exit 1;  }
+		cat /sys/fs/cgroup/ve/$VEID/ve.clock_monotonic  > $CRTOOLS_IMAGE_DIR/vz_clock_monotonic.img || \
+			{ echo "Failed to dump ve.clock_monotonic"; exit 1; }
 		cat /sys/fs/cgroup/memory/machine.slice/$VEID/memory.limit_in_bytes > \
 			$CRTOOLS_IMAGE_DIR/vz_memory_limit_in_bytes.img || \
 			{ echo "Failed to dump memory limit in bytes"; exit 1; }
