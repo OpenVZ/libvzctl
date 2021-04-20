@@ -447,6 +447,7 @@ function add_debian_ip6()
 	local i c ip
 
 	[ "${IPV6}" != "yes" ] && return
+	[ -z "$ips" ] && return
 
 	${CP} ${cfg} ${cfg}.$$ || \
 		error "Can't copy file ${cfg}" $VZ_FS_NO_DISK_SPACE
