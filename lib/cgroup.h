@@ -36,6 +36,7 @@
 #define CG_PERF_EVENT	"perf_event"
 #define CG_HUGETLB	"hugetlb"
 #define CG_PIDS		"pids"
+#define CG_RDMA		"rdma"
 
 #define CG_MEM_LIMIT	"memory.limit_in_bytes"
 #define CG_MEM_USAGE	"memory.usage_in_bytes"
