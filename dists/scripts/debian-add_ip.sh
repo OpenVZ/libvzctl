@@ -127,7 +127,6 @@ function add_ip6_alias()
 		}
 	' < ${CFGFILE} > ${CFGFILE}.$$ && mv -f ${CFGFILE}.$$ ${CFGFILE}
 	rm -f ${CFGFILE}.$$ 2>/dev/null
-	if_restart=yes
 }
 
 function get_all_aliasid()
@@ -198,7 +197,7 @@ function setup()
 		fi
 	done
 	if [ "x${VE_STATE}" = "xrunning" ]; then
-		[ -n "${if_restart}" ] && /sbin/ifdown venet0 2>/dev/null
+		/sbin/ifdown venet0 2>/dev/null
 		/sbin/ifup -a --force 2>/dev/null
 	fi
 }
