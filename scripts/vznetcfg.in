@@ -36,9 +36,9 @@ addif()
 	local iface_params
 
 	if [ "$NETWORK_TYPE" = "bridge" ]; then
-		br=$2
+		br="$2"
 	else
-		br=`virsh net-info $2 | awk '/Bridge:/{print $2}'`
+		br=`virsh net-info "$2" | awk '/Bridge:/{print $2}'`
 		if [ -z "$br" ]; then
 			echo "Cannot find bridge interface for $2 network"
 			exit 1
