@@ -63,13 +63,15 @@ function fix_net()
 
 function setup_network()
 {
-	fix_net
-	put_param3 ${IFCFG} "config_${VENET_DEV}" ""
+	if [ "${IP_ADDR}" != "" ]; then
+    fix_net
+	put_param ${IFCFG} "config_${VENET_DEV}" ""
 	# add fake route
-	put_param3 ${IFCFG} "routes_${VENET_DEV}" \
+	put_param ${IFCFG} "routes_${VENET_DEV}" \
 		"-net ${FAKEGATEWAYNET}/24" # dev ${VENET_DEV}
-	add_param3 ${IFCFG} "routes_${VENET_DEV}" "default via ${FAKEGATEWAY}"
-	# Set up /etc/hosts
+	add_param ${IFCFG} "routes_${VENET_DEV}" "default via ${FAKEGATEWAY}"
+	fi
+    # Set up /etc/hosts
 	if [ ! -f ${HOSTFILE} ]; then
 		echo "127.0.0.1 localhost.localdomain localhost" > $HOSTFILE
 	fi
