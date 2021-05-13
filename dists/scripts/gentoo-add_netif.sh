@@ -45,7 +45,7 @@ function fix_net()
 function setup_network()
 {
 	fix_net
-	put_param3 ${IFCFG} "config_${DEV}" ""
+	put_param ${IFCFG} "config_${DEV}" ""
 	# add fake route
 #	put_param3 ${IFCFG} "routes_${DEV}" \
 #		"-net ${FAKEGATEWAYNET}/24" # dev ${VENET_DEV}
@@ -57,9 +57,13 @@ function add_ip()
 	local ip=$1
 	local mask=$2
 
-	[ -n "${mask}" ] && ip="${ip} netmask ${mask}"
+	[ -n "${mask}" ] && ip="${ip}/${mask}"
 	grep -qw "${ip}" ${IFCFG} || \
-		add_param3 "${IFCFG}" "config_${DEV}" "${ip}"
+		add_param "${IFCFG}" "config_${DEV}" "${ip}"
+    if [ "$GW" != "" ]; then
+	grep  -qw "routes_${DEV}=.*${GW}" ${IFCFG} || \
+		add_param "${IFCFG}" "routes_${DEV}" "default via ${GW}"
+	fi    
 }
 
 function del_ip()
@@ -69,7 +73,7 @@ function del_ip()
 	for ipm in ${ips}; do
 		ip=${ipm%%/*}
 		if [ "$ip" = "all" ]; then
-			put_param3 "${IFCFG}" "config_${DEV}" ""
+			put_param "${IFCFG}" "config_${DEV}" ""
 			break
 		fi
 		grep -qw "config_${DEV}=.*${ip}" ${IFCFG} && \
