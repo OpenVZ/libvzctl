@@ -27,6 +27,7 @@
 #include "errno.h"
 #include <dirent.h>
 #include <sys/stat.h>
+#include <sys/sysmacros.h>
 #include <unistd.h>
 
 #include "logger.h"
@@ -107,11 +108,17 @@ int get_sysfs_device_path(const char *class, const char *devname, char *out,
 	int n;
 	char x[STR_SIZE];
 	char buf[STR_SIZE];
-	char *p = realpath(devname, NULL);
 
-	snprintf(x, sizeof(x), "/sys/class/%s/%s", class,
-			get_devname(p ?: devname));
-	free(p);
+	if (strcmp(class, "block") == 0) {
+		struct stat st;
+
+		if (stat(devname, &st))
+			return vzctl_err(VZCTL_E_SYSTEM, errno, "Can't stat %s", devname);
+		snprintf(x, sizeof(x), "/sys/dev/%s/%d:%d", class,
+				gnu_dev_major(st.st_rdev), gnu_dev_minor(st.st_rdev));
+	} else
+		snprintf(x, sizeof(x), "/sys/class/%s/%s", class,
+				get_devname(devname));
 
 	n = readlink(x, buf, sizeof(buf) -1);
 	if (n == -1)
@@ -122,4 +129,3 @@ int get_sysfs_device_path(const char *class, const char *devname, char *out,
 
 	return 0;
 }
-
