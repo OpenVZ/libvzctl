@@ -1053,6 +1053,19 @@ int enter_net_ns(struct vzctl_env_handle *h, pid_t *ct_pid)
 	return 0;
 }
 
+int vzctl2_enter_mnt_ns(struct vzctl_env_handle *h)
+{
+	pid_t pid;
+
+	if (cg_env_get_init_pid(h->ctid, &pid))
+		return -1;
+
+	if (set_ns(pid, "mnt", 0))
+		return vzctl_err(-1, errno,
+				"Cannot switch to mnt namespace");
+	return 0;
+}
+
 static int ns_env_enter(struct vzctl_env_handle *h, int flags)
 {
 	return env_enter(EID(h), flags);
