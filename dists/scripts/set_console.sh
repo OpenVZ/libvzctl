@@ -200,7 +200,7 @@ setup_console()
 start_console()
 {
 	local cmd
-	local tty=tty$START_CONSOLE_ON_TTY
+	local tty=$START_CONSOLE_ON_DEV
 
 	if [ -x /sbin/agetty ]; then
 		cmd="/sbin/agetty $tty 38400 $TERM"
@@ -213,14 +213,16 @@ start_console()
 		exit 1
 	fi
 
-	create_dev $tty 4 $START_CONSOLE_ON_TTY
+	if [ -n "${START_CONSOLE_MINOR}" ]; then
+		create_dev $tty 4 $START_CONSOLE_MINOR
+	fi
 
 	nohup setsid $cmd &
 }
 
-if [ -n "${START_CONSOLE_ON_TTY}" ]; then
+if [ -n "${START_CONSOLE_ON_DEV}" ]; then
 	start_console
-else
+elif [ -n "${SETUP_CONSOLE}" ]; then
 	setup_console
 fi
 
