@@ -32,6 +32,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/mount.h>
+#include <sys/sysmacros.h>
 #include <math.h>
 #include <dirent.h>
 
@@ -837,6 +838,37 @@ int cg_env_set_iopslimit(const char *ctid, unsigned int speed,
 		unsigned int burst, unsigned int latency)
 {
 	return cg_env_set_io(ctid, "iopslimit", speed, burst, latency);
+}
+
+static int cg_set_disk_io(const char *ctid, dev_t dev, const char *name,
+		unsigned int limit)
+{
+	int ret;
+	char n[STR_SIZE];
+	char d[STR_SIZE];
+
+	snprintf(d, sizeof(d), "%d:%d %u",
+			gnu_dev_major(dev), gnu_dev_minor(dev), limit);
+	snprintf(n, sizeof(n), "blkio.throttle.read_%s_device", name);
+	ret = cg_set_param(ctid, CG_BLKIO,  n, d);
+	if (ret)
+		return ret;
+
+	snprintf(n, sizeof(n), "blkio.throttle.write_%s_device", "bps");
+	ret = cg_set_param(ctid, CG_BLKIO, n, d);
+	if (ret)
+		return ret;
+	return 0;
+}
+
+int cg_set_disk_iolimit(const char *ctid, dev_t dev, unsigned int limit)
+{
+	return cg_set_disk_io(ctid, dev, "bps", limit);
+}
+
+int cg_set_disk_iopslimit(const char *ctid, dev_t dev, unsigned int limit)
+{
+	return cg_set_disk_io(ctid, dev, "iops", limit);
 }
 
 int cg_env_get_memory(const char *ctid, const char *name, unsigned long *value)

@@ -83,6 +83,8 @@ int cg_env_set_devices(const char *ctid, const char *name, const char *data);
 int cg_env_set_memory(const char *ctid, const char *name, unsigned long value);
 int cg_env_get_memory(const char *ctid, const char *name, unsigned long *value);
 int cg_env_set_ub(const char *ctid, const char *name, unsigned long b, unsigned long l);
+int cg_set_disk_iolimit(const char *ctid, dev_t dev, unsigned int limit);
+int cg_set_disk_iopslimit(const char *ctid, dev_t dev, unsigned int limit);
 int cg_env_set_iolimit(const char *ctid, unsigned int speed,
 		unsigned int burst, unsigned int latency);
 int cg_env_set_iopslimit(const char *ctid, unsigned int speed,

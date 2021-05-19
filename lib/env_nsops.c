@@ -1795,13 +1795,40 @@ static int ns_netdev_ctl(struct vzctl_env_handle *h, int add, const char *dev)
 	return add_sysfs_dir(h, dirname(sysfs), NULL, mode);
 }
 
-static int ns_set_iolimit(struct vzctl_env_handle *h, unsigned int speed)
+static int ns_set_disk_io(struct vzctl_env_handle *h, unsigned int *limit,
+		unsigned int *iops)
 {
-	logger(0, 0, "Set up iolimit: %u", speed);
-	if (cg_env_set_iolimit(EID(h), speed, speed * 3, 10*1000))
-		return VZCTL_E_SET_IO;
+	struct vzctl_disk *d;
+
+	list_for_each(d, &h->env_param->disk->disks, list) {
+		if (d->enabled == VZCTL_PARAM_OFF)
+			continue;
+		if (d->dev == 0) {
+			int ret = update_disk_info(h, d);
+			if (ret)
+				return ret;
+
+		}
+		if (limit && cg_set_disk_iolimit(EID(h), d->dev, *limit))
+			return VZCTL_E_SET_IO;
+		if (iops && cg_set_disk_iopslimit(EID(h), d->dev, *iops))
+			return VZCTL_E_SET_IO;
+	}
 
 	return 0;
+}
+
+static int ns_set_iolimit(struct vzctl_env_handle *h, unsigned int speed)
+{
+	int rc;
+	logger(0, 0, "Set up iopslimit: %u", speed);
+
+	if (is_ub_supported())
+		rc = cg_env_set_iolimit(EID(h), speed, speed * 3, 10*1000);
+	else
+		rc = ns_set_disk_io(h, &speed, NULL);
+
+	return rc ? VZCTL_E_SET_IO : 0;
 }
 
 static int ns_get_iolimit(struct vzctl_env_handle *h, unsigned int *speed)
@@ -1835,11 +1862,15 @@ static int ns_set_ioprio(struct vzctl_env_handle *h, int prio)
 
 static int ns_set_iopslimit(struct vzctl_env_handle *h, unsigned int speed)
 {
-	logger(0, 0, "Set up iopslimit: %u", speed);
-	if (cg_env_set_iopslimit(EID(h), speed, speed * 3, 10*1000))
-		return VZCTL_E_SET_IO;
+	int rc;
 
-	return 0;
+	logger(0, 0, "Set up iopslimit: %u", speed);
+	if (is_ub_supported())
+		rc = cg_env_set_iopslimit(EID(h), speed, speed * 3, 10*1000);
+	else
+		rc = ns_set_disk_io(h, NULL, &speed);
+
+	return rc ? VZCTL_E_SET_IO : 0;
 }
 
 static int ns_get_iopslimit(struct vzctl_env_handle *h, unsigned int *speed)

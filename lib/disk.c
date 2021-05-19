@@ -1138,6 +1138,8 @@ static int enable_disk(struct vzctl_env_handle *h, struct vzctl_disk *d)
 	}
 
 	ret = do_setup_disk(h, d, 0, 1);
+	if (ret == 0 && !is_ub_supported())
+		ret = apply_io_param(h, h->env_param, 0);
 	if (ret && !d->use_device)
 		vzctl2_umount_disk_image(d->path);
 
