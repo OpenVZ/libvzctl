@@ -634,9 +634,11 @@ static int set_features(struct vzctl_env_handle *h,
 	unsigned long long known = features->known;
 	unsigned long long mask = features->mask;
 
+#ifndef VZ8
 	ret = cg_set_ull(EID(h), CG_VE, "ve.iptables_mask", get_ipt_mask(features));
 	if (ret)
 		ret = 0;
+#endif
 
 	t = tech2features(features->tech);
 	mask |= t;
