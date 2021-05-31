@@ -33,7 +33,7 @@ function set_hostname()
 	local hostname=$2
 
 	[ -z "${hostname}" ] && return 0
-	put_param "${cfgfile}" "HOSTNAME" "${hostname}"
+	put_param "${cfgfile}" "hostname" "${hostname}"
 	hostname ${hostname}
 }
 
