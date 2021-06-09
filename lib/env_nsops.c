@@ -713,8 +713,10 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 		"c 1:3 rmw",		/* null */
 		"c 1:5 rmw",		/* zero */
 		"c 1:7 rmw",		/* full */
+#ifndef VZ8
 		"c 5:0 rmw",		/* tty */
 		"c 5:1 rmw",		/* console */
+#endif
 		"c 5:2 rmw",		/* ptmx */
 		"c 4:* rmw",		/* tty{N} devices (virtual terminals} */
 		"c 1:8 rmw",		/* random */
@@ -1052,6 +1054,19 @@ int enter_net_ns(struct vzctl_env_handle *h, pid_t *ct_pid)
 	if (ct_pid != NULL)
 		*ct_pid = pid;
 
+	return 0;
+}
+
+int vzctl2_enter_mnt_ns(struct vzctl_env_handle *h)
+{
+	pid_t pid;
+
+	if (cg_env_get_init_pid(h->ctid, &pid))
+		return -1;
+
+	if (set_ns(pid, "mnt", 0))
+		return vzctl_err(-1, errno,
+				"Cannot switch to mnt namespace");
 	return 0;
 }
 
@@ -1451,9 +1466,11 @@ static int ns_env_apply_param(struct vzctl_env_handle *h,
 			return ret;
 
 		if (h->ctx->state == VZCTL_STATE_STARTING) {
+#ifndef VZ8
 			ret = env_console_configure(h, flags);
 			if (ret)
 				return ret;
+#endif
 #ifdef USE_VCMMD
 			ret = vcmm_activate(h);
 #endif

@@ -1155,6 +1155,7 @@ int vzctl2_env_exec_set_winsize(struct vzctl_exec_handle *exec,
 
 int vzctl2_env_waitpid(struct vzctl_exec_handle *exec, int nohang, int *status);
 int vzctl2_env_enter(struct vzctl_env_handle *h);
+int vzctl2_enter_mnt_ns(struct vzctl_env_handle *h);
 int vzctl2_env_exec_action_script(struct vzctl_env_handle *h, const char *name,
 		char *const env[], int timeout, int flags);
 
