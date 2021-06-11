@@ -545,6 +545,8 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 		break;
 	case VZCTL_PARAM_IPTABLES:
 		ret = parse_iptables(&env->features->ipt_mask, str);
+		if (ret == VZCTL_E_INVAL && flags & VZCTL_CONF_PARAM)
+			ret = 0;
 		break;
 	case VZCTL_PARAM_NETFILTER:
 		ret = parse_netfilter(&env->features->nf_mask, str);
