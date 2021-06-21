@@ -25,6 +25,7 @@
 #define _GNU_SOURCE
 #include <sys/ioctl.h>
 #include <linux/limits.h>
+#include <sched.h>
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -1392,4 +1393,120 @@ int vzctl2_env_exec_set_winsize(struct vzctl_exec_handle *exec,
 	memcpy(&m.data, ws, sizeof(struct winsize));
 
 	return send_exec_msg(exec->comm[0], &m);
+}
+
+int vzctl2_console_start(struct vzctl_env_handle *h, struct vzctl_console *con)
+{
+	int ret = VZCTL_E_SYSTEM;
+	char tty[256] = "";
+	char term[64];
+	int master_fd = -1, slave_fd = -1;
+	int old_ns;
+	char *env[] = {tty, term, NULL};
+	char *p;
+
+	if (!is_env_run(h))
+		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running.");
+	/*
+	 * Explanation of why getgrnam is needed here:
+	 * this process enters container's mnt namespace and opens /dev/ptmx,
+	 * then it prepares a slave-end of pseudoterminal via grantpt/unlockpt.
+	 * grantpt triggers lazy load of /lib64/libnss_systemd.so.2, already
+	 * inside of a container's mnt namespace. libnss_systemd.so.2 will mmap
+	 * itself into the process and will thus hold one extra reference to it's
+	 * opened fd.
+	 * Because /lib64/libnss_systemd.so.2 is a inode on a container's fs,
+	 * it is not possible to unmount this fs until this process holds a
+	 * reference to it.
+	 * This code is exectute in vzctl console ..
+	 * If 'vzctl stop' get's called while 'vzctl console', this extra ref
+	 * will block ploop image unmount procedure until vzctl console gets
+	 * killed.
+	 *
+	 * By adding getgrnam we force libnss_systemd.so.2 to be called on a
+	 * host level filesystem.
+	 */
+	if (getgrnam(""))
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "vzcon_start: getgrnam() failed");
+
+	old_ns = open("/proc/self/ns/mnt", O_RDONLY);
+	if (old_ns == -1)
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "vzcon_start: Failed to open /proc/self/ns/mnt");
+
+	if (vzctl2_enter_mnt_ns(h)) {
+		vzctl_err(-1, 0, "vzcon_start: Failed to enter containers mnt ns");
+		goto err;
+	}
+
+	master_fd = open("/dev/ptmx", O_RDWR | O_NOCTTY);
+	if (master_fd == -1) {
+		vzctl_err(-1, errno, "vzcon_start: Failed to open /dev/ptmx");
+		goto err;
+	}
+
+	if (grantpt(master_fd)) {
+		vzctl_err(-1, errno, "vzcon_start: grantpt on /dev/ptmx failed");
+		goto err;
+	}
+	if (unlockpt(master_fd)) {
+		vzctl_err(-1, errno, "vzcon_start: unlockpt on /dev/ptmx failed");
+		goto err;
+	}
+
+	if (ptsname_r(master_fd, con->tty_path, sizeof(con->tty_path))) {
+		vzctl_err(-1, errno, "vzcon_start: ptsname_r on /dev/ptmx failed");
+		goto err;
+	}
+
+	/*
+	 * Although vzctl console side of pseudoterminal will perform io
+	 * on master-side fd, we also need to open slave_fd to hold one
+	 * last reference for it. If we don't do it, any other process
+	 * that opens the slave-side part via /devpts/N path and then
+	 * closes it, the pseudoterminal pipe gets' destroyed and further
+	 * read/writes will result in EIO. We want to keep the pipe alive.
+	 */
+	slave_fd = open(con->tty_path, O_RDWR | O_NOCTTY);
+	if (slave_fd == -1) {
+		vzctl_err(-1, errno, "Failed to open %s",
+				con->tty_path);
+		goto err;
+	}
+
+	/*
+	 * We need to exit back to host to exec SET_CONSOLE
+	 * scripts
+	 */
+	if (setns(old_ns, CLONE_NEWNS)) {
+		vzctl_err(-1, errno, "vzcon_start: setns(CLONE_NEWNS)");
+		goto err;
+	}
+	close(old_ns); old_ns = -1;
+
+	snprintf(tty, sizeof(tty), "START_CONSOLE_ON_DEV=%s",
+			con->tty_path + strlen("/dev/"));
+	p = getenv("TERM");
+	if (p)
+		snprintf(term, sizeof(term), "TERM=%s", p);
+
+	ret = vzctl2_env_exec_action_script(h, "SET_CONSOLE", env, 0, 0);
+	if (ret) {
+		vzctl_err(-1, errno, "vzcon_start: failed to start getty on %s",
+				con->tty_path);
+		goto err;
+	}
+
+	con->master_fd = master_fd;
+	con->slave_fd = slave_fd;
+
+	return 0;
+err:
+	if (master_fd != -1)
+		close(master_fd);
+	if (slave_fd != -1)
+		close(slave_fd);
+	if (old_ns != -1)
+		close(old_ns);
+
+	return VZCTL_E_SYSTEM;
 }
