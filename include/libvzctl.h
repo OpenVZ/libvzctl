@@ -580,6 +580,12 @@ struct vzctl_compact_param {
 	int defrag;
 };
 
+struct vzctl_console {
+	int master_fd;
+	int slave_fd;
+	char tty_path[128];
+};
+
 typedef int (* execFn)(void *data);
 
 /* Internal data representattion */
@@ -1215,6 +1221,7 @@ int vzctl2_env_create_tsnapshot(struct vzctl_env_handle *h, const char *guid,
 		struct vzctl_tsnapshot_param *tsnap, struct vzctl_snap_holder *holder);
 int vzctl2_env_compact(struct vzctl_env_handle *h,
 		struct vzctl_compact_param *param, int size);
+int vzctl2_console_start(struct vzctl_env_handle *h, struct vzctl_console *con);
 VZ_DEPRECATED int vzctl2_set_vzlimits(const char *name);
 #ifdef __cplusplus
 }
