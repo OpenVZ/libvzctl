@@ -680,7 +680,15 @@ static struct devnode {
 	{3, 0xb, "/dev/ttypb", S_IFCHR|0600},
 	{5, 0x2, "/dev/ptmx", S_IFCHR|0666},
 	{5, 0x0, "/dev/tty", S_IFCHR|0666},
-#ifndef VZ8
+#ifdef VZ8
+	/*
+	 * In VZ8 we need at least one /dev/ttyN
+	 * device for successfull installation of makedev
+	 * during CT creation #PSBM-131188, making one
+	 * /dev/tty0 implemented as /dev/null does the job
+	 */
+	{1, 0x3, "/dev/tty0", S_IFCHR|0620, "tty"},
+#else
 	{5, 0x1, "/dev/console", S_IFCHR|0600},
 	{4, 0x0, "/dev/tty0", S_IFCHR|0620, "tty"},
 	{4, 0x1, "/dev/tty1", S_IFCHR|0620, "tty"},
