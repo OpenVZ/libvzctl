@@ -197,6 +197,14 @@ setup_console()
 	create_dev tty2 4 2
 }
 
+run_getty()
+{
+	while [ -e "/dev/$2" ]; do
+		nohup setsid $1 || break
+		sleep 1
+	done
+}
+
 start_console()
 {
 	local cmd
@@ -213,11 +221,12 @@ start_console()
 		exit 1
 	fi
 
-	if [ -n "${START_CONSOLE_MINOR}" ]; then
-		create_dev $tty 4 $START_CONSOLE_MINOR
+	if [ ${tty::3} = "pts" ] ; then
+		run_getty "$cmd" "$tty" </dev/null > /dev/null 2>&1 &
+	else
+		[ -n "${START_CONSOLE_MINOR}" ] && create_dev $tty 4 $START_CONSOLE_MINOR
+		nohup setsid $cmd &
 	fi
-
-	nohup setsid $cmd &
 }
 
 if [ -n "${START_CONSOLE_ON_DEV}" ]; then
