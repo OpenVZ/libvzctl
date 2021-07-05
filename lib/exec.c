@@ -1405,13 +1405,20 @@ int open_tty_pair(void *arg)
 	struct open_tty_pair_arg *a = arg;
 	struct vzctl_env_handle *h = a->h;
 	int master_fd = -1, slave_fd = -1;
+	int i;
 
 	if (vzctl2_enter_mnt_ns(h)) {
 		vzctl_err(-1, 0, "vzcon_start: Failed to enter containers mnt ns");
 		return VZCTL_E_SYSTEM;
 	}
 
-	master_fd = open("/dev/ptmx", O_RDWR | O_NOCTTY);
+	// handle the race with CT start
+	for (i = 0; i < 30; i++) {
+		master_fd = open("/dev/ptmx", O_RDWR | O_NOCTTY);
+		if (master_fd == -1 && errno == ENOENT)
+			sleep(1);
+	}
+
 	if (master_fd == -1) {
 		vzctl_err(-1, errno, "vzcon_start: Failed to open /dev/ptmx");
 		goto err;
@@ -1519,7 +1526,7 @@ int vzctl2_console_start(struct vzctl_env_handle *h, struct vzctl_console *con)
 
 	if (call_in_child_process(open_tty_pair, &open_arg))
 		return vzctl_err(VZCTL_E_SYSTEM, errno,
-			"vzcon_start: Failed to open /proc/self/ns/mnt");
+			"vzcon_start: Failed to open tty pair");
 
 	snprintf(tty, sizeof(tty), "START_CONSOLE_ON_DEV=%s",
 			con->tty_path + strlen("/dev/"));
