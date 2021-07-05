@@ -58,17 +58,18 @@ const char *get_enter_lock_fname(struct vzctl_env_handle *h, char *path, int siz
  * 	    0 incorrect pid
  * 	   >0 pid id
  */
-static int getlockpid(char *file)
+static int getlockpid(char *file, char *status)
 {
 	int fd, pid = -1;
 	char buf[STR_SIZE];
-	int len;
+	int len, n;
 
 	if ((fd = open(file, O_RDONLY)) == -1)
 		return -1;
 	if ((len = read(fd, buf, sizeof(buf) - 1)) >= 0) {
 		buf[len] = 0;
-		if (sscanf(buf, "%d", &pid) != 1) {
+		n = sscanf(buf, "%d\n%s", &pid, status);
+		if (n <= 0) {
 			logger(1, 0, "Incorrect process ID: %s in %s", buf, file);
 			pid = 0;
 		}
@@ -156,6 +157,7 @@ static int _lock_file(const ctid_t ctid, char *dir, const char *status)
 	char buf[STR_SIZE];
 	char lockfile[STR_SIZE];
 	char tmp_file[STR_SIZE + 15];
+	char lstatus[STR_SIZE] = "";
 	struct stat st;
 	int retry = 0;
 	int ret = -1;
@@ -190,7 +192,7 @@ static int _lock_file(const ctid_t ctid, char *dir, const char *status)
 			ret = 0;
 			break;
 		}
-		pid = getlockpid(lockfile);
+		pid = getlockpid(lockfile, lstatus);
 		if (pid < 0) {
 			/*  Error read pid id */
 			usleep(500000);
@@ -201,10 +203,17 @@ static int _lock_file(const ctid_t ctid, char *dir, const char *status)
 			snprintf(buf, sizeof(buf), "/proc/%d", pid);
 			if (!stat(buf, &st)) {
 				char data[STR_SIZE];
-
-				logger(-1, 0, "Locked info: pid=%d cmdline=%s",
-						pid, getcmdline(pid, data, sizeof(data)));
-				ret = -2;
+				if (status && !strcmp(status, "starting") &&
+						!strcmp(lstatus, "Backing"))
+				{
+					logger(0, 0, "CT is locked by '%s': action, skip lock for '%s'",
+							lstatus, status);
+					ret = -3;
+				} else {
+					logger(-1, 0, "Locked info: pid=%d cmdline=%s",
+							pid, getcmdline(pid, data, sizeof(data)));
+					ret = -2;
+				}
 				break;
 			} else {
 				logger(0, 0, "Removing the stale lock file %s",
