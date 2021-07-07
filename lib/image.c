@@ -58,6 +58,9 @@ int open_dd(const char *path, struct ploop_disk_images_data **di)
 {
 	char fname[PATH_MAX];
 
+	if (path[0] == '\0')
+		return vzctl_err(VZCTL_E_INVAL, 0, "Error: disk image path is empty");
+
 	snprintf(fname, sizeof(fname), "%s/" DISKDESCRIPTOR_XML, path);
 	if (ploop_open_dd(di, fname))
 		return vzctl_err(VZCTL_E_PARSE_DD, 0, "Failed to read %s: %s",

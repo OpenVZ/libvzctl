@@ -195,7 +195,10 @@ struct vzctl_disk *disk_param2disk(struct vzctl_env_handle *h,
 	d->use_device = param->use_device;
 
 	if (param->path != NULL) {
-		get_abs_path(h->env_param->fs->ve_private, param->path, path, sizeof(path));
+		if (param->path[0] == '\0')
+			path[0] = '\0';
+		else
+			get_abs_path(h->env_param->fs->ve_private, param->path, path, sizeof(path));
 	} else {
 		if (h->env_param->fs->ve_private)
 			snprintf(path, sizeof(path), "%s/disk-%s.hdd",
@@ -367,6 +370,8 @@ int set_disk_param(struct vzctl_env_param *env, int flags)
 
 	if (!(flags & VZCTL_CONF_USE_RELATIVE_PATH)) {
 		list_for_each(disk, &env->disk->disks, list) {
+			if (disk->use_device || disk->path[0] == '\0')
+				continue;
 			get_abs_path(env->fs->ve_private, disk->path, path, sizeof(path));
 			ret = xstrdup(&disk->path, path);
 			if (ret)
@@ -427,7 +432,12 @@ static int parse_disk_str(const char *str, struct vzctl_disk *disk)
 				return VZCTL_E_INVAL;
 			}
 		} else if (!strncmp("image=", p, 6)) {
-			GET_PARAM_VAL(p, "image=")
+			p += sizeof("image=")-1;
+			len = next - p;
+			if (len >= sizeof(tmp))
+				return VZCTL_E_INVAL;
+			strncpy(tmp, p, len);
+			tmp[len] = '\0';
 			ret = xstrdup(&disk->path, tmp);
 			if (ret)
 				return ret;
@@ -1255,6 +1265,9 @@ int vzctl2_add_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param,
 
 	if (d->use_device || d->storage_url)
 		goto skip_create;
+
+	if (d->path[0] == '\0')
+		goto out;
 
 	get_rel_path(h->env_param->fs->ve_private, d->path, fname, sizeof(fname));
 	if (is_external_disk(fname) && is_pcs(h->env_param->fs->ve_private) &&
