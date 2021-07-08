@@ -335,7 +335,7 @@ static int get_mount_flags(const char *dir, int *flags)
 	struct stat st;
 
 	if (stat(dir, &st))
-		return vzctl_err(-1, errno, "Cannpt stat %s", dir);
+		return vzctl_err(-1, errno, "Cannot stat %s", dir);
 
 	fp = fopen("/proc/mounts", "r");
 	if (fp == NULL)
