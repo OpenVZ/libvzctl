@@ -134,7 +134,7 @@ unsigned long min_ul(unsigned long val1, unsigned long val2);
  * @param close_std     flag for closing the [0-2] fds
  * @param ...           list of fds are skiped, (-1 is the end mark)
 */
-void close_fds(int close_std, ...);
+int close_fds(int close_std, ...);
 
 
 int parse_hwaddr(const char *str, char *addr);
