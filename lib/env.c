@@ -87,8 +87,13 @@ int create_venet_link(void);
 
 int real_env_stop(int stop_mode)
 {
+	int ret;
+
 	logger(10, 0, "* stop mode %d", stop_mode);
-	close_fds(1, -1);
+	ret = close_fds(1, -1);
+	if (ret)
+		return ret;
+
 	/* Disable fsync. The fsync will be done by umount() */
 	configure_sysctl("/proc/sys/fs/fsync-enable", "0");
 	configure_sysctl("/sys/fs/cgroup/systemd/release_agent", "");
@@ -869,9 +874,7 @@ int pre_setup_env(const struct start_param *param)
 		}
 	}
 
-	close_fds(0, param->h->ctx->err_p[1], -1);
-
-	return 0;
+	return close_fds(0, param->h->ctx->err_p[1], -1);
 }
 
 char **makeenv(char **env, list_head_t *head)

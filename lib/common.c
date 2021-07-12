@@ -583,23 +583,34 @@ static int is_fd_in_list(int *fds, int fd)
 	return 0;
 }
 
-void _close_fds(int close_mode, int *skip_fds)
+
+static int proc_fd = -1;
+int open_proc_fd()
 {
-	int n, max, i;
+	if (proc_fd == -1) {
+		proc_fd = open("/proc", O_RDONLY);
+		if (proc_fd == -1)
+			vzctl_err(-1, errno, "Can not open /proc");
+	}
+
+	return proc_fd;
+}
+
+static int get_proc_fd()
+{
+	return proc_fd;
+}
+
+int _close_fds(int close_mode, int *skip_fds)
+{
+	int fd;
 	struct stat st;
-	int delta;
-	struct pollfd *a = NULL;
-	struct pollfd fds[1024];
-	int nelem;
-
-	max = sysconf(_SC_OPEN_MAX);
-	if (max < NR_OPEN)
-		max = NR_OPEN;
-
-	delta = max > 102400 ? 102400 : max;
+	char buf[STR_SIZE];
+	struct dirent *ent;
+	DIR *dir;
 
 	if (close_mode & VZCTL_CLOSE_STD) {
-		int fd = open("/dev/null", O_RDWR);
+		fd = open("/dev/null", O_RDWR);
 		if (fd != -1) {
 			dup2(fd, 0); dup2(fd, 1); dup2(fd, 2);
 			close(fd);
@@ -608,38 +619,40 @@ void _close_fds(int close_mode, int *skip_fds)
 		}
 	}
 
-	a = malloc(delta * sizeof(struct pollfd));
-	if (a == NULL) {
-		delta = sizeof(fds) / sizeof(fds[0]);
-		a = fds;
+	fd = get_proc_fd();
+	if (fd == -1)
+		fd = open_proc_fd();
+
+	snprintf(buf, sizeof(buf), "self/fd");
+	fd = openat(fd, buf, O_RDONLY);
+	if (fd == -1)
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "openat %s", buf);
+
+	dir = fdopendir(fd);
+	if (dir == NULL) {
+		close(fd);
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "fdopendir %s", buf);
 	}
-	bzero(a, delta * sizeof(struct pollfd));
 
-	for (n = 0, nelem = delta; n < max; n += nelem) {
-		if (n + nelem > max)
-			nelem = max - n;
-
-		for (i = 0; i < nelem; i++)
-			a[i].fd = n == 0 ? i + 3 : n + i;
-
-		poll(a, nelem, 0);
-
-		for (i = 0; i < nelem; i++) {
-			if (a[i].revents == POLLNVAL)
+	while ((ent = readdir(dir)) != NULL) {
+		int f;
+		if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, ".."))
+			continue;
+		if (sscanf(ent->d_name, "%d", &f) != 1)
+			continue;
+		if (dirfd(dir) == f || f < 3)
+			continue;
+		if (is_fd_in_list(skip_fds, f)) {
+			if ((close_mode & VZCTL_CLOSE_NOCHECK) ||
+					(fstat(f, &st) == 0 &&
+					 S_ISFIFO(st.st_mode)))
 				continue;
-
-			if (is_fd_in_list(skip_fds, a[i].fd)) {
-				if ((close_mode & VZCTL_CLOSE_NOCHECK) ||
-						(fstat(a[i].fd, &st) == 0 &&
-						 S_ISFIFO(st.st_mode)))
-					continue;
-			}
-
-			close(a[i].fd);
 		}
+		close(f);
 	}
-	if (a != fds)
-		free(a);
+	closedir(dir);
+
+	return 0;
 }
 
 #define MAX_WAIT_TIMEOUT	60 * 30
@@ -736,6 +749,9 @@ int env_enter(ctid_t ctid, int flags)
 	pid_t pid;
 	char path[PATH_MAX];
 	int ret;
+
+	if (open_proc_fd() == -1)
+		return VZCTL_E_SYSTEM;
 
 	ret = reset_loginuid();
 	if (ret)

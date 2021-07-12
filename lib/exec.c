@@ -210,7 +210,7 @@ void close_array_fds(int close_std, int *fds, ...)
  * @param close_std	flag for closing the [0-2] fds
  * @param ...		list of fds are skiped, (-1 is the end mark) 
 */
-void close_fds(int close_std, ...)
+int close_fds(int close_std, ...)
 {
 	int fd, i;
 	va_list ap;
@@ -225,7 +225,7 @@ void close_fds(int close_std, ...)
 	}
 	skip_fds[i] = -1;
 	va_end(ap);
-	_close_fds(close_std, skip_fds);
+	return _close_fds(close_std, skip_fds);
 }
 
 static __thread char _s_logbuf[10240];
@@ -423,7 +423,9 @@ int real_env_exec(struct vzctl_env_handle *h, struct exec_param *param, int flag
 	skip_fds[i++] = param->status_p[1];
 	skip_fds[i++] = -1;
 
-	_close_fds(0, skip_fds);
+	ret = _close_fds(0, skip_fds);
+	if (ret)
+		return ret;
 
 	if (param->exec_mode == MODE_EXECFN) {
 		close(param->status_p[1]);
@@ -630,7 +632,10 @@ int real_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 {
 	int ret;
 
-	_close_fds(data_fd != NULL ? VZCTL_CLOSE_STD : 0, data_fd);
+	ret = _close_fds(data_fd != NULL ? VZCTL_CLOSE_STD : 0, data_fd);
+	if (ret)
+		return ret;
+
 	vzctl2_set_log_file(NULL);
 
 	ret = fn(data);
@@ -796,11 +801,16 @@ static int do_env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
 	set_not_blk(fds[0]);
 	set_not_blk(fds[1]);
 
+	if (open_proc_fd() == -1)
+		return VZCTL_E_SYSTEM;
+
 	ret = get_env_ops()->env_enter(h, flags);
 	if (ret)
 		return ret;
 
-	close_fds(VZCTL_CLOSE_NOCHECK, fds[0], fds[1], fds[3], -1);
+	ret = close_fds(VZCTL_CLOSE_NOCHECK, fds[0], fds[1], fds[3], -1);
+	if (ret)
+		return ret;
 
 	if ((ret = pty_alloc(&master, &slave, tios, ws)))
 		return ret;
