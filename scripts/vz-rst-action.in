@@ -39,8 +39,10 @@ update_devices()
 	local minor=$4
 	local omj omr mj mr
 	local dir=${olddev%/*}
+	local newdir=${newdev%/*}
 
 	rm -f $newdev
+	[ -d $newdir ] || mkdir -p $newdir
 	mknod -m 660 $newdev b $major $minor
 	[ -e "$olddev" ] || return
 
