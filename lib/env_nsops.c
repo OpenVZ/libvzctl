@@ -1134,9 +1134,11 @@ static int ns_env_exec(struct vzctl_env_handle *h, struct exec_param *param,
 		ret = do_env_exec(h, param, flags, &pid2);
 		if (ret)
 			goto err;
-		ret = close_fds(VZCTL_CLOSE_STD, -1);
-		if (ret)
-			goto err;
+		close(param->status_p[0]); param->status_p[0] = -1;
+		close(param->in_p[1]); param->in_p[1] = -1;
+		close(param->out_p[0]); param->out_p[0] = -1;
+		close(param->err_p[0]); param->err_p[0] = -1;
+
 		hook = register_cleanup_hook(cleanup_kill_process, (void *) &pid2);
 
 		if (param->timeout)

@@ -87,13 +87,7 @@ int create_venet_link(void);
 
 int real_env_stop(int stop_mode)
 {
-	int ret;
-
 	logger(10, 0, "* stop mode %d", stop_mode);
-	ret = close_fds(1, -1);
-	if (ret)
-		return ret;
-
 	/* Disable fsync. The fsync will be done by umount() */
 	configure_sysctl("/proc/sys/fs/fsync-enable", "0");
 	configure_sysctl("/sys/fs/cgroup/systemd/release_agent", "");
@@ -799,7 +793,10 @@ int pre_setup_env(const struct start_param *param)
 	if (sethostname(hn, strlen(hn)))
 		return vzctl_err(VZCTL_E_SYSTEM, errno, "Failed to set hostname %s", hn);
 
-	if (access("/proc", F_OK) == 0 && mount("proc", "/proc", "proc", 0, 0))
+	
+	if (access("/proc", F_OK))
+		mkdir("/proc", 0555);
+  	if (mount("proc", "/proc", "proc", 0, 0))
 		return vzctl_err(VZCTL_E_SYSTEM, errno, "Failed to mount /proc");
 	if (create_venet_link())
 		return vzctl_err(VZCTL_E_SYSTEM, 0, "Unable to create venet iface");
