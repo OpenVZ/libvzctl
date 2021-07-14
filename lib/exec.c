@@ -801,9 +801,6 @@ static int do_env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
 	set_not_blk(fds[0]);
 	set_not_blk(fds[1]);
 
-	if (open_proc_fd() == -1)
-		return VZCTL_E_SYSTEM;
-
 	ret = get_env_ops()->env_enter(h, flags);
 	if (ret)
 		return ret;
@@ -859,7 +856,8 @@ static int do_env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
 			vzctl_err(0, errno, "do_env_exec_pty: can not write status");
 		_exit(1);
 	}
-	close_fds(VZCTL_CLOSE_STD|VZCTL_CLOSE_NOCHECK, fds[0], fds[1], fds[3], st[0], master, -1);
+	close(slave);
+	close(st[1]);
 	st[1] = -1;
 	hook = register_cleanup_hook(cleanup_kill_force, (void *) &pid);
 	ret = read(st[0], &status, sizeof(status));
