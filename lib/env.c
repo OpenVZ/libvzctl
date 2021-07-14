@@ -2909,8 +2909,21 @@ struct vzctl_rate *vzctl2_create_rate(struct vzctl_rate_param *param)
 
 int vzctl2_env_add_rate(struct vzctl_env_param *env,  struct vzctl_rate *rate)
 {
-	if (rate == NULL)
-		return vzctl_err(VZCTL_E_INVAL, 0, "Invalid parameter: rate is not specified");
+	if (rate == NULL) {
+		char buf[PATH_MAX];
+
+		env->vz->tc->drop = 1;
+		if (get_global_param("RATE", buf, sizeof(buf)) == 0 && buf[0] != '\0') {
+			int ret = parse_rates(&env->vz->tc->rate_list, buf, 3, 1);
+			if (ret)
+				return ret;
+		}
+
+		env->vz->tc->ratebound = VZCTL_PARAM_OFF;
+		if (get_global_param("RATEBOUND", buf, sizeof(buf)) == 0 && buf[0] != '\0')
+	                env->vz->tc->ratebound = yesno2id(buf);
+		return 0;
+	}
 
 	list_add_tail(&rate->list, &env->vz->tc->rate_list);
 	return 0;

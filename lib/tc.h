@@ -37,6 +37,7 @@ struct vzctl_tc_param {
 	list_head_t rate_list;
 	int traffic_shaping;
 	int ratebound;
+	int drop;
 };
 
 int parse_rates(list_head_t *head, const char *str, int num, int replace);
