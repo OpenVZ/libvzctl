@@ -427,7 +427,8 @@ static int do_live_bind_mount(struct vzctl_env_handle *h, const char *src,
 		goto err;
 	}
 
-	if (vzctl_env_exec_fn(h, (execFn) live_bind_mount, &param, 0))
+	int data_fd[2] = {param.fd, -1};
+	if (do_env_exec_fn(h, (execFn) live_bind_mount, &param, data_fd, 0, 0))
 		goto err;
 	ret = 0;
 

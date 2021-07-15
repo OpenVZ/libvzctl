@@ -632,10 +632,6 @@ int real_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 {
 	int ret;
 
-	ret = _close_fds(data_fd != NULL ? VZCTL_CLOSE_STD : 0, data_fd);
-	if (ret)
-		return ret;
-
 	vzctl2_set_log_file(NULL);
 
 	ret = fn(data);
@@ -922,7 +918,7 @@ int vzctl2_env_exec(struct vzctl_env_handle *h, exec_mode_e exec_mode,
 	return do_env_exec(h, exec_mode, argv, envp, std_in, NULL, NULL, NULL, timeout, flags, NULL, -1);
 }
 
-static int do_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
+int do_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 		int *data_fd, int timeout, int flags)
 {
 	pid_t pid;

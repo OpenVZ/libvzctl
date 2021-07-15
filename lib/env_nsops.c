@@ -1170,6 +1170,10 @@ static int ns_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 		if (ret)
 			goto err;
 
+		ret = _close_fds(VZCTL_CLOSE_STD|VZCTL_CLOSE_NOCHECK, data_fd);
+		if (ret)
+			goto err;
+
 		pid2 = fork();
 		if (pid2 < 0) {
 			ret = vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");

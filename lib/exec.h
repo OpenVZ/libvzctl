@@ -97,6 +97,8 @@ int vzctl2_wrap_env_exec_vzscript(struct vzctl_env_handle *h,
 
 int vzctl2_wrap_exec_script(char *const argv[], char *const envp[], int flags);
 void vzctl_stdredir(int rdfd, int wrfd, int log);
+int do_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
+		int *data_fd, int timeout, int flags);
 int vzctl_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 		int timeout);
 int vzctl_wrap_action(struct vzctl_env_handle *h, char *action,
