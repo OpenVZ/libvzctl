@@ -675,7 +675,7 @@ int wait_on_fifo(void *data)
 	sigaction(SIGALRM, &act, &actold);
 
 	alarm(MAX_WAIT_TIMEOUT);
-	fd = TEMP_FAILURE_RETRY(open(VZFIFO_FILE, O_RDONLY));
+	fd = open(VZFIFO_FILE, O_RDONLY);
 	if (fd == -1) {
 		fprintf(stderr, "Unable to open " VZFIFO_FILE " %s\n",
 			strerror(errno));
