@@ -1334,7 +1334,10 @@ static char *env_param2str(struct vzctl_env_handle *h,
 		}
 		break;
 	case VZCTL_PARAM_RATE:
-		if (!list_empty(&env->vz->tc->rate_list))
+		if (env->vz->tc->drop) {
+			vzctl_conf_del_param(h->conf, "RATE");
+			vzctl_conf_del_param(h->conf, "RATEBOUND");
+		} else if (!list_empty(&env->vz->tc->rate_list))
 			return rate2str(&env->vz->tc->rate_list);
 		break;
 	case VZCTL_PARAM_RATEBOUND:

@@ -267,7 +267,7 @@ int vzctl_apply_tc_param(struct vzctl_env_handle *h,
 
 	if (h->env_param->vz->tc->traffic_shaping != VZCTL_PARAM_ON)
 		return 0;
-	if (!tc->ratebound && list_empty(&tc->rate_list))
+	if (!tc->ratebound && list_empty(&tc->rate_list) && !tc->drop)
 		return 0;
 
 	if (!is_env_run(h))
