@@ -3085,35 +3085,77 @@ int vzctl2_get_env_iostat(const ctid_t ctid, struct vzctl_iostat *stat, int size
 	return 0;
 }
 
+static int read_cg_memory(const char *id, const char *name, unsigned long long *out)
+{
+	int rc;
+	FILE *fp;
+	char buf[PATH_MAX];
+
+	rc = cg_get_path(id, CG_MEMORY, name, buf, sizeof(buf));
+	if (rc)
+		return rc;
+
+	if ((fp = fopen(buf, "r")) == NULL) {
+		if (errno == ENOENT)
+			return VZCTL_E_ENV_NOT_RUN;
+		return vzctl_err(VZCTL_E_SYSTEM, 0, "Cannot open %s", buf);
+	}
+
+	fscanf(fp, "%llu", out);
+	fclose(fp);
+
+	return 0;
+}
+
 int vzctl2_get_env_meminfo(const ctid_t ctid, struct vzctl_meminfo *meminfo, int size)
 {
+	int rc;
 	FILE *fp;
 	char buf[128];
 	struct vzctl_meminfo data = {};
-	unsigned long long recl = 0;
+	unsigned long long val, recl = 0, memused, swaptotal, swapused;
 	ctid_t id;
 
 	if (vzctl2_parse_ctid(ctid, id))
 		return vzctl_err(VZCTL_E_INVAL, 0, "Invalid CTID: %s", ctid);
 
 	bzero(meminfo, size);
+	rc = read_cg_memory(id, "memory.limit_in_bytes", &data.total);
+	if (rc)
+		return rc;
+	rc = read_cg_memory(id, "memory.usage_in_bytes", &memused);
+	if (rc)
+		return rc;
+	rc = read_cg_memory(id, "memory.memsw.limit_in_bytes", &val);
+	if (rc)
+		return rc;
+	swaptotal = data.total - val;
+	rc = read_cg_memory(id, "memory.memsw.usage_in_bytes", &val);
+	if (rc)
+		return rc;
+	swapused = val - memused;
+	/* Due to global reclaim, memory.memsw.usage can be greater than
+	 * (memory.memsw.max - memory.max). */
+	if (swaptotal < swapused)
+		memused += swapused - swaptotal;
 
-	snprintf(buf, sizeof(buf), "/proc/bc/%s/meminfo", id);
+	data.free = (data.total > memused ? data.total - memused : 0);
+
+	rc = cg_get_path(id, CG_MEMORY, "memory.stat", buf, sizeof(buf));
+	if (rc)
+		return rc;
+
 	if ((fp = fopen(buf, "r")) == NULL) {
-		if (errno != ENOENT)
-			logger(-1, errno, "Cannot open %s", buf);
-		return -1;
+		if (errno == ENOENT)
+			return VZCTL_E_ENV_NOT_RUN;
+		return vzctl_err(VZCTL_E_SYSTEM, 0, "Cannot open %s", buf);
 	}
 
 	while (fgets(buf, sizeof(buf), fp)) {
-		if (sscanf(buf, "MemTotal: %llu", &data.total) == 1)
-			data.total *= 1024;
-		else if (sscanf(buf, "MemFree: %llu", &data.free) == 1)
-			data.free *= 1024;
-		else if (sscanf(buf, "Cached: %llu", &data.cached) == 1)
-			data.cached *= 1024;
-		else if (sscanf(buf, "SReclaimable: %llu", &recl) == 1)
-			recl *= 1024;
+		sscanf(buf, "total_pswpin %llu", &data.swap_in);
+		sscanf(buf, "total_pswpout %llu", &data.swap_out);
+		sscanf(buf, "total_slab_reclaimable %llu", &recl);
+		sscanf(buf, "total_cache %llu", &data.cached);
 	}
 	fclose(fp);
 
@@ -3125,23 +3167,10 @@ int vzctl2_get_env_meminfo(const ctid_t ctid, struct vzctl_meminfo *meminfo, int
 	 * Host/VM so account whole dcachesize to cached memory
 	 */
 	data.cached += recl;
-
 	/* workaround for #PSBM-31006 */
-	if (data.cached > (data.total - data.free))
-		data.cached = data.total - data.free;
+	if (data.cached > memused)
+		data.cached = memused;
 
-	snprintf(buf, sizeof(buf), "/proc/bc/%s/vmaux", id);
-	if ((fp = fopen(buf, "r")) == NULL) {
-		if (errno != ENOENT)
-			logger(-1, errno, "Cannot open %s", buf);
-		return -1;
-	}
-
-	while (fgets(buf, sizeof(buf), fp)) {
-		sscanf(buf, " swapin %llu", &data.swap_in);
-		sscanf(buf, " swapout %llu", &data.swap_out);
-	}
-	fclose(fp);
 
 	memcpy(meminfo, &data, size);
 
