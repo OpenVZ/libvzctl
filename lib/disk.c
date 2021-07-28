@@ -1067,6 +1067,13 @@ static int configure_sysfsperm(struct vzctl_env_handle *h, struct vzctl_disk *d,
 	if (ret)
 		return ret;
 
+	if (is_dm_device(d->dev)) {
+		snprintf(buf, sizeof(buf), "%s/dm", sys_dev);
+		ret = add_sysfs_entry(h, buf);
+		if (ret)
+			return ret;
+	}
+
 	if (is_dm_device(d->part_dev)) {
 		char part[64];
 		if (get_part_device(d->devname, part, sizeof(part)) == 0) {

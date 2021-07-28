@@ -354,20 +354,50 @@ int send_uevent(const char *part)
 
 	snprintf(path, sizeof(path), "/sys/class/block/%s/uevent",
 			get_devname(part));
-
 	return write_data(path, "add");
 }
 
-static int do_mknod(const char *devname, dev_t dev)
+static int read_line(const char *fname, char *out, int size)
 {
-	if (make_dir(devname, 0))
-		return -1;
+	int len, fd;
 
-	unlink(devname);
-	if (mknod(devname, S_IFBLK | S_IRUSR | S_IWUSR,dev) && errno != EEXIST)
-		return vzctl_err(-1, errno, "mknod %s", devname);
+	fd = open(fname, O_RDONLY);
+	if (fd == -1)
+		return vzctl_err(-1, errno, "Can't open %s", fname);
+
+	len = read(fd, out, size);
+	if (len == -1) {
+		close(fd);
+		return vzctl_err(-1, errno, "Can't read from %s", fname);
+	}
+
+	if (len > 0 && out[len -1] == '\n')
+		out[len - 1] = '\0';
+
+	close(fd);
 
 	return 0;
+}
+
+static int do_mknod(const char *devname, const char *sysname, dev_t dev)
+{
+	char d[64], f[64], name[64];
+
+	snprintf(f, sizeof(f), "/sys/class/block/%s/dm/name",
+			get_devname(devname));
+	if (read_line(f, name, sizeof(name)-1) == 0)
+		snprintf(d, sizeof(d), "/dev/mapper/%s", name);
+	else
+		snprintf(d, sizeof(d), "%s", devname);
+
+	if (make_dir(d, 0))
+		return -1;
+
+	unlink(d);
+	if (mknod(d, S_IFBLK | S_IRUSR | S_IWUSR,dev) && errno != EEXIST)
+		return vzctl_err(-1, errno, "mknod %s", d);
+
+	return send_uevent(sysname);
 }
 
 static int env_configure_disk(struct exec_disk_param *param)
@@ -375,18 +405,12 @@ static int env_configure_disk(struct exec_disk_param *param)
 	int ret;
 	struct vzctl_disk *disk = param->disk;
 
-	ret = do_mknod(disk->devname, disk->dev);
+	ret = do_mknod(disk->devname, disk->sys_devname, disk->dev);
 	if (ret)
 		return ret;
-	if (send_uevent(disk->sys_devname))
-		return -1;
-
-	ret = do_mknod(disk->partname, disk->part_dev);
+	ret = do_mknod(disk->partname, disk->sys_partname, disk->part_dev);
 	if (ret)
 		return ret;
-	if (send_uevent(disk->sys_partname))
-		return -1;
-
 	if (disk->mnt != NULL && !is_root_disk(disk)) {
 		if (access(disk->mnt, F_OK))
 			make_dir(disk->mnt, 1);

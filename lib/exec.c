@@ -632,7 +632,8 @@ int real_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 {
 	int ret;
 
-	vzctl2_set_log_file(NULL);
+	if (fcntl(vzctl2_get_log_fd(), F_GETFD) == -1)
+		 vzctl2_set_log_file(NULL);
 
 	ret = fn(data);
 
@@ -945,7 +946,9 @@ int vzctl_env_exec_fn(struct vzctl_env_handle *h, execFn fn, void *data,
 	if (!is_env_run(h))
 		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
 
-	return do_env_exec_fn(h, fn, data, NULL, timeout, 0);
+	int fds[] = {vzctl2_get_log_fd(), -1};
+
+	return do_env_exec_fn(h, fn, data, fds, timeout, 0);
 }
 
 int vzctl2_env_exec_fn2(struct vzctl_env_handle *h, execFn fn, void *data,
