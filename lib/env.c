@@ -3101,7 +3101,11 @@ static int read_cg_memory(const char *id, const char *name, unsigned long long *
 		return vzctl_err(VZCTL_E_SYSTEM, 0, "Cannot open %s", buf);
 	}
 
-	fscanf(fp, "%llu", out);
+	if (fscanf(fp, "%llu", out) != 1) {
+		fclose(fp);
+		return vzctl_err(VZCTL_E_SYSTEM, 0, "Cannot parse data from %s", buf);
+	}
+
 	fclose(fp);
 
 	return 0;
