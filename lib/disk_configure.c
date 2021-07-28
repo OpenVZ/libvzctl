@@ -381,7 +381,7 @@ static int read_line(const char *fname, char *out, int size)
 
 static int do_mknod(const char *devname, const char *sysname, dev_t dev)
 {
-	char d[64], f[64], name[64];
+	char d[64], f[64], name[32];
 
 	snprintf(f, sizeof(f), "/sys/class/block/%s/dm/name",
 			get_devname(devname));
