@@ -1402,151 +1402,23 @@ int vzctl2_env_exec_set_winsize(struct vzctl_exec_handle *exec,
 	return send_exec_msg(exec->comm[0], &m);
 }
 
-struct open_tty_pair_arg {
-	struct vzctl_env_handle *h;
-	struct vzctl_console *con;
-};
-
-int open_tty_pair(void *arg)
-{
-	struct open_tty_pair_arg *a = arg;
-	struct vzctl_env_handle *h = a->h;
-	int master_fd = -1, slave_fd = -1;
-	int i;
-
-	if (vzctl2_enter_mnt_ns(h)) {
-		vzctl_err(-1, 0, "vzcon_start: Failed to enter containers mnt ns");
-		return VZCTL_E_SYSTEM;
-	}
-
-	// handle the race with CT start
-	for (i = 0; i < 30; i++) {
-		master_fd = open("/dev/ptmx", O_RDWR | O_NOCTTY);
-		if (master_fd == -1 && errno == ENOENT)
-			sleep(1);
-	}
-
-	if (master_fd == -1) {
-		vzctl_err(-1, errno, "vzcon_start: Failed to open /dev/ptmx");
-		goto err;
-	}
-
-	if (grantpt(master_fd)) {
-		vzctl_err(-1, errno, "vzcon_start: grantpt on /dev/ptmx failed");
-		goto err;
-	}
-	if (unlockpt(master_fd)) {
-		vzctl_err(-1, errno, "vzcon_start: unlockpt on /dev/ptmx failed");
-		goto err;
-	}
-
-	if (ptsname_r(master_fd, a->con->tty_path, sizeof(a->con->tty_path))) {
-		vzctl_err(-1, errno, "vzcon_start: ptsname_r on /dev/ptmx failed");
-		goto err;
-	}
-
-	/*
-	 * Although vzctl console side of pseudoterminal will perform io
-	 * on master-side fd, we also need to open slave_fd to hold one
-	 * last reference for it. If we don't do it, any other process
-	 * that opens the slave-side part via /devpts/N path and then
-	 * closes it, the pseudoterminal pipe gets' destroyed and further
-	 * read/writes will result in EIO. We want to keep the pipe alive.
-	 */
-	slave_fd = open(a->con->tty_path, O_RDWR | O_NOCTTY);
-	if (slave_fd == -1) {
-		vzctl_err(-1, errno, "Failed to open %s",
-				a->con->tty_path);
-		goto err;
-	}
-
-	a->con->slave_fd = slave_fd;
-	a->con->master_fd = master_fd;
-
-	return 0;
-err:
-	if (master_fd != -1)
-		close(master_fd);
-	if (slave_fd != -1)
-		close(slave_fd);
-	return -1;
-}
-
-int call_in_child_process(int (*fn)(void *), void *arg)
-{
-	int status;
-	pid_t pid;
-	char child_stack[4096 * 10];
-
-	/*
-	 * Parent freezes till child exit, so child may use the same stack.
-	 * No SIGCHLD flag, so it's not need to block signal.
-	 */
-	pid = clone(fn, child_stack + sizeof(child_stack), CLONE_VFORK | CLONE_VM | CLONE_FILES |
-		    CLONE_SIGHAND, arg);
-	if (pid == -1)
-		return vzctl_err(VZCTL_E_SYSTEM,
-			errno, "Failed to clone child process");
-
-	errno = 0;
-	if (waitpid(pid, &status, __WALL) != pid)
-		return vzctl_err(VZCTL_E_SYSTEM, errno, "Failed to wait for child process");
-
-	if (status)
-		return vzctl_err(VZCTL_E_SYSTEM, errno, "Bad child exit status");
-
-	return 0;
-}
-
 int vzctl2_console_start(struct vzctl_env_handle *h, struct vzctl_console *con)
 {
-	int ret = VZCTL_E_SYSTEM;
-	char tty[256] = "";
-	char term[64];
+	char tty[256];
+	char term[64] = "";
 	char *env[] = {tty, term, NULL};
 	char *p;
-	struct open_tty_pair_arg open_arg = { h, con };
 
 	if (!is_env_run(h))
 		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running.");
-	/*
-	 * Explanation of why getgrnam is needed here:
-	 * this process enters container's mnt namespace and opens /dev/ptmx,
-	 * then it prepares a slave-end of pseudoterminal via grantpt/unlockpt.
-	 * grantpt triggers lazy load of /lib64/libnss_systemd.so.2, already
-	 * inside of a container's mnt namespace. libnss_systemd.so.2 will mmap
-	 * itself into the process and will thus hold one extra reference to it's
-	 * opened fd.
-	 * Because /lib64/libnss_systemd.so.2 is a inode on a container's fs,
-	 * it is not possible to unmount this fs until this process holds a
-	 * reference to it.
-	 * This code is exectute in vzctl console ..
-	 * If 'vzctl stop' get's called while 'vzctl console', this extra ref
-	 * will block ploop image unmount procedure until vzctl console gets
-	 * killed.
-	 *
-	 * By adding getgrnam we force libnss_systemd.so.2 to be called on a
-	 * host level filesystem.
-	 */
-	if (getgrnam(""))
-		return vzctl_err(VZCTL_E_SYSTEM, errno, "vzcon_start: getgrnam() failed");
 
-	if (call_in_child_process(open_tty_pair, &open_arg))
-		return vzctl_err(VZCTL_E_SYSTEM, errno,
-			"vzcon_start: Failed to open tty pair");
-
-	snprintf(tty, sizeof(tty), "START_CONSOLE_ON_DEV=%s",
-			con->tty_path + strlen("/dev/"));
+	snprintf(tty, sizeof(tty), "START_CONSOLE_ON_TTY=%d", con->ntty);
 	p = getenv("TERM");
 	if (p)
 		snprintf(term, sizeof(term), "TERM=%s", p);
 
-	ret = vzctl2_env_exec_action_script(h, "SET_CONSOLE", env, 0, 0);
-	if (ret) {
-		vzctl_err(-1, errno, "vzcon_start: failed to start getty on %s",
-				con->tty_path);
-		return VZCTL_E_SYSTEM;
-	}
-
+	if (vzctl2_env_exec_action_script(h, "SET_CONSOLE", env, 0, 0))
+		return vzctl_err(VZCTL_E_SYSTEM, 0, "failed to start getty on tty%d",
+				con->ntty);
 	return 0;
 }
