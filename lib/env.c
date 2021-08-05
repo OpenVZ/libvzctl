@@ -679,7 +679,6 @@ static struct devnode {
 	{3, 0xb, "/dev/ttypb", S_IFCHR|0600},
 	{5, 0x2, "/dev/ptmx", S_IFCHR|0666},
 	{5, 0x0, "/dev/tty", S_IFCHR|0666},
-#ifndef VZ8
 	{5, 0x1, "/dev/console", S_IFCHR|0600},
 	{4, 0x0, "/dev/tty0", S_IFCHR|0620, "tty"},
 	{4, 0x1, "/dev/tty1", S_IFCHR|0620, "tty"},
@@ -694,7 +693,6 @@ static struct devnode {
 	{4, 0xa, "/dev/tty10", S_IFCHR|0620, "tty"},
 	{4, 0xb, "/dev/tty11", S_IFCHR|0620, "tty"},
 	{4, 0xc, "/dev/tty12", S_IFCHR|0620, "tty"},
-#endif
 	{1, 0x3, "/dev/null", S_IFCHR|0666},
 	{1, 0x5, "/dev/zero", S_IFCHR|0666},
 	{1, 0x7, "/dev/full", S_IFCHR|0666},

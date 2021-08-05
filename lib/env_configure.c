@@ -436,11 +436,6 @@ int apply_quota_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, i
 int env_console_configure(struct vzctl_env_handle *h, int flags)
 {
 	int ret;
-	char *env[] = {
-#ifndef VZ8
-		"SETUP_CONSOLE=1",
-#endif
-		NULL };
 
 	if (flags & VZCTL_SKIP_CONFIGURE)
 		return 0;
@@ -451,7 +446,7 @@ int env_console_configure(struct vzctl_env_handle *h, int flags)
 	if (h->dist_actions->set_console == NULL)
 		return 0;
 
-	if (vzctl2_wrap_env_exec_vzscript(h, NULL, env,
+	if (vzctl2_wrap_env_exec_vzscript(h, NULL, NULL,
 				h->dist_actions->set_console,
 				VZCTL_SCRIPT_EXEC_TIMEOUT, EXEC_LOG_OUTPUT))
 		return vzctl_err(VZCTL_E_ACTIONSCRIPT, 0,
