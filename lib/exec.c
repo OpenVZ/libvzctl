@@ -1412,6 +1412,10 @@ int vzctl2_console_start(struct vzctl_env_handle *h, struct vzctl_console *con)
 	if (!is_env_run(h))
 		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running.");
 
+	/* Skip setup on preconfigured tty1 & tty2 */
+	if (con->ntty < 3)
+		return 0;
+
 	snprintf(tty, sizeof(tty), "START_CONSOLE_ON_TTY=%d", con->ntty);
 	p = getenv("TERM");
 	if (p)
