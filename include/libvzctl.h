@@ -581,9 +581,7 @@ struct vzctl_compact_param {
 };
 
 struct vzctl_console {
-	int master_fd;
-	int slave_fd;
-	char tty_path[128];
+	int ntty;
 };
 
 typedef int (* execFn)(void *data);
