@@ -79,6 +79,7 @@ static void free_bindmount(struct vzctl_bindmount *mnt)
 {
 	free(mnt->src);
 	free(mnt->dst);
+	free(mnt);
 }
 
 void free_bindmount_param(struct vzctl_bindmount_param *mnt)
@@ -91,7 +92,6 @@ void free_bindmount_param(struct vzctl_bindmount_param *mnt)
 	list_for_each_safe(it, tmp, &mnt->mounts, list) {
 		list_del(&it->list);
 		free_bindmount(it);
-		free(it);
 	}
 	free(mnt);
 }
@@ -133,7 +133,6 @@ int add_bindmount(struct vzctl_bindmount_param *mnt,
 
 err:
 	free_bindmount(p);
-	free(p);
 
 	return ret;
 }
@@ -253,7 +252,9 @@ static int parse_bindmount_str(struct vzctl_bindmount_param *mnt, char *str, int
 	if (find_bindmount(mnt, mnt_s.dst) == NULL)
 		add_bindmount(mnt, &mnt_s);
 out:
-	free_bindmount(&mnt_s);
+	free(mnt_s.src);
+	free(mnt_s.dst);
+
 	return ret;
 err:
 	ret = VZCTL_E_INVAL;
@@ -383,8 +384,8 @@ static int set_mount_flags(const char *mnt, int flags)
 static int live_bind_mount(struct exec_bind_param *param)
 {
 	if (param->op == DEL) {
-		if (umount2(param->dst, MNT_DETACH))
-			return vzctl_err(VZCTL_E_UMOUNT, errno, "Can't umount %s", param->dst);
+		if (umount2(param->dst, 0))
+			return vzctl_err(VZCTL_E_UMOUNT_BUSY, errno, "Can't umount %s", param->dst);
 		return 0;
 	}
 
@@ -413,8 +414,13 @@ static int do_live_bind_mount(struct vzctl_env_handle *h, const char *src,
 		.op = op,
 	};
 
-	if (op == DEL)
-		return vzctl_env_exec_fn(h, (execFn) live_bind_mount, &param, 0);
+	if (op == DEL) {
+		ret = vzctl_env_exec_fn(h, (execFn) live_bind_mount, &param, 0);
+		if (ret)
+			return vzctl_err(ret, ret == VZCTL_E_UMOUNT_BUSY ? EBUSY : 0,
+					"Can not unmount %s", param.dst);
+		return 0;
+	}
 
 	param.fd = open_tree(AT_FDCWD, src, OPEN_TREE_CLONE);
 	if (param.fd == -1)
@@ -501,8 +507,15 @@ set:
 		logger(0, 0, "Set up the bind mount: %s at %s", s, d);
 	else
 		logger(0, 0, "Unmount %s", d);
-	if (live)
-		return do_live_bind_mount(h, s, mnt->dst, mnt->op, flags);
+	if (live) {
+		int ret = do_live_bind_mount(h, s, mnt->dst, mnt->op, flags);
+		if (ret) {
+			/* Do not store on failure */
+			list_del(&mnt->list);
+			free_bindmount(mnt);
+		}
+		return ret;
+	}
 
 	return do_bind_mount(s, d, flags);
 }
@@ -511,12 +524,12 @@ int vzctl2_bind_mount(struct vzctl_env_handle *h,
 		struct vzctl_bindmount_param *mnt, int live)
 {
 	int ret;
-	struct vzctl_bindmount *it;
+	struct vzctl_bindmount *it, *tmp;
 
 	if (mnt == NULL || list_empty(&mnt->mounts))
 		return 0;
 
-	list_for_each(it, &mnt->mounts, list) {
+	list_for_each_safe(it, tmp, &mnt->mounts, list) {
 		ret = bind_mount(h, it, live);
 		if (ret)
 			return ret;

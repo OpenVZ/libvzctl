@@ -70,6 +70,7 @@ static int create_ploop_dev_map(struct vzctl_env_handle *h, pid_t pid)
 
 		partname = get_fs_partname(d);
 		logger(5, 0, "create device map %s -> %s", d->uuid, partname);
+		make_dir(path, 0);
 		if (symlink(partname, path))
 			return vzctl_err(VZCTL_E_SYSTEM, errno,
 					"Failed to create symlink %s -> %s",
