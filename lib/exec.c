@@ -782,7 +782,7 @@ static int do_env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
                 char *const argv[], char *const envp[],
 		struct termios *tios, struct winsize *ws, int fds[4], int flags)
 {
-	int ret, pid, status;
+	int ret, rc = 0, pid, status;
 	int master, slave;
 	int st[2] = {-1, -1};
 	struct vzctl_cleanup_hook *hook;
@@ -832,7 +832,7 @@ static int do_env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
 		dup2(slave, 0);
 		dup2(slave, 1);
 		dup2(slave, 2);
-		close_fds(0, -1);
+		close_fds(0, st[1], -1);
 		snprintf(id, sizeof(id), "CT-%s", EID(h));
 		snprintf(prompt, sizeof(prompt), "PS1=%s \\W\\$ ", id);
 
@@ -859,19 +859,23 @@ static int do_env_exec_pty(struct vzctl_env_handle *h, int exec_mode,
 	hook = register_cleanup_hook(cleanup_kill_force, (void *) &pid);
 	ret = read(st[0], &status, sizeof(status));
 	if (ret == 0) {
+		fprintf(stdout, "entered into CT %s\r\n", h->ctid);
 		redirect_loop(fds[0], master, master, fds[1], fds[3]);
 	} else {
 		while (stdredir(master, fds[1], 0) == 0);
 	}
 
-	ret = env_wait(pid, 0, NULL);
+	rc = env_wait(pid, 0, NULL);
+	fprintf(stdout, "exited from CT %s\r\n", h->ctid);
 	unregister_cleanup_hook(hook);
 err:
+	if (ret)
+		 fprintf(stdout, "enter into CT %s failed\r\n", h->ctid);
 	p_close(st);
 	close(master);
 	close(slave);
 
-	return ret;
+	return ret ? ret : rc;
 }
 
 int vzctl2_env_exec_pty_priv(struct vzctl_env_handle *h, int exec_mode,
