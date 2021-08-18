@@ -774,6 +774,8 @@ int env_enter(ctid_t ctid, int flags)
 	while ((ep = readdir (dp))) {
 		if (!strcmp(ep->d_name, ".") ||
 		    !strcmp(ep->d_name, "..") ||
+		    !strcmp(ep->d_name, "time") ||
+		    !strcmp(ep->d_name, "time_for_children") ||
 		    !strcmp(ep->d_name, "mnt"))
 			continue;
 
