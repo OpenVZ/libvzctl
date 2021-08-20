@@ -474,6 +474,7 @@ static int create_env_private(struct vzctl_env_handle *h, const char *ve_private
 {
 	char lockfile[PATH_MAX];
 	char dst_tmp[PATH_MAX];
+	const char *dst;
 	int ret, lckfd = -1;
 
 	if ((ret = make_dir(ve_private, 0)))
@@ -487,15 +488,19 @@ static int create_env_private(struct vzctl_env_handle *h, const char *ve_private
 				"Unable to lock the Container private area %s",
 				ve_private);
 
-	snprintf(dst_tmp, sizeof(dst_tmp), "%s"TMP_SFX, ve_private);
+	if (!stat_file(ve_private)) {
+		snprintf(dst_tmp, sizeof(dst_tmp), "%s"TMP_SFX, ve_private);
 
-	if (stat_file(dst_tmp) == 1) {
-		logger(0, 0, "Warning: temp dir %s already exists, deleting",
-				dst_tmp);
-		destroydir(dst_tmp);
-	}
+		if (stat_file(dst_tmp) == 1) {
+			logger(0, 0, "Warning: temp dir %s already exists, deleting",
+					dst_tmp);
+			destroydir(dst_tmp);
+		}
+		dst = dst_tmp;
+	} else
+		dst = ve_private;
 
-	ret = vzctl2_create_env_private(dst_tmp, layout);
+	ret = vzctl2_create_env_private(dst, layout);
 	if (ret)
 		goto err;
 
@@ -506,10 +511,10 @@ static int create_env_private(struct vzctl_env_handle *h, const char *ve_private
 			.enc_keyid = param->enc_keyid,
 		};
 
-		get_root_disk_path(dst_tmp, fname, sizeof(fname));
+		get_root_disk_path(dst, fname, sizeof(fname));
 		ret = vzctl_create_image(h, fname, &p);
 	} else
-		ret = do_create_private(h, dst_tmp, ostmpl, vzpkg_conf, applist,
+		ret = do_create_private(h, dst, ostmpl, vzpkg_conf, applist,
 				layout, 0, flags);
 	if (ret)
 		goto err;
@@ -521,22 +526,24 @@ static int create_env_private(struct vzctl_env_handle *h, const char *ve_private
 	if (param->enc_keyid != NULL) {
 		char path[PATH_MAX];
 
-		get_root_disk_path(dst_tmp, path, sizeof(path));
+		get_root_disk_path(dst, path, sizeof(path));
 		ret = vzctl_encrypt_disk_image(path, param->enc_keyid, 0);
 		if (ret)
 			goto err;
 	}
 
-	ret = rename(dst_tmp, ve_private);
-	if (ret) {
-		ret = vzctl_err(VZCTL_E_FS_NEW_VE_PRVT, errno, "Can't rename %s to %s",
-				dst_tmp, ve_private);
-		goto err;
+	if (dst != ve_private) {
+		ret = rename(dst_tmp, ve_private);
+		if (ret) {
+			ret = vzctl_err(VZCTL_E_FS_NEW_VE_PRVT, errno, "Can't rename %s to %s",
+					dst_tmp, ve_private);
+			goto err;
+		}
 	}
 
 err:
 	if (ret) {
-		destroydir(dst_tmp);
+		destroydir(dst);
 		free(h->env_param->fs->ve_private);
 		h->env_param->fs->ve_private = NULL;
 	}
@@ -692,7 +699,7 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 		ret = vzctl_err(VZCTL_E_INVAL, 0, "VE_PRIVATE is not specified");
 		goto free_conf;
 	}
-	if (stat_file(fs->ve_private)) {
+	if (!param->no_root_disk && stat_file(fs->ve_private)) {
 		ret = vzctl_err(VZCTL_E_FS_PRVT_AREA_EXIST, 0,
 				"Private area %s already exists",
 				fs->ve_private);
