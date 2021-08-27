@@ -854,7 +854,7 @@ static int cg_set_disk_io(const char *ctid, dev_t dev, const char *name,
 	if (ret)
 		return ret;
 
-	snprintf(n, sizeof(n), "blkio.throttle.write_%s_device", "bps");
+	snprintf(n, sizeof(n), "blkio.throttle.write_%s_device", name);
 	ret = cg_set_param(ctid, CG_BLKIO, n, d);
 	if (ret)
 		return ret;
