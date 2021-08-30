@@ -86,6 +86,11 @@ int create_venet_link(void);
 #define LINUX_REBOOT_MAGIC2     672274793
 #define LINUX_REBOOT_CMD_POWER_OFF	0x4321FEDC
 
+const char *vzctl2_get_version()
+{
+	return PACKAGE_VERSION;
+}
+
 int real_env_stop(int stop_mode)
 {
 	logger(10, 0, "* stop mode %d", stop_mode);

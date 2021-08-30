@@ -1198,6 +1198,7 @@ int vzctl2_get_def_ostemplate_name(char *out, int size);
 int vzctl2_bitmap_parse(const char *str, unsigned long *maskp, int size);
 int vzctl2_prepare_root_image(const char *dst, const char *ostemplate,
 		struct vzctl_create_image_param *param);
+const char *vzctl2_get_version();
 
 /************** Depricated *****************************/
 struct vzctl_config *vzctl2_conf_open(const char *fname, int flags, int *err);
