@@ -45,7 +45,7 @@ addif()
 		fi
 	fi
 
-	for i in `ls -1 /sys/class/net/$br/brif`; do
+	for i in `ls -1 /sys/class/net/$br/brif 2>/dev/null`; do
 		if [ ! -d " /sys/class/net/$br/brif/$i" ]; then
 			bound_iface=$i
 			break;
@@ -68,7 +68,7 @@ addif()
 	fi
 
 	if [ "$VPORT_TYPE" = "ovs" ]; then
-		ovs-vsctl add-port "$br" "$iface"
+		ovs-vsctl --may-exist add-port "$br" "$iface"
 	else
 		brctl addif "$br" "$iface"
 	fi
@@ -85,6 +85,9 @@ delif()
 	local iface=$1
 	local br
 
+	if [ "$VPORT_TYPE" = "ovs" ]; then
+		ovs-vsctl --if-exists del-port "$iface"
+	fi
 	for br in `ls -1 /sys/class/net`; do
 		[ -d  /sys/class/net/$br/bridge ] || continue
 		brctl show $br | grep -w $iface && brctl delif $br $iface
