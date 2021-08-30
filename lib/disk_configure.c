@@ -381,21 +381,26 @@ static int read_line(const char *fname, char *out, int size)
 
 static int do_mknod(const char *devname, const char *sysname, dev_t dev)
 {
-	char d[64], f[64], name[32];
+	char d[128], f[64], name[64];
+
+	if (make_dir(devname, 0))
+		return -1;
+
+	unlink(devname);
+	if (mknod(devname, S_IFBLK | S_IRUSR | S_IWUSR, dev) && errno != EEXIST)
+		return vzctl_err(-1, errno, "mknod %s", devname);
 
 	snprintf(f, sizeof(f), "/sys/class/block/%s/dm/name",
 			get_devname(devname));
-	if (read_line(f, name, sizeof(name)-1) == 0)
+	if (access(f, F_OK) == 0 && read_line(f, name, sizeof(name)-1) == 0) {
+		if (access("/dev/mapper", F_OK))
+			make_dir("/dev/mapper", 1);
+
 		snprintf(d, sizeof(d), "/dev/mapper/%s", name);
-	else
-		snprintf(d, sizeof(d), "%s", devname);
-
-	if (make_dir(d, 0))
-		return -1;
-
-	unlink(d);
-	if (mknod(d, S_IFBLK | S_IRUSR | S_IWUSR,dev) && errno != EEXIST)
-		return vzctl_err(-1, errno, "mknod %s", d);
+		unlink(d);
+		if (mknod(d, S_IFBLK | S_IRUSR | S_IWUSR, dev) && errno != EEXIST)
+			return vzctl_err(-1, errno, "mknod %s", d);
+	}
 
 	return send_uevent(sysname);
 }
