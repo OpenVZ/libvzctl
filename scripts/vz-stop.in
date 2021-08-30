@@ -47,6 +47,7 @@ fi
 [ "${TRAFFIC_SHAPING}" == "yes" ] && @SCRIPTDIR@/vz-setrate del
 
 for v in $VETH; do
+	[ -x /usr/bin/ovs-vsctl ] && ovs-vsctl --if-exists del-port "$v" 2>/dev/null
 	ip link set $v down >/dev/null 2>&1 && \
 		ip link set $v name "${v}M$(( $$ % 100 ))" >/dev/null 2>&1
 done
