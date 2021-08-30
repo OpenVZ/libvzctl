@@ -75,6 +75,7 @@
 #include "env_ops.h"
 #include "ha.h"
 #include "wrap.h"
+#include "destroy.h"
 #include "create.h"
 
 #define ENVRETRY	3
@@ -1237,6 +1238,18 @@ static int announce_ips(struct vzctl_env_handle *h)
 		return vzctl_err(-1, errno, "Unable to fork!\n");
 
 	return env_wait(pid, 0, NULL);
+}
+
+int vzctl2_env_remove_dump(struct vzctl_env_handle *h)
+{
+	char dumpfile[PATH_MAX];
+
+	vzctl2_get_dump_file(h, dumpfile, sizeof(dumpfile));
+	if (access(dumpfile, F_OK) == 0) {
+		logger(0, 0, "Remove the CT dump %s", dumpfile);
+		return del_dir(dumpfile);
+	}
+	return 0;
 }
 
 int vzctl_env_restore(struct vzctl_env_handle *h,

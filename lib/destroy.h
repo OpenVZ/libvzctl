@@ -24,6 +24,7 @@
 #ifndef	_DESTROY_H_
 #define	_DESTROY_H_
 
+int del_dir(const char *dir);
 int env_destroy_prvt(unsigned id, const char *dir, int layout);
 
 #endif
