@@ -57,7 +57,7 @@
 
 const char destroy_dir_magic[] = "vzctl-rm-me.";
 
-static int del_dir(const char *dir)
+int del_dir(const char *dir)
 {
 	int ret;
 	char *argv[4];

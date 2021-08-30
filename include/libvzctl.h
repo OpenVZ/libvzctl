@@ -1097,6 +1097,7 @@ int vzctl2_get_mount_opts(const char *mnt_opts, int user_quota, char *out, int s
 int vzctl2_get_criu_arg(struct vzctl_env_handle *h, int op, char *out, int size);
 
 /***************** CPT *********************************/
+int vzctl2_env_remove_dump(struct vzctl_env_handle *h);
 int vzctl2_env_chkpnt(struct vzctl_env_handle *h, int cmd, struct vzctl_cpt_param *param, int flags);
 int vzctl2_env_restore(struct vzctl_env_handle *h, struct vzctl_cpt_param *param, int flags);
 
@@ -1197,6 +1198,7 @@ int vzctl2_get_def_ostemplate_name(char *out, int size);
 int vzctl2_bitmap_parse(const char *str, unsigned long *maskp, int size);
 int vzctl2_prepare_root_image(const char *dst, const char *ostemplate,
 		struct vzctl_create_image_param *param);
+const char *vzctl2_get_version();
 
 /************** Depricated *****************************/
 struct vzctl_config *vzctl2_conf_open(const char *fname, int flags, int *err);
