@@ -1627,7 +1627,8 @@ int vzctl2_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 			env->dq->diskspace = NULL;
 			goto err;
 		}
-	}
+	} else
+		vzctl2_send_state_evt(EID(h), VZCTL_ENV_CONFIGURED);
 	ret = setmode_err;
 
 err:
