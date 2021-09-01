@@ -160,7 +160,9 @@ char *get_rel_path(const char *basedir, const char *fname, char *buf, int len)
 
 	if (basedir != NULL) {
 		n = strlen(basedir);
-		if (strncmp(fname, basedir, n) == 0)
+		if (basedir[n - 1] == '/')
+			n--;
+		if (strncmp(fname, basedir, n) == 0 && fname[n] == '/')
 			p += n + 1;
 	}
 
