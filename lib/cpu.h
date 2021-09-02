@@ -25,9 +25,6 @@
 #ifndef _CPU_H_
 #define _CPU_H_
 
-#define MAXCPUUNITS	500000
-#define MINCPUUNITS	8
-
 /** Data structure for cpu parameters.
  */
 struct vzctl_cpu_param {

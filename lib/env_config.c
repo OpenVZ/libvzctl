@@ -471,7 +471,7 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 			break;
 		if (parse_ul(str, &num))
 			goto err_inval;
-		if (num < MINCPUUNITS || num > MAXCPUUNITS)
+		if (num < VZCTL_CPUUNITS_MIN || num > VZCTL_CPUUNITS_MAX)
 			goto err_inval;
 		if (env->cpu->units == NULL) {
 			env->cpu->units = malloc(sizeof(unsigned long));
