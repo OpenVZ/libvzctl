@@ -49,7 +49,6 @@
 #define DEF_NUMIPTENT		2000
 /* default cpu units values */
 #define LHTCPUUNITS		250
-#define UNLCPUUNITS		1000
 #define HNCPUUNITS		1000
 
 /** Maximum High Availability priority value */

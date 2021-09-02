@@ -412,7 +412,7 @@ static void fix_cpu_param(struct vzctl_cpu_param *cpu)
 	assert(cpu);
 	if (cpu->units == NULL && cpu->weight == NULL) {
 		cpu->units = malloc(sizeof(unsigned long));
-		*cpu->units = UNLCPUUNITS;
+		*cpu->units = VZCTL_CPUUNITS_DEFAULT;
 	}
 }
 
@@ -1976,7 +1976,7 @@ int vzctl2_env_set_cpuunits(struct vzctl_env_param *env, unsigned long units)
 {
 	struct vzctl_cpu_param *cpu = env->cpu;
 
-	if (units < MINCPUUNITS || units > MAXCPUUNITS)
+	if (units < VZCTL_CPUUNITS_MIN || units > VZCTL_CPUUNITS_MAX)
 		return VZCTL_E_INVAL;
 
 	if (cpu->units == NULL) {
