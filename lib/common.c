@@ -596,9 +596,12 @@ int open_proc_fd()
 	return proc_fd;
 }
 
-static int get_proc_fd()
+static void close_proc_fd()
 {
-	return proc_fd;
+	if (proc_fd != -1) {
+		close(proc_fd);
+		proc_fd = -1;
+	}
 }
 
 int _close_fds(int close_mode, int *skip_fds)
@@ -619,12 +622,11 @@ int _close_fds(int close_mode, int *skip_fds)
 		}
 	}
 
-	fd = get_proc_fd();
-	if (fd == -1)
-		fd = open_proc_fd();
+	if (proc_fd == -1)
+		open_proc_fd();
 
 	snprintf(buf, sizeof(buf), "self/fd");
-	fd = openat(fd, buf, O_RDONLY);
+	fd = openat(proc_fd, buf, O_RDONLY);
 	if (fd == -1)
 		return vzctl_err(VZCTL_E_SYSTEM, errno, "openat %s", buf);
 
@@ -640,7 +642,7 @@ int _close_fds(int close_mode, int *skip_fds)
 			continue;
 		if (sscanf(ent->d_name, "%d", &f) != 1)
 			continue;
-		if (dirfd(dir) == f || f < 3)
+		if (dirfd(dir) == f || f < 3 || f == proc_fd)
 			continue;
 		if (is_fd_in_list(skip_fds, f)) {
 			if ((close_mode & VZCTL_CLOSE_NOCHECK) ||
@@ -651,6 +653,7 @@ int _close_fds(int close_mode, int *skip_fds)
 		close(f);
 	}
 	closedir(dir);
+	close_proc_fd();
 
 	return 0;
 }
