@@ -26,6 +26,7 @@
 #include <string.h>
 #include <libgen.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include "libvzctl.h"
 #include "../lib/vzerror.h"
@@ -92,6 +93,13 @@ int main(int argc, char **argv)
 				"Unknown action: %s", action);
 
 	vzctl2_env_close(h);
+	const char *p = getenv("VZCTL_ERR_FD");
+	if (p && ret) {
+		int fd = atoi(p);
+		const char *m = vzctl2_get_last_error();
+		write(fd, m, strlen(m));
+		close(fd);
+	}
 
 	return ret;
 }

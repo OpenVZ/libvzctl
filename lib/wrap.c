@@ -21,8 +21,9 @@
  * Schaffhausen, Switzerland.
  *
  */
-
+#define _GNU_SOURCE
 #include <unistd.h>
+#include <fcntl.h>
 #include <errno.h>
 
 #include "libvzctl.h"
@@ -35,19 +36,37 @@
 static int do_exec(char *const arg[])
 {
 	int pid;
+	int e[2];
+	char s[8192];
+	ssize_t n;
 
 	if (vzctl2_get_log_quiet())
 		setenv("VZCTL_LOG_QUIET", "yes", 1);
 	if (vzctl2_get_log_progname())
 		 setenv("VZCTL_LOG_PROGNAME", vzctl2_get_log_progname(), 1);
 
+	if (pipe2(e, O_CLOEXEC))
+		return vzctl_err(VZCTL_E_PIPE, errno, "pipe");
+
+	sprintf(s, "%d", e[1]);
+	setenv("VZCTL_ERR_FD", s, 1);
+
 	pid = vfork();
 	if (pid == -1) {
 		return vzctl_err(VZCTL_E_FORK, errno, "Cannot fork");
 	} else if (pid == 0) {
+		drop_cloexec(e[1], FD_CLOEXEC);
 		execvp(arg[0], arg);
 		_exit(VZCTL_E_SYSTEM);
 	}
+	close(e[1]);
+
+	n = TEMP_FAILURE_RETRY(read(e[0], s, sizeof(s) - 1));
+	if (n > 0) {
+		s[n] = '\0';
+		vzctl_err(-1, 0, "%s", s);
+	}
+	close(e[0]);
 
 	return env_wait(pid, 0, NULL);
 }
