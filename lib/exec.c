@@ -1035,6 +1035,7 @@ int vzctl2_env_enter(struct vzctl_env_handle *h)
 
 	ret = env_wait(exec->pid, 0, NULL);
 err:
+	vzctl2_release_exec_handle(exec);
 	close(in[1]);
 	close(out[0]);
 
