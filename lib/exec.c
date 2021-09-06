@@ -124,8 +124,11 @@ static int read_exec_msg(int fd, struct exec_msg *m)
 	ssize_t n, size;
 
 	n = TEMP_FAILURE_RETRY(read(fd, &m->hdr, sizeof(struct exec_msg_hdr)));
-	if (n != sizeof(struct exec_msg_hdr))
+	if (n != sizeof(struct exec_msg_hdr)) {
+		if (n == 0)
+			return VZCTL_E_SYSTEM;
 		return vzctl_err(VZCTL_E_SYSTEM, errno, "Cannot read msg header ret: %lu", n);
+	}
 
 	size = get_msg_size(m->hdr.type);
 
