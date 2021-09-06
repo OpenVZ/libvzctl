@@ -85,7 +85,7 @@ static __thread int s_timeout_pid;
 static char _proc_title[PATH_MAX];
 static int _proc_title_len = sizeof(_proc_title);
 
-static char *envp_bash[] = {"HOME=/", "TERM=linux",
+static char *envp_bash[] = {"HOME=/",
 	ENV_PATH,
 	"SHELL=/bin/bash",
 	NULL, NULL};
@@ -1001,9 +1001,14 @@ int vzctl2_env_enter(struct vzctl_env_handle *h)
 	struct vzctl_exec_handle *exec = NULL;
 	int fds[2];
 	int in[2] = {-1. -1}, out[2] = {-1, -1};
+	char term[128] = "TERM=linux";
+	char *arg[] = {"-bash", NULL};
+	char *env[] = {term, NULL};
 
 	if (!is_env_run(h))
 		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Container is not running");
+	if (getenv("TERM"))
+		snprintf(term, sizeof(term), "TERM=%s", getenv("TERM"));
 
 	if (pipe2(in, O_CLOEXEC) || pipe2(out, O_CLOEXEC)) {
 		p_close(in);
@@ -1021,7 +1026,7 @@ int vzctl2_env_enter(struct vzctl_env_handle *h)
 	tcgetattr(0, &tios);
 	ioctl(0, TIOCGWINSZ, &ws);
 
-	ret = vzctl2_env_exec_pty(h, NULL, NULL, fds, &tios, &ws, &exec);
+	ret = vzctl2_env_exec_pty(h, arg, env, fds, &tios, &ws, &exec);
 	close(in[0]);
 	close(out[1]);
 	if (ret)
