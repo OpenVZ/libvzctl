@@ -97,7 +97,8 @@ int main(int argc, char **argv)
 	if (p && ret) {
 		int fd = atoi(p);
 		const char *m = vzctl2_get_last_error();
-		write(fd, m, strlen(m));
+		if (write(fd, m, strlen(m)) == -1)
+			vzctl_err(-1, errno, "Can not write error message");
 		close(fd);
 	}
 
