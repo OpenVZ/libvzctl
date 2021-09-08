@@ -422,6 +422,7 @@ struct vzctl_disk_stats {
 	unsigned long long inodes;
 	unsigned long long ifree;
 	struct vzctl_iostat io;
+	char part[64];
 };
 
 struct vzctl_meminfo {
