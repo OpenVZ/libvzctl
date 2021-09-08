@@ -1687,6 +1687,7 @@ int vzctl2_get_disk_stats(const char *path, struct vzctl_disk_stats *stats,
 		st.free = i.fs.fs_bsize * i.fs.fs_bfree / 1024;
 		st.inodes = i.fs.fs_inodes;
 		st.ifree = i.fs.fs_ifree;
+		snprintf(st.part, sizeof(st.part), "%s", i.part);
 	} else if (ret != SYSEXIT_FSTAT)
 		return VZCTL_E_SYSTEM;
 
