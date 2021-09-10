@@ -3169,6 +3169,7 @@ int vzctl2_get_env_meminfo(const ctid_t ctid, struct vzctl_meminfo *meminfo, int
 		sscanf(buf, "total_pswpout %llu", &data.swap_out);
 		sscanf(buf, "total_slab_reclaimable %llu", &recl);
 		sscanf(buf, "total_cache %llu", &data.cached);
+		sscanf(buf, "total_rss %llu", &data.rss);
 	}
 	fclose(fp);
 
