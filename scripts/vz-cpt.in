@@ -68,8 +68,6 @@ done
 
 function cg_dump_props {
 	if [ -n "$VEID" ]; then
-		# Netfilter mask
-		cgget -n -v -r ve.iptables_mask $VEID > $1/vz_iptables_mask.img
 		# OS version virtualization
 		cgget -n -v -r ve.os_release $VEID > $1/vz_os_release.img
 		# Features granted to VE
