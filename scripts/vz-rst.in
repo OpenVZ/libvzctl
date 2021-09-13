@@ -121,6 +121,7 @@ exec criu restore -v$CRIU_LOGLEVEL $RESTORE_EXTRA_OPT	\
 		--link-remap				\
 		--root $VE_ROOT				\
 		--restore-detached			\
+		--cgroup-force-create-ns		\
 		--action-script $action_script		\
 		-D $VE_DUMP_DIR				\
 		-W $VE_WORK_DIR				\
