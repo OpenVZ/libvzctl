@@ -259,10 +259,14 @@ int vzctl2_env_umount(struct vzctl_env_handle *h, int flags)
 				" running Container: stop it first");
 
 	repair_finish(h);
+	get_env_ops()->env_cleanup(h, flags);
+	get_running_state_fname(fs->ve_private, fname, sizeof(fname));
+	if (access(fname, F_OK) == 0)
+		run_stop_script(h);
 
 	if (!vzctl2_env_is_mounted(h)) {
 		if (flags & VZCTL_FORCE)
-			goto force;
+			return 0;
 
 		return vzctl_err(VZCTL_E_FS_NOT_MOUNTED, 0,
 				"Container is not mounted");
@@ -285,13 +289,6 @@ int vzctl2_env_umount(struct vzctl_env_handle *h, int flags)
 	}
 
 	logger(0, 0, "Container is unmounted");
-
-force:
-	get_running_state_fname(fs->ve_private, fname, sizeof(fname));
-	if (access(fname, F_OK) == 0)
-		run_stop_script(h);
-
-	get_env_ops()->env_cleanup(h, flags);
 
 	return 0;
 }
