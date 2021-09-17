@@ -24,9 +24,13 @@
 
 ADD_IP=redhat-add_ip.sh
 DEL_IP=redhat-del_ip.sh
+NETIF_ADD=redhat-add_netif.sh
+NETIF_DEL=redhat-del_netif.sh
 SET_HOSTNAME=redhat-set_hostname.sh
 SET_DNS=set_dns.sh
 SET_USERPASS=set_userpass.sh
 SET_UGID_QUOTA=set_ugid_quota.sh
 POST_CREATE=postcreate.sh
+POST_MIGRATE=redhat-post_migrate.sh
+GET_V2PMIGRATE_EXCLUDES=redhat-v2pmigrate-excludes.sh
 SET_CONSOLE=set_console.sh
