@@ -35,6 +35,7 @@
 #include "vztypes.h"
 #include "create.h"
 #include "vztmpl.h"
+#include "disk.h"
 
 static int add_dist_action(struct vzctl_dist_actions *dist_actions,
 	const char *name, const char *action, const char *dir)
@@ -139,22 +140,61 @@ static int get_dist_conf_name(const char *dist_name, const char *dir,
 	return 0;
 }
 
+static int detect_ostemplate(struct vzctl_env_handle *h, char *out, int size)
+{
+	int rc, count = 0;;
+	struct vzctl_str_param *it;
+	char path[PATH_MAX];
+	LIST_HEAD(head);
+	const char *p;
+	struct vzctl_disk *d;
+
+	d = find_root_disk(h->env_param->disk);
+	if (d == NULL)
+		return vzctl_err(VZCTL_E_INVAL, 0, "Unable to detect ostemplate:"
+			       " root image is not found");
+
+	snprintf(path, sizeof(path), "%s/templates", d->path);
+	rc = get_dir_list(&head, path, 2);
+	if (rc)
+		return rc;
+
+	list_for_each(it, &head, list) {
+		if (strstr(it->str, "-x86_64") == NULL)
+			continue;
+		p = strrchr(it->str, '/');
+		snprintf(out, size, "%s",  p ? ++p : it->str);
+		count++;
+	}
+	free_str(&head);
+	if (count != 1)
+		return vzctl_err(VZCTL_E_INVAL, 0, "Can't get ostemplate name form %s",
+				path);
+	logger(1, 0, "Autodetect ostemplate: %s", out);
+
+	return 0;
+}
+
+
 /** Get distribution name form tmpl_param structure.
  *
  * @param tmpl		distribution data.
  * @return		malloc'ed name.
  */
-char *get_dist_name(struct vzctl_tmpl_param *tmpl)
+char *get_dist_name(struct vzctl_env_handle *h, struct vzctl_tmpl_param *tmpl)
 {
+	char dist[STR_SIZE];
+
 	if (tmpl->dist != NULL)
 		return strdup(tmpl->dist);
-	if (tmpl->ostmpl != NULL) {
-		char dist[STR_SIZE];
 
-		if (vztmpl_get_distribution(tmpl->ostmpl, dist, sizeof(dist)) == 0)
-			return strdup(dist);
-		return strdup(tmpl->ostmpl);
-	}
+	if (tmpl->ostmpl && tmpl->ostmpl[0] != '\0' &&
+			vztmpl_get_distribution(tmpl->ostmpl, dist, sizeof(dist)) == 0)
+		return strdup(dist);
+
+	if (detect_ostemplate(h, dist, sizeof(dist)) == 0)
+		return strdup(dist);
+
 	return NULL;
 }
 
@@ -172,7 +212,7 @@ int read_dist_actions(struct vzctl_env_handle *h)
 
 	if (h->dist_actions != NULL)
 		return 0;
-	dist = get_dist_name(h->env_param->tmpl);
+	dist = get_dist_name(h, h->env_param->tmpl);
 	ret = get_dist_conf_name(dist, DIST_DIR, file, sizeof(file));
 	xfree(dist);
 	if (ret)

@@ -2673,6 +2673,24 @@ int vzctl2_env_get_ostemplate(struct vzctl_env_param *env, const char **res)
 	return 0;
 }
 
+/* Update ostemplate configuration parameter.
+ *  if 'name' is NULL the ostemplate will be gathered from root image
+ */
+int vzctl2_env_set_ostemplate(struct vzctl_env_param *env, const char *name)
+{
+	int ret;
+
+	if (name == NULL)
+		return vzctl_err(VZCTL_E_INVAL, 0, "Can not set the ostemplate:"
+			       " is not specified");
+
+	ret = xstrdup(&env->tmpl->ostmpl, name);
+	if (ret)
+		return ret;
+
+	return xstrdup(&env->tmpl->dist, name);
+}
+
 int vzctl2_env_get_apptemplates(struct vzctl_env_param *env, const char **res)
 {
 	if (env->tmpl->templates == NULL)
