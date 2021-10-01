@@ -761,7 +761,7 @@ int vzctl2_clear_all_ve_netstat(void);
 
 vzctl_env_handle_ptr vzctl2_alloc_env_handle();
 vzctl_env_handle_ptr vzctl2_env_open(const char *ctid, int flags, int *err);
-vzctl_env_handle_ptr vzctl2_env_open_conf(const char *ctid, const char *fname, int flags, int *err);
+vzctl_env_handle_ptr vzctl2_env_open_conf(const ctid_t, const char *fname, int flags, int *err);
 void vzctl2_env_close(vzctl_env_handle_ptr h);
 int vzctl2_apply_param(vzctl_env_handle_ptr h, vzctl_env_param_ptr param, int flags);
 int vzctl2_env_save(vzctl_env_handle_ptr h);
