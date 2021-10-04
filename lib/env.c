@@ -2429,6 +2429,8 @@ int vzctl2_env_set_veth_param(struct vzctl_veth_dev *dev,
 
 	dev->ip_delall = tmp.ip_apply_mode;
 	dev->vporttype = tmp.vporttype;
+	if (tmp.ifaceid)
+		xstrdup(&dev->ifaceid, tmp.ifaceid);
 
 	return 0;
 }
@@ -2508,6 +2510,7 @@ int vzctl2_env_get_veth_param(struct vzctl_veth_dev *dev, struct vzctl_veth_dev_
 	else
 		tmp.nettype = dev->nettype;
 	tmp.vporttype = dev->vporttype;
+	tmp.ifaceid = dev->ifaceid;
 
 	memcpy(res, &tmp, size);
 
