@@ -829,6 +829,7 @@ int vzctl2_env_get_ve_root_path(vzctl_env_param_ptr env, const char **path);
 int vzctl2_env_get_ve_root_orig_path(vzctl_env_param_ptr env, const char **path);
 
 int vzctl2_env_get_ostemplate(vzctl_env_param_ptr env, const char **name);
+int vzctl2_env_set_ostemplate(struct vzctl_env_param *env, const char *name);
 int vzctl2_env_get_apptemplates(vzctl_env_param_ptr env, const char **names);
 
 int vzctl2_env_set_autostart(vzctl_env_param_ptr env, int mode);
