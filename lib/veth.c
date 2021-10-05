@@ -56,6 +56,7 @@ void free_veth_dev(struct vzctl_veth_dev *dev)
 	free(dev->network);
 	free_ip(&dev->ip_list);
 	free_ip(&dev->ip_del_list);
+	free(dev->ifaceid);
 
 	free(dev);
 }
@@ -151,6 +152,8 @@ static int fill_veth_dev(struct vzctl_veth_dev *dst,
 		dst->nettype = src->nettype;
 	if (src->vporttype)
 		dst->vporttype = src->vporttype;
+	if (src->ifaceid)
+		xstrdup(&dst->ifaceid, src->ifaceid);
 
 	return 0;
 }
@@ -268,8 +271,9 @@ static int run_vznetcfg(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
 {
 	char fname[PATH_MAX];
 	char veid[sizeof(ctid_t) + sizeof("VEID=")];
-	char *env[4] = {};
-
+	char ifaceid[sizeof(ctid_t) + sizeof("IFACEID=")];
+	char *env[5];
+	int i = 0;
 	char *arg[] = {
 		fname,
 		dev->network[0] == '\0' ? "delif" : "addif",
@@ -279,11 +283,17 @@ static int run_vznetcfg(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
 	};
 
 	snprintf(veid, sizeof(veid), "VEID=%s", h->ctid);
-	env[0] = veid;
+	env[i++] = veid;
 	if (dev->nettype == VZCTL_NETTYPE_BRIDGE)
-		env[1] = "NETWORK_TYPE=bridge";
-	if (dev->vporttype == VZCTL_VPORTTYPE_OVS)
-		env[2] = "VPORT_TYPE=ovs";
+		env[i++] = "NETWORK_TYPE=bridge";
+	if (dev->vporttype == VZCTL_VPORTTYPE_OVS) {
+		env[i++] = "VPORT_TYPE=ovs";
+		if (dev->ifaceid) {
+			snprintf(ifaceid, sizeof(ifaceid), "IFACEID=%s", dev->ifaceid);
+			env[i++] = ifaceid;
+		}
+	}
+	env[i] = NULL;
 
 	get_script_path("vznetcfg", fname, sizeof(fname));
 	if (access(fname, F_OK))
@@ -807,6 +817,12 @@ char *veth2str(struct vzctl_env_param *env, struct vzctl_veth_param *new,
 			if (sp >= ep)
 				break;
 		}
+		if (it->ifaceid) {
+			sp += snprintf(sp, ep - sp, "ifaceid=%s,",
+				it->ifaceid);
+			if (sp >= ep)
+				break;
+		}
 
 		if (it->configure_mode) {
 			sp += snprintf(sp, ep - sp, "configure=%s,",
@@ -1046,6 +1062,18 @@ static int parse_netif_str(struct vzctl_env_handle *h, const char *str,
 			if ((id = onoff2id(tmp)) < 0)
 				return VZCTL_E_INVAL;
 			dev->ip_filter = id;
+		} else if (!strncmp("ifaceid=", p, 8)) {
+			p += 8;
+			len = next - p;
+			if (len == 0)
+				continue;
+			if (len >= sizeof(tmp))
+				return VZCTL_E_INVAL;
+			strncpy(tmp, p, len);
+			tmp[len] = 0;
+			err = xstrdup(&dev->ifaceid, tmp);
+			if (err)
+				return err;
                 } else if (!strncmp("configure=", p, 10)) {
                         p += 10;
                         len = next - p;
@@ -1244,6 +1272,11 @@ int parse_netif_ifname(struct vzctl_veth_param *veth, const char *str, int op,
 		break;
 	case VZCTL_PARAM_NETIF_VPORT_TYPE:
 		ret = get_vporttype(str, &dev->vporttype);
+		if (ret)
+			return ret;
+		break;
+	case VZCTL_PARAM_NETIF_IFACEID:
+		ret = xstrdup(&dev->ifaceid, str);
 		if (ret)
 			return ret;
 		break;

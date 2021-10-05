@@ -248,6 +248,7 @@ struct vzctl_veth_dev_param {
 	int allow_ip_spoof;
 	int nettype;
 	int vporttype;			/* vzctl_veth_vport_type */
+	char *ifaceid;			/* ovs iface-id */
 };
 
 struct vzctl_rate_param {
