@@ -213,7 +213,7 @@ static void normalize_timespec(struct timespec *ts)
 
 static int tune_timens(int clockid)
 {
-	int rc = 0;
+	int rc = 0, fd;
 	FILE *fp;
 	struct timespec ts, prev = {};
 	const char *f = "/proc/self/timens_offsets";
@@ -231,7 +231,7 @@ static int tune_timens(int clockid)
 		return VZCTL_E_INVAL;
 	}
 
-	fp = fopen(f, "r+");
+	fp = fopen(f, "r");
 	if (fp == NULL)
 		return vzctl_err(VZCTL_E_SYSTEM, errno, "Can not open %s", f);
 
@@ -239,11 +239,12 @@ static int tune_timens(int clockid)
 		if (buf[0] != name[0])
 			continue;
 		if (sscanf(buf, "%*s %ld %ld", &prev.tv_sec, &prev.tv_nsec) != 2) {
-			rc = vzctl_err(VZCTL_E_INVAL, 0, "Can not parse %s '%s'", f, name);
-			goto err;
+			fclose(fp);
+			return vzctl_err(VZCTL_E_INVAL, 0, "Can not parse %s '%s'", f, name);
 		}
 		break;
 	}
+	fclose(fp);
 
 	clock_gettime(clockid, &ts);
 	ts.tv_sec = ts.tv_sec - prev.tv_sec;
@@ -254,13 +255,13 @@ static int tune_timens(int clockid)
 	normalize_timespec(&ts);
 
 	logger(0, 0, "tune %s %ld %ld", name, ts.tv_sec, ts.tv_nsec);
-	if (fprintf(fp, "%d %ld %ld\n", clockid, ts.tv_sec, ts.tv_nsec) < 0) {
-		rc = vzctl_err(VZCTL_E_SYSTEM, errno, "Can not to set a %s clock offset", name);
-		goto err;
-	}
+	fd = open(f, O_RDWR);
+	if (fd == -1)
+		return vzctl_err(-1, errno, "Can not open %s", f);
+	if (dprintf(fd, "%d %ld %ld\n", clockid, ts.tv_sec, ts.tv_nsec) < 0)
+		rc = vzctl_err(VZCTL_E_SYSTEM, errno, "Can not set a %s clock offset", name);
+	close(fd);
 
-err:
-	fclose(fp);
 	return rc;
 }
 
