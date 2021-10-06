@@ -42,6 +42,7 @@
 #include <libgen.h>
 #include <sched.h>
 #include <sys/sysmacros.h>
+#include <time.h>
 
 #include "env.h"
 #include "env_ops.h"
@@ -62,6 +63,13 @@
 #include "exec.h"
 #include "cleanup.h"
 #include "config.h"
+
+#ifndef	CLONE_NEWCGROUP
+#define	CLONE_NEWCGROUP	0x02000000
+#endif
+#ifndef CLONE_NEWTIME
+#define	CLONE_NEWTIME	0x00000080
+#endif
 
 int ns_open(void)
 {
@@ -190,11 +198,111 @@ static int start_container(struct vzctl_env_handle *h)
 	return set_virt_osrelease(h, h->env_param->tmpl->osrelease);
 }
 
+#define	NSEC_PER_SEC	1000000000L
+static void normalize_timespec(struct timespec *ts)
+{
+	while (ts->tv_nsec >= NSEC_PER_SEC) {
+		ts->tv_nsec -= NSEC_PER_SEC;
+		++ts->tv_sec;
+	}
+	while (ts->tv_nsec < 0) {
+		ts->tv_nsec += NSEC_PER_SEC;
+		--ts->tv_sec;
+	}
+}
+
+static int tune_timens(int clockid)
+{
+	int rc = 0;
+	FILE *fp;
+	struct timespec ts, prev = {};
+	const char *f = "/proc/self/timens_offsets";
+	const char *name;
+	char buf[256];
+
+	switch (clockid) {
+	case CLOCK_MONOTONIC:
+		name = "monotonic";
+		break;
+	case CLOCK_BOOTTIME:
+		name = "boottime";
+		break;
+	default:
+		return VZCTL_E_INVAL;
+	}
+
+	fp = fopen(f, "r+");
+	if (fp == NULL)
+		return vzctl_err(VZCTL_E_SYSTEM, errno, "Can not open %s", f);
+
+	while (fgets(buf, sizeof(buf), fp)) {
+		if (buf[0] != name[0])
+			continue;
+		if (sscanf(buf, "%*s %ld %ld", &prev.tv_sec, &prev.tv_nsec) != 2) {
+			rc = vzctl_err(VZCTL_E_INVAL, 0, "Can not parse %s '%s'", f, name);
+			goto err;
+		}
+		break;
+	}
+
+	clock_gettime(clockid, &ts);
+	ts.tv_sec = ts.tv_sec - prev.tv_sec;
+	ts.tv_nsec = ts.tv_nsec - prev.tv_nsec;
+	/* to set uptime = 0 */
+	ts.tv_sec = -ts.tv_sec;
+	ts.tv_nsec = -ts.tv_nsec;
+	normalize_timespec(&ts);
+
+	logger(0, 0, "tune %s %ld %ld", name, ts.tv_sec, ts.tv_nsec);
+	if (fprintf(fp, "%d %ld %ld\n", clockid, ts.tv_sec, ts.tv_nsec) < 0) {
+		rc = vzctl_err(VZCTL_E_SYSTEM, errno, "Can not to set a %s clock offset", name);
+		goto err;
+	}
+
+err:
+	fclose(fp);
+	return rc;
+}
+
+static int setup_timens()
+{
+	int rc, fd;
+
+	if (access("/proc/self/timens_offsets", F_OK))
+		return 0;
+
+	if (unshare(CLONE_NEWTIME))
+		return vzctl_err(VZCTL_E_SYSTEM, errno, 
+				"Unable to create a new time namespace");
+
+	rc = tune_timens(CLOCK_MONOTONIC);
+	if (rc)
+		return rc;
+
+	rc = tune_timens(CLOCK_BOOTTIME);
+	if (rc)
+		return rc;
+
+	if ((fd = open("/proc/self/ns/time_for_children", O_RDONLY)) < 0)
+		return vzctl_err(-1, errno, "Failed to open /proc/self/ns/time_for_children");
+
+	rc = setns(fd, CLONE_NEWTIME);
+	if (rc)
+		logger(-1, errno, "Failed to set context for time_for_children");
+	close(fd);
+
+	return rc;
+}
+
 static int real_ns_env_create(void *arg)
 {
 	int ret;
 	struct start_param *param = (struct start_param *) arg;
 	struct vzctl_runtime_ctx *ctx = param->h->ctx;	
+
+	ret = setup_timens();
+	if (ret)
+		return ret;
 
 	close(param->init_p[1]);
 	fcntl(ctx->status_p[1], F_SETFD, FD_CLOEXEC);
@@ -884,10 +992,6 @@ static int write_id_maps(int pid)
 	return 0;
 }
 
-#ifndef        CLONE_NEWCGROUP
-#define CLONE_NEWCGROUP	0x02000000
-#endif
-
 static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 {
 	char child_stack[4096 * 10];
@@ -966,7 +1070,7 @@ static int do_env_create(struct vzctl_env_handle *h, struct start_param *param)
 			ret = vzctl_err(VZCTL_E_RESOURCE, errno, "Unable to clone");
 			goto err;
 		}
-		
+
 		ret = write_init_pid(h->ctid, pid);
 		if (ret == 0) {
 			ret = write_id_maps(pid);
