@@ -2690,8 +2690,18 @@ int vzctl2_env_set_ostemplate(struct vzctl_env_param *env, const char *name)
 	ret = xstrdup(&env->tmpl->ostmpl, name);
 	if (ret)
 		return ret;
+	// workaround centos-7.0 -> centos-7
+	if (strcmp(env->tmpl->ostmpl, "centos-7.0") == 0)
+		env->tmpl->ostmpl[sizeof("centos-7") - 1] = '\0';
 
-	return xstrdup(&env->tmpl->dist, name);
+	ret = xstrdup(&env->tmpl->dist, name);
+	if (ret == 0) {
+		char *p = strchr(env->tmpl->dist, '-');
+		if (p)
+			*p = '\0';
+	}
+
+	return ret;
 }
 
 int vzctl2_env_get_apptemplates(struct vzctl_env_param *env, const char **res)
