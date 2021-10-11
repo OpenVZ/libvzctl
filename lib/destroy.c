@@ -310,9 +310,11 @@ int vzctl_env_destroy(struct vzctl_env_handle *h, int flags)
 	if (is_env_run(h))
 		return vzctl_err(VZCTL_E_ENV_RUN, 0, "Container is currently running."
 				" Stop it before proceeding.");
-	if (vzctl2_env_is_mounted(h))
-		return vzctl_err(VZCTL_E_FS_MOUNTED, 0, "Container is currently mounted."
-				" Unmount it before proceeding.");
+	if (vzctl2_env_is_mounted(h)) {
+		ret = vzctl2_env_umount(h, flags);
+		if (ret)
+			return ret;
+	}
 
 	/* Check if directory looks like a valid container if we cannot determine ve_layout */
 	ret = validate_ve_private(EID(h), fs->layout, fs->ve_private);
