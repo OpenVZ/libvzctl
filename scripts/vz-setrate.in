@@ -24,7 +24,7 @@
 #
 # Parameters are passed in environment variables.
 # Required parameters:
-#   VEID    - VE id
+#   TCID    - VE id
 #   BANDWIDTH - Bandwidth  of  network interfaces: "<dev>[:<bandwidth>] ..."
 #   TOTALRATE - maximum VE output speed over specified net­
 #               work interface: "<dev|*>:<class>:<bandwidth> ..."
@@ -741,7 +741,7 @@ vzdel_ve_sh_classes()
 
 	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return
 
-	[ -z "${1}" ] && vzerror "VEID is not specified." ${VZ_SET_RATE};
+	[ -z "${1}" ] && vzerror "TCID is not specified." ${VZ_SET_RATE};
 
 	vzread_tc_class "${1}"
 	[ -z ${vzread_tc_class_RET} ] && return
@@ -797,7 +797,7 @@ vzadd_ve_sh_classes()
 
 	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return;
 
-	[ -z "${1}" ] && vzerror "VEID is not specified." ${VZ_SET_RATE};
+	[ -z "${1}" ] && vzerror "TCID is not specified." ${VZ_SET_RATE};
 
 	check_BANDWIDTH 
 	vzcheck_RATE
@@ -892,15 +892,15 @@ vzclear_qdisc()
 
 if [ "${1}" = "add" ]; then
 	check_BANDWIDTH
-	vzcheckvar VEID BANDWIDTH TOTALRATE
+	vzcheckvar TCID BANDWIDTH TOTALRATE
 	if [ "$VE_STATE" = "starting" ]; then
-		vzdel_ve_sh_classes $VEID
+		vzdel_ve_sh_classes $TCID
 	fi
-	vzadd_ve_sh_classes $VEID
+	vzadd_ve_sh_classes $TCID
 elif [ "${1}" = "del" ]; then
 	check_BANDWIDTH
-	vzcheckvar VEID
-	vzdel_ve_sh_classes $VEID
+	vzcheckvar TCID
+	vzdel_ve_sh_classes $TCID
 
 elif [ "${1}" = "shaperoff" ]; then
 	vzclear_qdisc_all

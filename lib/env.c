@@ -139,7 +139,7 @@ int run_stop_script(struct vzctl_env_handle *h)
 {
 	char script[STR_SIZE];
 	char buf[STR_SIZE];
-	char *env[5] = {};
+	char *env[6] = {};
 	int ret, i = 0;
 	const char *bandwidth = NULL;
 	char *arg[] = {get_script_path(VZCTL_STOP, script, sizeof(script)), NULL};
@@ -148,6 +148,11 @@ int run_stop_script(struct vzctl_env_handle *h)
 	ret = xstrdup(&env[i++], buf);
 	if (ret)
 		return ret;
+
+	snprintf(buf, sizeof(buf), "TCID=%d", h->veid);
+	ret = xstrdup(&env[i++], buf);
+	if (ret)
+		goto err;
 
 	if (h->env_param->vz->tc->traffic_shaping == VZCTL_PARAM_ON) {
 		ret = xstrdup(&env[i++], "TRAFFIC_SHAPING=yes");
