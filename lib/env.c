@@ -2687,9 +2687,6 @@ int vzctl2_env_set_ostemplate(struct vzctl_env_param *env, const char *name)
 	ret = xstrdup(&env->tmpl->ostmpl, name);
 	if (ret)
 		return ret;
-	// workaround centos-7.0 -> centos-7
-	if (strcmp(env->tmpl->ostmpl, "centos-7.0") == 0)
-		env->tmpl->ostmpl[sizeof("centos-7") - 1] = '\0';
 
 	ret = xstrdup(&env->tmpl->dist, name);
 	if (ret == 0) {
