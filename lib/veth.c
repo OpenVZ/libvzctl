@@ -272,7 +272,8 @@ static int run_vznetcfg(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
 	char fname[PATH_MAX];
 	char veid[sizeof(ctid_t) + sizeof("VEID=")];
 	char ifaceid[sizeof(ctid_t) + sizeof("IFACEID=")];
-	char *env[5];
+	char mac[STR_SIZE];
+	char *env[6];
 	int i = 0;
 	char *arg[] = {
 		fname,
@@ -292,6 +293,8 @@ static int run_vznetcfg(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
 			snprintf(ifaceid, sizeof(ifaceid), "IFACEID=%s", dev->ifaceid);
 			env[i++] = ifaceid;
 		}
+		snprintf(mac, sizeof(mac), "MAC=%s", dev->mac_ve);
+		env[i++] = mac;
 	}
 	env[i] = NULL;
 
