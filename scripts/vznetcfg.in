@@ -69,7 +69,11 @@ addif()
 
 	if [ "$VPORT_TYPE" = "ovs" ]; then
 		args="--may-exist add-port $br $iface"
-		[ -n "$IFACEID" ] && args="$args -- set Interface $iface external-ids:iface-id=\"$IFACEID\""
+		[ -n "$IFACEID" ] && args="$args -- \
+			set Interface $iface external-ids:iface-status=active -- \
+			set Interface $iface external-ids:iface-id=$IFACEID -- \
+			set Interface $iface external-ids:attached-mac=${MAC} -- \
+			set Interface $iface external-ids:vm-id=${VEID}"
 		ovs-vsctl $args
 	else
 		brctl addif "$br" "$iface"
