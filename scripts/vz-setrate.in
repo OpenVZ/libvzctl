@@ -24,7 +24,7 @@
 #
 # Parameters are passed in environment variables.
 # Required parameters:
-#   TCID    - VE id
+#   VEID    - VE id
 #   BANDWIDTH - Bandwidth  of  network interfaces: "<dev>[:<bandwidth>] ..."
 #   TOTALRATE - maximum VE output speed over specified net­
 #               work interface: "<dev|*>:<class>:<bandwidth> ..."
@@ -40,31 +40,12 @@
 
 . @SCRIPTDIR@/vz-functions
 
-MAX_CLASSES=16
 VZ_CONFIGURED_DEV=
 
-TC_CMD=tc
-VZ_TC_CLASSES="/var/run/vz_tc_classes"
-VZ_TC_CLASSES_LOCK="/var/lock/vz_tc_classes.lock"
 VZ_TC_MAGIC_NUM=10000
 VZ_TC_MAX_CLASS=60000
 VZ_TC_ATTEMPTS=10
 VZ_TC_DEFAULT_MPU=1000
-
-# Works under VZ_TC_CLASSES_LOCK.
-# Reads TC_CLASS for VEID
-# Parameters:
-#   $1 - VEID
-vzread_tc_class()
-{
-	local tmp;
-
-	lockfile ${VZ_TC_CLASSES_LOCK}
-	tmp=`grep "^${1} " ${VZ_TC_CLASSES} 2> /dev/null | cut -f2 -d' '`
-	rm -f ${VZ_TC_CLASSES_LOCK} >/dev/null 2>&1
-
-	vzread_tc_class_RET="${tmp}"
-}
 
 # Works under VZ_TC_CLASSES_LOCK.
 # Returns tc class(in vzget_tc_class_RET)
@@ -212,22 +193,6 @@ vzappend_tc_file()
 	return 0;
 }
 
-# Executes a command.
-# Returns exit code of executed command or
-# exits with ${VZ_SET_RATE}.
-# Parameters:
-#   $* - command to execute
-vzrun_tc()
-{
-	local EXIT_CODE
-
-	eval $*
-	EXIT_CODE=$?
-	if [ "X${EXIT_CODE}" != "X0" ]; then
-		vzerror "Error while executing: <<$*>>." ${VZ_SET_RATE}
-	fi
-}
-
 # This function detects $HZ value
 vzgetHZ()
 {
@@ -262,40 +227,6 @@ vzgetmaxburst()
 	else
 		vzgetmaxburst_ret=" maxburst ${maxburst}"
 	fi
-}
-
-# Checks classes in list
-# Parameters:
-#   $1 - classes list
-vzcheck_classes()
-{
-	local i;
-
-	[ -z "${1}" ] && return 1;
-
-	for i in ${1} ; do
-		if [ ${i} -ge ${MAX_CLASSES} ]; then
-			vzwarning "Wrong class (${1}). MAX_CLASSES=${MAX_CLASSES}."
-			return 0;
-		fi
-		if [ ${i} -le 0 ]; then
-			vzwarning "Wrong class (${1}). Must be > 0."
-			return 0;
-		fi
-	done
-	return 1;
-}
-
-# Reads IP classes list from VZ_IP_CLASSES
-# Parameters:
-# No
-vzget_classes_list()
-{
-	[ ! -f ${VZ_IP_CLASSES} ] && vzerror "Can't find <<${VZ_IP_CLASSES}>>. Traffic accounting/shaping operations are impossible." ${VZ_SET_ACCOUNT}
-
-	CLASSES_LIST=`grep  '^[1-9]' ${VZ_IP_CLASSES} | cut -f 1 -d ' '| sort | uniq`
-	vzcheck_classes "${CLASSES_LIST}"
-	[ ! $? -eq 1 ] &&  vzerror "Wrong class value in ${VZ_IP_CLASSES}." ${VZ_SET_ACCOUNT}
 }
 
 fill_configured_dev()
@@ -619,17 +550,17 @@ vzcreate_root_class()
 		if [ "${qlen}" = "0" ]; then
 			${IP_CMD} l s ${dev} txqueuelen 1000
 		fi
-		vzrun_tc $TC_CMD qdisc add dev ${dev} root handle 1: htb
+		vzrun $TC_CMD qdisc add dev ${dev} root handle 1: htb
 	fi
 	configured=`${TC_CMD} class show dev ${dev} classid 1:${class_hex}`
 	action=add
 	[ -n "${configured}" ] && action=replace
-	vzrun_tc ${TC_CMD} class $action dev ${dev} parent 1: \
+	vzrun ${TC_CMD} class $action dev ${dev} parent 1: \
 		classid 1:${class_hex} htb \
 		rate ${total_band}Kbit ${PRIO} ${maxburst} ${total_mpu}
 
 	if [ -z "${configured}" ]; then
-		vzrun_tc ${TC_CMD} qdisc add dev ${dev} parent 1:${class_hex} \
+		vzrun ${TC_CMD} qdisc add dev ${dev} parent 1:${class_hex} \
 			handle ${class_hex}: htb
 	fi
 }
@@ -647,11 +578,9 @@ vzcreate_filter()
 	local mark_val class_hex configured
 	local action
 
-	if [ -n "${TC_HANDLE_BASE}" ]; then
-		let mark_val=$[${TC_HANDLE_BASE}*${MAX_CLASSES}+${class}];
-	else
-		let mark_val=$[${veid}*2*${MAX_CLASSES}+${class}];
-	fi
+	mark_val=$(vzget_mark ${class} ${tc_class_hex})
+	vzcreate_nft_rules ${class} ${mark_val} "${VETH}"
+
 	class_hex=`printf "%x" $[${class}+1]`
 	[ "X${RATEBOUND}" != "Xyes" ] && rate=${band}
 	vzgetmaxburst ${rate}
@@ -661,24 +590,24 @@ vzcreate_filter()
 
 	configured=`${TC_CMD} class show dev ${dev} parent ${class_hex}: classid ${class_hex}:${tc_class_hex}`
 	[ -z "${configured}" ] && action=add || action=change
-	vzrun_tc ${TC_CMD} class ${action} dev ${dev} parent ${class_hex}: \
+	vzrun ${TC_CMD} class ${action} dev ${dev} parent ${class_hex}: \
 		classid ${class_hex}:${tc_class_hex} htb \
 		rate ${rate}Kbit ${PRIO} ${maxburst} ceil ${band}Kbit ${mpu}
 
 	configured=`${TC_CMD} filter show dev ${dev} parent ${class_hex}: | \
 				grep -w "classid ${class_hex}:${tc_class_hex}"`
 	if [ -z "${configured}" ]; then
-		vzrun_tc ${TC_CMD} filter add dev ${dev} protocol ip \
+		vzrun ${TC_CMD} filter add dev ${dev} protocol ip \
 			parent 1:0 ${PRIO} handle ${mark_val} fw \
 			classid 1:${class_hex}
-		vzrun_tc ${TC_CMD} filter add dev ${dev} protocol ip \
+		vzrun ${TC_CMD} filter add dev ${dev} protocol ip \
 			parent ${class_hex}:0 ${PRIO} handle ${mark_val} fw \
 			classid ${class_hex}:${tc_class_hex}
 
-		vzrun_tc ${TC_CMD} filter add dev ${dev} protocol ipv6 \
+		vzrun ${TC_CMD} filter add dev ${dev} protocol ipv6 \
 			parent 1:0 ${PRIOV6} handle ${mark_val} fw \
 			classid 1:${class_hex}
-		vzrun_tc ${TC_CMD} filter add dev ${dev} protocol ipv6 \
+		vzrun ${TC_CMD} filter add dev ${dev} protocol ipv6 \
 			parent ${class_hex}:0 ${PRIOV6} handle ${mark_val} fw \
 			classid ${class_hex}:${tc_class_hex}
 	fi
@@ -741,12 +670,14 @@ vzdel_ve_sh_classes()
 
 	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return
 
-	[ -z "${1}" ] && vzerror "TCID is not specified." ${VZ_SET_RATE};
+	[ -z "${1}" ] && vzerror "VEID is not specified." ${VZ_SET_RATE};
 
 	vzread_tc_class "${1}"
 	[ -z ${vzread_tc_class_RET} ] && return
-
 	TC_CLASS_HEX=${vzread_tc_class_RET}
+
+	vzflush_nft_rules "${VETH}"
+
 	fill_configured_dev
 
 	for DEV in ${VZ_CONFIGURED_DEV} ; do
@@ -754,7 +685,7 @@ vzdel_ve_sh_classes()
 
 		for CLASS in ${CLASSES_LIST} ; do
 			HANDLE=`${TC_CMD} filter show dev ${DEV} parent ${CLASS}: protocol ip 2> /dev/null | \
-						grep "\<classid ${CLASS}:${TC_CLASS_HEX}\>" | cut -f 6 -d ' '`
+						grep -oP "(?<=handle).*(?=classid ${CLASS}:${TC_CLASS_HEX})"`
 
 			if [ -n "$HANDLE" ]; then
 				HANDLE=`printf "%d" ${HANDLE}`
@@ -762,7 +693,7 @@ vzdel_ve_sh_classes()
 				${TC_CMD} filter del dev ${DEV} protocol ip parent ${CLASS}:0 ${PRIO} handle ${HANDLE} fw #> /dev/null 2>&1
 			fi
 			HANDLE=`${TC_CMD} filter show dev ${DEV} parent ${CLASS}: protocol ipv6 2> /dev/null | \
-						grep "\<classid ${CLASS}:${TC_CLASS_HEX}\>" | cut -f 6 -d ' '`
+						grep -oP "(?<=handle).*(?=classid ${CLASS}:${TC_CLASS_HEX})"`
 			if [ -n "$HANDLE" ]; then
 				HANDLE=`printf "%d" ${HANDLE}`
 				${TC_CMD} filter del dev ${DEV} protocol ipv6 parent 1:0 ${PRIOV6} handle ${HANDLE} fw #> /dev/null 2>&1
@@ -797,7 +728,7 @@ vzadd_ve_sh_classes()
 
 	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return;
 
-	[ -z "${1}" ] && vzerror "TCID is not specified." ${VZ_SET_RATE};
+	[ -z "${1}" ] && vzerror "VEID is not specified." ${VZ_SET_RATE};
 
 	check_BANDWIDTH 
 	vzcheck_RATE
@@ -861,7 +792,7 @@ vzclear_qdisc_all()
 	dev_all=`$TC_CMD qdisc show | grep 'qdisc htb' | awk '/dev/{print $5}'`
 	for dev in ${dev_all}; do
 		if ! echo "${dev_rm}" | grep "${dev}" >/dev/null 2>&1; then
-			vzrun_tc $TC_CMD qdisc del dev ${dev} root
+			vzrun $TC_CMD qdisc del dev ${dev} root
 			dev_rm="${dev_rm} ${dev}"
 		fi
 	done
@@ -886,21 +817,21 @@ vzclear_qdisc()
 
 	fill_configured_dev
 	for DEV in ${VZ_CONFIGURED_DEV} ; do
-		vzrun_tc $TC_CMD qdisc del dev ${DEV} root
+		vzrun $TC_CMD qdisc del dev ${DEV} root
 	done
 }
 
 if [ "${1}" = "add" ]; then
 	check_BANDWIDTH
-	vzcheckvar TCID BANDWIDTH TOTALRATE
+	vzcheckvar VEID BANDWIDTH TOTALRATE
 	if [ "$VE_STATE" = "starting" ]; then
-		vzdel_ve_sh_classes $TCID
+		vzdel_ve_sh_classes $(vzget_tcid)
 	fi
-	vzadd_ve_sh_classes $TCID
+	vzadd_ve_sh_classes $(vzget_tcid)
 elif [ "${1}" = "del" ]; then
 	check_BANDWIDTH
-	vzcheckvar TCID
-	vzdel_ve_sh_classes $TCID
+	vzcheckvar VEID
+	vzdel_ve_sh_classes $(vzget_tcid)
 
 elif [ "${1}" = "shaperoff" ]; then
 	vzclear_qdisc_all

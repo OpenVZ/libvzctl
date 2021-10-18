@@ -176,7 +176,10 @@ int tc_get_base(struct vzctl_env_handle *h, int *tc_base)
 
 	ret = ioctl(get_vzctlfd(), VZCTL_TC_GET_BASE, h->veid);
 	if (ret == -1) {
-		return vzctl_err(VZCTL_E_SET_RATE, errno, "tc_get_base failed");
+		if (errno != ENOTTY)
+			return vzctl_err(VZCTL_E_SET_RATE, errno,
+					"tc_get_base failed");
+		return 0;
 	} else if (ret == 0) {
 		struct vzctl_tc_set_base tc = {.veid = h->veid};
 
@@ -199,7 +202,6 @@ int vzctl2_set_tc_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 	char *argv[3];
 	char *envp[MAX_ARGS];
 	char *p;
-	int tc_base = -1;
 	int ret, i = 0;
 	const char *bandwidth = NULL;
 	const char *totalrate = NULL;
@@ -208,6 +210,7 @@ int vzctl2_set_tc_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 	struct vzctl_tc_param *tc = env->vz->tc;
 	list_head_t *rate = !list_empty(&tc->rate_list) ? &tc->rate_list :
 		&h->env_param->vz->tc->rate_list;
+	struct vzctl_veth_param *veth = h->env_param->veth;
 
 	vzctl2_env_get_param(h, "BANDWIDTH", &bandwidth);
 	if (bandwidth == NULL)
@@ -216,10 +219,6 @@ int vzctl2_set_tc_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 	if (totalrate == NULL)
 		return vzctl_err(VZCTL_E_SET_RATE, 0, "TOTALRATE is not set");
 	vzctl2_env_get_param(h, "RATEMPU", &ratempu);
-
-	ret = tc_get_base(h, &tc_base);
-	if (ret)
-		return ret;
 
 	snprintf(buf, sizeof(buf), "VE_STATE=%s", get_state(h));
 	envp[i++] = strdup(buf);
@@ -232,11 +231,9 @@ int vzctl2_set_tc_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 		envp[i++] = strdup(buf);
 	}
 
-	if (tc_base != -1)
-		snprintf(buf, sizeof(buf), "TC_HANDLE_BASE=%d", tc_base);
 	envp[i++] = strdup(buf);
 	envp[i++] = strdup("TRAFFIC_SHAPING=yes");
-	snprintf(buf, sizeof(buf), "TCID=%d", h->veid);
+	snprintf(buf, sizeof(buf), "VEID=%s", EID(h));
 	envp[i++] = strdup(buf);
 	if ((p = rate2str(rate)) != NULL) {
 		logger(1, 0, "Setup shaping: %s", p);
@@ -250,6 +247,26 @@ int vzctl2_set_tc_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 		snprintf(buf, sizeof(buf), "RATEBOUND=yes");
 		envp[i++] = strdup(buf);
 	}
+
+	if (!list_empty(&veth->dev_list)) {
+		char *p;
+		struct vzctl_veth_dev *it;
+		int len = sizeof("VETH=");
+
+		list_for_each(it, &veth->dev_list, list)
+			len += strlen(it->dev_name) + 1;
+		p = malloc(len);
+		if (p == NULL) {
+			envp[i] = NULL;
+			free_ar_str(envp);
+			return vzctl_err(VZCTL_E_NOMEM, ENOMEM, "VETH is not set");
+		}
+		envp[i++] = p;
+		p += sprintf(p, "VETH=");
+		list_for_each(it, &veth->dev_list, list)
+			p += sprintf(p, "%s ", it->dev_name);
+	}
+
 	envp[i] = NULL;
 	argv[0] = get_script_path(VZCTL_SETRATE, buf, sizeof(buf));
 	argv[1] = "add";

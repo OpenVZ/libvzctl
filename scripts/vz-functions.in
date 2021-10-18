@@ -49,11 +49,15 @@ PRAM_MOUNT_POINT="/mnt/pram"
 # tc parameters
 TC_CMD=tc
 IP_CMD=ip
+NFT_CMD=nft
 MAX_FORKS=100
+MAX_CLASSES=16
 ARPING_CMD="/sbin/arping"
 ARPING_ARGS="-f -c 1 -q"
 NDSEND_CMD="/usr/sbin/ndsend"
 OVSCTL_CMD="/usr/bin/ovs-vsctl"
+VZ_TC_CLASSES="/var/run/vz_tc_classes"
+VZ_TC_CLASSES_LOCK="/var/lock/vz_tc_classes.lock"
 VZ_ARP_ANNOUNCE_LOCK="/var/lock/vz_tc_classes.lock"
 
 # interfaces parameters
@@ -605,3 +609,154 @@ function get_suspended_ves()
 	ls -1 ${SUSPEND_CONF_DIR} 2>/dev/null
 }
 
+# Compute and return TCID from current VEID
+# Parameters:
+# No
+function vzget_tcid()
+{
+	echo $((0x${VEID%%-*}))
+}
+
+# Compute and return mark value from class
+# Parameters:
+# $1 - class
+# $2 - tc class (HEX format)
+function vzget_mark()
+{
+	echo $((0x${2}*2*${MAX_CLASSES}+${1}))
+}
+
+# Executes a command.
+# Returns exit code of executed command or
+# exits with ${VZ_SET_RATE}.
+# Parameters:
+#   $* - command to execute
+vzrun()
+{
+	local EXIT_CODE
+
+	($*)
+	EXIT_CODE=$?
+	if [ "X${EXIT_CODE}" != "X0" ]; then
+		vzerror "Error while executing: <<$*>>." ${VZ_SET_RATE}
+	fi
+}
+
+# Works under VZ_TC_CLASSES_LOCK.
+# Reads TC_CLASS for TCID
+# Parameters:
+#   $1 - TCID
+vzread_tc_class()
+{
+	local tmp;
+
+	lockfile ${VZ_TC_CLASSES_LOCK}
+	tmp=`grep "^${1} " ${VZ_TC_CLASSES} 2> /dev/null | cut -f2 -d' '`
+	rm -f ${VZ_TC_CLASSES_LOCK} >/dev/null 2>&1
+
+	vzread_tc_class_RET="${tmp}"
+}
+
+# Checks classes in list
+# Parameters:
+#   $1 - classes list
+vzcheck_classes()
+{
+	local i;
+
+	[ -z "${1}" ] && return 1;
+
+	for i in ${1} ; do
+		if [ ${i} -ge ${MAX_CLASSES} ]; then
+			vzwarning "Wrong class (${1}). MAX_CLASSES=${MAX_CLASSES}."
+			return 0;
+		fi
+		if [ ${i} -le 0 ]; then
+			vzwarning "Wrong class (${1}). Must be > 0."
+			return 0;
+		fi
+	done
+	return 1;
+}
+
+# Reads IP classes list from VZ_IP_CLASSES
+# Parameters:
+# No
+vzget_classes_list()
+{
+	[ ! -f ${VZ_IP_CLASSES} ] && vzerror "Can't find <<${VZ_IP_CLASSES}>>. Traffic accounting/shaping operations are impossible." ${VZ_SET_ACCOUNT}
+
+	CLASSES_LIST=`grep  '^[1-9]' ${VZ_IP_CLASSES} | cut -f 1 -d ' '| sort | uniq`
+	vzcheck_classes "${CLASSES_LIST}"
+	[ ! $? -eq 1 ] &&  vzerror "Wrong class value in ${VZ_IP_CLASSES}." ${VZ_SET_ACCOUNT}
+}
+
+# Create nft rules for marking network packets
+# Parameters:
+# $1 - class
+# $2 - mark
+# $3 - veth list
+vzcreate_nft_rules()
+{
+	local class=$1
+	local mark=$2
+	local veth=$3
+	local class_ips vdev configured ip
+
+	[ -z "${veth}" ] && return
+
+	class_ips=`grep "^${class} " ${VZ_IP_CLASSES} 2> /dev/null | cut -f2 -d ' '`
+
+	for vdev in $veth; do
+		configured=`nft list chains netdev | grep ${vdev}_chain`
+		if [ -z "${configured}" ]; then
+			vzrun ${NFT_CMD} add table netdev ${vdev}_table
+			vzrun ${NFT_CMD} add chain netdev ${vdev}_table ${vdev}_chain \
+				'{ type filter hook ingress device' ${vdev} \
+				'priority 0 ; }'
+			vzrun ${NFT_CMD} add rule netdev ${vdev}_table ${vdev}_chain counter
+		fi
+
+		configured=`nft list ruleset netdev | grep ${vdev}_chain_${class}`
+		if [ -z "${configured}" ]; then
+			vzrun ${NFT_CMD} add chain netdev ${vdev}_table ${vdev}_chain_${class}
+			vzrun ${NFT_CMD} add rule netdev ${vdev}_table ${vdev}_chain_${class} counter
+			vzrun ${NFT_CMD} add rule netdev ${vdev}_table ${vdev}_chain_${class} \
+				meta mark set ${mark}
+			vzrun ${NFT_CMD} add set netdev ${vdev}_table ip4_${class} \
+				'{ type ipv4_addr ; flags interval ; }'
+			vzrun ${NFT_CMD} add set netdev ${vdev}_table ip6_${class} \
+				'{ type ipv6_addr ; flags interval ; }'
+
+			for ip in ${class_ips} ; do
+				if [ -z "${ip##*.*}" ]; then
+					vzrun ${NFT_CMD} add element netdev ${vdev}_table \
+						ip4_${class} '{' ${ip} '}'
+				fi
+				if [ -z "${ip##*:*}" ]; then
+					vzrun ${NFT_CMD} add element netdev ${vdev}_table \
+						ip6_${class} '{' ${ip} '}'
+				fi
+			done
+
+			vzrun ${NFT_CMD} add rule netdev ${vdev}_table ${vdev}_chain ip \
+				daddr \@ip4_${class} jump ${vdev}_chain_${class}
+			vzrun ${NFT_CMD} add rule netdev ${vdev}_table ${vdev}_chain ip6 \
+				daddr \@ip6_${class} jump ${vdev}_chain_${class}
+		fi
+	done
+}
+
+# Delete nft rules for marking network packets
+# Parameters:
+# $1 - veth list
+vzflush_nft_rules()
+{
+	local veth=$1
+	local vdev configured
+
+	for vdev in $veth; do
+		configured=`nft list tables netdev | grep ${vdev}_table`
+		[ -n "${configured}" ] && ${NFT_CMD} delete table netdev ${vdev}_table
+	done
+}
