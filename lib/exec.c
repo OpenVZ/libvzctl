@@ -663,7 +663,7 @@ static void set_proc_title(char *tty)
 static int pty_alloc(int *master, int *slave, struct termios *tios,
 		struct winsize *ws)
 {
-	char name[PATH_MAX] = "";
+	char name[STR_SIZE] = "";
 
 	if (openpty(master, slave, name, tios, ws) < 0)
 		return vzctl_err(-1, errno, "Unable to open pty");

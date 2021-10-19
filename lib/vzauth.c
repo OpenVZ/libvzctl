@@ -184,8 +184,8 @@ static char *get_user_pw(FILE *fp, const char *user)
 		while (ep < end && *ep != '\0' && *ep != ':') ep++;
 		if (*ep != ':' )
 			break;
-		snprintf(buf, ep - sp, "%s", sp + 1);
-		pw = strdup(buf);
+		*ep = '\0';
+		pw = strdup(sp + 1);
 		break;
 	}
 

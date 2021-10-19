@@ -775,7 +775,7 @@ int vzctl2_env_create(struct vzctl_env_param *env,
 			.name = param->name,
 		};
 
-		SET_CTID(reg_param.ctid, ctid);
+		snprintf(reg_param.ctid, sizeof(reg_param.ctid), "%s", ctid);
 
 		if (vzctl2_env_register(fs->ve_private, &reg_param,
 					VZ_REG_FORCE) == -1)

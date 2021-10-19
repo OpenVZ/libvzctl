@@ -29,7 +29,7 @@ int vztmpl_get_technologies(const char *name, unsigned long long *tech);
 int vztmpl_get_distribution(const char *ostmpl, char *out, int len);
 int vztmpl_get_osrelease(const char *ostmpl, char *buf, int size);
 int vztmpl_is_jquota_supported(const char *ostmpl);
-int vztmpl_install_app(ctid_t ctid, const char *apps, int force);
+int vztmpl_install_app(const char *ctid, const char *apps, int force);
 int vztmpl_get_cache_tarball(const char *cache_config, char **ostmpl,
 		const char *fstype, char **applist, int use_ostmpl,
 		char *tarball, int len);

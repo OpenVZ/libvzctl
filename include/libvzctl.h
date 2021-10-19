@@ -1195,7 +1195,7 @@ int vzctl2_convertstr(const char *src, char *dst, int dst_size);
 int vzctl2_is_env_name_valid(const char *name);
 int vzctl2_is_networkid_valid(char const *name);
 int vzctl2_parse_ctid(const char *in, ctid_t out);
-void vzctl2_generate_ctid(ctid_t ctid);
+void vzctl2_generate_ctid(const char *ctid);
 int vzctl2_get_normalized_guid(const char *str, char *buf, int len);
 int vzctl2_get_normalized_uuid(const char *str, char *buf, int len);
 int vzctl2_set_tc_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,

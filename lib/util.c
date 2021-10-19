@@ -2231,12 +2231,12 @@ int set_fattr(int fd, struct stat *st)
 	return 0;
 }
 
-void vzctl2_generate_ctid(ctid_t ctid)
+void vzctl2_generate_ctid(const char *ctid)
 {
 	uuid_t u;
 
 	uuid_generate(u);
-	uuid_unparse(u, ctid);
+	uuid_unparse(u, (char *)ctid);
 }
 
 const char *get_devname(const char *device)

@@ -281,7 +281,7 @@ int cg_get_path(const char *ctid, const char *subsys, const char *name,
 {
 	int ret;
 	struct cg_ctl *ctl;
-	char path[PATH_MAX];
+	char path[STR_SIZE];
 
 	ret = cg_get_ctl(subsys, &ctl);
 	if (ret)

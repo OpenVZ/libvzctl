@@ -205,7 +205,7 @@ static int vztmpl_create_appcache(const char *config, const char *ostmpl, const 
 	return vzctl2_wrap_exec_script(arg, NULL, 0);
 }
 
-int vztmpl_install_app(ctid_t ctid, const char *apps, int force)
+int vztmpl_install_app(const ctid_t ctid, const char *apps, int force)
 {
 	char **arg;
 	char *str = NULL;
