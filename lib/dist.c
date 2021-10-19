@@ -185,7 +185,7 @@ char *get_dist_name(struct vzctl_env_handle *h, struct vzctl_tmpl_param *tmpl)
 {
 	char dist[STR_SIZE];
 
-	if (tmpl->dist != NULL)
+	if (tmpl->dist != NULL && tmpl->dist[0] != '\0')
 		return strdup(tmpl->dist);
 
 	if (tmpl->ostmpl && tmpl->ostmpl[0] != '\0' &&
