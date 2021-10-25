@@ -41,9 +41,12 @@ dumpdir="$VE_DUMP_DIR".tmp
 cgroup_root="--cgroup-root /machine.slice/$VEID \
 --cgroup-root ve:/$VEID --cgroup-root beancounter:/$VEID --cgroup-root name=systemd:/$VEID"
 ext_mount_map=
-for s in $VE_CGROUP_MOUNT_MAP; do
-	ext_mount_map="$ext_mount_map --ext-mount-map $s"
-done
+
+if [ ! -f /proc/self/ns/cgroup ]; then
+	for s in $VE_CGROUP_MOUNT_MAP; do
+		ext_mount_map="$ext_mount_map --ext-mount-map $s"
+	done
+fi
 
 for s in $VE_EXT_MOUNT_MAP; do
 	ext_mount_map="$ext_mount_map --ext-mount-map $s"
