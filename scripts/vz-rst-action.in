@@ -116,8 +116,10 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 	ln -s /proc/$pid/ns/net $VE_NETNS_FILE
 
 	if [ -n "$VEID" ]; then
-		[ -n "$VE_CLOCK_BOOTBASED" ] && cgset -r ve.clock_bootbased="$VE_CLOCK_BOOTBASED" $VEID
-		[ -n "$VE_CLOCK_MONOTONIC" ] && cgset -r ve.clock_monotonic="$VE_CLOCK_MONOTONIC" $VEID
+		if [ ! -f "/proc/self/timens_offsets" ]; then
+			[ -n "$VE_CLOCK_BOOTBASED" ] && cgset -r ve.clock_bootbased="$VE_CLOCK_BOOTBASED" $VEID
+			[ -n "$VE_CLOCK_MONOTONIC" ] && cgset -r ve.clock_monotonic="$VE_CLOCK_MONOTONIC" $VEID
+		fi
 		[ -n "$VE_FEATURES" ] && cgset -r ve.features="$VE_FEATURES" $VEID
 		[ -n "$VE_AIO_MAX_NR" ] && cgset -r ve.aio_max_nr="$VE_AIO_MAX_NR" $VEID
 	fi

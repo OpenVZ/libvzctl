@@ -61,6 +61,7 @@ ext_mount_map=
 cgroup_root="--cgroup-root /machine.slice/$VEID \
 --cgroup-root ve:/$VEID --cgroup-root beancounter:/$VEID --cgroup-root name=systemd:/$VEID"
 
+# On vz8/vz9 we still need it for migrations from vz7
 for s in $VE_CGROUP_MOUNT_MAP; do
 	ext_mount_map="$ext_mount_map --ext-mount-map $s"
 
