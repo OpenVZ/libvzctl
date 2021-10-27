@@ -97,6 +97,10 @@ if [ -n "$VEID" ]; then
 	[ -f $VE_DUMP_DIR/vz_features.img ] && export VE_FEATURES=`cat $VE_DUMP_DIR/vz_features.img`
 	[ -f $VE_DUMP_DIR/vz_aio_max_nr.img ] && export VE_AIO_MAX_NR=`cat $VE_DUMP_DIR/vz_aio_max_nr.img`
 	[ -f $VE_DUMP_DIR/vz_pid_max.img ] && export VE_PID_MAX=`cat $VE_DUMP_DIR/vz_pid_max.img` || export VE_PID_MAX=4194304
+
+	if [ -n "$VE_CLOCK_BOOTBASED" ] && [ -n "$VE_CLOCK_MONOTONIC" ]; then
+		ve_clock_fallback="--ve-clock-fallback monotonic:$(echo "$VE_CLOCK_MONOTONIC" | sed 's/ /./'),boottime:$(echo "$VE_CLOCK_BOOTBASED" | sed 's/ /./')"
+	fi
 fi
 
 # Setup default log name if not explicitly specified
@@ -132,4 +136,5 @@ exec criu restore -v$CRIU_LOGLEVEL $RESTORE_EXTRA_OPT	\
 		$ext_mount_map				\
 		$autofs_actions				\
 		$veth_args				\
-		$external
+		$external				\
+		$ve_clock_fallback
