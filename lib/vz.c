@@ -1165,7 +1165,9 @@ int vzctl2_env_unreg(struct vzctl_env_handle *h, int flags)
 	if (!(flags & VZ_UNREG_PRESERVE)) {
 		/* Remove VEID from /ve_private/ve.conf */
 		vzctl2_env_set_param(h, "VEID", NULL);
-		if (vzctl2_env_save(h))
+		vzctl2_get_env_conf_path(EID(h), buf, sizeof(buf));
+
+		if (vzctl2_conf_save(h->conf, buf))
 			return VZCTL_E_UNREGISTER;
 
 		/* Remove VE_PRIVATE/.owner */
