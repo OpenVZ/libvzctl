@@ -526,6 +526,17 @@ vzcheck_RATE()
 		vzerror "Wrong RATEMPU value (no such class ${mes} in TOTALRATE)." ${VZ_SET_RATE}
 }
 
+# Checks TRAFFIC_SHAPING and load BANDWIDTH, TOTALRATE and possibly RATEMPU
+# Parameters:
+# No
+vzcheck_TRAFFIC_SHAPING()
+{
+	[ -z "${TRAFFIC_SHAPING}" ] && eval $(. /etc/vz/vz.conf && \
+		echo TRAFFIC_SHAPING=\"$TRAFFIC_SHAPING\" \
+		TOTALRATE=\"$TOTALRATE\" BANDWIDTH=\"$BANDWIDTH\" \
+		RATEMPU=\"$RATEMPU\")
+}
+
 # Create root qdisc for given device and class
 # Parameters:
 # $1 - device
@@ -629,9 +640,7 @@ vzcreate_qdisc()
 	local found;
 	local maxburst;
 
-	eval $(. /etc/vz/vz.conf && echo TRAFFIC_SHAPING=\"$TRAFFIC_SHAPING\" \
-			BANDWIDTH=\"$BANDWIDTH\" TOTALRATE=\"$TOTALRATE\" \
-			RATEMPU=\"$RATEMPU\" )
+	vzcheck_TRAFFIC_SHAPING
 	[ "X$TRAFFIC_SHAPING" != "Xyes" ] && return;
 
 	check_BANDWIDTH
@@ -668,10 +677,12 @@ vzdel_ve_sh_classes()
 	local CLASS;
 	local TC_CLASS_HEX;
 
+	vzcheck_TRAFFIC_SHAPING
 	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return
 
 	[ -z "${1}" ] && vzerror "VEID is not specified." ${VZ_SET_RATE};
 
+	check_BANDWIDTH 
 	vzread_tc_class "${1}"
 	[ -z ${vzread_tc_class_RET} ] && return
 	TC_CLASS_HEX=${vzread_tc_class_RET}
@@ -726,6 +737,7 @@ vzadd_ve_sh_classes()
 	local TMP;
 	local ratempu MPU=;
 
+	vzcheck_TRAFFIC_SHAPING
 	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return;
 
 	[ -z "${1}" ] && vzerror "VEID is not specified." ${VZ_SET_RATE};
@@ -822,14 +834,12 @@ vzclear_qdisc()
 }
 
 if [ "${1}" = "add" ]; then
-	check_BANDWIDTH
-	vzcheckvar VEID BANDWIDTH TOTALRATE
+	vzcheckvar VEID
 	if [ "$VE_STATE" = "starting" ]; then
 		vzdel_ve_sh_classes $(vzget_tcid)
 	fi
 	vzadd_ve_sh_classes $(vzget_tcid)
 elif [ "${1}" = "del" ]; then
-	check_BANDWIDTH
 	vzcheckvar VEID
 	vzdel_ve_sh_classes $(vzget_tcid)
 
