@@ -195,8 +195,8 @@ int vzctl2_get_normalized_guid(const char *str, char *buf, int len);
 int vzctl2_get_normalized_uuid(const char *str, char *buf, int len);
 int vzctl2_get_normalized_ctid(const char *str, char *out, int len);
 char *vzctl_get_guid_str(const char *str, char *uuid);
-int get_mount_opts(const char *opts, int user_quota, char *out, int size);
-int vzctl2_get_mount_opts(const char *mnt_opts, int user_quota, char *out, int size);
+int get_mount_opts(struct vzctl_disk *d, char *out, int size);
+int vzctl_get_mount_opts(struct vzctl_disk *d, char *out, int size);
 int configure_sysctl(const char *var, const char *val);
 FILE *vzctl_popen(char *argv[], char *env[], int quiet);
 int vzctl_pclose(FILE *fp);
@@ -230,7 +230,6 @@ int clear_init_pid(const ctid_t ctid);
 char *get_netns_path(struct vzctl_env_handle *h, char *buf, int size);
 int get_bindmnt_target(const char *dir, char *out, int size);
 int fs_is_mounted_check_by_target(const char *target);
-int vzctl_get_mount_opts(struct vzctl_disk *d, char *out, int size);
 int init_runtime_ctx(struct vzctl_runtime_ctx *ctx);
 void deinit_runtime_ctx(struct vzctl_runtime_ctx *ctx);
 void get_dumpfile(struct vzctl_env_handle *h, struct vzctl_cpt_param *param,

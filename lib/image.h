@@ -48,4 +48,5 @@ int mount_ploop_image(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 int vzctl_create_image(struct vzctl_env_handle *h, const char *path,
 		struct vzctl_create_image_param *param);
 int fsck_flags2mode(int flags);
+int get_ploop_quota_type(int mode);
 #endif

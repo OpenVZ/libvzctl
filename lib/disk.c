@@ -647,10 +647,10 @@ static int get_part_device(const char *device, char *out, int size)
 		}
 	}
 
-	return 1;
+	return vzctl_err(VZCTL_E_SYSTEM, 0, "Cannot detect partition for %s", device);
 }
 
-int get_disk_mount_param(struct vzctl_env_handle *h, struct vzctl_disk *d,
+static int get_disk_mount_param(struct vzctl_env_handle *h, struct vzctl_disk *d,
 		struct vzctl_mount_param *param, int flags,
 		char *mnt_opts, int mnt_opts_size)
 {
@@ -720,7 +720,7 @@ int mount_disk_device(struct vzctl_env_handle *h, struct vzctl_disk *d, int flag
 		}
 
 		logger(0, 0, "Mount root disk device %s %s", part, param.target);
-		if (mount(part, param.target, "ext4", 0, NULL))
+		if (mount(part, param.target, d->fstype, 0, NULL))
 			return vzctl_err(VZCTL_E_SYSTEM, errno,
 					"Failed to mount device %s", part);
 	}
@@ -761,6 +761,7 @@ int update_disk_info(struct vzctl_env_handle *h, struct vzctl_disk *disk)
 	char partname[STR_SIZE];
 	int ret;
 	struct stat st;
+	struct ploop_mnt_info info = {};
 
 	switch (get_disk_type(disk)) {
 	case DISK_DEVICE:
@@ -805,7 +806,15 @@ int update_disk_info(struct vzctl_env_handle *h, struct vzctl_disk *disk)
 	disk->part_dev = st.st_rdev;
 	xstrdup(&disk->partname, partname);
 
-	logger(5, 0, "Disk info dev=%s part=%s", disk->devname, disk->partname);
+	if (ploop_get_mnt_info(disk->partname, get_ploop_quota_type(disk->user_quota), &info))
+		return vzctl_err(VZCTL_E_SYSTEM, 0, "Cannot get ploop %s mount info: %s",
+				disk->partname, ploop_get_last_error());
+	disk->opts = info.opts;
+	snprintf(disk->fstype, sizeof(disk->fstype), "%s", info.fstype);
+	snprintf(disk->fsuuid, sizeof(disk->fsuuid), "%s", info.uuid);
+
+	logger(5, 0, "Disk info dev=%s part=%s fs=%s",
+				disk->devname, disk->partname, disk->fstype);
 	return 0;
 }
 
@@ -966,17 +975,16 @@ int configure_mount_opts(struct vzctl_env_handle *h, struct vzctl_disk *disk)
 	dev_t dev = get_fs_partdev(disk);
 	char *sp = buf, *ep = buf + sizeof(buf);
 
-	ret = get_mount_opts(disk->mnt_opts, disk->user_quota,
-			mnt_opts, sizeof(mnt_opts));
+	ret = get_mount_opts(disk, mnt_opts, sizeof(mnt_opts));
 	if (ret)
 		return ret;
-
 	/* FIXME: add balloon_ino calculation */
 	sp += snprintf(sp, ep - sp, "0 %u:%u;",
 			gnu_dev_major(dev), gnu_dev_minor(dev));
-	if (!disk->use_device || mnt_opts[0] != '\0')
-		sp += snprintf(sp, ep - sp, "1 %s%s",
-			disk->use_device ? "" : "balloon_ino=12,", mnt_opts);
+	if (mnt_opts[0] != '\0')
+		sp += snprintf(sp, ep - sp, "1 %s", mnt_opts);
+	if (!disk->use_device)
+		sp += snprintf(sp, ep - sp, ",balloon_ino=%llu", disk->balloon_ino);
 
 	logger(0, 0, "Setting mount options for image=%s opts=%s",
 			disk->path, buf + 2);
@@ -1110,12 +1118,6 @@ static int do_setup_disk(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 
 	if (disk->dev == 0) {
 		ret = update_disk_info(h, disk);
-		if (ret)
-			return ret;
-	}
-
-	if (!skip_configure && !root) {
-		ret = get_fs_uuid(get_fs_partname(disk), disk);
 		if (ret)
 			return ret;
 	}

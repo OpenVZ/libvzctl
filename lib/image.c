@@ -44,7 +44,6 @@
 #include "cluster.h"
 #include "config.h"
 
-#define DEFAULT_FSTYPE		"ext4"
 #define SNAPSHOT_MOUNT_ID	"snap"
 #define FS_CORRECTED_MARK	".fs_corrected"
 
@@ -137,6 +136,18 @@ static int fsck_mode2flags(int mode)
 	}
 }
 
+int get_ploop_quota_type(int mode)
+{
+	switch (mode) {
+	case VZCTL_JQUOTA_MODE:
+		return PLOOP_JQUOTA;
+	case VZCTL_QUOTA_MODE:
+		return PLOOP_QUOTA;
+	default:
+		return 0;
+	}
+}
+
 int mount_ploop_image(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 		 struct vzctl_mount_param *param)
 {
@@ -154,13 +165,16 @@ int mount_ploop_image(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 
 	mount_param.ro = param->ro;
 	mount_param.guid = guid;
-	mount_param.fstype = DEFAULT_FSTYPE;
+	mount_param.fstype = "";
+	if (param->target == NULL)
+		mount_param.automount = 1; /* to get balloon_ino */
 	mount_param.target = param->target;
 	mount_param.mount_data = param->mount_data;
 	if (!param->ro)
 		mount_param.fsck_flags = fsck_mode2flags(param->fsck);
 	mount_param.fsck_rc = 0;
 	mount_param.flags = MS_REMOUNT;
+	mount_param.quota = get_ploop_quota_type(disk->user_quota);
 
 	if (param->component_name != NULL)
 		ploop_set_component_name(di, param->component_name);
@@ -186,6 +200,7 @@ int mount_ploop_image(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 		unlink(fname);
 
 	snprintf(param->device, sizeof(param->device), "%s", mount_param.device);
+	disk->balloon_ino = mount_param.balloon_ino;
 
 	return 0;
 }
@@ -271,7 +286,7 @@ static int create_ploop_image(const char *path,
 
 	logger(0, 0, "Creating image: %s size=%luK", image, param->size);
 	create_param.mode = param->mode;
-	create_param.fstype = DEFAULT_FSTYPE;
+	create_param.fstype = "";
 	create_param.size = param->size * 2; /* 1K to sectors */
 	create_param.image = image;
 	create_param.keyid = param->enc_keyid;
@@ -867,13 +882,11 @@ int vzctl2_mount_snap(struct vzctl_env_handle *h, const char *mnt, const char *g
 	int ret;
 	struct vzctl_disk *disk, *entry;
 	struct vzctl_env_disk *env_disk = h->env_param->disk;
-	char mnt_opts[PATH_MAX] = "";
 	char target[PATH_MAX];
 	char cn[1024];
 	struct vzctl_mount_param param = {
 		.ro = 1,
 		.guid = (char*)guid,
-		.mount_data = mnt_opts,
 		.fsck = VZCTL_PARAM_OFF,
 	};
 
@@ -890,7 +903,6 @@ int vzctl2_mount_snap(struct vzctl_env_handle *h, const char *mnt, const char *g
 
 	list_for_each(disk, &env_disk->disks, list) {
 		param.target = (char *)get_snap_target(disk, mnt, target, sizeof(target));
-		vzctl_get_mount_opts(disk, mnt_opts, sizeof(mnt_opts));
 		ret = vzctl2_mount_disk_snapshot(disk->path, &param);
 		if (ret)
 			goto err;
@@ -909,7 +921,6 @@ err:
 
 int vzctl2_mount_snapshot(struct vzctl_env_handle *h, struct vzctl_mount_param *param)
 {
-	char mnt_opts[PATH_MAX];
 	char cn[1024];
 	struct vzctl_disk *root;
 
@@ -925,8 +936,6 @@ int vzctl2_mount_snapshot(struct vzctl_env_handle *h, struct vzctl_mount_param *
 		generate_snapshot_component_name(param->guid, cn, sizeof(cn));
 		param->component_name = cn;
 	}
-
-	vzctl2_get_mount_opts(root->mnt_opts, root->user_quota, mnt_opts, sizeof(mnt_opts));
 
 	return vzctl2_mount_disk_snapshot(root->path, param);
 }

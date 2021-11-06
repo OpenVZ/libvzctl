@@ -1960,19 +1960,6 @@ int get_user_quota_mode(const struct vzctl_dq_param *dq)
 		 VZCTL_QUOTA_MODE : VZCTL_JQUOTA_MODE);
 }
 
-static const char *get_quota_mount_opts(int mode, char *out, int size)
-{
-	if (mode == VZCTL_JQUOTA_MODE)
-		snprintf(out, size, "usrjquota=aquota.user,grpjquota=aquota.group,jqfmt=%s",
-			get_jquota_format(mode));
-	else if (mode == VZCTL_QUOTA_MODE)
-		snprintf(out, size, "usrquota,grpquota");
-	else
-		out[0] = '\0';
-
-	return out;
-}
-
 static char *get_pfcache_opts(char *buf, int len)
 {
 	int err;
@@ -1997,43 +1984,24 @@ static char *get_pfcache_opts(char *buf, int len)
 	return buf;
 }
 
-int get_mount_opts(const char *opts, int user_quota, char *out, int size)
+int get_mount_opts(struct vzctl_disk *disk, char *out, int size)
 {
-	int rc;
-	char jq[64];
-	rc = snprintf(out, size, "%s%s%s",
-		opts != NULL ? opts : "",
-		opts != NULL ? "," : "",
-		user_quota ? get_quota_mount_opts(user_quota, jq, sizeof(jq)) : "");
-	if (rc >= size)
+	int n = 0;
+
+	*out = '\0';
+	if (disk->mnt_opts)
+		n = snprintf(out, size, "%s,", disk->mnt_opts);
+	if (n >= size)
 		return VZCTL_E_INVAL;
-
-	return 0;
-}
-
-/* process 'csum,pfcache' mount options
- * disabled only if 'noscum' present
- */
-int vzctl2_get_mount_opts(const char *opts, int user_quota, char *out, int size)
-{
-	int len;
-
-	if (get_mount_opts(opts, user_quota, out, size))
-		return vzctl_err(VZCTL_E_INVAL, 0,
-			"Not enough buffer size to store mnt_ops result");
-
-	if (strstr(out, "nopfcache_csum") == NULL) {
-		len = strlen(out);
-
-		get_pfcache_opts(out + len,  size - len);
-	}
+	if (disk->opts)
+		snprintf(out + n, size - n, "%s", disk->opts);
 
 	return 0;
 }
 
 int vzctl_get_mount_opts(struct vzctl_disk *d, char *out, int size)
 {
-	if (get_mount_opts(d->mnt_opts, d->user_quota, out, size))
+	if (get_mount_opts(d, out, size))
 		return vzctl_err(VZCTL_E_INVAL, 0,
 			"Not enough buffer size to store mnt_ops result");
 

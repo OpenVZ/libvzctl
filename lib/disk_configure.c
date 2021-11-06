@@ -52,52 +52,6 @@ struct exec_disk_param {
 	int automount;
 };
 
-int get_fs_uuid(const char *device, struct vzctl_disk *disk)
-{
-	struct stat st;
-	FILE *fp;
-	char *argv[] = {
-		"/usr/sbin/blkid",
-		(char *)device,
-		NULL,
-	};
-	char buf[512];
-	char *p;
-
-	if (stat(argv[0], &st))
-		return vzctl_err(-1, errno, "Unable to stat %s", argv[0]);
-
-	fp = vzctl_popen(argv, NULL, 0);
-	if (fp == NULL)
-		return vzctl_err(-1, errno, "Unable to start %s", argv[0]);
-
-	while (fgets(buf, sizeof(buf), fp)) {
-		p = strstr(buf, " UUID=\"");
-		if (p == NULL)
-			break;
-		strncpy(disk->fsuuid, p + 7, sizeof(fsuuid_t) - 1);
-		disk->fsuuid[sizeof(fsuuid_t) - 1] = '\0';
-		p = strchr(disk->fsuuid, '"');
-		if (p != NULL)
-			*p = '\0';
-
-		p = strstr(buf, " TYPE=\"");
-		if (p == NULL)
-			break;
-		strncpy(disk->fstype, p + 7, sizeof(fstype_t) - 1);
-		disk->fstype[sizeof(fstype_t) - 1] = '\0';
-		p = strchr(disk->fstype, '"');
-		if (p != NULL)
-			*p = '\0';
-	}
-	fclose(fp);
-
-	if (disk->fsuuid[0] == '\0' || disk->fstype[0] == '\0')
-		return vzctl_err(-1, 0, "Unable to get file system uuid dev=%s",
-				 device);
-	return 0;
-}
-
 static int write_fstab_entry(FILE *fp, const char *uuid, const char *mnt, const char *opts)
 {
 	if (fprintf(fp, "UUID=%s %s ext4 %s 0 0\n", uuid, mnt, opts ? opts : "defaults") == -1)

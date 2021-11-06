@@ -33,7 +33,7 @@
 typedef int (*disk_mount)(struct vzctl_env_handle *h, struct vzctl_disk *d, int flags);
 typedef int (*disk_umount)(struct vzctl_disk *d);
 
-typedef char fsuuid_t[37];
+typedef char fsuuid_t[38];
 typedef char fstype_t[5];
 
 typedef enum {
@@ -50,6 +50,7 @@ struct vzctl_disk {
 	char *path;
 	char *mnt;
 	char *mnt_opts;
+	const char *opts;
 	int mnt_flags;
 	int user_quota;
 	int autocompact;
@@ -67,6 +68,7 @@ struct vzctl_disk {
 	int updated;
 	disk_type type;
 	int automount;
+	unsigned long long balloon_ino;
 };
 
 struct vzctl_env_disk {
@@ -117,9 +119,6 @@ int set_max_diskspace(struct vzctl_2UL_res **diskspace);
 int env_configure_udev_rules(void);
 disk_type get_disk_type(struct vzctl_disk *disk);
 int get_mnt_by_dev(const char *device, char *out, int size);
-int get_disk_mount_param(struct vzctl_env_handle *h, struct vzctl_disk *d,
-		struct vzctl_mount_param *param, int flags,
-		char *mnt_opts, int mnt_opts_size);
 int is_dm_device(dev_t dev);
 
 #endif
