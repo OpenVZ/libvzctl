@@ -400,10 +400,19 @@ static int do_create_private(struct vzctl_env_handle *h, const char *dst,
 static int do_set_fs_uuid(struct vzctl_disk *disk)
 {
 	struct stat st_d, st_p;
-	char *tune2fs[] = {"/sbin/tune2fs", "-Urandom", NULL, NULL};
+	char *tune[4];
 
-	tune2fs[2] = (char *)get_fs_partname(disk);
-	vzctl2_wrap_exec_script(tune2fs, NULL, 0);
+	logger(3, 0, "Generate new fs uuid: %s", get_fs_partname(disk));
+	if (strcmp(disk->fstype, "xfs") == 0) {
+		tune[0] = "/usr/sbin/xfs_admin";
+		tune[1] = "-Ugenerate";
+	} else {
+		tune[0] = "/sbin/tune2fs";
+		tune[1] = "-Urandom";
+	}
+	tune[2] = (char *)get_fs_partname(disk);
+	tune[3] = NULL;
+	vzctl2_wrap_exec_script(tune, NULL, 0);
 
 	// Check for partition
 	if (stat(disk->devname, &st_d) == 0 &&

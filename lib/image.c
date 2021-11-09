@@ -166,7 +166,7 @@ int mount_ploop_image(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	mount_param.ro = param->ro;
 	mount_param.guid = guid;
 	mount_param.fstype = "";
-	if (param->target == NULL)
+	if (param->target == NULL && param->fsck == 0)
 		mount_param.automount = 1; /* to get balloon_ino */
 	mount_param.target = param->target;
 	mount_param.mount_data = param->mount_data;
