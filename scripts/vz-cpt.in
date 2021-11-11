@@ -114,7 +114,6 @@ cg_controllers="--cgroup-dump-controller hugetlb \
 CRIU_LOGLEVEL=4
 criu dump -v$CRIU_LOGLEVEL -o dump.log			\
 		--ve $VEID				\
-		--skip-freezer-state			\
 		--skip-in-flight			\
 		--file-locks				\
 		--tcp-established			\
