@@ -806,7 +806,8 @@ int update_disk_info(struct vzctl_env_handle *h, struct vzctl_disk *disk)
 	disk->part_dev = st.st_rdev;
 	xstrdup(&disk->partname, partname);
 
-	if (ploop_get_mnt_info(disk->partname, get_ploop_quota_type(disk->user_quota), &info))
+	info.quota = get_ploop_quota_type(disk->user_quota);
+	if (ploop_get_mnt_info(disk->partname, &info))
 		return vzctl_err(VZCTL_E_SYSTEM, 0, "Cannot get ploop %s mount info: %s",
 				disk->partname, ploop_get_last_error());
 	disk->opts = info.opts;
