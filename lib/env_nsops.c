@@ -71,6 +71,13 @@
 #define	CLONE_NEWTIME	0x00000080
 #endif
 
+#ifndef SIOCSVENET
+#define SIOCSVENET      (SIOCDEVPRIVATE + 0xf)
+#endif
+#ifndef SIOCSFIXEDADDR
+#define SIOCSFIXEDADDR  (SIOCDEVPRIVATE + 0xe)
+#endif
+
 int ns_open(void)
 {
 	if (mkdir(NETNS_RUN_DIR, S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH) &&
