@@ -20,8 +20,8 @@
  - "strategy": "merge"
  - "properties": ["release_agent"]
 "memory":
- - "strategy": "merge"
- - "properties": ["release_agent"]
+ - "strategy": "replace"
+ - "properties": ["memory.limit_in_bytes", "memory.memsw.limit_in_bytes", "memory.swappiness", "memory.soft_limit_in_bytes", "memory.move_charge_at_immigrate", "memory.oom_control", "memory.use_hierarchy", "memory.kmem.tcp.limit_in_bytes", "release_agent"]
 "net_cls":
  - "strategy": "merge"
  - "properties": ["release_agent"]
