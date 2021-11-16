@@ -262,7 +262,7 @@ static int is_snapshot_supported(char *ve_private)
 	int layout;
 
 	layout = vzctl2_env_layout_version(ve_private);
-	if (layout != VZCTL_LAYOUT_5) {
+	if (layout < VZCTL_LAYOUT_5) {
 		logger(-1, 0,"Snapshot supported for ploop based Container only");
 		return 0;
 	}

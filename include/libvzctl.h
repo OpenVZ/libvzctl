@@ -43,6 +43,7 @@
 #define VZCTL_LAYOUT_3  3
 #define VZCTL_LAYOUT_4  4
 #define VZCTL_LAYOUT_5  5
+#define VZCTL_LAYOUT_6  6
 
 #define VZCTL_CPUUNITS_MAX     500000
 #define VZCTL_CPUUNITS_MIN     8
@@ -97,6 +98,7 @@ enum {
 	VZ_T_VZFS0 = (1<<13),
 	VZ_T_SIMFS = VZ_T_VZFS0,
 	VZ_T_EXT4 = (1<<14),
+	VZ_T_QCOW2 = (1<<15),
 };
 
 enum {

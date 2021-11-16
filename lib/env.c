@@ -630,7 +630,7 @@ static int check_requires(struct vzctl_env_param *env, int flags)
 			"Container private area %s does not exist",
 			env->fs->ve_private);
 
-	if (env->fs->layout == VZCTL_LAYOUT_5 &&
+	if (env->fs->layout >= VZCTL_LAYOUT_5 &&
 			find_root_disk(env->disk) == NULL)
 		return vzctl_err(VZCTL_E_INVAL, 0,
 			"Container root disk is not configured");
@@ -822,7 +822,7 @@ int pre_setup_env(const struct start_param *param)
 			return ret;
 	}
 
-	if (env->fs->layout == VZCTL_LAYOUT_5 && env->disk != NULL &&
+	if (env->fs->layout >= VZCTL_LAYOUT_5 && env->disk != NULL &&
 			!is_secondary_disk_present(env->disk))
 	{
 		env_fin_configure_disk(env->disk);
@@ -1618,7 +1618,7 @@ int vzctl2_apply_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 				goto err;
 		}
 
-		if (h->env_param->fs->layout == VZCTL_LAYOUT_5 &&
+		if (h->env_param->fs->layout >= VZCTL_LAYOUT_5 &&
 			env->dq->diskspace != NULL &&
 			(ret = vzctl2_resize_image(h->env_param->fs->ve_private,
 							  env->dq->diskspace->l, 0)))
@@ -3490,7 +3490,7 @@ int vzctl2_env_get_layout(struct vzctl_env_param *env, int *layout)
 
 int vzctl2_env_set_layout(struct vzctl_env_param *env, int layout, int flags)
 {
-	if (layout < VZCTL_LAYOUT_3 || layout > VZCTL_LAYOUT_5)
+	if (layout < VZCTL_LAYOUT_3 || layout > VZCTL_LAYOUT_6)
 		return vzctl_err(VZCTL_E_INVAL, 0, "An invalid layout is specified %d",
 				layout);
 

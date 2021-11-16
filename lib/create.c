@@ -103,7 +103,7 @@ int vzctl2_get_def_ostemplate_name(char *out, int size)
 
 static int is_ploop_cache(const char *name)
 {
-	return strstr(name, ".plain.ploop") != NULL ? 1 : 0;
+	return strstr(name, ".ploop") || strstr(name, ".qcow2") ? 1 : 0;
 }
 
 static int get_def_ve_layout(void)
@@ -116,6 +116,7 @@ static int get_def_ve_layout(void)
 		if (vefstype != VZ_T_VZFS3 &&
 				vefstype != VZ_T_VZFS4 &&
 				vefstype != VZ_T_EXT4 &&
+				vefstype != VZ_T_QCOW2 &&
 				vefstype != VZ_T_SIMFS)
 			goto out;
 
@@ -310,13 +311,25 @@ static int create_private_ploop(const char *dst, unsigned long size,
 
 	switch (layout) {
 	case VZCTL_LAYOUT_5:
+	case VZCTL_LAYOUT_6:
+		if (strstr(tarball, ".qcow2") != NULL) {
+			snprintf(data_root, sizeof(data_root), "%s", dst);
+			break;
+		}
 		get_root_disk_path(dst, data_root, sizeof(data_root));
+		/* Create compatible symlink templates -> root.hdd/templates */
+		snprintf(buf, sizeof(buf), "%s/templates", data_root);
+		if (stat_file(buf) == 1) {
+			snprintf(buf, sizeof(buf), "%s/templates", dst);
+			if (symlink("root.hdd/templates", buf))
+				logger(-1, errno, "Unable to create the symlink: %s", buf);
+		}
 		break;
 	case VZCTL_LAYOUT_4:
 		snprintf(data_root, sizeof(data_root), "%s", dst);
 		break;
 	default:
-		return vzctl_err(VZCTL_E_INVAL, 9, "Unsupported CT layout %d",
+		return vzctl_err(VZCTL_E_INVAL, 0, "Unsupported CT layout %d",
 				layout);
 	}
 
@@ -343,17 +356,8 @@ static int create_private_ploop(const char *dst, unsigned long size,
 	if (layout == VZCTL_LAYOUT_4)
 		return 0;
 
-	/* Create compatible symlink templates -> root.hdd/templates */
-	snprintf(buf, sizeof(buf), "%s/templates", data_root);
-	if (stat_file(buf) == 1) {
-		snprintf(buf, sizeof(buf), "%s/templates", dst);
-		if (symlink("root.hdd/templates", buf))
-			logger(-1, errno, "Unable to create the symlink: %s",
-					buf);
-	}
-
 	if (size)
-		return vzctl2_resize_disk_image(data_root, size, 0);
+		return vzctl2_resize_disk_image(get_root_disk_path(dst, data_root, sizeof(data_root)), size, 0);
 
 	return 0;
 }
