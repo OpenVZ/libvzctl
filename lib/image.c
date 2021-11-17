@@ -55,15 +55,12 @@ const char *get_root_disk_path(const char *ve_private, char *buf, int len)
 
 int open_dd(const char *path, struct ploop_disk_images_data **di)
 {
-	char fname[PATH_MAX];
-
 	if (path[0] == '\0')
 		return vzctl_err(VZCTL_E_INVAL, 0, "Error: disk image path is empty");
 
-	snprintf(fname, sizeof(fname), "%s/" DISKDESCRIPTOR_XML, path);
-	if (ploop_open_dd(di, fname))
+	if (ploop_open_dd(di, path))
 		return vzctl_err(VZCTL_E_PARSE_DD, 0, "Failed to read %s: %s",
-				fname, ploop_get_last_error());
+				path, ploop_get_last_error());
 	return 0;
 }
 
@@ -102,9 +99,14 @@ int vzctl2_is_image_mounted(const char *path)
 	char fname[PATH_MAX];
 	struct stat st;
 
-	snprintf(fname, sizeof(fname), "%s/" DISKDESCRIPTOR_XML, path);
-	if (stat(fname, &st) && errno == ENOENT)
+	if (stat(path, &st) && errno == ENOENT)
 		return 0;
+
+	if (S_ISDIR(st.st_mode)) {
+		snprintf(fname, sizeof(fname), "%s/" DISKDESCRIPTOR_XML, path);
+		if (stat(fname, &st) && errno == ENOENT)
+			return 0;
+	}
 
 	ret = open_dd(path, &di);
 	if (ret)
