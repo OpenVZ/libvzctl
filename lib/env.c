@@ -166,22 +166,35 @@ int run_stop_script(struct vzctl_env_handle *h)
 
 	struct vzctl_veth_param *veth = h->env_param->veth;
 	if (!list_empty(&veth->dev_list)) {
-		char *p;
+		char *pn;
+		char *pm;
 		struct vzctl_veth_dev *it;
 		int len = sizeof("VETH=");
+		int len1 = sizeof("VMAC=");
 
-		list_for_each(it, &veth->dev_list, list)
+		list_for_each(it, &veth->dev_list, list) {
 			len += strlen(it->dev_name) + 1;
-		p = malloc(len);
-		if (p == NULL) {
+			len1 += strlen(it->mac_ve) + 1;
+		}
+		pn = malloc(len);
+		pm = malloc(len1);
+		if (pn == NULL || pm == NULL) {
+			if (pn)
+				free(pn);
+			if (pm)
+				free(pm);
+			env[i] = NULL;
 			ret = VZCTL_E_NOMEM;
 			goto err;
 		}
-
-		env[i++] = p;
-		p += sprintf(p, "VETH=");
-		list_for_each(it, &veth->dev_list, list)
-			p += sprintf(p, "%s ", it->dev_name);
+		env[i++] = pn;
+		pn += sprintf(pn, "VETH=");
+		env[i++] = pm;
+		pm += sprintf(pm, "VMAC=");
+		list_for_each(it, &veth->dev_list, list) {
+			pn += sprintf(pn, "%s ", it->dev_name);
+			pm += sprintf(pm, "%s ", it->mac_ve);
+		}
 	}
 
 	env[i] = NULL;

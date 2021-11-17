@@ -44,7 +44,7 @@ if [ -f "$VE_STATE_DIR/$VEID" ]; then
 	rm -f $VE_STATE_DIR/$VEID
 fi
 
-[ "${TRAFFIC_SHAPING}" == "yes" ] && @SCRIPTDIR@/vz-setrate del
+@SCRIPTDIR@/vz-setrate del
 
 for v in $VETH; do
 	[ -x /usr/bin/ovs-vsctl ] && ovs-vsctl --if-exists del-port "$v" 2>/dev/null

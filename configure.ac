@@ -93,6 +93,12 @@ AS_IF([test "x$vzlibexec_only" != xyes],
 		AC_MSG_ERROR([Please install ploop package]))
 	AC_SUBST(PLOOP_LIBS)
 	AC_DEFINE(USE_PLOOP)
+	AC_CHECK_HEADER([nftables/libnftables.h], ,
+		AC_MSG_ERROR([Please install nftables devel package]))
+	AC_CHECK_LIB([nftables], [nft_ctx_buffer_error], NFTABLES_LIBS="-lnftables",
+		AC_MSG_ERROR([Please install nftables package]))
+	AC_SUBST(NFTABLES_LIBS)
+	AC_DEFINE(USE_NFTABLES)
 	AS_IF([test "x$with_vzevent" = xyes],
 		AC_CHECK_HEADER([vz/vzevent.h], ,
 			AC_MSG_ERROR([Please install libvzevent devel package]))

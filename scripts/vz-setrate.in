@@ -677,19 +677,23 @@ vzdel_ve_sh_classes()
 	local CLASS;
 	local TC_CLASS_HEX;
 
-	vzcheck_TRAFFIC_SHAPING
-	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return
-
 	[ -z "${1}" ] && vzerror "VEID is not specified." ${VZ_SET_RATE};
 
-	check_BANDWIDTH 
+	vzcheck_TRAFFIC_SHAPING
+
+	check_BANDWIDTH
+	fill_configured_dev
+
+	vzflush_nft_rules "${VETH}"
+
 	vzread_tc_class "${1}"
 	[ -z ${vzread_tc_class_RET} ] && return
 	TC_CLASS_HEX=${vzread_tc_class_RET}
 
-	vzflush_nft_rules "${VETH}"
-
-	fill_configured_dev
+	if [ "X${TRAFFIC_SHAPING}" != "Xyes" ]; then
+		vzput_tc_class "${1}"
+		return
+	fi
 
 	for DEV in ${VZ_CONFIGURED_DEV} ; do
 		CLASSES_LIST=`${TC_CMD} class show dev ${DEV} 2> /dev/null | cut -f 3 -d ' ' | grep -v "^1:" | cut -f1 -d ':' | sort | uniq`
@@ -737,22 +741,35 @@ vzadd_ve_sh_classes()
 	local TMP;
 	local ratempu MPU=;
 
-	vzcheck_TRAFFIC_SHAPING
-	[ "X${TRAFFIC_SHAPING}" != "Xyes" ] && return;
-
 	[ -z "${1}" ] && vzerror "VEID is not specified." ${VZ_SET_RATE};
 
-	check_BANDWIDTH 
-	vzcheck_RATE
+	vzcheck_TRAFFIC_SHAPING
+
+	check_BANDWIDTH
+	fill_configured_dev
+
 	vzread_tc_class "${1}"
 	[ ! -z "${vzread_tc_class_RET}" ] && vzdel_ve_sh_classes "${1}"
-	[ -z "${RATE}" ] && exit 0
 
 	vzget_tc_class "${1}"
 	[ -z "${vzget_tc_class_RET}" ] && \
 		vzerror "Can't get free tc class." ${VZ_SET_RATE};
-
 	TC_CLASS_HEX=${vzget_tc_class_RET}
+
+	if [ "X${TRAFFIC_SHAPING}" != "Xyes" ]; then
+		vzget_classes_list
+
+		for CLASS in $CLASSES_LIST; do
+			vzcreate_nft_rules ${CLASS} \
+				$(vzget_mark ${CLASS} ${TC_CLASS_HEX}) "${VETH}"
+		done
+
+		return
+	fi
+
+	vzcheck_RATE
+	[ -z "${RATE}" ] && exit 0
+
 	for i in ${TOTALRATE} ; do
 		DEV=${i%%:*}
 		BAND=${i##*:}

@@ -195,14 +195,73 @@ int tc_get_base(struct vzctl_env_handle *h, int *tc_base)
 	return 0;
 }
 
+int set_tc_param(struct vzctl_env_handle *h, struct vzctl_tc_param *tc,
+		int i, char **envp)
+{
+	char *argv[3];
+	char buf[STR_MAX];
+	struct vzctl_veth_param *veth = h->env_param->veth;
+
+	if (h->env_param->vz->tc->traffic_shaping != VZCTL_PARAM_ON ||
+	   (!tc->ratebound && list_empty(&tc->rate_list) && !tc->drop))
+		envp[i++] = strdup("TRAFFIC_SHAPING=no");
+	else
+		envp[i++] = strdup("TRAFFIC_SHAPING=yes");
+
+	snprintf(buf, sizeof(buf), "VEID=%s", EID(h));
+	envp[i++] = strdup(buf);
+
+	snprintf(buf, sizeof(buf), "VE_STATE=%s", get_state(h));
+	envp[i++] = strdup(buf);
+
+	if (!list_empty(&veth->dev_list)) {
+		char *pn;
+		char *pm;
+		struct vzctl_veth_dev *it;
+		int len = sizeof("VETH=");
+		int len1 = sizeof("VMAC=");
+
+		list_for_each(it, &veth->dev_list, list) {
+			len += strlen(it->dev_name) + 1;
+			len1 += strlen(it->mac_ve) + 1;
+		}
+		pn = malloc(len);
+		pm = malloc(len1);
+		if (pn == NULL || pm == NULL) {
+			if (pn)
+				free(pn);
+			if (pm)
+				free(pm);
+			envp[i] = NULL;
+			free_ar_str(envp);
+			return vzctl_err(VZCTL_E_NOMEM, ENOMEM, "VETH/VMAC is not set");
+		}
+		envp[i++] = pn;
+		pn += sprintf(pn, "VETH=");
+		envp[i++] = pm;
+		pm += sprintf(pm, "VMAC=");
+		list_for_each(it, &veth->dev_list, list) {
+			pn += sprintf(pn, "%s ", it->dev_name);
+			pm += sprintf(pm, "%s ", it->mac_ve);
+		}
+	}
+
+	envp[i] = NULL;
+	argv[0] = get_script_path(VZCTL_SETRATE, buf, sizeof(buf));
+	argv[1] = "add";
+	argv[2] = NULL;
+
+	return vzctl2_wrap_exec_script(argv, envp, 0);
+}
+
 int vzctl2_set_tc_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 		int flags)
 {
+	int ret;
 	char buf[STR_MAX];
-	char *argv[3];
 	char *envp[MAX_ARGS];
 	char *p;
-	int ret, i = 0;
+	int i = 0;
 	const char *bandwidth = NULL;
 	const char *totalrate = NULL;
 	const char *ratempu = NULL;
@@ -210,37 +269,33 @@ int vzctl2_set_tc_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 	struct vzctl_tc_param *tc = env->vz->tc;
 	list_head_t *rate = !list_empty(&tc->rate_list) ? &tc->rate_list :
 		&h->env_param->vz->tc->rate_list;
-	struct vzctl_veth_param *veth = h->env_param->veth;
 
 	vzctl2_env_get_param(h, "BANDWIDTH", &bandwidth);
 	if (bandwidth == NULL)
 		return vzctl_err(VZCTL_E_SET_RATE, 0, "BANDWIDTH is not set");
+
 	vzctl2_env_get_param(h, "TOTALRATE", &totalrate);
 	if (totalrate == NULL)
 		return vzctl_err(VZCTL_E_SET_RATE, 0, "TOTALRATE is not set");
-	vzctl2_env_get_param(h, "RATEMPU", &ratempu);
 
-	snprintf(buf, sizeof(buf), "VE_STATE=%s", get_state(h));
-	envp[i++] = strdup(buf);
-	snprintf(buf, sizeof(buf), "BANDWIDTH=%s", bandwidth);
-	envp[i++] = strdup(buf);
-	snprintf(buf, sizeof(buf), "TOTALRATE=%s", totalrate);
-	envp[i++] = strdup(buf);
+	vzctl2_env_get_param(h, "RATEMPU", &ratempu);
 	if (ratempu != NULL) {
 		snprintf(buf, sizeof(buf), "RATEMPU=%s", ratempu);
 		envp[i++] = strdup(buf);
 	}
 
+	snprintf(buf, sizeof(buf), "BANDWIDTH=%s", bandwidth);
 	envp[i++] = strdup(buf);
-	envp[i++] = strdup("TRAFFIC_SHAPING=yes");
-	snprintf(buf, sizeof(buf), "VEID=%s", EID(h));
+	snprintf(buf, sizeof(buf), "TOTALRATE=%s", totalrate);
 	envp[i++] = strdup(buf);
+
 	if ((p = rate2str(rate)) != NULL) {
 		logger(1, 0, "Setup shaping: %s", p);
 		snprintf(buf, sizeof(buf), "RATE=%s", p);
 		envp[i++] = strdup(buf);
 		free(p);
 	}
+
 	ratebound = tc->ratebound ? tc->ratebound :
 			h->env_param->vz->tc->ratebound;
 	if (ratebound == VZCTL_PARAM_ON) {
@@ -248,30 +303,7 @@ int vzctl2_set_tc_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 		envp[i++] = strdup(buf);
 	}
 
-	if (!list_empty(&veth->dev_list)) {
-		char *p;
-		struct vzctl_veth_dev *it;
-		int len = sizeof("VETH=");
-
-		list_for_each(it, &veth->dev_list, list)
-			len += strlen(it->dev_name) + 1;
-		p = malloc(len);
-		if (p == NULL) {
-			envp[i] = NULL;
-			free_ar_str(envp);
-			return vzctl_err(VZCTL_E_NOMEM, ENOMEM, "VETH is not set");
-		}
-		envp[i++] = p;
-		p += sprintf(p, "VETH=");
-		list_for_each(it, &veth->dev_list, list)
-			p += sprintf(p, "%s ", it->dev_name);
-	}
-
-	envp[i] = NULL;
-	argv[0] = get_script_path(VZCTL_SETRATE, buf, sizeof(buf));
-	argv[1] = "add";
-	argv[2] = NULL;
-	ret = vzctl2_wrap_exec_script(argv, envp, 0);
+	ret = set_tc_param(h, tc, i, envp);
 	free_ar_str(envp);
 
 	return ret;
@@ -282,14 +314,25 @@ int vzctl_apply_tc_param(struct vzctl_env_handle *h,
 {
 	struct vzctl_tc_param *tc = env->vz->tc;
 
-	if (h->env_param->vz->tc->traffic_shaping != VZCTL_PARAM_ON)
-		return 0;
-	if (!tc->ratebound && list_empty(&tc->rate_list) && !tc->drop)
-		return 0;
-
 	if (!is_env_run(h))
 		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0,
 			"Unable to setup traffic shaping, Container is not running");
+
+	if (h->env_param->vz->tc->traffic_shaping != VZCTL_PARAM_ON ||
+	   (!tc->ratebound && list_empty(&tc->rate_list) && !tc->drop)) {
+		char *envp[MAX_ARGS];
+		int i = 0;
+		int ret;
+
+		/* We apply network counting only on start */
+		if (h->ctx->state != VZCTL_STATE_STARTING)
+			return 0;
+
+		ret = set_tc_param(h, tc, i, envp);
+		free_ar_str(envp);
+
+		return ret;
+	}
 
 	return vzctl2_set_tc_param(h, env, flags);
 }

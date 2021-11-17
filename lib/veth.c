@@ -318,10 +318,13 @@ static void fill_veth_dev_name(struct vzctl_env_handle *h,
 
 	d = find_veth_by_ifname_ve(&h->env_param->veth->dev_list,
 			dev->dev_name_ve);
-	if (d != NULL)
+	if (d != NULL) {
 		strncpy(dev->dev_name, d->dev_name, sizeof(dev->dev_name));
-	else
+		if (dev->mac_ve == NULL && d->mac_ve != NULL)
+			dev->mac_ve = strdup(d->mac_ve);
+	} else {
 		generate_veth_name(dev);
+	}
 }
 
 static int veth_ctl(struct vzctl_env_handle *h, int op, list_head_t *head,
