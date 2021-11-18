@@ -1711,7 +1711,7 @@ int vzctl2_env_get_disk_stats(struct vzctl_env_handle *h, const char *uuid,
 {
 	struct vzctl_disk *d;
 
-	if (h->env_param->fs->layout != VZCTL_LAYOUT_5)
+	if (h->env_param->fs->layout < VZCTL_LAYOUT_5)
 		return VZCTL_E_INVAL;
 
 	d = find_disk(h->env_param->disk, uuid);

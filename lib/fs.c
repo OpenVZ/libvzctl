@@ -169,7 +169,7 @@ static int do_env_umount(struct vzctl_env_handle *h)
 		vzctl2_send_umount_evt(EID(h), st.st_dev);
 
 	do_umount_submounts(h->env_param->fs->ve_root);
-	if (h->env_param->fs->layout == VZCTL_LAYOUT_5)
+	if (h->env_param->fs->layout >= VZCTL_LAYOUT_5)
 		return vzctl2_umount_disk(h, h->env_param->disk);
 	else
 		return fsumount(h->env_param->fs);
@@ -177,7 +177,7 @@ static int do_env_umount(struct vzctl_env_handle *h)
 
 static int do_env_mount(struct vzctl_env_handle *h, int flags)
 {
-	if (h->env_param->fs->layout == VZCTL_LAYOUT_5)
+	if (h->env_param->fs->layout >= VZCTL_LAYOUT_5)
 		return vzctl2_mount_disk(h, h->env_param->disk, flags);
 	else
 		return fs_bindmount(h);

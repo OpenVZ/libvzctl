@@ -316,7 +316,7 @@ int vzctl2_env_is_mounted(struct vzctl_env_handle *h)
 	if (ve_private != NULL) {
 		int layout = vzctl2_env_layout_version(ve_private);
 
-		if (layout == VZCTL_LAYOUT_5) {
+		if (layout >= VZCTL_LAYOUT_5) {
 			if (d != NULL && !d->use_device)
 				return vzctl2_is_image_mounted(d->path);
 
