@@ -33,6 +33,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
+#include <nftables/libnftables.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -627,55 +628,142 @@ void configure_net_rps(const char *ve_root, const char *dev)
 	close(fd);
 }
 
+static int run_nft_cmd(const char *cmd, char *out, int len)
+{
+	int ret = -1;
+	struct nft_ctx *nft;
+
+	if (!(nft = nft_ctx_new(NFT_CTX_DEFAULT)))
+		return vzctl_err(-1, errno, "Unable to connect to nft");
+
+	if (nft_ctx_buffer_output(nft) || nft_ctx_buffer_error(nft)) {
+		ret = vzctl_err(-1, errno, "Unable to redirect nft output");
+		goto out;
+	}
+
+	if (nft_run_cmd_from_buffer(nft, cmd)) {
+		ret = vzctl_err(-1, errno, "Unable to run command '%s'",
+				cmd);
+		goto err;
+	}
+
+	if (out && len) {
+		const char *p = nft_ctx_get_output_buffer(nft);
+		strncpy(out, p, len);
+		out[len - 1] = '\0';
+	}
+
+	ret = 0;
+
+err:
+	nft_ctx_unbuffer_output(nft);
+	nft_ctx_unbuffer_error(nft);
+out:
+	nft_ctx_free(nft);
+
+	return ret;
+}
+
+/*
+ * ctid2nft()
+ * Compute and return CTID without possible symbols "-".
+ * ATTENTION! If you modify this function you MUST also  modify
+ * the same code in file "vz-functions" in function "vzget_nft"!
+ */
+static char *ctid2nft(struct vzctl_env_handle *h, ctid_t nft)
+{
+	char *p = nft;
+
+	strncpy(nft, EID(h), sizeof(ctid_t));
+	nft[sizeof(ctid_t) - 1] = '\0';
+
+	while ((p = strchr(p, '-')) != NULL)
+		memmove(p, p+1, strlen(p) + 1);
+
+	return nft;
+}
+
 int vzctl2_clear_ve_netstat(struct vzctl_env_handle *h)
 {
-	int rc;
+	ctid_t ctid;
+	char buf[STR_SIZE];
 
-	rc = ioctl(get_vzctlfd(), VZCTL_TC_CLEAR_STAT, h->veid);
+	snprintf(buf, sizeof(buf),
+		 "reset counters table netdev ve_%s",
+		 ctid2nft(h, ctid));
 
-	if (rc && errno == ENOTTY)
-		rc = ioctl(get_vzctlfd(), VZCTL_TC_DESTROY_STAT, h->veid);
-
-	if (rc == 0 || errno == ESRCH)
-		return 0;
-
-	return -1;
+	return run_nft_cmd(buf, NULL, 0);
 }
 
 int vzctl2_clear_all_ve_netstat(void)
 {
-	int rc;
-
-	rc = ioctl(get_vzctlfd(), VZCTL_TC_CLEAR_ALL_STAT);
-
-	if (rc && errno == ENOTTY)
-		rc = ioctl(get_vzctlfd(), VZCTL_TC_DESTROY_ALL_STAT);
-
-	return rc;
+	return run_nft_cmd("reset counters netdev", NULL, 0);
 }
 
 int vzctl2_get_env_tc_netstat(struct vzctl_env_handle *h,
 		struct vzctl_tc_netstat *stat, int v6)
 {
-	int ret;
+	ctid_t ctid;
+	char buf[STR_SIZE];
+	char out[4096];
+	char *p;
+	const char *prefix = "counter counter_";
 
 	if (h == NULL || stat == NULL)
 		return -1;
 
-	struct vzctl_tc_get_stat s = {
-		.veid = h->veid,
-		.incoming = stat->incoming,
-		.outgoing = stat->outgoing,
-		.incoming_pkt = stat->incoming_pkt,
-		.outgoing_pkt = stat->outgoing_pkt,
-		.length = TC_MAX_CLASSES,
-	};
+	snprintf(buf, sizeof(buf),
+		 "list counters table netdev ve_%s",
+		 ctid2nft(h, ctid));
+
+	if (run_nft_cmd(buf, out, sizeof(out)))
+		return -1;
 
 	bzero(stat, sizeof(struct vzctl_tc_netstat));
-	ret = ioctl(get_vzctlfd(),
-			v6 ? VZCTL_TC_GET_STAT_V6 : VZCTL_TC_GET_STAT, &s);
-	if (ret == -1 && errno != ESRCH && errno != ENOTTY)
-		return -1;
+
+	/*
+	 * Sample for output from the command nft:
+	 *
+	 * "table netdev ve_ac00a592668f44988d3fd6cd0f8e38ff {
+	 *    counter counter_o4_1 {
+	 *	packets 30 bytes 9840
+	 *    }
+	 *    counter counter_i6_1 {
+	 *	packets 31 bytes 9841
+	 *    }
+	 *  }"
+	 */
+	p = out;
+	while (p) {
+		char dir;
+		char ver;
+		unsigned int class;
+
+		if ((p = strstr(p, prefix)) != NULL &&
+		    sscanf(p + strlen(prefix), "%c%c_%u ",
+		    &dir, &ver, &class) == 3 &&
+		    (dir == 'i' || dir == 'o') &&
+		    ((ver == '4' && !v6) || (ver == '6' && v6)) &&
+		    class < TC_MAX_CLASSES) {
+			unsigned int *pkt;
+			unsigned long long *bytes;
+
+			bytes = (dir == 'i') ? &stat->incoming[class] :
+				&stat->outgoing[class];
+			pkt = (dir == 'i') ? &stat->incoming_pkt[class] :
+				&stat->outgoing_pkt[class];
+
+			if ((p = strstr(p, "packets ")) != NULL) {
+				if (sscanf(p + 8, "%u bytes %llu",
+				    pkt, bytes) != 2)
+					return vzctl_err(-1, 0,
+							 "Unable to parse nft output");
+			}
+		}
+
+		if (p)
+			p++;
+	}
 
 	return 0;
 }
