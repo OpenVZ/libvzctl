@@ -318,12 +318,9 @@ static int create_private_ploop(const char *dst, unsigned long size,
 		}
 		get_root_disk_path(dst, data_root, sizeof(data_root));
 		/* Create compatible symlink templates -> root.hdd/templates */
-		snprintf(buf, sizeof(buf), "%s/templates", data_root);
-		if (stat_file(buf) == 1) {
-			snprintf(buf, sizeof(buf), "%s/templates", dst);
-			if (symlink("root.hdd/templates", buf))
-				logger(-1, errno, "Unable to create the symlink: %s", buf);
-		}
+		snprintf(buf, sizeof(buf), "%s/templates", dst);
+		if (symlink("root.hdd/templates", buf))
+			logger(-1, errno, "Unable to create the symlink: %s", buf);
 		break;
 	case VZCTL_LAYOUT_4:
 		snprintf(data_root, sizeof(data_root), "%s", dst);
