@@ -1396,10 +1396,44 @@ static int ns_env_cleanup(struct vzctl_env_handle *h, int flags)
 	return destroy_cgroup(h);
 }
 
+static int umount_root(void)
+{
+#define NEW_ROOT	"/.new_root/"
+#define OLD_ROOT	"root"
+
+	if (chdir("/"))
+		return vzctl_err(-1, errno, "Can't chdir /");
+	if (mkdir(NEW_ROOT, 0755) && errno != EEXIST)
+		return vzctl_err(-1, errno, "Can't mkdir " NEW_ROOT);
+	if (mount("none", "/", NULL, MS_PRIVATE, NULL))
+		return vzctl_err(-1, errno, "Can't mount MS_PRIVATE");
+	if (mount(NULL, NEW_ROOT, "tmpfs", 0, NULL))
+		return vzctl_err(-1, errno, "Can't mount tmpfs");
+	if (mount(NEW_ROOT, NEW_ROOT, NULL, MS_BIND, NULL))
+		return vzctl_err(-1, errno, "Can't mount bind " NEW_ROOT);
+	if (mkdir(NEW_ROOT OLD_ROOT, 0755))
+		return vzctl_err(-1, errno, "Can't mkdir " NEW_ROOT OLD_ROOT);
+	if (pivot_root(NEW_ROOT, NEW_ROOT OLD_ROOT))
+		return vzctl_err(-1, errno, "Can't pivot_root " NEW_ROOT);
+	if (umount2(OLD_ROOT, MNT_DETACH))
+		return vzctl_err(-1, errno, "Can't umount " NEW_ROOT);
+
+	return 0;
+}
+
 static int ns_env_stop(struct vzctl_env_handle *h, int stop_mode)
 {
-	int ret;
+	int ret, fd = -1;
 	pid_t pid;
+	char path[PATH_MAX];
+
+	if (cg_env_get_init_pid(EID(h), &pid)) {
+		vzctl_err(VZCTL_E_SYSTEM, 0, "Unable to get init pid");
+	} else {
+		snprintf(path, sizeof(path), "/proc/%d/ns/mnt", pid);
+		if ((fd = open(path, O_RDONLY)) < 0)
+			vzctl_err(-1, errno, "Failed to open %s", path);
+	}
 
 	if (stop_mode == M_KILL_FORCE || stop_mode == M_KILL) {
 		ret = -1;
@@ -1413,7 +1447,7 @@ static int ns_env_stop(struct vzctl_env_handle *h, int stop_mode)
 		ret = ns_env_enter(h, 0);
 		if (ret)
 			_exit(ret);
-		ret = close_fds(1, -1);
+		ret = close_fds(1, vzctl2_get_log_fd(), -1);
 		if (ret)
 			_exit(ret);
 		pid2 = fork();
@@ -1440,6 +1474,18 @@ static int ns_env_stop(struct vzctl_env_handle *h, int stop_mode)
 	env_wait(pid, 0, NULL);
 
 force:
+	if (fd != -1) {
+		pid = fork();
+		if (pid == 0) {
+			if (setns(fd, 0))
+				logger(-1, errno, "Failed to set mnt context");
+			else
+				umount_root();
+			_exit(0);
+		}
+		env_wait(pid, 0, NULL);
+	}
+
 	if (ret) {
 		ret = ns_env_stop_force(h);
 		if (ret)
