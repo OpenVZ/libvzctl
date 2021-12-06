@@ -117,7 +117,6 @@ CRIU_LOGLEVEL=4
 [ -n "$VE_CRIU_PIDFILE" ] && echo $$ > $VE_CRIU_PIDFILE
 exec criu restore -v$CRIU_LOGLEVEL $RESTORE_EXTRA_OPT	\
 		--ve $VEID				\
-		--skip-freezer-state			\
 		--file-locks				\
 		--tcp-established			\
 		--evasive-devices			\
