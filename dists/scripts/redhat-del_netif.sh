@@ -28,16 +28,17 @@
 IFCFG_DIR=/etc/sysconfig/network-scripts/
 function del_dev()
 {
-	local dev
-
 	if [ -n "${DEVICE}" ]; then
+		dev=$(get_routed_default_dev)
+		[ -z $dev ] && return
+
 		if grep 'GATEWAY=' ${IFCFG_DIR}/ifcfg-${DEVICE} 2>/dev/null; then
-			put_param "${IFCFG_DIR}/ifcfg-venet0" GATEWAY venet0
-			ip r r default dev venet0
+		        echo "default dev $dev" > $IFCFG_DIR/route-$dev
+			ip r r default dev $dev
 		fi
 		if grep 'IPV6_DEFAULTDEV=' ${IFCFG_DIR}/ifcfg-${DEVICE} 2>/dev/null; then
-			put_param "${IFCFG_DIR}/ifcfg-venet0" IPV6_DEFAULTDEV venet0
-			ip -6 r r default dev venet0
+			echo "default dev $dev" > $IFCFG_DIR/route6-$dev 
+			ip -6 r r default dev $dev
 		fi
 
 		ifdown ${DEVICE} 2>/dev/null

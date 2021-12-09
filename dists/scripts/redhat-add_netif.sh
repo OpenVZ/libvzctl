@@ -40,24 +40,38 @@ IFNUMLIST=
 IFRMLIST=
 IFNUM=
 
+set_route()
+{
+	local dev=$1
+	echo "default dev $dev" > $IFCFG_DIR/route-$dev || \
+		error "Unable to create $IFCFG_DIR/route-$dev" ${VZ_FS_NO_DISK_SPACE}
+}
+
+set_route6()
+{
+	local dev=$1
+	echo "default dev $dev" > $IFCFG_DIR/route6-$dev || \
+		error "Unable to create $IFCFG_DIR/route6-$dev" ${VZ_FS_NO_DISK_SPACE}
+}
+
 function create_config()
 {
 	local dev=$1
-	local ip=$2
-	local mask=$3
 	local ifcfg=${IFCFG_DIR}/ifcfg-${dev}
 	local cfg
 
-	cfg="DEVICE=${dev}
-ONBOOT=yes
-BOOTPROTO=static
-NM_CONTROLLED=\"no\"
-IPADDR=\"$ip\""
-	if [ -n "${mask}" ]; then
-		cfg="$cfg
-NETMASK=\"${mask}\""
+	if [ "$NETWORK_TYPE" = "routed" ]; then
+		set_route $dev
+		cfg="# $ROUTED_UUID $dev
+ARPUPDATE=no
+ARPCHECK=no"
 	fi
 
+	cfg="$cfg
+DEVICE=$dev
+ONBOOT=yes
+BOOTPROTO=static
+NM_CONTROLLED=no"
 	echo "${cfg}" > ${ifcfg} || error "Unable to create interface config file ${ifcfg}" ${VZ_FS_NO_DISK_SPACE}
 }
 
@@ -117,11 +131,6 @@ function get_all_aliasid()
 		sed "s/.*ifcfg-${DEVICE}://"`
 }
 
-function get_gw_ip()
-{
-	grep -m 1 -e '^GATEWAY=' $1 2>/dev/null | sed 's/^GATEWAY="\(.*\)"/\1/'
-}
-
 function get_free_aliasid()
 {
 	local found=
@@ -143,8 +152,7 @@ function del_ips()
 	local file
 
 	[ -z "${ips}" ] && return 0
-	[ -d ${IFCFG_DIR} ] || return 0
-	cd ${IFCFG_DIR} || return 0
+	cd ${IFCFG_DIR} >/dev/null 2>&1 || return 0
 	# synchronyze config files & interfaces
 	for ipm in ${ips}; do
 		ip=${ipm%%/*}
@@ -195,7 +203,7 @@ function update_dev()
 		del_param ${ifcfg} NETMASK
 		del_param ${ifcfg} GATEWAY
 		rm -f ${IFCFG_DIR}/ifcfg-${DEVICE}:* 2>/dev/null
-		setup_default_venet_route 'remove'
+		setup_default_route 'remove'
 	elif [ "$DHCP4" = "no" ]; then
 		put_param ${ifcfg} BOOTPROTO "static"
 	fi
@@ -206,7 +214,7 @@ function update_dev()
 		put_param ${ifcfg} DHCPV6C "yes"
 		del_param ${ifcfg} IPV6ADDR_SECONDARIES
 		del_param ${ifcfg} IPV6_DEFAULTGW
-		setup_default_venet_route 'remove' '-6'
+		setup_default_route 'remove' '-6'
 	elif [ "$DHCP6" = "no" ]; then
 		put_param ${ifcfg} DHCPV6C "no"
 	fi
@@ -214,15 +222,16 @@ function update_dev()
 	# synchronyze config files & interfaces
 	for ipm in ${ips}; do
 		ip=${ipm%%/*}
-		if echo "${ipm}" | grep -q '/'; then
-			mask=${ipm##*/}
-		else
-			mask=
-		fi
+		mask=${ipm##*/}
+
+		[ "$mask" = "$ipm" ] && mask=
+
 		if is_ipv6 "${ip}"; then
+			[ -z "$mask" ] && mask=64
 			add_ipv6 "${ip}" "${mask}"
 		else
 			dev=${DEVICE}
+			[ -z "$mask" ] && mask=255.255.255.0
 			get_aliasid_by_ip ${ip}
 			if [ -n "${IFNUM}" ]; then
 				if [ -f ${IFCFG_DIR}/ifcfg-${DEVICE} ]; then
@@ -230,18 +239,17 @@ function update_dev()
 					IFNUMLIST="${IFNUMLIST}
 ${IFNUM}"
 				fi
-				create_config "${dev}" "${ip}" "${mask}"
-			else
-				put_param ${ifcfg} DEVICE "${DEVICE}"
-				put_param ${ifcfg} ONBOOT yes
-				put_param ${ifcfg} IPADDR "${ip}"
-				put_param ${ifcfg} NETMASK "${mask}"
+				create_config "${dev}"
 			fi
+			ifcfg=${IFCFG_DIR}/ifcfg-$dev
+			put_param ${ifcfg} DEVICE $dev
+			put_param ${ifcfg} IPADDR $ip
+			put_param ${ifcfg} NETMASK $mask
 		fi
 	done
 
 	if [ "${VE_STATE}" != "starting" ]; then
-		ifup ${DEVICE} 2>/dev/null
+		ifup ${DEVICE}
 	fi
 }
 
@@ -256,6 +264,7 @@ function add_ipv6()
 	put_param ${ifcfg} DEVICE "${DEVICE}"
 	put_param ${ifcfg} ONBOOT yes
 	put_param ${ifcfg} IPV6INIT yes
+	[ "$NETWORK_TYPE" = "routed" ] && set_route6 $DEVICE
 	if ! grep -qw "${ip}" ${ifcfg} 2>/dev/null; then
 		if [ -n "${mask}" ]; then
 			ipm="${ip}/${mask}"
@@ -267,30 +276,29 @@ function add_ipv6()
 	fi
 }
 
-setup_default_venet_route()
+setup_default_route()
 {
-	local cfg=${IFCFG_DIR}/ifcfg-venet0
 	local proto=$2
-	local param_nm param_venet0_nm
+	local dev
 
-	if [ "$proto" == "-6" ]; then
-		param_nm=IPV6_DEFAULTGW
-		param_venet0_nm=IPV6_DEFAULTDEV
-	else
-		param_nm=GATEWAY
-		param_venet0_nm=GATEWAYDEV
-		fi
+	dev=$(get_routed_default_dev)
+	[ -z $dev ] && return
 
 	case "$1" in
 	"remove")
-		del_param "$cfg" "$param_venet0_nm"
-		ip $proto r d default dev venet0 2>/dev/null
+		if [ "$proto" == "-6" ]; then
+			rm  -f $IFCFG_DIR/route6-$dev
+		else
+			rm  -f $IFCFG_DIR/route-$dev
+		fi
 		;;
 	"restore")
-		if grep -q "$param_nm" ${IFCFG_DIR}/ifcfg-${DEVICE} 2>/dev/null; then
-			put_param "$cfg" "$param_venet0_nm" venet0
-			ip $proto r r default dev venet0 2>/dev/null
+		if [ "$proto" == "-6" ]; then
+			set_route6 $dev
+		else
+			set_route $dev
 		fi
+		ip $proto r r default dev $dev 2>/dev/null
 		;;
 	esac
 }
@@ -302,12 +310,12 @@ function setup_gw()
 	local cfg=${IFCFG_DIR}/ifcfg-${DEVICE}
 
 	if [ -n "${GWDEL}" ]; then
-		setup_default_venet_route 'restore'
+		setup_default_route 'restore'
 		del_param $cfg GATEWAY
 		changed=yes
 	fi
 	if [ -n "${GW6DEL}" ]; then
-		setup_default_venet_route 'restore' '-6'
+		setup_default_route 'restore' '-6'
 		del_param $cfg IPV6_DEFAULTGW
 		changed=yes
 	fi
@@ -320,12 +328,12 @@ function setup_gw()
 		changed=yes
 	fi
 	if [ -n "${GW}" ]; then
-		setup_default_venet_route 'remove'
+		setup_default_route 'remove'
 		put_param ${cfg} GATEWAY ${GW}
 		changed=yes
 	fi
 	if [ -n "${GW6}" ]; then
-		setup_default_venet_route 'remove' '-6'
+		setup_default_route 'remove' '-6'
 		put_param $cfg IPV6_DEFAULTGW ${GW6}
 		changed=yes
 	fi
@@ -339,22 +347,19 @@ function setup_gw()
 
 function setup()
 {
+	local cfg=${IFCFG_DIR}/ifcfg-${DEVICE}
 
-	if [ ! -d "${IFCFG_DIR}" ]; then
-		mkdir -p ${IFCFG_DIR} 2>/dev/null
+	mkdir -p ${IFCFG_DIR} 2>/dev/null
+	if [ "${VE_STATE}" = "starting" ]; then
+		rm -f ${cfg}:* ${cfg} >/dev/null 2>&1
+		put_param $NETFILE NETWORKING yes
 	fi
-	if [ -n  "${DEVICE}" ]; then
-		if [ "${VE_STATE}" = "starting" ]; then
-			rm -f ${IFCFG_DIR}/ifcfg-${DEVICE}:* ${IFCFG_DIR}/ifcfg-${DEVICE} >/dev/null 2>&1
-			put_param $NETFILE NETWORKING yes
-			if [ "${IPV6}" = "yes" ]; then
-				put_param ${NETFILE} NETWORKING_IPV6 yes
-			fi
-		fi
-		del_ips "${IPDEL}"
-		update_dev "${IPADD}"
-		setup_gw
-	fi
+
+	[ ! -e "$cfg" ] && create_config $DEVICE
+
+	del_ips "${IPDEL}"
+	update_dev "${IPADD}"
+	setup_gw
 }
 
 setup
