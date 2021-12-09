@@ -31,12 +31,14 @@
 #                   (several addresses should be divided by space)
 #   VE_STATE      - state of VPS; could be one of:
 #                     starting | stopping | running | stopped
+#   HNAME         - routed interface name
 . @PKGCONFDIR@/vz.conf
 . @SCRIPTDIR@/vz-functions
 
 vzcheckvar VEID
 
 [ -z "${IP_ADDR}" ] && exit 0
+[ -z "$HNAME" ] && HNAME=venet0
 
 ######## Common stuff - route, ARP, iptables ###########
 # Set routing, iptables, ARP...
@@ -44,7 +46,7 @@ vzgetnetdev
 
 vzarpipdetect "$IP_ADDR"
 for IP in $IP_ADDR; do
-	vzaddrouting $IP
+	vzaddrouting $HNAME $IP
 	vzarp add $IP
 done
 vzarpipset "$IP_ADDR"
@@ -58,4 +60,3 @@ fi
 
 exit 0
 # end of script
-

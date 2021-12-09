@@ -171,6 +171,10 @@ vzcreatepair()
 				vzerror "Unable to rename $v to $VNAME" -1
 			${IP_CMD} -n $VEID link set dev $VNAME up
 			${IP_CMD} link set $HNAME up
+			if [ "$NETWORK_TYPE" = "routed" ]; then
+				sysctl -w net.ipv4.conf.${HNAME}.proxy_arp=1 ||\
+					vzerror "Unable to turn on proxy_arp on $HNAME" -1
+			fi
 			return
 		fi
 
@@ -185,6 +189,10 @@ vzcreatepair()
 		vzerror "Unable to move veth interface $HNAME to host ns" -1
 	${IP_CMD} -n $VEID link set dev $VNAME up
 	${IP_CMD} link set $HNAME up
+	if [ "$NETWORK_TYPE" = "routed" ]; then
+		sysctl -w net.ipv4.conf.${HNAME}.proxy_arp=1 || \
+			vzerror "Unable to turn on proxy_arp on $HNAME" -1
+	fi
 }
 
 # Move an already existing interface to the network namespace given by VEID
@@ -416,22 +424,22 @@ function vzarpipset()
 #   $1 - IP address
 function vzaddrouting()
 {
+	local dev=$1
+	local ip=$2
 	local src_addr=
-	local device=
 	local cmd=
 
 	if [ -n "${VE_ROUTE_SRC_DEV}" -a "${1#*:}" = "${1}" ]; then
-		device="dev ${VE_ROUTE_SRC_DEV}"
-		src_addr=`ip route list table local ${device} | \
+		src_addr=`ip route list table local dev ${VE_ROUTE_SRC_DEV} | \
 			grep '^local'| \
 			grep -v "dev venet0" | cut -d' ' -f2 | \
 			grep -v '^127\.' | head -1`
 		if [ -z "${src_addr}" ]; then
-			vzerror "Unable to get source ip [${device}]" $VZ_CANT_ADDIP
+			vzerror "Unable to get source ip [$VE_ROUTE_SRC_DEV]" $VZ_CANT_ADDIP
 		fi
 		src_addr="src ${src_addr}"
 	fi
-	cmd="${IP_CMD} route replace $1 dev venet0 ${src_addr}"
+	cmd="${IP_CMD} route replace $ip dev $dev ${src_addr}"
 	${cmd} || vzerror "Unable to set route: ${cmd}" $VZ_CANT_ADDIP
 }
 
