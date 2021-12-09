@@ -202,7 +202,7 @@ vzmoveif()
 # Removes the interface referred to by VNAME from the container.
 vzdestroylink()
 {
-	${IP_CMD} netns exec $VEID ${IP_CMD} link delete $VNAME type veth
+	${IP_CMD} -n $VEID link delete $VNAME type veth
 }
 
 # desired mac addresses.  The host mac address is given by HMAC, and the
@@ -216,13 +216,12 @@ vzadjustmacs()
 
 	[ "x$VMAC" = "x" ] && return
 
-	o=`${IP_CMD} netns exec $VEID ${IP_CMD} link list dev $VNAME | \
+	o=`${IP_CMD} -n $VEID link list dev $VNAME | \
 		awk '/link\/ethe/{print toupper($2)}'`
 
 	if [ "$VMAC" != "$o" ]; then
-		${IP_CMD} netns exec $VEID ${IP_CMD} link set dev $VNAME address $VMAC
+		${IP_CMD} -n $VEID link set dev $VNAME address $VMAC
 	fi
-
 }
 
 # Bridge configuration function.
@@ -252,7 +251,7 @@ vzconfbridge()
 # what we should call to undo the operation.
 vzregainif()
 {
-	${IP_CMD} netns exec $VEID ${IP_CMD} link set $VNAME netns $$
+	${IP_CMD} -n $VEID link set $VNAME netns $$
 }
 
 # This function fills $NETDEVICES with all network interfaces
