@@ -42,7 +42,6 @@ VZ_SET_ACCOUNT=81
 VE_STATE_DIR="/var/vz/veip/"
 CONF_DIR=@VPSCONFDIR@
 VZ_IP_CLASSES="${CONF_DIR}/networks_classes"
-SUSPEND_CONF_DIR="/etc/vz/vzreboot"
 PS_START_LOCK_FILE="/var/lock/subsys/ps_start_lock"
 PRAM_MOUNT_POINT="/mnt/pram"
 
@@ -592,21 +591,6 @@ function mount_pram()
 	fi
 
 	return 0
-}
-
-#Detect reboot is configured with kexec for fast reboot
-function is_fast_reboot()
-{
-	is_loaded=$(cat /sys/kernel/kexec_loaded)
-	[ "$is_loaded" != "1" ] && return 1
-
-	return 0
-}
-
-#return list of CTs that were suspended for fast reboot
-function get_suspended_ves()
-{
-	ls -1 ${SUSPEND_CONF_DIR} 2>/dev/null
 }
 
 # Compute and return TCID from current VEID
