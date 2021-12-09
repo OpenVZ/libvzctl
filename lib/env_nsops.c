@@ -1880,7 +1880,7 @@ static int veth_ctl(struct vzctl_env_handle *h, int op,
 {
 	int ret = 0;
 	char *arg[] = { NULL, NULL };
-	char *envp[11];
+	char *envp[13];
 	char buf[STR_SIZE];
 	char script[PATH_MAX];
 	int i = 0;
@@ -1904,6 +1904,11 @@ static int veth_ctl(struct vzctl_env_handle *h, int op,
 	if (dev->dev_name[0] != '\0') {
 		snprintf(buf, sizeof(buf), "HNAME=%s", dev->dev_name);
 		envp[i++] = strdup(buf);
+	}
+
+	if (dev->nettype == VZCTL_NETTYPE_ROUTED) {
+		envp[i++] = strdup("NETWORK_TYPE=routed");
+		envp[i++] = ip2str("IP_ADDR=", &dev->ip_list, 0);
 	}
 
 	envp[i] = NULL;

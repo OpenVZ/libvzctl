@@ -283,6 +283,9 @@ static int run_vznetcfg(struct vzctl_env_handle *h, struct vzctl_veth_dev *dev)
 		NULL
 	};
 
+	if (dev->nettype == VZCTL_NETTYPE_ROUTED)
+		return 0;
+
 	snprintf(veid, sizeof(veid), "VEID=%s", h->ctid);
 	env[i++] = veid;
 	if (dev->nettype == VZCTL_NETTYPE_BRIDGE)
@@ -504,6 +507,8 @@ int merge_veth_ifname_param(struct vzctl_env_handle *h,
 				" is not configured", veth->dev_name_ve);
 	if (veth->dev_name[0] == '\0')
 		strcpy(veth->dev_name, d->dev_name);
+	if (veth->nettype == 0)
+		veth->nettype = d->nettype;
 
 	/* trun dhcp off on ip address set*/
 	list_for_each(it, &veth->ip_list, list) {
@@ -566,6 +571,9 @@ static int env_veth_configure(struct vzctl_env_handle *h, int add,
 		i = 0;
 		snprintf(buf, sizeof(buf), "VE_STATE=%s", get_state(h));
 		env[i++] = strdup(buf);
+
+		if (it_dev->nettype == VZCTL_NETTYPE_ROUTED)
+			env[i++] = strdup("NETWORK_TYPE=routed");
 
 		snprintf(buf, sizeof(buf), "DEVICE=%s", it_dev->dev_name_ve);
 		env[i++] = strdup(buf);
@@ -794,6 +802,10 @@ char *veth2str(struct vzctl_env_param *env, struct vzctl_veth_param *new,
 			sp += snprintf(sp, ep - sp, "type=bridge,");
 			if (sp >= ep)
 				break;
+		} else if (it->nettype == VZCTL_NETTYPE_ROUTED) {
+			sp += snprintf(sp, ep - sp, "type=routed,");
+			if (sp >= ep)
+				break;
 		}
 		if (it->vporttype == VZCTL_VPORTTYPE_OVS) {
 			sp += snprintf(sp, ep - sp, "vport=ovs,");
@@ -918,6 +930,8 @@ static int get_nettype(const char *str, int *type)
 {
 	if (strcmp("bridge", str) == 0)
 		*type = VZCTL_NETTYPE_BRIDGE;
+	else if (strcmp("routed", str) == 0)
+		*type = VZCTL_NETTYPE_ROUTED;
 	else
 		return VZCTL_E_INVAL;
 

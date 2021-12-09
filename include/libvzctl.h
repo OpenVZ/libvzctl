@@ -224,6 +224,8 @@ typedef enum {
 enum vzctl_veth_nettype {
 	VZCTL_NETTYPE_BRIDGE	= 1,
 	VZCTL_NETTYPE_VNET	= 2,
+	VZCTL_NETTYPE_ROUTED	= 3,
+	VZCTL_NETTYPE_MAX	= VZCTL_NETTYPE_ROUTED,
 };
 
 enum vzctl_veth_vport_type {
