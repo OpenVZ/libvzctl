@@ -724,7 +724,7 @@ vzcreate_nft_rules()
 
 	[ -z "${veth}" ] && return
 
-	configured=`nft list tables netdev | grep ve_${ctid}`
+	configured=`nft list tables netdev | grep -w ve_${ctid}`
 	if [ -z "${configured}" ]; then
 		vzrun ${NFT_CMD} add table netdev ve_${ctid}
 		vzrun ${NFT_CMD} add set netdev ve_${ctid} mac_list \
