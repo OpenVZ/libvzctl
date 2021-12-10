@@ -334,7 +334,7 @@ function parallel_execution()
 		while [ ! -z "${pids}" ]; do
 			for pid in ${pids}; do
 				kill -0 ${pid} > /dev/null 2>&1
-				[ $? -eq 0 ] && usleep ${delay} && continue
+				[ $? -eq 0 ] && sleep ${delay} && continue
 				wait ${pid} || vzwarning "${command_list[${pid}]} FAILED"
 				pids=$(echo ${pids} | sed "s,\<${pid}\>,,g")
 			done
@@ -367,7 +367,7 @@ function vzarpipdetect()
 		done
 	done
 	# Duplicate address detection mode (DAD). Returns 0, if DAD succeeded i.e. no replies are received
-	parallel_execution 1000000 "${ARPING_CMD} ${ARPING_ARGS} -w 1 -D -I" ipv4_pairs[@]
+	parallel_execution 1 "${ARPING_CMD} ${ARPING_ARGS} -w 1 -D -I" ipv4_pairs[@]
 }
 
 # Send ARP request to update neighbour ARP caches
@@ -405,10 +405,10 @@ function vzarpipset()
 	lockfile ${VZ_ARP_ANNOUNCE_LOCK}
 	nonlocal_bind_prev=$(cat /proc/sys/net/ipv4/ip_nonlocal_bind)
 	echo "1" > /proc/sys/net/ipv4/ip_nonlocal_bind
-	parallel_execution 100000 "${ARPING_CMD} ${ARPING_ARGS} -A -I" ipv4_pairs[@]
+	parallel_execution 1 "${ARPING_CMD} ${ARPING_ARGS} -A -I" ipv4_pairs[@]
 	echo "${nonlocal_bind_prev}" > /proc/sys/net/ipv4/ip_nonlocal_bind
 	rm -rf ${VZ_ARP_ANNOUNCE_LOCK} > /dev/null 2>&1
-	parallel_execution 100000 "${NDSEND_CMD}" ipv6_pairs[@]
+	parallel_execution 1 "${NDSEND_CMD}" ipv6_pairs[@]
 }
 
 # Sets VE0 source routing for given IP
