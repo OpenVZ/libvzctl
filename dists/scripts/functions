@@ -400,8 +400,8 @@ function remove_debian_interface()
 
 	awk '
 		NF == 0 {next}
-		$1 == "auto" && $2 ~/'${dev}'$/ {next}
-		$1 == "iface" && $2 ~/'${dev}'$/ {skip = 1; next}
+		$1 == "auto" && $2 ~/'${dev}$'/ {next}
+		$1 == "iface" && $2 ~/'${dev}$'/ {skip = 1; next}
 		/^\t/ && skip {next}
 		{skip = 0; print}
 	' < ${cfg} > ${cfg}.$$ && mv -f ${cfg}.$$ ${cfg}
@@ -409,18 +409,30 @@ function remove_debian_interface()
 	rm -f ${cfg}.$$ 2>/dev/null
 }
 
-restore_debian_venet_route()
+get_routed_default_dev()
+{
+	if [ -z "$1" ]; then
+		dev=`grep -l $ROUTED_UUID ${IFCFG_DIR}/ifcfg-* | head -n1`
+		[ -n "$dev" ] && echo "${dev##*-}"
+	else
+		awk '/'$ROUTED_UUID'/{print $2; exit}' $1
+	fi
+}
+
+restore_debian_default_route()
 {
 	local proto=$1
 	local cmd iproto
 	local cfg=/etc/network/interfaces
+	local dev=`get_routed_default_dev $cfg`
 
+	[ -z "$dev" ] && return
 	if [ "$proto" = "-6" ]; then
 		iproto=inet6
-		cmd='up ip -6 r a default dev venet0'
+		cmd="up ip -6 route add default dev $dev"
 	else
 		iproto=inet
-		cmd='up route add default dev venet0'
+		cmd="up ip route add default dev $dev"
 	fi
 
 	if grep -qe "$cmd" ${cfg}; then
@@ -431,11 +443,15 @@ restore_debian_venet_route()
 		error "Can't copy file ${cfg}" $VZ_FS_NO_DISK_SPACE
 
 	awk '
+		BEGIN {addgw = 0}
 		NF == 0 {next}
 		/^\t/ { print; next ;}
 		addgw { print "\t'"$cmd"'"; addgw=0; print; next }
-		$1 == "iface" && $2 == "venet0" && $3 == "'"$iproto"'" { addgw=1 }
+		$1 == "iface" && $2 == "'$dev'" && $3 == "'"$iproto"'" { addgw=1 }
 		{print}
+		END {
+			if (addgw) {print "\t'"$cmd"'"}
+		}
 	' < ${cfg} > ${cfg}.$$ && mv -f ${cfg}.$$ ${cfg}
 
 	ip $proto r r default dev venet0 2>/dev/null
