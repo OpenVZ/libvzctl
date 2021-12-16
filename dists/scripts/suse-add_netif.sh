@@ -97,7 +97,10 @@ function create_config()
 	local ifcfg=${IFCFG_DIR}/ifcfg-${dev}
 	local cfg
 
-	cfg="STARTMODE=onboot
+	[ "$NETWORK_TYPE" = "routed" ] && cfg="#$ROUTED_UUID $dev"
+
+	cfg="$cfg
+STARTMODE=onboot
 BOOTPROTO=static
 IPADDR=$ip"
 	if [ -n "${mask}" ]; then
@@ -111,6 +114,10 @@ NETMASK=${mask}"
 	fi
 
 	echo "${cfg}" > ${ifcfg} || error "Unable to create interface config file ${ifcfg}" ${VZ_FS_NO_DISK_SPACE}
+
+	echo "169.254.0.1 - - $dev" ${IFCFG_DIR}/ifroute-$dev
+	setup_default_route 'restore'
+	[ "${IPV6}" = "yes" ] && setup_default_route 'restore' '-6'
 }
 
 function add_alias()
@@ -242,7 +249,6 @@ function del_ips_by_proto()
 	fi
 }
 
-
 function get_param()
 {
 	local file="$1"
@@ -295,17 +301,17 @@ function set_dhcp()
 		put_param ${cfg} BOOTPROTO ${dhcp_mode}
 		if [ "$dhcp_mode" = "dhcp" ]; then
 			del_ips all
-			setup_default_venet_route 'remove'
-			setup_default_venet_route 'remove' '-6'
+			setup_default_route 'remove'
+			setup_default_route 'remove' '-6'
 			remove_default_gw
 			remove_default_gw6
 		elif [ "$dhcp_mode" = "dhcp4" ]; then
 			del_ips_by_proto 4
-			setup_default_venet_route 'remove'
+			setup_default_route 'remove'
 			remove_default_gw
 		elif [ "$dhcp_mode" = "dhcp6" ]; then
 			del_ips_by_proto 6
-			setup_default_venet_route 'remove' '-6'
+			setup_default_route 'remove' '-6'
 			remove_default_gw6
 		fi
 	fi
@@ -329,6 +335,7 @@ function update_dev()
 		if echo "${ipm}" | grep -q '/'; then
 			mask=${ipm##*/}
 		fi
+
 		found=
 		if grep -q -w "${ip}" ${cfg} 2>/dev/null; then
 			continue
@@ -350,20 +357,19 @@ function update_dev()
 			fi
 		done
 		add_alias "${DEV}" "${ifnum}" "${ip}" "${mask}"
+		IFACE_CHANGED=yes
 	done
 
 	if [ -n "${DHCP4}" -o -n "${DHCP6}" ]; then
 		set_dhcp
+		CHANGED=yes
 	elif [ -n "$ORIG_BOOTPROTO" -a "$ORIG_BOOTPROTO" != "static" ]; then
 		if [ -n "$has_ip6" -o -n "$has_ip4" ]; then
 			[ -n "$has_ip4" ] && DHCP4=no
 			[ -n "$has_ip6" ] && DHCP6=no
 			set_dhcp
+			CHANGED=yes
 		fi
-	fi
-
-	if [ "${VE_STATE}" != "starting" ]; then
-		restart_network
 	fi
 }
 
@@ -407,34 +413,35 @@ add_gw6()
 		error "Can't change file $ROUTES" $VZ_FS_NO_DISK_SPACE
 }
 
-setup_default_venet_route()
+setup_default_route()
 {
-	local cfg=${IFCFG_DIR}/ifroute-venet0
+	local rdev=`get_routed_default_dev`
+	local cfg=${IFCFG_DIR}/ifroute-$rdev
 	local proto=$2
+
+	[ -z "$rdev" ] && return
 
 	case "$1" in
 	"remove")
 		if [ "$proto" = "-6" ]; then
-		        if grep -qe '^default :: -' $cfg 2>/dev/null; then
-                		sed -i -e '/^default :: -/d' $cfg
+		        if grep -qe '^::' $cfg 2>/dev/null; then
+				sed -i -e '/^::/d' $cfg
         		fi
 		else
 		        if grep -qe '^default - -' $cfg 2>/dev/null; then
-                		sed -i -e '/^default - -/d' $cfg
+				sed -i -e '/^default/d' $cfg
         		fi
 		fi
-		ip $proto r d default dev venet0 2>/dev/null
+		ip $proto r d default dev $rdev 2>/dev/null
 		;;
 	"restore")
 		if [ "$proto" = "-6" ]; then
-			if ! grep -qe '^default ::' ${IFCFG_DIR}/ifroute-venet0 2>/dev/null; then
-				echo "default :: - venet0" >> ${IFCFG_DIR}/ifroute-venet0
-				ip $proto r r default dev venet0 2>/dev/null
+			if ! grep -qe '^::' $cfg 2>/dev/null; then
+				echo ":: - - $rdev" >> $cfg
 			fi
 		else
-			if ! grep -qe '^default -' ${IFCFG_DIR}/ifroute-venet0 2>/dev/null; then
-				echo "default - - venet0" >> ${IFCFG_DIR}/ifroute-venet0
-				ip $proto r r default dev venet0 2>/dev/null
+			if ! grep -qe '^default' $cfg 2>/dev/null; then
+				echo "default 169.254.0.1 - $rdev" >> $cfg
 			fi
 		fi
 		;;
@@ -443,40 +450,31 @@ setup_default_venet_route()
 
 function setup_gw()
 {
-	local $dev=$1
-	local changed=
-
 	if [ -n "${GWDEL}" ]; then
 		if remove_default_gw; then
-			setup_default_venet_route 'restore'
+			setup_default_route 'restore'
 		fi
-		changed=yes
+		CHANGED=yes
 	fi
 	if [ -n "${GW6DEL}" ]; then
 		if remove_default_gw6; then
-			setup_default_venet_route 'restore' '-6'
+			setup_default_route 'restore' '-6'
 		fi
-		changed=yes
+		CHANGED=yes
 	fi
 	if [ -n "${DEFAULT_GW}" ]; then
 		put_param2 ${ROUTES} default "${DEFAULT_GW} - -"
-		changed=yes
+		CHANGED=yes
 	fi
 	if [ -n "${GW}" ]; then
 		add_gw "${GW}"
-		setup_default_venet_route 'remove'
-		changed=yes
+		setup_default_route 'remove'
+		CHANGED=yes
 	fi
 	if [ -n "${GW6}" ]; then
 		add_gw6 "${GW6}"
-		setup_default_venet_route 'remove' '-6'
-		changed=yes
-	fi
-
-	if [ -n "${changed}" ]; then
-		if [ "${VE_STATE}" != "starting" ]; then
-			restart_network
-		fi
+		setup_default_route 'remove' '-6'
+		CHANGED=yes
 	fi
 }
 
@@ -487,15 +485,23 @@ function setup()
 	if [ ! -d "${IFCFG_DIR}" ]; then
 		mkdir -p ${IFCFG_DIR} 2>/dev/null
 	fi
-	for dev in ${DEVICE}; do
-		DEV=$dev
-		if [ "${VE_STATE}" = "starting" ]; then
-			rm -f ${IFCFG_DIR}/ifcfg-${DEV} >/dev/null 2>&1
+	DEV=$DEVICE
+	if [ "${VE_STATE}" = "starting" ]; then
+		rm -f ${IFCFG_DIR}/ifcfg-${DEV} >/dev/null 2>&1
+	fi
+	del_ips "${IPDEL}"
+	update_dev "${IPADD}"
+	setup_gw
+
+	if [ "${VE_STATE}" != "starting" ]; then 
+		if [ "$CHANGED" = "yes" ]; then
+			restart_network
+		elif [ "$IFACE_CHANGED" = yes]; then
+			ip addr flush $DEVICE
+			ip link set down $DEVICE
+			wicked ifup $DEVICE
 		fi
-		del_ips "${IPDEL}"
-		update_dev "${IPADD}"
-		setup_gw "$dev"
-	done
+	fi
 }
 
 setup
