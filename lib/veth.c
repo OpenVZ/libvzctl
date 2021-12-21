@@ -46,9 +46,13 @@
 #include "net.h"
 #include "env_ops.h"
 
+static int env_veth_configure(struct vzctl_env_handle *h, int op,
+		struct vzctl_veth_dev *it_dev, int flags);
 
 void free_veth_dev(struct vzctl_veth_dev *dev)
 {
+	if (dev == NULL)
+		return;
 	free(dev->mac);
 	free(dev->mac_ve);
 	free(dev->gw);
@@ -330,12 +334,33 @@ static void fill_veth_dev_name(struct vzctl_env_handle *h,
 	}
 }
 
+int do_veth_ctl(struct vzctl_env_handle *h, int op, struct vzctl_veth_dev *dev, int flags)
+{
+	int ret;
+
+	fill_veth_dev_name(h, dev);
+	logger(0, 0, "%s veth device: %s", (op == ADD) ? "Configure" : "Deleting", dev->dev_name_ve);
+	if (op == ADD) {
+		ret = get_env_ops()->env_veth_ctl(h, ADD, dev, flags);
+		if (ret)
+			return ret;
+		if (dev->network != NULL && (ret = run_vznetcfg(h, dev)))
+			return ret;
+		if (h->env_param->net->rps != VZCTL_PARAM_OFF)
+			configure_net_rps(h->env_param->fs->ve_root, dev->dev_name_ve);
+		env_veth_configure(h, op, dev, flags);
+	} else {
+		env_veth_configure(h, op, dev, flags);
+		ret = get_env_ops()->env_veth_ctl(h, DEL, dev, flags);
+	}
+
+	return ret;
+}
+
 static int veth_ctl(struct vzctl_env_handle *h, int op, list_head_t *head,
 		int flags, int rollback)
 {
 	int ret = 0;
-	char buf[256];
-	char *p, *ep;
 	struct vzctl_veth_dev *it;
 
 	if (list_empty(head))
@@ -345,31 +370,11 @@ static int veth_ctl(struct vzctl_env_handle *h, int op, list_head_t *head,
 		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0,
 				"Unable to %s veth: container is not running",
 				op == ADD ? "create" : "remove");
-	buf[0] = 0;
-	p = buf;
-	ep = buf + sizeof(buf) - 1;
+
 	list_for_each(it, head, list) {
-		p += snprintf(p, ep - p, "%s ", it->dev_name_ve);
-		if (p >= ep)
+		ret = do_veth_ctl(h, op, it, flags);
+		if (ret)
 			break;
-	}
-	logger(0, 0, "%s veth device(s): %s",
-			 (op == ADD) ? "Configure" : "Deleting", buf);
-	list_for_each(it, head, list) {
-		fill_veth_dev_name(h, it);
-		if (op == ADD) {
-			ret = get_env_ops()->env_veth_ctl(h, ADD, it, flags);
-			if (ret)
-				break;
-			if (it->network != NULL && (ret = run_vznetcfg(h, it)))
-				break;
-			if (h->env_param->net->rps != VZCTL_PARAM_OFF)
-				configure_net_rps(h->env_param->fs->ve_root, it->dev_name_ve);
-		} else {
-			ret = get_env_ops()->env_veth_ctl(h, DEL, it, flags);
-			if (ret)
-				break;
-		}
 	}
 
 	/* If operation failed remove devices were added. */
@@ -521,16 +526,15 @@ int merge_veth_ifname_param(struct vzctl_env_handle *h,
 	return add_veth_param(&env->veth->dev_list, veth);
 }
 
-static int env_veth_configure(struct vzctl_env_handle *h, int add,
-		list_head_t *phead, int flags)
+static int env_veth_configure(struct vzctl_env_handle *h, int op,
+		struct vzctl_veth_dev *it_dev, int flags)
 {
-	struct vzctl_veth_dev *it_dev;
 	struct vzctl_ip_param *it_ip;
 	char buf[STR_SIZE];
 	char ip_buf[STR_SIZE * 100];
 	char *env[MAX_ARGS];
 	int ret, r, i = 0;
-	int changed = 0;
+	int changed = op == DEL ? 1 : 0;
 	const char *script;
 	int ipv6 = 0;
 	char *ip_p, *ip_e = ip_buf +  sizeof(ip_buf);
@@ -538,10 +542,13 @@ static int env_veth_configure(struct vzctl_env_handle *h, int add,
 	if (flags & (VZCTL_SKIP_CONFIGURE | VZCTL_RESTORE))
 		return 0;
 
+	if (it_dev->configure_mode == VZCTL_VETH_CONFIGURE_NONE)
+		return 0;
+
 	if ((ret = read_dist_actions(h)))
 		return ret;
 
-	if (add) {
+	if (op == ADD) {
 		script = h->dist_actions->netif_add;
 		if (script == NULL) {
 			logger(-1, 0, "Warning: NETIF_ADD action not is"
@@ -559,15 +566,8 @@ static int env_veth_configure(struct vzctl_env_handle *h, int add,
 	if (vzctl2_env_get_param_bool(h, "IPV6") == VZCTL_PARAM_ON)
 		ipv6 = 1;
 
-	list_for_each(it_dev, phead, list) {
+	{
 		list_head_t *ip_list_head;
-
-		if (it_dev->configure_mode == VZCTL_VETH_CONFIGURE_NONE)
-			continue;
-
-		if (!add)
-			changed++;
-
 		i = 0;
 		snprintf(buf, sizeof(buf), "VE_STATE=%s", get_state(h));
 		env[i++] = strdup(buf);
@@ -684,7 +684,6 @@ static int env_veth_configure(struct vzctl_env_handle *h, int add,
 			}
 		} while(0);
 
-		changed = 0;
 		free_ar_str(env);
 	}
 out:
@@ -705,17 +704,82 @@ int apply_veth_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 	}
 
 	if (veth->delall) {
-		env_veth_configure(h, 0, &h->env_param->veth->dev_list, flags);
 		veth_ctl(h, DEL, &h->env_param->veth->dev_list, flags, 0);
 	} else if (!list_empty(&veth->dev_del_list)) {
-		env_veth_configure(h, 0, &veth->dev_del_list, flags);
 		veth_ctl(h, DEL, &veth->dev_del_list, flags, 0);
 	}
-	if (!list_empty(&veth->dev_list)) {
+	if (!list_empty(&veth->dev_list))
 		ret = veth_ctl(h, ADD, &veth->dev_list, flags, 1);
-		if (ret == 0)
-			env_veth_configure(h, 1, &veth->dev_list, flags);
+
+	return ret;
+}
+
+static int remove_ipv6_addr(struct vzctl_net_param *net)
+{
+	list_head_t *head = &net->ip;
+	struct vzctl_ip_param *it, *tmp;
+	int cnt;
+
+	cnt = 0;
+	list_for_each_safe(it, tmp, head, list) {
+		if (strchr(it->ip, ':')) {
+			free(it->ip);
+			list_del(&it->list);
+			free(it);
+			cnt++;
+		}
 	}
+	return cnt;
+}
+#define LEGACY_VENET_NAME	"venet1"
+int apply_venet_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags)
+{
+	int ret;
+	struct vzctl_net_param *net = env->net;
+	struct vzctl_veth_dev *venet;
+
+	if (list_empty(&net->ip) &&
+			list_empty(&net->ip_del) &&
+			!net->delall)
+		return 0;
+
+	if (!is_env_run(h))
+		return vzctl_err(VZCTL_E_ENV_NOT_RUN, 0, "Unable to apply ip"
+				" parameters: Container is not running");
+
+	if (vzctl2_env_get_param_bool(h, "IPV6") != VZCTL_PARAM_ON) {
+		if (remove_ipv6_addr(net))
+			logger(0, 0, "Warning: ipv6 support disabled");
+	}
+
+	venet = find_veth_by_ifname_ve(&h->env_param->veth->dev_list, LEGACY_VENET_NAME);
+	if (venet == NULL) {
+		// generate venet mac and preserve it in the CT config
+		venet = alloc_veth_dev();
+		if (venet == NULL)
+			return VZCTL_E_NOMEM;
+		snprintf(venet->dev_name_ve, sizeof(venet->dev_name_ve), "%s", LEGACY_VENET_NAME);
+		venet->nettype = VZCTL_NETTYPE_ROUTED;
+		fill_empty_veth_dev_param(NULL, venet);
+		list_add_tail(&venet->list, &h->env_param->veth->dev_list);
+		char *s = veth2str(h->env_param, h->env_param->veth, 0);
+		if (s == NULL)
+			return VZCTL_E_NOMEM;
+
+		vzctl2_env_set_param(h, "NETIF", s);
+		ret = vzctl2_env_save_conf(h, h->conf ? h->conf->fname : NULL);
+		free(s);
+		if (ret)
+			return ret;
+	}
+	venet->mac_filter = 1;
+	venet->ip_filter = 1;
+	venet->ip_delall = net->delall;
+	list_moveall(&net->ip, &venet->ip_list);
+	list_moveall(&net->ip_del, &venet->ip_del_list);
+	ret = do_veth_ctl(h, ADD, venet, flags);
+	list_moveall(&venet->ip_list, &net->ip);
+	list_moveall(&venet->ip_del_list, &net->ip_del);
 
 	return ret;
 }

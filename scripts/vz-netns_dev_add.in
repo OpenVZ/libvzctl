@@ -46,6 +46,37 @@ vzcheckvar VEID
 vzcheckvar VNAME
 vzcheckvar HNAME
 
+# Set routing, iptables, ARP...
+add_routed_ips()
+{
+	local ips=$1
+
+	[ -z "$ips" ] && return
+	[ ! -d "$VE_STATE_DIR" ] && mkdir -p $VE_STATE_DIR
+	vzarpipdetect "$ips"
+	for ip in $ips; do
+		vzaddrouting $HNAME $ip
+		vzarp add $ip
+		if ! grep -wq "$ip" $VE_STATE_DIR/$VEID; then
+			echo $ip >> $VE_STATE_DIR/$VEID
+		fi
+	done
+	vzarpipset $ips
+}
+
+del_routed_ips()
+{
+	for ip in $1; do
+		if [ "$ip" = "all" ]; then
+			clean_routed_ips $HNAME
+			break;
+		fi
+		vzdelrouting $ip
+		vzarp del $ip
+		sed -i '/^'"$ip"'/d' $VE_STATE_DIR/$VEID 2>/dev/null
+	done
+}
+
 if [ "x$HNAME" = "x$VNAME" ]; then
 	vzmoveif
 else
@@ -63,8 +94,10 @@ if [ ! -z ${vzread_tc_class_RET} ]; then
 	done
 fi
 
-if [ "$NETWORK_TYPE" = "routed" ]; then 
-	exec @SCRIPTDIR@/vz-net_add
+if [ "$NETWORK_TYPE" = "routed" ]; then
+	vzgetnetdev
+	add_routed_ips "$IP_ADD"
+	del_routed_ips "$IP_DEL"
 fi
 
 exit 0

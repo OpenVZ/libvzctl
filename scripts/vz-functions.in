@@ -317,6 +317,17 @@ function vzarp()
 	done
 }
 
+clean_routed_ips()
+{
+	[ -z "$NETDEVICES" ] && vzgetnetdev
+	for ip in `cat $VE_STATE_DIR/$VEID 2>/dev/null`; do
+		ip=${ip%%/*}
+		vzdelrouting $ip
+		vzarp del $ip
+	done
+	rm -f $VE_STATE_DIR/$VEID
+}
+
 function parallel_execution()
 {
 	local counter=0

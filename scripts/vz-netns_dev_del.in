@@ -36,6 +36,8 @@
 vzcheckvar VEID
 vzcheckvar VNAME
 
+[ "$NETWORK_TYPE" = "routed" ] && clean_routed_ip
+
 if [ "x$VNAME" = "x$HNAME" ]; then
 	vzregainif
 else

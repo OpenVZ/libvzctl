@@ -1869,7 +1869,7 @@ static int veth_ctl(struct vzctl_env_handle *h, int op,
 {
 	int ret = 0;
 	char *arg[] = { NULL, NULL };
-	char *envp[13];
+	char *envp[17];
 	char buf[STR_SIZE];
 	char script[PATH_MAX];
 	int i = 0;
@@ -1897,7 +1897,17 @@ static int veth_ctl(struct vzctl_env_handle *h, int op,
 
 	if (dev->nettype == VZCTL_NETTYPE_ROUTED) {
 		envp[i++] = strdup("NETWORK_TYPE=routed");
-		envp[i++] = ip2str("IP_ADDR=", &dev->ip_list, 0);
+		if (!list_empty(&dev->ip_list))
+			envp[i++] = ip2str("IP_ADD=", &dev->ip_list, 0);
+		if (dev->ip_delall)
+			envp[i++] = strdup("IP_DEL=all");
+		else if (!list_empty(&dev->ip_del_list))
+			envp[i++] = ip2str("IP_DEL=", &dev->ip_del_list, 0);
+
+		if (flags & VZCTL_SKIP_ARPDETECT)
+			envp[i++] = "SKIP_ARPDETECT=yes";
+		snprintf(buf, sizeof(buf), "VE_STATE=%s", get_state(h));
+		envp[i++] = strdup(buf);
 	}
 
 	envp[i] = NULL;
