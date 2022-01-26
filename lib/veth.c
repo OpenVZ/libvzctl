@@ -731,7 +731,7 @@ static int remove_ipv6_addr(struct vzctl_net_param *net)
 	}
 	return cnt;
 }
-#define LEGACY_VENET_NAME	"venet1"
+#define LEGACY_VENET_NAME	"venet0"
 int apply_venet_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags)
 {
 	int ret;

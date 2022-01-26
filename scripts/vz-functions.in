@@ -184,6 +184,11 @@ vzcreatepair()
 		${IP_CMD} link delete $HNAME || echo "Unable to delete veth interface $HNAME"
 	fi
 
+	if [ "$VNAME" = "venet0" ]; then
+		if ${IP_CMD} -n $VEID l l dev venet0 2>/dev/null | grep -q POINTOPOINT; then
+			${IP_CMD} -n $VEID l s dev venet0 name xvenet0
+		fi
+	fi
 	${IP_CMD} -n $VEID link add name $HNAME type veth peer name $VNAME || \
 		vzerror "Unable to create veth pair ($HNAME, $VNAME)" -1
 	${IP_CMD} -n $VEID link set $HNAME netns $$ || \
