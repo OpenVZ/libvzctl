@@ -97,14 +97,19 @@ function create_config()
 	local ifcfg=${IFCFG_DIR}/ifcfg-${dev}
 	local cfg
 
-	[ "$NETWORK_TYPE" = "routed" ] && cfg="#$ROUTED_UUID $dev"
+	if [ "$NETWORK_TYPE" = "routed" ]; then
+		cfg="# $ROUTED_UUID $dev"
+		if is_ipv6 "$ip"; then
+			mask=128
+		fi
+	fi
 
 	cfg="$cfg
 STARTMODE=onboot
 BOOTPROTO=static
 IPADDR=$ip"
 	if [ -n "${mask}" ]; then
-		if is_ipv6 ${ip}; then
+		if is_ipv6 "$ip"; then
 			cfg="$cfg
 PREFIXLEN=${mask}"
 		else
@@ -114,10 +119,12 @@ NETMASK=${mask}"
 	fi
 
 	echo "${cfg}" > ${ifcfg} || error "Unable to create interface config file ${ifcfg}" ${VZ_FS_NO_DISK_SPACE}
-
-	echo "169.254.0.1 - - $dev" ${IFCFG_DIR}/ifroute-$dev
-	setup_default_route 'restore'
-	[ "${IPV6}" = "yes" ] && setup_default_route 'restore' '-6'
+	if [ "$NETWORK_TYPE" = "routed" ]; then
+		echo "169.254.0.1 - - -
+fe80::ffff:1:1 - - -" > ${IFCFG_DIR}/ifroute-$dev
+		setup_default_route 'restore'
+		[ "${IPV6}" = "yes" ] && setup_default_route 'restore' '-6'
+	fi
 }
 
 function add_alias()
@@ -128,6 +135,12 @@ function add_alias()
 	local mask=$4
 	local ifcfg=${IFCFG_DIR}/ifcfg-${dev}
 	local cfg
+
+	if [ "$NETWORK_TYPE" = "routed" ]; then
+		if is_ipv6 "$ip"; then
+			mask=128
+		fi
+	fi
 
 	if [ ! -f ${ifcfg} ]; then
 		create_config $dev "$ip" "$mask"
@@ -342,7 +355,7 @@ function update_dev()
 		fi
 
 		if is_ipv6 ${ip}; then
-			has_ip4=yes
+			has_ip6=yes
 		else
 			has_ip4=yes
 		fi
@@ -424,25 +437,27 @@ setup_default_route()
 	case "$1" in
 	"remove")
 		if [ "$proto" = "-6" ]; then
-		        if grep -qe '^::' $cfg 2>/dev/null; then
-				sed -i -e '/^::/d' $cfg
+		        if grep -qe 'default fe80::ffff:1:1' $cfg 2>/dev/null; then
+				sed -i -e '/default fe80::ffff:1:1/d' $cfg
         		fi
 		else
-		        if grep -qe '^default - -' $cfg 2>/dev/null; then
-				sed -i -e '/^default/d' $cfg
+		        if grep -qe 'default 169.254.0.1' $cfg 2>/dev/null; then
+				sed -i -e '/default 169.254.0.1/d' $cfg
         		fi
 		fi
 		ip $proto r d default dev $rdev 2>/dev/null
 		;;
 	"restore")
 		if [ "$proto" = "-6" ]; then
-			if ! grep -qe '^::' $cfg 2>/dev/null; then
-				echo ":: - - $rdev" >> $cfg
+			if ! grep -qe 'default fe80::ffff:1:1' $cfg 2>/dev/null; then
+				echo "default fe80::ffff:1:1 - -" >> $cfg
 			fi
+			ip $proto r r default via fe80::ffff:1:1 dev $rdev 2>/dev/null
 		else
-			if ! grep -qe '^default' $cfg 2>/dev/null; then
-				echo "default 169.254.0.1 - $rdev" >> $cfg
+			if ! grep -qe 'default 169.254.0.1' $cfg 2>/dev/null; then
+				echo "default 169.254.0.1 - -" >> $cfg
 			fi
+			ip $proto r r default via 169.254.0.1 dev $rdev 2>/dev/null
 		fi
 		;;
 	esac
@@ -496,7 +511,7 @@ function setup()
 	if [ "${VE_STATE}" != "starting" ]; then 
 		if [ "$CHANGED" = "yes" ]; then
 			restart_network
-		elif [ "$IFACE_CHANGED" = yes]; then
+		elif [ "$IFACE_CHANGED" = yes ]; then
 			ip addr flush $DEVICE
 			ip link set down $DEVICE
 			wicked ifup $DEVICE

@@ -50,7 +50,8 @@ set_route()
 set_route6()
 {
 	local dev=$1
-	echo "default dev $dev" > $IFCFG_DIR/route6-$dev || \
+	echo "fe80::ffff:1:1 dev $dev
+default via fe80::ffff:1:1 dev $dev" > $IFCFG_DIR/route6-$dev || \
 		error "Unable to create $IFCFG_DIR/route6-$dev" ${VZ_FS_NO_DISK_SPACE}
 }
 
@@ -62,6 +63,7 @@ function create_config()
 
 	if [ "$NETWORK_TYPE" = "routed" ]; then
 		set_route $dev
+		set_route6 $dev
 		cfg="# $ROUTED_UUID $dev
 ARPUPDATE=no
 ARPCHECK=no"
@@ -227,8 +229,7 @@ function update_dev()
 		[ "$mask" = "$ipm" ] && mask=
 
 		if is_ipv6 "${ip}"; then
-			[ -z "$mask" ] && mask=64
-			add_ipv6 "${ip}" "${mask}"
+			add_ipv6 "$ip" "$mask"
 		else
 			dev=${DEVICE}
 			[ -z "$mask" ] && mask=255.255.255.0
@@ -258,20 +259,15 @@ function add_ipv6()
 	local ifcfg="${IFCFG_DIR}/ifcfg-${DEVICE}"
 	local ip=$1
 	local mask=$2
-	local ipm
 
 	put_param ${NETFILE} NETWORKING_IPV6 yes
 	put_param ${ifcfg} DEVICE "${DEVICE}"
 	put_param ${ifcfg} ONBOOT yes
 	put_param ${ifcfg} IPV6INIT yes
-	[ "$NETWORK_TYPE" = "routed" ] && set_route6 $DEVICE
+	[ "$NETWORK_TYPE" = "routed" ] && mask=128
 	if ! grep -qw "${ip}" ${ifcfg} 2>/dev/null; then
-		if [ -n "${mask}" ]; then
-			ipm="${ip}/${mask}"
-		else
-			ipm="${ip}/64"
-		fi
-		add_param ${ifcfg} IPV6ADDR_SECONDARIES "${ipm}"
+		[ -z "$mask" ] && mask=64
+		add_param ${ifcfg} IPV6ADDR_SECONDARIES "$ip/$mask"
 		if_restart=yes
 	fi
 }

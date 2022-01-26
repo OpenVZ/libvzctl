@@ -395,6 +395,8 @@ function remove_debian_interface()
 	local dev="$1"
 	local cfg="$2"
 
+	[ ! -e "$cfg" ] && return
+
 	${CP} ${cfg} ${cfg}.$$ || \
 		error "Can't copy file ${cfg}" $VZ_FS_NO_DISK_SPACE
 

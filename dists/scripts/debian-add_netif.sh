@@ -164,6 +164,7 @@ function add_ip()
 	local cfg
 
 	if [ "$proto" == "inet6" ]; then
+		[ "$NETWORK_TYPE" = "routed" ] && mask=128
 		[ -z "${mask}" ] && mask=64
 	else
 		[ -z "${mask}" ] && mask=255.255.255.0
@@ -183,7 +184,8 @@ iface ${dev} ${proto} static
 
 		if [ "$proto" == "inet6" ]; then
 			cfg="$cfg
-	up ip -6 route add default dev $dev"
+	up ip -6 route add fe80::ffff:1:1 dev $dev
+	up ip -6 route add default via fe80::ffff:1:1 dev $dev"
 		else
 			cfg="$cfg
 	up ip route add default dev $dev"
@@ -354,7 +356,7 @@ remove_default_route6()
 	[ -z "$dev" ] && return
 
 	ip -6 r d default dev $dev 2>/dev/null
-	sed '/up ip -6 route add default dev '$dev'$/d' ${CFGFILE} > ${CFGFILE}.$$
+	sed '/up ip -6 route add default via fe80::ffff:1:1 dev '$dev'$/d' ${CFGFILE} > ${CFGFILE}.$$
 	if [ $? -ne 0 ]; then
 		rm -f ${CFGFILE}.$$ 2>/dev/null
 		return

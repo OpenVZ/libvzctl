@@ -173,7 +173,8 @@ vzcreatepair()
 			${IP_CMD} link set $HNAME up
 			if [ "$NETWORK_TYPE" = "routed" ]; then
 				sysctl -w net.ipv4.conf.${HNAME}.proxy_arp=1 ||\
-					vzerror "Unable to turn on proxy_arp on $HNAME" -1
+					vzerror "Unable to turn on proxy_arp on $HNAME" 1
+				${IP_CMD} a a fe80::ffff:1:1/128 dev ${HNAME}
 			fi
 			return
 		fi
@@ -190,8 +191,9 @@ vzcreatepair()
 	${IP_CMD} -n $VEID link set dev $VNAME up
 	${IP_CMD} link set $HNAME up
 	if [ "$NETWORK_TYPE" = "routed" ]; then
-		sysctl -w net.ipv4.conf.${HNAME}.proxy_arp=1 || \
-			vzerror "Unable to turn on proxy_arp on $HNAME" -1
+		sysctl -w net.ipv4.conf.${HNAME}.proxy_arp=1 ||\
+			vzerror "Unable to turn on proxy_arp on $HNAME" 1
+		${IP_CMD} a a fe80::ffff:1:1/128 dev ${HNAME}
 	fi
 }
 
@@ -325,7 +327,7 @@ clean_routed_ips()
 		vzdelrouting $ip
 		vzarp del $ip
 	done
-	rm -f $VE_STATE_DIR/$VEID
+	> $VE_STATE_DIR/$VEID
 }
 
 function parallel_execution()

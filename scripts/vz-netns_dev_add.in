@@ -96,8 +96,8 @@ fi
 
 if [ "$NETWORK_TYPE" = "routed" ]; then
 	vzgetnetdev
-	add_routed_ips "$IP_ADD"
 	del_routed_ips "$IP_DEL"
+	add_routed_ips "$IP_ADD"
 fi
 
 exit 0
