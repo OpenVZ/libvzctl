@@ -775,7 +775,7 @@ vzcreate_nft_rules()
 			daddr \@net_class6_${class} jump chain_o6_${class}
 	done
 
-	for mac in ${VMAC}; do
+	for mac in ${HMAC}; do
 		configured=`nft list set netdev ve_${ctid} mac_list 2> /dev/null | grep -i ${mac}`
 		[ -z "${configured}" ] && vzrun ${NFT_CMD} add element netdev ve_${ctid} \
 			mac_list '{' ${mac} '}'
@@ -816,7 +816,7 @@ vzflush_nft_rules()
 		[ -n "${configured}" ] && vzrun ${NFT_CMD} delete chain netdev ve_${ctid} vnet_${vdev}
 	done
 
-	for mac in ${VMAC}; do
+	for mac in ${HMAC}; do
 		configured=`nft list set netdev ve_${ctid} mac_list 2> /dev/null | grep -i ${mac}`
 		[ -n "${configured}" ] && vzrun ${NFT_CMD} delete element netdev ve_${ctid} \
 			mac_list '{' ${mac} '}'
