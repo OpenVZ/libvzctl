@@ -926,7 +926,6 @@ static int destroy_cgroup(struct vzctl_env_handle *h)
 	pid_t pid;
 
 	logger(10, 0, "* Destroy cgroup");
-	relase_venet_ips(h);
 	get_netns_path(h, nspath, sizeof(nspath));
 	if (unlink(nspath) && errno != ENOENT)
 		logger(-1, errno, "Failed to unlink %s", nspath);
@@ -1776,22 +1775,12 @@ static int ns_env_get_cpt_state(struct vzctl_env_handle *h, int *state)
 
 static int ns_ip_ctl(struct vzctl_env_handle *h, int op, const char *ip, int flags)
 {
-	if (!is_vz_kernel())
-		return vzctl_err(0, 0, "Warning: venet support is not emplemented");
-
-	switch (op) {
-	case VE_IP_ADD:
-		return cg_add_veip(EID(h), ip);
-	case VE_IP_DEL:
-		return cg_del_veip(EID(h), ip);
-	default:
-		return vzctl_err(VZCTL_E_INVAL, 0, "ns_ip_ctl: invalid op %d", op);
-	}
+	return vzctl_err(0, 0, "Legacy venet support is not emplemented");
 }
 
 static int ns_get_veip(struct vzctl_env_handle *h, list_head_t *list)
 {
-	return cg_get_veip(EID(h), list);
+	return vzctl_err(0, 0, "Legacy venet support is not emplemented");
 }
 
 static int _set_mac_filter(struct vzctl_env_handle *h,
