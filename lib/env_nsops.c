@@ -926,7 +926,6 @@ static int destroy_cgroup(struct vzctl_env_handle *h)
 	pid_t pid;
 
 	logger(10, 0, "* Destroy cgroup");
-	relase_venet_ips(h);
 	get_netns_path(h, nspath, sizeof(nspath));
 	if (unlink(nspath) && errno != ENOENT)
 		logger(-1, errno, "Failed to unlink %s", nspath);
@@ -1776,22 +1775,12 @@ static int ns_env_get_cpt_state(struct vzctl_env_handle *h, int *state)
 
 static int ns_ip_ctl(struct vzctl_env_handle *h, int op, const char *ip, int flags)
 {
-	if (!is_vz_kernel())
-		return vzctl_err(0, 0, "Warning: venet support is not emplemented");
-
-	switch (op) {
-	case VE_IP_ADD:
-		return cg_add_veip(EID(h), ip);
-	case VE_IP_DEL:
-		return cg_del_veip(EID(h), ip);
-	default:
-		return vzctl_err(VZCTL_E_INVAL, 0, "ns_ip_ctl: invalid op %d", op);
-	}
+	return vzctl_err(0, 0, "Legacy venet support is not emplemented");
 }
 
 static int ns_get_veip(struct vzctl_env_handle *h, list_head_t *list)
 {
-	return cg_get_veip(EID(h), list);
+	return vzctl_err(0, 0, "Legacy venet support is not emplemented");
 }
 
 static int _set_mac_filter(struct vzctl_env_handle *h,
@@ -1880,7 +1869,7 @@ static int veth_ctl(struct vzctl_env_handle *h, int op,
 {
 	int ret = 0;
 	char *arg[] = { NULL, NULL };
-	char *envp[11];
+	char *envp[17];
 	char buf[STR_SIZE];
 	char script[PATH_MAX];
 	int i = 0;
@@ -1903,6 +1892,21 @@ static int veth_ctl(struct vzctl_env_handle *h, int op,
 
 	if (dev->dev_name[0] != '\0') {
 		snprintf(buf, sizeof(buf), "HNAME=%s", dev->dev_name);
+		envp[i++] = strdup(buf);
+	}
+
+	if (dev->nettype == VZCTL_NETTYPE_ROUTED) {
+		envp[i++] = strdup("NETWORK_TYPE=routed");
+		if (!list_empty(&dev->ip_list))
+			envp[i++] = ip2str("IP_ADD=", &dev->ip_list, 0);
+		if (dev->ip_delall)
+			envp[i++] = strdup("IP_DEL=all");
+		else if (!list_empty(&dev->ip_del_list))
+			envp[i++] = ip2str("IP_DEL=", &dev->ip_del_list, 0);
+
+		if (flags & VZCTL_SKIP_ARPDETECT)
+			envp[i++] = "SKIP_ARPDETECT=yes";
+		snprintf(buf, sizeof(buf), "VE_STATE=%s", get_state(h));
 		envp[i++] = strdup(buf);
 	}
 

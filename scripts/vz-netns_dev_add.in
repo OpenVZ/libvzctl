@@ -36,6 +36,7 @@
 #   HMAC        - host devices's MAC address
 #   VMAC        - container device's MAC address
 #   BRIDGE      - a bridge name to add HNAME to
+#   NETWORK_TYPE- bridged | routed
 #   SKIP_CREATE - if set, device pair creation is skipped
 
 . @PKGCONFDIR@/vz.conf
@@ -44,6 +45,37 @@
 vzcheckvar VEID
 vzcheckvar VNAME
 vzcheckvar HNAME
+
+# Set routing, iptables, ARP...
+add_routed_ips()
+{
+	local ips=$1
+
+	[ -z "$ips" ] && return
+	[ ! -d "$VE_STATE_DIR" ] && mkdir -p $VE_STATE_DIR
+	vzarpipdetect "$ips"
+	for ip in $ips; do
+		vzaddrouting $HNAME $ip
+		vzarp add $ip
+		if ! grep -wq "$ip" $VE_STATE_DIR/$VEID; then
+			echo $ip >> $VE_STATE_DIR/$VEID
+		fi
+	done
+	vzarpipset $ips
+}
+
+del_routed_ips()
+{
+	for ip in $1; do
+		if [ "$ip" = "all" ]; then
+			clean_routed_ips $HNAME
+			break;
+		fi
+		vzdelrouting $ip
+		vzarp del $ip
+		sed -i '/^'"$ip"'/d' $VE_STATE_DIR/$VEID 2>/dev/null
+	done
+}
 
 if [ "x$HNAME" = "x$VNAME" ]; then
 	vzmoveif
@@ -60,6 +92,12 @@ if [ ! -z ${vzread_tc_class_RET} ]; then
 	for class in $CLASSES_LIST; do
 		vzcreate_nft_rules ${class} $(vzget_mark ${class} ${vzread_tc_class_RET}) ${HNAME}
 	done
+fi
+
+if [ "$NETWORK_TYPE" = "routed" ]; then
+	vzgetnetdev
+	del_routed_ips "$IP_DEL"
+	add_routed_ips "$IP_ADD"
 fi
 
 exit 0

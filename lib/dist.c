@@ -55,8 +55,6 @@ static int add_dist_action(struct vzctl_dist_actions *dist_actions,
 	if (dist_actions->f == NULL && !strcmp(name, n)) \
 		return xstrdup(&dist_actions->f, file); \
 
-	ADD_DIST_SCRIPT("ADD_IP", add_ip)
-	ADD_DIST_SCRIPT("DEL_IP", del_ip)
 	ADD_DIST_SCRIPT("SET_HOSTNAME", set_hostname)
 	ADD_DIST_SCRIPT("SET_DNS", set_dns)
 	ADD_DIST_SCRIPT("SET_USERPASS", set_userpass)

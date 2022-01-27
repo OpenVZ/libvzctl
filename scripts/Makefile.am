@@ -26,8 +26,6 @@ script_SCRIPTS = \
 		 vz-create_prvt \
 		 vz-functions \
 		 vznetcfg \
-		 vz-net_add \
-		 vz-net_del \
 		 vz-netns_dev_add \
 		 vz-netns_dev_del \
 		 vz-pci_configure \

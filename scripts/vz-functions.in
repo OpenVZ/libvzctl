@@ -42,7 +42,6 @@ VZ_SET_ACCOUNT=81
 VE_STATE_DIR="/var/vz/veip/"
 CONF_DIR=@VPSCONFDIR@
 VZ_IP_CLASSES="${CONF_DIR}/networks_classes"
-SUSPEND_CONF_DIR="/etc/vz/vzreboot"
 PS_START_LOCK_FILE="/var/lock/subsys/ps_start_lock"
 PRAM_MOUNT_POINT="/mnt/pram"
 
@@ -172,6 +171,11 @@ vzcreatepair()
 				vzerror "Unable to rename $v to $VNAME" -1
 			${IP_CMD} -n $VEID link set dev $VNAME up
 			${IP_CMD} link set $HNAME up
+			if [ "$NETWORK_TYPE" = "routed" ]; then
+				sysctl -w net.ipv4.conf.${HNAME}.proxy_arp=1 ||\
+					vzerror "Unable to turn on proxy_arp on $HNAME" 1
+				${IP_CMD} a a fe80::ffff:1:1/128 dev ${HNAME}
+			fi
 			return
 		fi
 
@@ -180,12 +184,22 @@ vzcreatepair()
 		${IP_CMD} link delete $HNAME || echo "Unable to delete veth interface $HNAME"
 	fi
 
+	if [ "$VNAME" = "venet0" ]; then
+		if ${IP_CMD} -n $VEID l l dev venet0 2>/dev/null | grep -q POINTOPOINT; then
+			${IP_CMD} -n $VEID l s dev venet0 name xvenet0
+		fi
+	fi
 	${IP_CMD} -n $VEID link add name $HNAME type veth peer name $VNAME || \
 		vzerror "Unable to create veth pair ($HNAME, $VNAME)" -1
 	${IP_CMD} -n $VEID link set $HNAME netns $$ || \
 		vzerror "Unable to move veth interface $HNAME to host ns" -1
 	${IP_CMD} -n $VEID link set dev $VNAME up
 	${IP_CMD} link set $HNAME up
+	if [ "$NETWORK_TYPE" = "routed" ]; then
+		sysctl -w net.ipv4.conf.${HNAME}.proxy_arp=1 ||\
+			vzerror "Unable to turn on proxy_arp on $HNAME" 1
+		${IP_CMD} a a fe80::ffff:1:1/128 dev ${HNAME}
+	fi
 }
 
 # Move an already existing interface to the network namespace given by VEID
@@ -203,7 +217,7 @@ vzmoveif()
 # Removes the interface referred to by VNAME from the container.
 vzdestroylink()
 {
-	${IP_CMD} netns exec $VEID ${IP_CMD} link delete $VNAME type veth
+	${IP_CMD} -n $VEID link delete $VNAME type veth
 }
 
 # desired mac addresses.  The host mac address is given by HMAC, and the
@@ -217,13 +231,12 @@ vzadjustmacs()
 
 	[ "x$VMAC" = "x" ] && return
 
-	o=`${IP_CMD} netns exec $VEID ${IP_CMD} link list dev $VNAME | \
+	o=`${IP_CMD} -n $VEID link list dev $VNAME | \
 		awk '/link\/ethe/{print toupper($2)}'`
 
 	if [ "$VMAC" != "$o" ]; then
-		${IP_CMD} netns exec $VEID ${IP_CMD} link set dev $VNAME address $VMAC
+		${IP_CMD} -n $VEID link set dev $VNAME address $VMAC
 	fi
-
 }
 
 # Bridge configuration function.
@@ -253,7 +266,7 @@ vzconfbridge()
 # what we should call to undo the operation.
 vzregainif()
 {
-	${IP_CMD} netns exec $VEID ${IP_CMD} link set $VNAME netns $$
+	${IP_CMD} -n $VEID link set $VNAME netns $$
 }
 
 # This function fills $NETDEVICES with all network interfaces
@@ -311,6 +324,17 @@ function vzarp()
 	done
 }
 
+clean_routed_ips()
+{
+	[ -z "$NETDEVICES" ] && vzgetnetdev
+	for ip in `cat $VE_STATE_DIR/$VEID 2>/dev/null`; do
+		ip=${ip%%/*}
+		vzdelrouting $ip
+		vzarp del $ip
+	done
+	> $VE_STATE_DIR/$VEID
+}
+
 function parallel_execution()
 {
 	local counter=0
@@ -336,7 +360,7 @@ function parallel_execution()
 		while [ ! -z "${pids}" ]; do
 			for pid in ${pids}; do
 				kill -0 ${pid} > /dev/null 2>&1
-				[ $? -eq 0 ] && usleep ${delay} && continue
+				[ $? -eq 0 ] && sleep ${delay} && continue
 				wait ${pid} || vzwarning "${command_list[${pid}]} FAILED"
 				pids=$(echo ${pids} | sed "s,\<${pid}\>,,g")
 			done
@@ -369,7 +393,7 @@ function vzarpipdetect()
 		done
 	done
 	# Duplicate address detection mode (DAD). Returns 0, if DAD succeeded i.e. no replies are received
-	parallel_execution 1000000 "${ARPING_CMD} ${ARPING_ARGS} -w 1 -D -I" ipv4_pairs[@]
+	parallel_execution 1 "${ARPING_CMD} ${ARPING_ARGS} -w 1 -D -I" ipv4_pairs[@]
 }
 
 # Send ARP request to update neighbour ARP caches
@@ -407,10 +431,10 @@ function vzarpipset()
 	lockfile ${VZ_ARP_ANNOUNCE_LOCK}
 	nonlocal_bind_prev=$(cat /proc/sys/net/ipv4/ip_nonlocal_bind)
 	echo "1" > /proc/sys/net/ipv4/ip_nonlocal_bind
-	parallel_execution 100000 "${ARPING_CMD} ${ARPING_ARGS} -A -I" ipv4_pairs[@]
+	parallel_execution 1 "${ARPING_CMD} ${ARPING_ARGS} -A -I" ipv4_pairs[@]
 	echo "${nonlocal_bind_prev}" > /proc/sys/net/ipv4/ip_nonlocal_bind
 	rm -rf ${VZ_ARP_ANNOUNCE_LOCK} > /dev/null 2>&1
-	parallel_execution 100000 "${NDSEND_CMD}" ipv6_pairs[@]
+	parallel_execution 1 "${NDSEND_CMD}" ipv6_pairs[@]
 }
 
 # Sets VE0 source routing for given IP
@@ -418,22 +442,22 @@ function vzarpipset()
 #   $1 - IP address
 function vzaddrouting()
 {
+	local dev=$1
+	local ip=$2
 	local src_addr=
-	local device=
 	local cmd=
 
 	if [ -n "${VE_ROUTE_SRC_DEV}" -a "${1#*:}" = "${1}" ]; then
-		device="dev ${VE_ROUTE_SRC_DEV}"
-		src_addr=`ip route list table local ${device} | \
+		src_addr=`ip route list table local dev ${VE_ROUTE_SRC_DEV} | \
 			grep '^local'| \
 			grep -v "dev venet0" | cut -d' ' -f2 | \
 			grep -v '^127\.' | head -1`
 		if [ -z "${src_addr}" ]; then
-			vzerror "Unable to get source ip [${device}]" $VZ_CANT_ADDIP
+			vzerror "Unable to get source ip [$VE_ROUTE_SRC_DEV]" $VZ_CANT_ADDIP
 		fi
 		src_addr="src ${src_addr}"
 	fi
-	cmd="${IP_CMD} route replace $1 dev venet0 ${src_addr}"
+	cmd="${IP_CMD} route replace $ip dev $dev ${src_addr}"
 	${cmd} || vzerror "Unable to set route: ${cmd}" $VZ_CANT_ADDIP
 }
 
@@ -592,21 +616,6 @@ function mount_pram()
 	fi
 
 	return 0
-}
-
-#Detect reboot is configured with kexec for fast reboot
-function is_fast_reboot()
-{
-	is_loaded=$(cat /sys/kernel/kexec_loaded)
-	[ "$is_loaded" != "1" ] && return 1
-
-	return 0
-}
-
-#return list of CTs that were suspended for fast reboot
-function get_suspended_ves()
-{
-	ls -1 ${SUSPEND_CONF_DIR} 2>/dev/null
 }
 
 # Compute and return TCID from current VEID
@@ -784,7 +793,7 @@ vzcreate_nft_rules()
 			daddr \@net_class6_${class} jump chain_o6_${class}
 	done
 
-	for mac in ${VMAC}; do
+	for mac in ${HMAC}; do
 		configured=`nft list set netdev ve_${ctid} mac_list 2> /dev/null | grep -i ${mac}`
 		[ -z "${configured}" ] && vzrun ${NFT_CMD} add element netdev ve_${ctid} \
 			mac_list '{' ${mac} '}'
@@ -825,7 +834,7 @@ vzflush_nft_rules()
 		[ -n "${configured}" ] && vzrun ${NFT_CMD} delete chain netdev ve_${ctid} vnet_${vdev}
 	done
 
-	for mac in ${VMAC}; do
+	for mac in ${HMAC}; do
 		configured=`nft list set netdev ve_${ctid} mac_list 2> /dev/null | grep -i ${mac}`
 		[ -n "${configured}" ] && vzrun ${NFT_CMD} delete element netdev ve_${ctid} \
 			mac_list '{' ${mac} '}'

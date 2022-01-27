@@ -52,7 +52,6 @@ struct vzctl_net_param *alloc_net_param(void);
 void free_net_param(struct vzctl_net_param *net);
 struct vzctl_netdev_param *alloc_netdev_param(void);
 void free_netdev_param(struct vzctl_netdev_param *param);
-int apply_venet_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags);
 int apply_netdev_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags);
 struct vzctl_ip_param *add_ip_param_str(list_head_t *head, char *str);
 void free_ip(list_head_t *head);
@@ -62,18 +61,11 @@ int copy_ip_param(list_head_t *dst, list_head_t *src);
 void free_ip_param(struct vzctl_ip_param *ip);
 char *ip_param2str(list_head_t *head);
 char *ip2str(const char *prefix, list_head_t *ip, int use_netmask);
-int run_net_script(struct vzctl_env_handle *h, const char *script,
-		list_head_t *ip, int skip_arpdetect);
-int vzctl_get_env_ip(struct vzctl_env_handle *h, list_head_t *ip);
 int parse_netdev(list_head_t *netdev, const char *val, int replace);
 char *netdev2str(struct vzctl_netdev_param *old, struct vzctl_netdev_param *new);
-int read_proc_veip(struct vzctl_env_handle *h, list_head_t *ip);
 int get_ip_str(struct vzctl_ip_param *ip, char *str, int len);
 const struct vzctl_ip_param *find_ip(list_head_t *head,
 	struct vzctl_ip_param *ip);
-int invert_ip_op(int op);
 void configure_net_rps(const char *ve_root, const char *dev);
-int get_env_ip_proc(struct vzctl_env_handle *h, list_head_t *ip);
-int relase_venet_ips(struct vzctl_env_handle *h);
 #endif /* _NET_H_ */
 

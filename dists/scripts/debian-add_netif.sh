@@ -128,7 +128,7 @@ function configure_dhcp()
 	if [ "$DHCP4" = "yes" ]; then
 		check_dhcp
 		remove_debian_interface_by_proto ${dev} inet ${CFGFILE}
-		remove_venet_route
+		remove_default_route
 		if ! grep -qe "auto $dev$" ${CFGFILE} 2>/dev/null; then
 			echo "auto $dev" >> ${CFGFILE}
 		fi
@@ -148,7 +148,7 @@ iface $dev inet manual
 " >> ${CFGFILE}
 		fi
 		remove_debian_interface_by_proto ${dev} inet6 ${CFGFILE}
-		remove_venet_route6
+		remove_default_route6
 		configure_wide_dhcpv6 $dev add
 	elif [ "$DHCP6" = "no" ]; then
 		configure_wide_dhcpv6 $dev del
@@ -160,42 +160,38 @@ function add_ip()
 	local dev=$1
 	local ip=$2
 	local mask=$3
-	local cfg=
+	local proto=$4
+	local cfg
 
+	if [ "$proto" == "inet6" ]; then
+		[ "$NETWORK_TYPE" = "routed" ] && mask=128
+		[ -z "${mask}" ] && mask=64
+	else
+		[ -z "${mask}" ] && mask=255.255.255.0
+	fi
 
 	if ! grep -qe "auto $dev$" ${CFGFILE} 2>/dev/null; then
 		cfg="auto ${dev}"
 	fi
 	cfg="$cfg
-iface ${dev} inet static
-	address ${ip}"
-	if [ -z "${mask}" ]; then
-		mask=255.255.255.0
-	fi
-	cfg="${cfg}
+iface ${dev} ${proto} static
+	address ${ip}
 	netmask ${mask}"
-	echo -e "${cfg}\n" >> ${CFGFILE}
-}
 
-function add_ip6()
-{
-	local dev=$1
-	local ip=$2
-	local mask=$3
-	local cfg=
+	if [ "${dev%:*}" = "$dev" -a "$NETWORK_TYPE" = "routed" ]; then
+		cfg="$cfg
+	#$ROUTED_UUID $dev"
 
-	[ "${IPV6}" != "yes" ] && return
-	if ! grep -qe "auto $dev$" ${CFGFILE} 2>/dev/null; then
-		cfg="auto ${dev}"
+		if [ "$proto" == "inet6" ]; then
+			cfg="$cfg
+	up ip -6 route add fe80::ffff:1:1 dev $dev
+	up ip -6 route add default via fe80::ffff:1:1 dev $dev"
+		else
+			cfg="$cfg
+	up ip route add default dev $dev"
+		fi
 	fi
-	cfg="$cfg
-iface ${dev} inet6 static
-	address ${ip}"
-	if [ -z "${mask}" ]; then
-		mask=64
-	fi
-	cfg="${cfg}
-	netmask ${mask}"
+
 	echo -e "${cfg}\n" >> ${CFGFILE}
 }
 
@@ -238,19 +234,25 @@ function get_iface_ips()
 	local dev=$1
 	local skip=$2
 	awk '
-		BEGIN {ip4=""; ip6=""}
+		BEGIN {ip=""}
 		NF == 0 {next}
 		$1 == "iface" && ($2 ~/'${dev}'$/ || $2 ~/'${dev}':/) {
 			while (1==1) {
 				if (!getline) break;
-				if ($1 == "address") { if ($2 != "'${skip}'")ip4 = ip4 " " $2; }
-				else if ($1 == "netmask") { ip4 = ip4 "/" $2; }
-				else if ($0 ~ "\tup ip addr add") { ip6 = ip6 " " $5; }
+				if ($1 == "address") {
+				       	if ($2 != "'${skip}'")
+						ip = ip " " $2;
+					else
+						getline
+				}
+				else if ($1 == "netmask") { ip = ip "/" $2; }
+				else if ($0 ~ "\tup ip addr add") { ip = ip " " $5; }
+				else if ($0 ~ "\t") {}
 				else {break;}
 			}
 		}
 		END {
-			print ip4 " " ip6
+			print ip
 		}
 	' < ${CFGFILE}
 }
@@ -265,6 +267,8 @@ function rm_if_by_ip()
 	[ -z "${dev}" ] && return 0
 	if ! echo "${dev}" | grep -q ":"; then
 		# reset master
+		ifdown $dev
+		/bin/ip addr flush dev $dev
 		ips=`get_iface_ips "${dev}" "${ip}"`
 		remove_debian_interface "${dev}:[0-9]+" ${CFGFILE}
 		remove_debian_interface ${dev} ${CFGFILE}
@@ -330,10 +334,14 @@ function get_free_aliasid()
 	return 1
 }
 
-function remove_venet_route()
+remove_default_route()
 {
-	ip r d default dev venet0 2>/dev/null
-	sed '/up route add default dev venet0/d' ${CFGFILE} > ${CFGFILE}.$$
+	local dev=`get_routed_default_dev $CFGFILE`
+
+	[ -z "$dev" ] && return
+
+	ip r d default dev $dev 2>/dev/null
+	sed '/up ip route add default dev '$dev'$/d' ${CFGFILE} > ${CFGFILE}.$$
 	if [ $? -ne 0 ]; then
 		rm -f ${CFGFILE}.$$ 2>/dev/null
 		return
@@ -341,10 +349,14 @@ function remove_venet_route()
 	mv -f ${CFGFILE}.$$ ${CFGFILE}
 }
 
-function remove_venet_route6()
+remove_default_route6()
 {
-	ip -6 r d default dev venet0 2>/dev/null
-	sed '/up ip -6 r a default dev venet0/d' ${CFGFILE} > ${CFGFILE}.$$
+	local dev=`get_routed_default_dev $CFGFILE`
+
+	[ -z "$dev" ] && return
+
+	ip -6 r d default dev $dev 2>/dev/null
+	sed '/up ip -6 route add default via fe80::ffff:1:1 dev '$dev'$/d' ${CFGFILE} > ${CFGFILE}.$$
 	if [ $? -ne 0 ]; then
 		rm -f ${CFGFILE}.$$ 2>/dev/null
 		return
@@ -381,7 +393,7 @@ remove_route()
 
 	if ! grep -q "$cmd" ${cfg}; then
 		ip $proto r d default dev $dev
-		restore_debian_venet_route "$proto"
+		restore_debian_default_route "$proto"
 	fi
 }
 
@@ -389,7 +401,7 @@ function setup_dev()
 {
 	local dev=$1
 	local ips="$2"
-	local ipm ip mask i
+	local ipm ip mask
 	local dev gw
 
 	if [ -n "${DHCP4}" -o -n "${DHCP6}" ]; then
@@ -402,11 +414,10 @@ function setup_dev()
 
 	for ipm in ${ips}; do
 		ip=${ipm%%/*}
+		mask=${ipm##*/}
+
 		[ -z "${ip}" ] && continue
-		mask=
-		if echo "${ipm}" | grep -q '/'; then
-			mask=${ipm##*/}
-		fi
+		[ "$mask" = "$ipm" ] && mask=
 
 		if grep -qw -e "^[[:space:]]*address $ip" -e "^[[:space:]]*up ip addr add $ip" ${CFGFILE} 2>/dev/null; then
 			continue
@@ -416,14 +427,14 @@ function setup_dev()
 			if grep -q "iface ${dev} inet6" ${CFGFILE} 2>/dev/null; then
 				add_ip6_alias "${dev}" "${ip}" "${mask}"
 			else
-				add_ip6 "${dev}" "${ip}" "${mask}"
+				add_ip "${dev}" "${ip}" "${mask}" inet6
 			fi
 		else
 			get_free_aliasid
 			if [ $? -ne 0 ]; then
-				add_ip "${dev}:${IFNUM}" "${ip}" "${mask}"
+				add_ip "${dev}:${IFNUM}" "${ip}" "${mask}" inet
 			else
-				add_ip "${dev}" "${ip}" "${mask}"
+				add_ip "${dev}" "${ip}" "${mask}" inet
 			fi
 		fi
 	done
@@ -442,12 +453,13 @@ function setup_gw()
 		proto=inet6
 		iproto="-6"
 		cmd='\tup ip -6 route add default via'
-		remove_venet_route6
+		remove_default_route6
 	else
 		proto=inet
-		remove_venet_route
+		remove_default_route
 	fi
 	awk '
+		BEGIN {addgw = 0}
 		/^'"$cmd"'/ { next; }
 		/^\taddress/ { print; next ;}
 		/^\tnetmask/ { print; next ;}
@@ -499,7 +511,7 @@ function setup()
 	fi
 
 	if [ "${VE_STATE}" != "starting" ]; then
-		ifdown -a --force
+		ifdown -a --force >/dev/null
 		ifup -a --force
 	fi
 }

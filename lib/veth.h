@@ -79,7 +79,8 @@ struct vzctl_env_param;
 
 int apply_veth_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 	int flags);
-
+int apply_venet_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
+		int flags);
 struct vzctl_veth_param *alloc_veth_param(void);
 void free_veth_dev(struct vzctl_veth_dev *dev);
 int parse_netif(struct vzctl_env_handle *h, list_head_t *head, const char *val);
@@ -96,4 +97,5 @@ int merge_veth_ifname_param(struct vzctl_env_handle *h,
 		struct vzctl_env_param *env);
 void generate_mac(char **mac, int fix);
 void generate_veth_name(struct vzctl_veth_dev *dev);
+int do_veth_ctl(struct vzctl_env_handle *h, int op, struct vzctl_veth_dev *it, int flags);
 #endif	/* __VETH_H__ */

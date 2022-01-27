@@ -139,7 +139,7 @@ int run_stop_script(struct vzctl_env_handle *h)
 {
 	char script[STR_SIZE];
 	char buf[STR_SIZE];
-	char *env[5] = {};
+	char *env[6] = {};
 	int ret, i = 0;
 	const char *bandwidth = NULL;
 	char *arg[] = {get_script_path(VZCTL_STOP, script, sizeof(script)), NULL};
@@ -170,19 +170,17 @@ int run_stop_script(struct vzctl_env_handle *h)
 		char *pm;
 		struct vzctl_veth_dev *it;
 		int len = sizeof("VETH=");
-		int len1 = sizeof("VMAC=");
+		int len1 = sizeof("HMAC=");
 
 		list_for_each(it, &veth->dev_list, list) {
 			len += strlen(it->dev_name) + 1;
-			len1 += strlen(it->mac_ve) + 1;
+			len1 += strlen(it->mac) + 1;
 		}
 		pn = malloc(len);
 		pm = malloc(len1);
 		if (pn == NULL || pm == NULL) {
-			if (pn)
-				free(pn);
-			if (pm)
-				free(pm);
+			free(pn);
+			free(pm);
 			env[i] = NULL;
 			ret = VZCTL_E_NOMEM;
 			goto err;
@@ -190,10 +188,10 @@ int run_stop_script(struct vzctl_env_handle *h)
 		env[i++] = pn;
 		pn += sprintf(pn, "VETH=");
 		env[i++] = pm;
-		pm += sprintf(pm, "VMAC=");
+		pm += sprintf(pm, "HMAC=");
 		list_for_each(it, &veth->dev_list, list) {
 			pn += sprintf(pn, "%s ", it->dev_name);
-			pm += sprintf(pm, "%s ", it->mac_ve);
+			pm += sprintf(pm, "%s ", it->mac);
 		}
 	}
 
@@ -2430,7 +2428,7 @@ int vzctl2_env_set_veth_param(struct vzctl_veth_dev *dev,
 		dev->configure_mode = tmp.configure_mode;
 
 	if (tmp.nettype) {
-		if (tmp.nettype > VZCTL_NETTYPE_VNET)
+		if (tmp.nettype > VZCTL_NETTYPE_MAX)
 			return VZCTL_E_INVAL;
 		dev->nettype = tmp.nettype;
 	}

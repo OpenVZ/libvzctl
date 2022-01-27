@@ -52,10 +52,10 @@ function del_dev()
 		fi
 
 		if ! grep -qe 'ip route add default via' $CFGFILE 2>/dev/null; then
-			restore_debian_venet_route
+			restore_debian_default_route
 		fi
 		if ! grep -qe 'ip -6 route add default via' $CFGFILE 2>/dev/null; then
-			restore_debian_venet_route '-6'
+			restore_debian_default_route '-6'
 		fi
 	done
 }

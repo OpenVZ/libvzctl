@@ -55,8 +55,6 @@
 #define VZCTL_SCRIPT_D_DIR	SCRIPTDDIR"/"
 #define VZCTL_START		"vz-start"
 #define VZCTL_STOP		"vz-stop"
-#define VZCTL_NET_ADD		"vz-net_add"
-#define VZCTL_NET_DEL		"vz-net_del"
 #define VZCTL_SETRATE		"vz-setrate"
 #define VZCTL_CREATE_PRVT	"vz-create_prvt"
 #define VZCTL_PCI_CONFIGURE	"vz-pci_configure"
