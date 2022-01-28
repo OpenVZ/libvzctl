@@ -624,3 +624,15 @@ is_wicked()
 	readlink ${WICKED} 2>/dev/null | grep wicked > /dev/null
 	return $?
 }
+
+# Randomize systemd timers
+randtimer()
+{
+	for t in man-db logrotate exim4-base; do
+		f=/etc/systemd/system/$t.timer.d
+		[ -e "$f/override.conf" ] && continue
+		mkdir -p $f
+		echo '[Timer]
+RandomizedDelaySec=12h' > $f/override.conf
+	done
+}
