@@ -51,15 +51,15 @@ else
 	test -z "$SKIP_CREATE" && vzcreatepair
 	vzadjustmacs
 	vzconfbridge
-fi
 
-vzread_tc_class $(vzget_tcid)
-if [ ! -z ${vzread_tc_class_RET} ]; then
-	vzget_classes_list
+	vzread_tc_class $(vzget_tcid)
+	if [ ! -z ${vzread_tc_class_RET} ]; then
+		vzget_classes_list
 
-	for class in $CLASSES_LIST; do
-		vzcreate_nft_rules ${class} $(vzget_mark ${class} ${vzread_tc_class_RET}) ${HNAME}
-	done
+		for class in $CLASSES_LIST; do
+			vzcreate_nft_rules ${class} $(vzget_mark ${class} ${vzread_tc_class_RET}) ${HNAME}
+		done
+	fi
 fi
 
 exit 0

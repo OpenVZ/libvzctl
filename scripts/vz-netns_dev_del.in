@@ -40,9 +40,9 @@ if [ "x$VNAME" = "x$HNAME" ]; then
 	vzregainif
 else
 	vzdestroylink
-fi
 
-vzread_tc_class $(vzget_tcid)
-[ ! -z ${vzread_tc_class_RET} ] && vzflush_nft_rules ${HNAME}
+	vzread_tc_class $(vzget_tcid)
+	[ ! -z ${vzread_tc_class_RET} ] && vzflush_nft_rules ${HNAME}
+fi
 
 exit 0
