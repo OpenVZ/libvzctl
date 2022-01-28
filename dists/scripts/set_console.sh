@@ -224,4 +224,6 @@ else
 	setup_console
 fi
 
+# Randomize timers on CT start
+randtimer
 exit 0
