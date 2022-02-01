@@ -980,15 +980,16 @@ int configure_mount_opts(struct vzctl_env_handle *h, struct vzctl_disk *disk)
 	if (ret)
 		return ret;
 	/* FIXME: add balloon_ino calculation */
-	sp += snprintf(sp, ep - sp, "0 %u:%u;1 ",
+	sp += snprintf(sp, ep - sp, "0 %u:%u;",
 			gnu_dev_major(dev), gnu_dev_minor(dev));
-	if (mnt_opts[0] != '\0')
-		sp += snprintf(sp, ep - sp, "%s,", mnt_opts);
-	if (!disk->use_device)
-		sp += snprintf(sp, ep - sp, "balloon_ino=%llu", disk->balloon_ino);
+	if (mnt_opts[0] != '\0') {
+		sp += snprintf(sp, ep - sp, "1 %s", mnt_opts);
+		if (!disk->use_device)
+			sp += snprintf(sp, ep - sp, ",balloon_ino=%llu", disk->balloon_ino);
+	}
 
 	logger(0, 0, "Setting mount options for image=%s opts=%s",
-			disk->path, buf + 2);
+			disk->path, buf);
 	return cg_set_param(EID(h), CG_VE, "ve.mount_opts", buf);
 }
 
