@@ -372,10 +372,25 @@ static char *ctid2nft(struct vzctl_env_handle *h, ctid_t nft)
 	return nft;
 }
 
+static int exist_nft_table(struct vzctl_env_handle *h)
+{
+	ctid_t ctid;
+	char buf[STR_SIZE];
+
+	snprintf(buf, sizeof(buf),
+		 "list table netdev ve_%s",
+		 ctid2nft(h, ctid));
+
+	return run_nft_cmd(buf, NULL, 0);
+}
+
 int vzctl2_clear_ve_netstat(struct vzctl_env_handle *h)
 {
 	ctid_t ctid;
 	char buf[STR_SIZE];
+
+	if (exist_nft_table(h))
+		return 0;
 
 	snprintf(buf, sizeof(buf),
 		 "reset counters table netdev ve_%s",
@@ -401,14 +416,17 @@ int vzctl2_get_env_tc_netstat(struct vzctl_env_handle *h,
 	if (h == NULL || stat == NULL)
 		return -1;
 
+	bzero(stat, sizeof(struct vzctl_tc_netstat));
+
+	if (exist_nft_table(h))
+		return 0;
+
 	snprintf(buf, sizeof(buf),
 		 "list counters table netdev ve_%s",
 		 ctid2nft(h, ctid));
 
 	if (run_nft_cmd(buf, out, sizeof(out)))
 		return -1;
-
-	bzero(stat, sizeof(struct vzctl_tc_netstat));
 
 	/*
 	 * Sample for output from the command nft:
