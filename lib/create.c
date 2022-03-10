@@ -367,6 +367,11 @@ static int do_create_private(struct vzctl_env_handle *h, const char *dst,
 	unsigned long size = h->env_param->dq->diskspace ?
 		get_disk_size(h->env_param->dq->diskspace->l) : 0;
 
+	if (ostmpl == NULL) {
+		logger(0, 0, "OS Template is not set for container");
+		return VZCTL_E_VE_TMPL_NOTSET;
+	}
+
 	if (h->env_param->disk->root == VZCTL_PARAM_OFF ||
 			ostmpl[0] == '\0')
 		return 0;
