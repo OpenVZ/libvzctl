@@ -1831,31 +1831,10 @@ static int set_mac_filter(struct vzctl_env_handle *h,
 static int veth_configure(struct vzctl_env_handle *h,
 		struct vzctl_veth_dev *veth)
 {
-	int sk, ret;
-	struct ifreq req = {};
-
-	sk = socket(AF_UNIX, SOCK_DGRAM, 0);
-	if (sk < 0)
-		return vzctl_err(VZCTL_E_VETH, errno, "Can't create socket");
-
-	memcpy(req.ifr_ifrn.ifrn_name, veth->dev_name,
-			sizeof(req.ifr_ifrn.ifrn_name));
-	ret = VZCTL_E_VETH;
-	if (ioctl(sk, SIOCSVENET, &req)) {
-		logger(-1, errno, "ioctl SIOCSVENET %s",
-				veth->dev_name);
-		goto err;
-	}
-
 	if (veth->mac_filter && set_mac_filter(h, veth))
-		goto err;
+		return VZCTL_E_VETH;
 
-	ret = 0;
-
-err:
-	close(sk);
-
-	return ret;
+	return 0;
 }
 
 /*
