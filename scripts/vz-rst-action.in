@@ -31,6 +31,13 @@ exec 1>&2
 
 action_script=@SCRIPTDIR@/vz-rst-action
 
+VZCTL="/usr/sbin/vzctl"
+JOIN_CT="$VZCTL --skiplock --skipowner exec3 $VEID"
+SYSTEMCTL="/bin/systemctl -q"
+VE_FEATURE_NFSD=$(( 1 << 8 ))
+TIMEOUT="/usr/bin/timeout"
+NFSD_TIMEOUT="10s"
+
 update_devices()
 {
 	local olddev=$1
@@ -169,6 +176,15 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 	[ -n "$STATUSFD" ] && printf '\0\0\0\0' >&${STATUSFD}
 	[ -n "$WAITFD" ] && ret=$(head -c 4 <&$WAITFD | hexdump -e '"%d"' -n 4)
 	[ "$ret" = "0" ] || { echo "Failed on post-restore for $VEID"; exit 1; }
+	;;
+"post-resume")
+	# For container with nfsd feature restart nfs-server if it was stopped before dump
+	if [ -n "$VEID" ] && [ -n "$VE_FEATURES" ] && (( $VE_FEATURES & $VE_FEATURE_NFSD )) && \
+		[ -n "$VZ_NFSD_ACTIVE" ] && [ "$VZ_NFSD_ACTIVE" = "1" ]; then
+		$TIMEOUT $NFSD_TIMEOUT $JOIN_CT $SYSTEMCTL start nfs-server || \
+			{ echo "Failed to start nfs-server"; exit 1; }
+		echo "Restarted nfs-server service"
+	fi
 	;;
 esac
 
