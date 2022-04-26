@@ -101,6 +101,9 @@ if [ -n "$VEID" ]; then
 	if [ -n "$VE_CLOCK_BOOTBASED" ] && [ -n "$VE_CLOCK_MONOTONIC" ]; then
 		ve_clock_fallback="--ve-clock-fallback monotonic:$(echo "$VE_CLOCK_MONOTONIC" | sed 's/ /./'),boottime:$(echo "$VE_CLOCK_BOOTBASED" | sed 's/ /./')"
 	fi
+
+	# Setup nfs-server status to use it at post-resume
+	[ -f $VE_DUMP_DIR/vz_nfsd_active.img ] && export VZ_NFSD_ACTIVE=`cat $VE_DUMP_DIR/vz_nfsd_active.img`
 fi
 
 # Setup default log name if not explicitly specified

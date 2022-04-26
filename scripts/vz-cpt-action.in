@@ -27,6 +27,13 @@
 
 exec 1>&2
 
+VZCTL="/usr/sbin/vzctl"
+JOIN_CT="$VZCTL --skiplock --skipowner exec3 $VEID"
+SYSTEMCTL="/bin/systemctl -q"
+VE_FEATURE_NFSD=$(( 1 << 8 ))
+TIMEOUT="/usr/bin/timeout"
+NFSD_TIMEOUT="10s"
+
 if [ -z "$CRTOOLS_SCRIPT_ACTION" ]; then
 	echo "Missing parameter CRTOOLS_SCRIPT_ACTION"
 	exit 1
@@ -51,6 +58,24 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 		cat /sys/fs/cgroup/memory/machine.slice/$VEID/memory.memsw.limit_in_bytes > \
 			$CRTOOLS_IMAGE_DIR/vz_memory_memsw_limit_in_bytes.img || \
 			{ echo "Failed to dump memory swap limit in bytes"; exit 1; }
+
+		# For container with nfsd feature stop nfs-server before dump
+		if (( $(cgget -n -v -r ve.features $VEID) & $VE_FEATURE_NFSD )) && \
+			[ $(cgget -n -v -r freezer.state machine.slice/$VEID) = "THAWED" ]; then
+			if $TIMEOUT $NFSD_TIMEOUT $JOIN_CT $SYSTEMCTL is-active nfs-server; then
+				echo 1 > $CRTOOLS_IMAGE_DIR/vz_nfsd_active.img || \
+					{ echo "Failed to dump nfs-server status"; exit 1; }
+				$TIMEOUT $NFSD_TIMEOUT $JOIN_CT $SYSTEMCTL stop nfs-server || \
+					{ echo "Failed to stop nfs-server"; exit 1; }
+				# This explicitly waits for rpc.mountd process exit
+				$TIMEOUT $NFSD_TIMEOUT $JOIN_CT $SYSTEMCTL stop nfs-mountd || \
+					{ echo "Failed to stop nfs-mountd"; exit 1; }
+				echo "Stopped nfs-server service"
+			else
+				echo 0 > $CRTOOLS_IMAGE_DIR/vz_nfsd_active.img || \
+					{ echo "Failed to dump nfs-server status"; exit 1; }
+			fi
+		fi
 	fi
 	;;
 "post-dump")
@@ -75,6 +100,21 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 	[ -n "$WAITFD" ] && ret=$(head -c 4 <&$WAITFD | hexdump -e '"%d"' -n 4)
 
 	[ "$ret" = "0" ]
+	;;
+"dump-alive")
+	if [ -z "$CRTOOLS_IMAGE_DIR" ]; then
+		echo "Missing parameter CRTOOLS_IMAGE_DIR"
+		exit 1
+	fi
+	# For container with nfsd feature restart nfs-server if it was stopped before dump
+	if [ -n "$VEID" ] && (( $(cgget -n -v -r ve.features $VEID) & $VE_FEATURE_NFSD )) && [ -f $CRTOOLS_IMAGE_DIR/vz_nfsd_active.img ]; then
+		VZ_NFSD_ACTIVE=`cat $CRTOOLS_IMAGE_DIR/vz_nfsd_active.img`
+		if [ -n "$VZ_NFSD_ACTIVE" ] && [ "$VZ_NFSD_ACTIVE" = "1" ]; then
+			$TIMEOUT $NFSD_TIMEOUT $JOIN_CT $SYSTEMCTL start nfs-server || \
+				{ echo "Failed to start nfs-server"; exit 1; }
+				echo "Restarted nfs-server service"
+		fi
+	fi
 	;;
 esac
 exit 0
