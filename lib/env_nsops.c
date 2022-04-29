@@ -1893,7 +1893,8 @@ static int veth_ctl(struct vzctl_env_handle *h, int op,
 
 	arg[0] = get_script_path((op == ADD) ? VZCTL_NETNS_DEV_ADD : VZCTL_NETNS_DEV_DEL,
 			script, sizeof(script));
-	if (vzctl2_wrap_exec_script(arg, envp, 0))
+	ret = vzctl2_wrap_exec_script(arg, envp, 0);
+	if (ret && ret != VZCTL_E_IP_INUSE)
 		ret = VZCTL_E_VETH;
 
 	free_ar_str(envp);
