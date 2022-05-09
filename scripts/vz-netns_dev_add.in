@@ -57,7 +57,7 @@ add_routed_ips()
 	for ip in $ips; do
 		for v in $(ls $VE_STATE_DIR 2>/dev/null); do
 			if [ "$VEID" != "$v" ] && grep -wq "$ip" $VE_STATE_DIR/$v; then
-				vzerror "IP ${ip} already assigned to ${v}." $VZ_CANT_ADDIP
+				vzerror "IP ${ip} already assigned to ${v}." $VZ_IP_INUSE
 			fi
 		done
 	done
