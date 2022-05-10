@@ -96,6 +96,9 @@ if [ -n "$VEID" ]; then
 	[ -f $VE_DUMP_DIR/vz_features.img ] && export VE_FEATURES=`cat $VE_DUMP_DIR/vz_features.img`
 	[ -f $VE_DUMP_DIR/vz_aio_max_nr.img ] && export VE_AIO_MAX_NR=`cat $VE_DUMP_DIR/vz_aio_max_nr.img`
 	[ -f $VE_DUMP_DIR/vz_pid_max.img ] && export VE_PID_MAX=`cat $VE_DUMP_DIR/vz_pid_max.img` || export VE_PID_MAX=4194304
+
+	# Setup nfs-server status to use it at post-resume
+	[ -f $VE_DUMP_DIR/vz_nfsd_active.img ] && export VZ_NFSD_ACTIVE=`cat $VE_DUMP_DIR/vz_nfsd_active.img`
 fi
 
 # Setup default log name if not explicitly specified
