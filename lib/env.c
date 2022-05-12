@@ -2400,6 +2400,8 @@ int vzctl2_env_set_veth_param(struct vzctl_veth_dev *dev,
 	if (tmp.network != NULL) {
 		free(dev->network);
 		dev->network = strdup(tmp.network);
+		if (tmp.nettype == 0)
+			dev->nettype = VZCTL_NETTYPE_VNET;
 	}
 	if (tmp.gw != NULL) {
 		free(dev->gw);
