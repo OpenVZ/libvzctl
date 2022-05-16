@@ -1312,7 +1312,10 @@ int parse_netif_ifname(struct vzctl_veth_param *veth, const char *str, int op,
 		if (str[0] != 0 && !vzctl2_is_networkid_valid(str))
 			return VZCTL_E_INVAL;
 		if (dev->network == NULL)
+		{
 			dev->network = strdup(str);
+			dev->nettype = VZCTL_NETTYPE_VNET;
+		}
 		break;
 	case VZCTL_PARAM_NETIF_MAC_FILTER:
 		if ((id = onoff2id(str)) == -1)
