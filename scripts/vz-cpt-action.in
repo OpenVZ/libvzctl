@@ -70,6 +70,11 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 				# This explicitly waits for rpc.mountd process exit
 				$TIMEOUT $NFSD_TIMEOUT $JOIN_CT $SYSTEMCTL stop nfs-mountd || \
 					{ echo "Failed to stop nfs-mountd"; exit 1; }
+				# This explicitly stops nfsdcld service
+				if $TIMEOUT $NFSD_TIMEOUT $JOIN_CT $SYSTEMCTL is-active nfsdcld; then
+					$TIMEOUT $NFSD_TIMEOUT $JOIN_CT $SYSTEMCTL stop nfsdcld || \
+						{ echo "Failed to stop nfsdcld"; exit 1; }
+				fi
 				echo "Stopped nfs-server service"
 			else
 				echo 0 > $CRTOOLS_IMAGE_DIR/vz_nfsd_active.img || \
