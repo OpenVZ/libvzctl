@@ -116,6 +116,17 @@ if [ -z "$CRTOOLS_SCRIPT_ACTION" ]; then
 	exit 1
 fi
 
+restart_nfs_server_service_alive() {
+	if [ -n "$VEID" ] && [ -n "$VE_FEATURES" ] && (( $VE_FEATURES & $VE_FEATURE_NFSD )) && [ -n "$VZ_NFSD_ACTIVE" ]; then
+		for SERVICE in $VZ_NFSD_ACTIVE; do
+			$TIMEOUT $NFSD_TIMEOUT $JOIN_CT $SYSTEMCTL start $SERVICE || \
+				{ echo "Failed to start $SERVICE"; exit 1; }
+			echo "Restarted $SERVICE service"
+		done
+		echo "Restarted nfs server related services"
+	fi
+}
+
 set -e
 case "$CRTOOLS_SCRIPT_ACTION" in
 "setup-namespaces")
@@ -179,13 +190,8 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 	[ "$ret" = "0" ] || { echo "Failed on post-restore for $VEID"; exit 1; }
 	;;
 "post-resume")
-	# For container with nfsd feature restart nfs-server if it was stopped before dump
-	if [ -n "$VEID" ] && [ -n "$VE_FEATURES" ] && (( $VE_FEATURES & $VE_FEATURE_NFSD )) && \
-		[ -n "$VZ_NFSD_ACTIVE" ] && [ "$VZ_NFSD_ACTIVE" = "1" ]; then
-		$TIMEOUT $NFSD_TIMEOUT $JOIN_CT $SYSTEMCTL start nfs-server || \
-			{ echo "Failed to start nfs-server"; exit 1; }
-		echo "Restarted nfs-server service"
-	fi
+	# For container with nfsd feature restart nfs-server and friends if they were stopped before dump
+	restart_nfs_server_service_alive
 	;;
 esac
 
