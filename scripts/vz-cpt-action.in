@@ -39,6 +39,49 @@ if [ -z "$CRTOOLS_SCRIPT_ACTION" ]; then
 	exit 1
 fi
 
+service_stop_and_save_state () {
+	SERVICE=$1
+	IMAGE=$2
+
+	if $TIMEOUT $NFSD_TIMEOUT $JOIN_CT $SYSTEMCTL is-active $SERVICE; then
+		echo "$SERVICE" >> $IMAGE || \
+			{ echo "Failed to dump $SERVICE status"; exit 1; }
+		$TIMEOUT $NFSD_TIMEOUT $JOIN_CT $SYSTEMCTL stop $SERVICE || \
+			{ echo "Failed to stop $SERVICE"; exit 1; }
+		echo "Stopped $SERVICE service"
+	fi
+}
+
+stop_nfs_server_service_before_dump () {
+	NFSD_IMAGE="$CRTOOLS_IMAGE_DIR/vz_nfsd_active.img"
+	echo "" > $NFSD_IMAGE || \
+		{ echo "Failed to dump nfs-server status"; exit 1; }
+	if (( $(cgget -n -v -r ve.features $VEID) & $VE_FEATURE_NFSD )) && \
+		[ $(cgget -n -v -r freezer.state machine.slice/$VEID) = "THAWED" ]; then
+		service_stop_and_save_state "nfs-server" "$NFSD_IMAGE"
+		service_stop_and_save_state "nfs-mountd" "$NFSD_IMAGE"
+		service_stop_and_save_state "nfsdcld" "$NFSD_IMAGE"
+		service_stop_and_save_state "nfs-blkmap" "$NFSD_IMAGE"
+	fi
+}
+
+# For container with nfsd feature restart nfs-server and friends if they were stopped before dump
+restart_nfs_server_service_alive() {
+	NFSD_IMAGE="$CRTOOLS_IMAGE_DIR/vz_nfsd_active.img"
+	if [ -n "$VEID" ] && (( $(cgget -n -v -r ve.features $VEID) & $VE_FEATURE_NFSD )) && \
+		[ -f "$NFSD_IMAGE" ]; then
+		VZ_NFSD_ACTIVE=`cat $NFSD_IMAGE`
+		if [ -n "$VZ_NFSD_ACTIVE" ]; then
+			for SERVICE in $VZ_NFSD_ACTIVE; do
+				$TIMEOUT $NFSD_TIMEOUT $JOIN_CT $SYSTEMCTL start $SERVICE || \
+					{ echo "Failed to start $SERVICE"; exit 1; }
+				echo "Restarted $SERVICE service"
+			done
+			echo "Restarted nfs server related services"
+		fi
+	fi
+}
+
 set -e
 case "$CRTOOLS_SCRIPT_ACTION" in
 "pre-dump")
@@ -60,27 +103,7 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 			{ echo "Failed to dump memory swap limit in bytes"; exit 1; }
 
 		# For container with nfsd feature stop nfs-server before dump
-		if (( $(cgget -n -v -r ve.features $VEID) & $VE_FEATURE_NFSD )) && \
-			[ $(cgget -n -v -r freezer.state machine.slice/$VEID) = "THAWED" ]; then
-			if $TIMEOUT $NFSD_TIMEOUT $JOIN_CT $SYSTEMCTL is-active nfs-server; then
-				echo 1 > $CRTOOLS_IMAGE_DIR/vz_nfsd_active.img || \
-					{ echo "Failed to dump nfs-server status"; exit 1; }
-				$TIMEOUT $NFSD_TIMEOUT $JOIN_CT $SYSTEMCTL stop nfs-server || \
-					{ echo "Failed to stop nfs-server"; exit 1; }
-				# This explicitly waits for rpc.mountd process exit
-				$TIMEOUT $NFSD_TIMEOUT $JOIN_CT $SYSTEMCTL stop nfs-mountd || \
-					{ echo "Failed to stop nfs-mountd"; exit 1; }
-				# This explicitly stops nfsdcld service
-				if $TIMEOUT $NFSD_TIMEOUT $JOIN_CT $SYSTEMCTL is-active nfsdcld; then
-					$TIMEOUT $NFSD_TIMEOUT $JOIN_CT $SYSTEMCTL stop nfsdcld || \
-						{ echo "Failed to stop nfsdcld"; exit 1; }
-				fi
-				echo "Stopped nfs-server service"
-			else
-				echo 0 > $CRTOOLS_IMAGE_DIR/vz_nfsd_active.img || \
-					{ echo "Failed to dump nfs-server status"; exit 1; }
-			fi
-		fi
+		stop_nfs_server_service_before_dump
 	fi
 	;;
 "post-dump")
@@ -111,15 +134,9 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 		echo "Missing parameter CRTOOLS_IMAGE_DIR"
 		exit 1
 	fi
-	# For container with nfsd feature restart nfs-server if it was stopped before dump
-	if [ -n "$VEID" ] && (( $(cgget -n -v -r ve.features $VEID) & $VE_FEATURE_NFSD )) && [ -f $CRTOOLS_IMAGE_DIR/vz_nfsd_active.img ]; then
-		VZ_NFSD_ACTIVE=`cat $CRTOOLS_IMAGE_DIR/vz_nfsd_active.img`
-		if [ -n "$VZ_NFSD_ACTIVE" ] && [ "$VZ_NFSD_ACTIVE" = "1" ]; then
-			$TIMEOUT $NFSD_TIMEOUT $JOIN_CT $SYSTEMCTL start nfs-server || \
-				{ echo "Failed to start nfs-server"; exit 1; }
-				echo "Restarted nfs-server service"
-		fi
-	fi
+
+	# For container with nfsd feature restart nfs-server and friends if they were stopped before dump
+	restart_nfs_server_service_alive
 	;;
 esac
 exit 0
