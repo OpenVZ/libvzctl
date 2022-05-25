@@ -21,6 +21,8 @@
  * Schaffhausen, Switzerland.
  */
 
+#include <sys/types.h>
+
 #ifndef __LIBVZCTL_H__
 #define __LIBVZCTL_H__
 
@@ -590,6 +592,11 @@ struct vzctl_net_info {
 
 struct vzctl_compact_param {
 	int defrag;
+	int dry;
+	int threshold;
+	int delta;
+	volatile int *stop;
+	volatile dev_t *compact_dev;
 };
 
 struct vzctl_console {

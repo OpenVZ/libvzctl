@@ -1021,26 +1021,19 @@ int vzctl_encrypt_disk_image(const char *path, const char *keyid, int flags)
 int vzctl_compact_disk_image(struct vzctl_disk *disk,
 		struct vzctl_compact_param *param)
 {
-	int ret;
-	struct ploop_disk_images_data *di;
-	struct ploop_discard_param p = {
-		.automount = 1,
-		.defrag = param->defrag,
+	struct ploop_compact_param ploop_param = {
+			.path = disk->path,
+			.defrag = param->defrag,
+			.dry = param->dry,
+			.threshold = param->threshold,
+			.delta = param->delta,
+			.stop = param->stop,
+			.compact_dev = param->compact_dev,
 	};
 
 	if (disk->use_device || !is_permanent_disk(disk))
 		return 0;
 
 	logger(0, 0, "Compact %s", disk->path);
-	ret = open_dd(disk->path, &di);
-	if (ret)
-		return ret;
-
-	if (ploop_discard(di, &p))
-		ret = vzctl_err(VZCTL_E_PLOOP, 0, "ploop_discard(%s): %s",
-				disk->path, ploop_get_last_error());
-
-	ploop_close_dd(di);
-
-	return ret;
+	return ploop_compact(&ploop_param);
 }
