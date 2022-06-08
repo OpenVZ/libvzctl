@@ -358,6 +358,10 @@ function setup()
 	setup_gw
 }
 
-setup
+if is_nm_enabled; then
+	nm_setup $DEVICE
+else
+	setup
+fi
 exit 0
 # end of script

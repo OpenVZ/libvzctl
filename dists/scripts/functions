@@ -25,6 +25,14 @@ umask 022
 
 ROUTED_UUID=4896d4dc-7035-45f9-ac14-2bd1d1809c26
 
+NWSYSTEMDIR=/etc/NetworkManager
+NWCONFDIR="$NWSYSTEMDIR/system-connections"
+NWSYMLINK=/etc/systemd/system/multi-user.target.wants/NetworkManager.service
+SYSTEMCTL=/bin/systemctl
+IP4_ROUTED_GW=169.254.0.1
+IP4=
+IP6=
+
 # Error codes
 VZ_SYSTEM_ERROR=3
 VZ_INVALID_PARAMETER_SYNTAX=20
@@ -655,4 +663,265 @@ randtimer()
 		echo '[Timer]
 RandomizedDelaySec=12h' > $f/override.conf
 	done
+}
+
+# Functions for network managment by NetworkManager
+mask2cidr()
+{
+	c=0 x=0$( printf '%o' ${1//./ } )
+	while [ $x -gt 0 ]; do
+		let c+=$((x%2)) 'x>>=1'
+	done
+	echo $c
+}
+
+is_nm_enabled()
+{
+	local status
+
+	[ ! -e "$NWCONFDIR" ] || [ ! -f "$NWSYMLINK" ] && return 1
+
+	status=$($SYSTEMCTL is-enabled NetworkManager 2>&1)
+	[ "$status" != "enabled" ] && return 1
+
+	return 0
+}
+
+nm_clean_ip_and_gw()
+{
+	local name=$1
+	local proto=$2
+	local uuid
+
+	uuid=$(nmcli -g connection.uuid c s $name)
+
+	nmcli c modify $name ipv${proto}.gateway ''
+	nmcli c modify $name ipv${proto}.address '' ipv4.method link-local
+	nmcli c modify $uuid ipv${proto}.gateway ''
+	nmcli c up $uuid
+}
+
+get_ips()
+{
+	IP6=
+	IP4=
+	for ipm in $1; do
+		ip=${ipm%%/*}
+		mask=${ipm##*/}
+
+		[ "$mask" = "$ipm" ] && mask=
+		if is_ipv6 "$ip"; then
+			[ -z "$mask" ] && mask=64
+			IP6="$IP6 $ip/$mask"
+		else
+			if [ -z "$mask" ]; then
+				mask=24
+			else
+				mask=`mask2cidr $mask`
+			fi
+
+			IP4="$IP4 $ip/$mask"
+		fi
+	done
+}
+
+nm_create_config()
+{
+	local dev=$1
+	local id=$2
+	local conf="$NWCONFDIR/$id"
+	local ip4 ip6 gw i uuid
+
+	[ "$NETWORK_TYPE" = "routed" ] && uuid=$ROUTED_UUID
+	[ -z "$uuid" ] && uuid=$(cat /proc/sys/kernel/random/uuid)
+
+	echo "[main]
+no-auto-default+=$dev
+plugins-=ifcfg-rh" > $NWSYSTEMDIR/conf.d/$id.conf
+	chmod 600 $NWSYSTEMDIR/conf.d/$id.conf
+
+	echo "[connection]
+id=$id
+uuid=$uuid
+type=ethernet
+interface-name=$dev" > $conf
+	chmod 600 $conf
+
+	get_ips "$IPADD"
+	if [ -n "$IP4" ]; then
+		echo '[ipv4]
+method=manual' >> $conf
+		i=1
+		[ -n "$GW" ] && gw=",$GW"
+		[ -z "$gw" ] && [ "$NETWORK_TYPE" = "routed" ] && gw=",$IP4_ROUTED_GW"
+		for ip in $IP4; do
+			echo "address$i=$ip$gw" >> $conf
+			let i=i+1
+			gw=
+		done
+	elif [ "$DHCP4" = "yes" ]; then
+		echo '[ipv4]
+method=auto' >> $conf
+	else
+
+		echo '[ipv4]
+method=link-local' >> $conf
+	fi
+
+	if [ -n "$IP6" ]; then
+		echo '[ipv6]
+method=manual' >> $conf
+		i=1
+		for ip in $IP6; do
+			echo "address$i=$ip" >> $conf
+			let i=i+1
+		done
+	elif [ "$DHCP6" = "yes" ]; then
+		echo '[ipv6]
+method=auto' >> $conf
+	else
+		echo '[ipv6]
+method=ignore' >> $conf
+	fi
+}
+
+
+nm_set_ip()
+{
+	local name=$1
+	local ip4 gw4 ip6 gw6
+
+	gw4=$(nmcli -g ipv4.gateway c s $name | sed 's/[,\\]//g')
+	gw6=$(nmcli -g ipv6.gateway c s $name | sed 's/[,\\]//g')
+
+	if [ -n "$IPDEL" ]; then
+		ips=$(nmcli -g ipv4.addresses c s $name | sed 's/[,\\]//g')
+		for ipm in $ips; do
+			for ipd in $IPDEL; do
+				[ "$ipd" = "all" ] && break
+				ip=${ipd%%/*}
+				if ! echo $ipm | grep -qw $ip; then
+					ip4="$ip4 $ipm"
+				fi
+			done
+		done
+
+		ips=$(nmcli -g ipv6.addresses c s $name | sed 's/[,\\]//g')
+		for ipm in $ips; do
+			for ipd in $IPDEL; do
+				[ "$ipd" = "all" ] && break
+				ip=${ipd%%/*}
+				if ! echo $ipm | grep -qw $ip; then
+					ip6="$ip6 $ipm"
+				fi
+			done
+		done
+		nmcli c modify $name ipv4.gateway ''
+		nmcli c modify $name ipv4.address '' ipv4.method link-local
+		nmcli c modify $name ipv6.gateway ''
+		nmcli c modify $name ipv6.address '' ipv6.method link-local
+	fi
+
+	#add ips
+	get_ips "$IPADD"
+	ip4="$ip4 $IP4"
+	for ipm in $ip4; do
+		nmcli c modify $name +ipv4.address $ipm ipv4.method manual || exit
+	done
+
+	if [ "$NETWORK_TYPE" = "routed" ]; then
+		if [ -z "$gw4" ]; then
+			gw4=$IP4_ROUTED_GW
+		fi
+	fi
+
+	[ -n "$gw4" ] && nmcli c modify $name ipv4.gateway $gw4
+
+	ip6="$ip6 $IP6"
+	for ipm in $ip6; do
+		nmcli c modify $name +ipv6.address $ipm ipv6.method manual || exit $?
+	done
+	[ -n "$gw6" ] && nmcli c modify $name ipv6.gateway $gw6
+}
+
+nm_set_dhcp()
+{
+	local name=$1
+	local method
+
+	for p in 4 6; do
+		dhcp=DHCP$p
+		[ "${!dhcp}" != "yes" ] && continue
+
+		nm_clean_ip_and_gw $name $p
+		nmcli c modify $name ipv${p}.method auto
+		if [ $? -ne 0 ]; then
+			nmcli c modify $name ipv${p}.method link-local || exit $?
+		fi
+	done
+}
+
+nm_set_gw()
+{
+	local name=$1
+	local uuid
+
+	uuid=$(nmcli -g connection.uuid c s $name)
+
+	if [ -n "$GWDEL" ]; then
+		nmcli c modify $name ipv4.gateway ''
+		nmcli c modify $uuid ipv4.gateway $IP4_ROUTED_GW
+		nmcli c up $uuid
+	fi
+
+	if [ -n "$GW" ]; then
+		nmcli c modify $name ipv4.gateway ''
+		nmcli c modify $uuid ipv4.gateway $GW
+		nmcli c up $uuid
+	fi
+
+	[ -n "$GW6DEL" ] && nmcli c modify $name ipv6.gateway ''
+	[ -n "$GW6" ] && nmcli c modify $name ipv6.gateway $GW6
+}
+
+nm_setup()
+{
+	local dev=$1
+	local id=vz-$dev
+
+	if [ "$VE_STATE" = "starting" ]; then
+		nm_create_config $dev $id
+	else
+		nmcli -g connection.uuid c s $id >/dev/null 2>&1
+		if [ $? -ne 0 ]; then
+			nmcli con add con-name $id ifname $dev type ethernet || exit $?
+		fi
+		nm_set_ip $id
+		nm_set_dhcp $id
+		nm_set_gw $id
+
+		nmcli c up $id
+	fi
+}
+
+nm_delete()
+{
+	local dev=$1
+	local id=vz-$dev
+
+	if [ "$VE_STATE" != "starting" ]; then
+		nmcli connection delete $id >/dev/null 2>&1
+	fi
+
+	rm -f $NWCONFDIR/$id*
+	rm -f $NWSYSTEMDIR/conf.d/$id*
+}
+
+nm_set_hostname()
+{
+	local hname=$1
+
+	if [ "$VE_STATE" != "starting" ]; then
+		nmcli general hostname $hname >/dev/null 2>&1
+	fi
 }

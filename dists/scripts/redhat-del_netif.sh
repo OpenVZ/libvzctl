@@ -47,4 +47,7 @@ function del_dev()
 }
 
 del_dev
+if is_nm_enabled; then
+	nm_delete $DEVICE
+fi
 exit 0
