@@ -516,5 +516,9 @@ function setup()
 	fi
 }
 
-setup
+if is_nm_enabled; then
+	nm_setup $DEVICE
+else
+	setup
+fi
 exit 0

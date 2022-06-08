@@ -42,5 +42,7 @@ function set_hostname()
 [ -z "${HOSTNM}" ] && exit 0
 change_hostname /etc/hosts "${HOSTNM}" "${IP_ADDR}"
 set_hostname /etc/hostname "${HOSTNM}"
-
+if is_nm_enabled; then
+	nm_set_hostname "${HOSTNM}"
+fi
 exit 0

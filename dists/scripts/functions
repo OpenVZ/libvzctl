@@ -884,10 +884,36 @@ nm_set_gw()
 	[ -n "$GW6" ] && nmcli c modify $name ipv6.gateway $GW6
 }
 
+nm_cfg_fixup()
+{
+	local status
+	local retry
+	local cfg_name="NetworkManager/conf.d/10-globally-managed-devices.conf"
+
+	[ ! -f /usr/lib/$cfg_name ] && return
+	[ -f /etc/$cfg_name ] && return
+
+	# We must shadow the NM config file from path /usr/lib/...
+	echo "[keyfile]" > /etc/$cfg_name
+
+	status=$($SYSTEMCTL is-active NetworkManager 2>&1)
+	[ "$status" != "active" ] && return
+
+	$SYSTEMCTL restart NetworkManager 2>&1
+
+	retry=0
+	while ! $SYSTEMCTL is-active -q NetworkManager 2>&1 && [[ $retry < 3 ]]; do
+		sleep 1
+		((retry=$retry+1))
+	done
+}
+
 nm_setup()
 {
 	local dev=$1
 	local id=vz-$dev
+
+	nm_cfg_fixup
 
 	if [ "$VE_STATE" = "starting" ]; then
 		nm_create_config $dev $id
@@ -910,6 +936,7 @@ nm_delete()
 	local id=vz-$dev
 
 	if [ "$VE_STATE" != "starting" ]; then
+		nm_cfg_fixup
 		nmcli connection delete $id >/dev/null 2>&1
 	fi
 
@@ -922,6 +949,7 @@ nm_set_hostname()
 	local hname=$1
 
 	if [ "$VE_STATE" != "starting" ]; then
+		nm_cfg_fixup
 		nmcli general hostname $hname >/dev/null 2>&1
 	fi
 }
