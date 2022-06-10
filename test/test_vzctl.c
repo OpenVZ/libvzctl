@@ -138,7 +138,10 @@ void test_env_register()
 	struct vzctl_env_handle *h;
 	struct vzctl_reg_param p = {};
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
 	SET_CTID(p.ctid, ctid);
+#pragma GCC diagnostic pop
 
 	TEST()
 
@@ -679,7 +682,10 @@ int create(ctid_t id)
 {
 	struct vzctl_env_create_param param = {};
 	struct vzctl_env_param *env = vzctl2_alloc_env_param();
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
 	SET_CTID(param.ctid, id)
+#pragma GCC diagnostic pop
 
 	cleanup();
 

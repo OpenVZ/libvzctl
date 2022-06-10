@@ -3705,15 +3705,28 @@ int vzctl2_env_compact(struct vzctl_env_handle *h,
 		struct vzctl_compact_param *param, int size)
 {
 	int ret = 0, rc;
+	int mount = 0;
 	struct vzctl_disk *d;
 	struct vzctl_compact_param p = {};
 
 	memcpy(&p, param, size);
+
+	if (!vzctl2_env_is_mounted(h)) {
+		mount = 1;
+		ret = vzctl2_env_mount(h, 0);
+		if (ret)
+			return vzctl_err(VZCTL_E_MOUNT, ret, "Unable to mount '%s'", h->ctid);
+	}
+
 	list_for_each(d, &h->env_param->disk->disks, list) {
 		rc = vzctl_compact_disk_image(d, &p);
 		if (rc)
 			ret = rc;
 		
+	}
+
+	if (mount) {
+		vzctl2_env_umount(h, 0);
 	}
 
 	return ret;
