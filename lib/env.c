@@ -3503,7 +3503,7 @@ int vzctl2_env_get_layout(struct vzctl_env_param *env, int *layout)
 
 int vzctl2_env_set_layout(struct vzctl_env_param *env, int layout, int flags)
 {
-	if (layout < VZCTL_LAYOUT_3 || layout > VZCTL_LAYOUT_6)
+	if (layout < VZCTL_LAYOUT_3 || layout > VZCTL_LAYOUT_5)
 		return vzctl_err(VZCTL_E_INVAL, 0, "An invalid layout is specified %d",
 				layout);
 

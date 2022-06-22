@@ -133,7 +133,7 @@ int vzctl2_create_env_private(const char *ve_private, int layout)
 {
 	char path[MAXPATHLEN];
 
-	if (layout < VZCTL_LAYOUT_3 || layout > VZCTL_LAYOUT_6)
+	if (layout < VZCTL_LAYOUT_3 || layout > VZCTL_LAYOUT_5)
 		return vzctl_err(-1, 0, "Unsupported layout %d", layout);
 
 	if (stat_file(ve_private) == 0 && make_dir(ve_private, 1))
@@ -153,7 +153,7 @@ int vzctl2_create_env_private(const char *ve_private, int layout)
 		snprintf(path, sizeof(path), "%s" VZCTL_VE_SCRIPTS_DIR, ve_private);
 		if (make_dir(path, 1))
 			goto err;
-	} else if (layout == VZCTL_LAYOUT_5 || layout == VZCTL_LAYOUT_6) {
+	} else if (layout == VZCTL_LAYOUT_5) {
 		/* VZ 5.0 layout structure */
 		snprintf(path, sizeof(path), "%s" VZCTL_VE_FS_DIR, ve_private);
 		if (make_dir(path, 1))

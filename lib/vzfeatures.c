@@ -60,10 +60,9 @@ int vzctl2_fstype2layout(unsigned long fstype)
 	switch (fstype) {
 	case VZ_T_SIMFS:
 		return VZCTL_LAYOUT_4;
+	case VZ_T_XFS:
 	case VZ_T_EXT4:
 		return VZCTL_LAYOUT_5;
-	case VZ_T_QCOW2:
-		return VZCTL_LAYOUT_6;
 	default:
 		return 0;
 	}
@@ -72,11 +71,11 @@ int vzctl2_fstype2layout(unsigned long fstype)
 
 const char *vzctl2_layout2fstype(int layout)
 {
+	static char buf[NAME_MAX];
 	switch (layout) {
 	case VZCTL_LAYOUT_5:
-		return "ext4";
-	case VZCTL_LAYOUT_6:
-		return "qcow2";
+		vzctl2_get_def_fstype(buf, sizeof(buf));
+		return buf;
 	default:
 		return "simfs";
 	}
@@ -186,6 +185,7 @@ static struct tech_mtx {
 	{VZ_T_SIMFS,		"2.4"},
 	{VZ_T_EXT4,		"2.6.32"},
 	{VZ_T_QCOW2,		"5.14.0"},
+	{VZ_T_XFS,			"5.14.0"},
 };
 
 static struct id2name {
@@ -205,6 +205,7 @@ static struct id2name {
 	{VZ_T_VZFS0,		"simfs"},
 	{VZ_T_SIMFS,		"simfs"},
 	{VZ_T_QCOW2,		"qcow2"},
+	{VZ_T_XFS,			"xfs"},
 };
 
 const char *vzctl2_tech2name(unsigned long long id)

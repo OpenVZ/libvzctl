@@ -159,8 +159,10 @@ int vztmpl_is_jquota_supported(const char *ostmpl)
 static int vztmpl_create_cache(const char *ostmpl, const char *fstype)
 {
 	const char *p;
-	char *arg[8];
+	char *arg[10];
 	char progress[STR_SIZE] = "";
+	char image_format[STR_SIZE];
+	char fs_type[STR_SIZE];
 	char *env[] = {progress, NULL };
 	int i = 0;
 
@@ -170,10 +172,16 @@ static int vztmpl_create_cache(const char *ostmpl, const char *fstype)
 	if (vzctl2_get_log_quiet())
 		arg[i++] = "-q";
 	arg[i++] = (char *)ostmpl;
-	if (fstype) {
-		arg[i++] = "--vefstype";
+	arg[i++] = "--vefstype";
+	if (fstype)
 		arg[i++] = (char *)fstype;
+	else {
+		vzctl2_get_def_fstype(fs_type, sizeof(fs_type));
+		arg[i++] = fs_type;
 	}
+	vzctl2_get_def_img_fmt(image_format, sizeof(image_format));
+	arg[i++] = "--veimgfmt";
+	arg[i++] = image_format;
 	arg[i++] = NULL;
 
 	if ((p = getenv("VZ_PROGRESS_FD")))
@@ -184,7 +192,9 @@ static int vztmpl_create_cache(const char *ostmpl, const char *fstype)
 
 static int vztmpl_create_appcache(const char *config, const char *ostmpl, const char *fstype)
 {
-	char *arg[11];
+	char *arg[13];
+	char image_format[STR_SIZE];
+	char fs_type[STR_SIZE];
 	int i = 0;
 
 	arg[i++] = VZPKG;
@@ -196,10 +206,17 @@ static int vztmpl_create_appcache(const char *config, const char *ostmpl, const 
 	arg[i++] = (char *)config;
 	arg[i++] = "--ostemplate";
 	arg[i++] = (char *)ostmpl;
-	if (fstype) {
-		arg[i++] = "--vefstype";
+	arg[i++] = "--vefstype";
+	if (fstype)
 		arg[i++] = (char *)fstype;
+	else {
+		vzctl2_get_def_fstype(fs_type, sizeof(fs_type));
+		arg[i++] = fs_type;
 	}
+	vzctl2_get_def_img_fmt(image_format, sizeof(image_format));
+	arg[i++] = "--veimgfmt";
+	arg[i++] = image_format;
+
 	arg[i++] = NULL;
 
 	return vzctl2_wrap_exec_script(arg, NULL, 0);
@@ -279,10 +296,12 @@ static int vztmpl_get_appcache_tarball(const char *cache_config, const char *ost
 	FILE *fp;
 	char buf[4096];
 	char f_ostmpl[STR_SIZE];
-	char *arg[10];
+	char image_format[STR_SIZE];
+	char fs_type[STR_SIZE];
+	char *arg[12];
 	int ret = 0, i = 0;
 
-	/* vzpkg info -a [--config name] --ostemplate name [--vefstype=type] */
+	/* vzpkg info -a [--config name] --ostemplate name [--vefstype=type] [--veimgfmt=image_format]*/
 	arg[i++] = VZPKG;
 	arg[i++] = "info";
 	arg[i++] = "-q";
@@ -292,10 +311,16 @@ static int vztmpl_get_appcache_tarball(const char *cache_config, const char *ost
 	}
 	arg[i++] = "--ostemplate";
 	arg[i++] = (char *)get_full_ostmpl(ostmpl, f_ostmpl, sizeof(f_ostmpl));
-	if (fstype != NULL) {
-		arg[i++] = "--vefstype";
+	arg[i++] = "--vefstype";
+	if (fstype)
 		arg[i++] = (char *)fstype;
+	else {
+		vzctl2_get_def_fstype(fs_type, sizeof(fs_type));
+		arg[i++] = fs_type;
 	}
+	vzctl2_get_def_img_fmt(image_format, sizeof(image_format));
+	arg[i++] = "--veimgfmt";
+	arg[i++] = image_format;
 	arg[i++] = NULL;
 
 	fp = vzctl_popen(arg, NULL, DONT_REDIRECT_ERR2OUT);

@@ -101,6 +101,18 @@ int vzctl2_get_def_ostemplate_name(char *out, int size)
 	return 0;
 }
 
+void vzctl2_get_def_img_fmt(char *out, int size)
+{
+	if (get_global_param("VEIMAGEFORMAT", out, size - 1))
+		snprintf(out, size, "ploop");
+}
+
+void vzctl2_get_def_fstype(char *out, int size)
+{
+	if (get_global_param("VEFSTYPE", out, size - 1))
+		snprintf(out, size, "xfs");
+}
+
 static int is_ploop_cache(const char *name)
 {
 	return strstr(name, ".ploop") || strstr(name, ".qcow2") ? 1 : 0;
@@ -116,7 +128,7 @@ static int get_def_ve_layout(void)
 		if (vefstype != VZ_T_VZFS3 &&
 				vefstype != VZ_T_VZFS4 &&
 				vefstype != VZ_T_EXT4 &&
-				vefstype != VZ_T_QCOW2 &&
+				vefstype != VZ_T_XFS &&
 				vefstype != VZ_T_SIMFS)
 			goto out;
 
@@ -311,7 +323,6 @@ static int create_private_ploop(const char *dst, unsigned long size,
 
 	switch (layout) {
 	case VZCTL_LAYOUT_5:
-	case VZCTL_LAYOUT_6:
 		if (strstr(tarball, ".qcow2") != NULL) {
 			snprintf(data_root, sizeof(data_root), "%s", dst);
 			break;
