@@ -1905,10 +1905,14 @@ static int veth_ctl(struct vzctl_env_handle *h, int op,
 static int ns_veth_ctl(struct vzctl_env_handle *h, int op,
 		struct vzctl_veth_dev *dev, int flags)
 {
-	int ret;
+	int ret = 0;
 
 	if (flags & VZCTL_RESTORE)
-		return 0;
+	{
+		if (dev->nettype == VZCTL_NETTYPE_ROUTED)
+			ret = veth_ctl(h, op, dev, flags);
+		return ret;
+	}
 
 	ret = veth_ctl(h, op, dev, flags);
 	if (ret)
