@@ -32,6 +32,7 @@
 #include <limits.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <time.h>
 
 #include "linux/vzcalluser.h"
 #include "env.h"
@@ -111,6 +112,17 @@ int vzctl2_get_cpuinfo(struct vzctl_cpuinfo *info)
 	char str[128];
 	int ncpu = 0;
 	unsigned long long max_freq = 0;
+	static struct vzctl_cpuinfo cached_info;
+	struct timespec ts;
+	static time_t lastcall = 0;
+
+	if (!clock_gettime(CLOCK_MONOTONIC_COARSE, &ts)) {
+		if (ts.tv_sec - lastcall < 4) {
+			*info = cached_info;
+			return 0;
+		}
+		lastcall = ts.tv_sec;
+	}
 
 	if ((fp = fopen("/proc/cpuinfo", "r")) == NULL)
 		return vzctl_err(VZCTL_E_CPUINFO, errno, "Cannot open /proc/cpuinfo");
@@ -131,10 +143,12 @@ int vzctl2_get_cpuinfo(struct vzctl_cpuinfo *info)
 	if (ncpu == 0)
 		ncpu = 1;
 
-	info->ncpu = ncpu;
-	info->freq = ncpu * max_freq;
+	cached_info.ncpu = ncpu;
+	cached_info.freq = ncpu * max_freq;
 	if (get_cpu_max_freq(&max_freq) == 0)
-		info->freq = ncpu * max_freq;
+		cached_info.freq = ncpu * max_freq;
+
+	*info = cached_info;
 
 	return 0;
 }
