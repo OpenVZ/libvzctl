@@ -1884,7 +1884,7 @@ static int veth_ctl(struct vzctl_env_handle *h, int op,
 			envp[i++] = ip2str("IP_DEL=", &dev->ip_del_list, 0);
 
 		if (flags & VZCTL_SKIP_ARPDETECT)
-			envp[i++] = "SKIP_ARPDETECT=yes";
+			envp[i++] = strdup("SKIP_ARPDETECT=yes");
 		snprintf(buf, sizeof(buf), "VE_STATE=%s", get_state(h));
 		envp[i++] = strdup(buf);
 	}
