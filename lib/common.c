@@ -606,7 +606,7 @@ static void close_proc_fd()
 
 int _close_fds(int close_mode, int *skip_fds)
 {
-	int fd;
+	int fd, i;
 	struct stat st;
 	char buf[STR_SIZE];
 	struct dirent *ent;
@@ -614,12 +614,16 @@ int _close_fds(int close_mode, int *skip_fds)
 
 	if (close_mode & VZCTL_CLOSE_STD) {
 		fd = open("/dev/null", O_RDWR);
-		if (fd != -1) {
-			dup2(fd, 0); dup2(fd, 1); dup2(fd, 2);
+		for (i = 0; i <= 2; i++)
+			/* avoid closing proc_fd inherited from parent process */
+			if (proc_fd != i) {
+				if (fd != -1)
+					dup2(fd, i);
+				else
+					close(i);
+			}
+		if (fd > 2)
 			close(fd);
-		} else {
-			close(0); close(1); close(2);
-		}
 	}
 
 	if (proc_fd == -1)
