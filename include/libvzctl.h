@@ -45,7 +45,6 @@
 #define VZCTL_LAYOUT_3  3
 #define VZCTL_LAYOUT_4  4
 #define VZCTL_LAYOUT_5  5
-#define VZCTL_LAYOUT_6  6
 
 #define VZCTL_CPUUNITS_MAX     500000
 #define VZCTL_CPUUNITS_MIN     8
@@ -101,6 +100,7 @@ enum {
 	VZ_T_SIMFS = VZ_T_VZFS0,
 	VZ_T_EXT4 = (1<<14),
 	VZ_T_QCOW2 = (1<<15),
+	VZ_T_XFS = (1<<16),
 };
 
 enum {
@@ -1215,6 +1215,8 @@ int vzctl2_env_set_setmode(struct vzctl_env_param *env, vzctl_setmode_t mode);
 int vzctl2_env_set_cidata_fname(struct vzctl_env_param *env, const char *fname);
 int vzctl2_set_limits(struct vzctl_env_handle *h, int release);
 int vzctl2_get_def_ostemplate_name(char *out, int size);
+void vzctl2_get_def_img_fmt(char *out, int size);
+void vzctl2_get_def_fstype(char *out, int size);
 int vzctl2_bitmap_parse(const char *str, unsigned long *maskp, int size);
 int vzctl2_prepare_root_image(const char *dst, const char *ostemplate,
 		struct vzctl_create_image_param *param);
