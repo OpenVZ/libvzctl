@@ -324,6 +324,12 @@ struct vzctl_tc_netstat {
 	unsigned int outgoing_pkt[TC_MAX_CLASSES];
 };
 
+struct vzctl_all_tc_netstat {
+	ctid_t ctid;
+	struct vzctl_tc_netstat v4;
+	struct vzctl_tc_netstat v6;
+};
+
 struct vzctl_netstat {
 	unsigned long long incoming;
 	unsigned long long outgoing;
@@ -752,6 +758,8 @@ int vzctl2_env_cpustat(struct vzctl_env_handle *h, struct vzctl_cpustat *cpustat
 
 int vzctl2_get_env_tc_netstat(struct vzctl_env_handle *h,
 		struct vzctl_tc_netstat *stat, int v6);
+
+int vzctl2_get_all_tc_netstat(struct vzctl_all_tc_netstat **stat, int *size);
 
 int vzctl2_get_env_netstat(const ctid_t ctid, const char *dev,
 		struct vzctl_netstat *stat, int size);

@@ -33,7 +33,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
-#include <nftables/libnftables.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -317,38 +316,74 @@ void configure_net_rps(const char *ve_root, const char *dev)
 	close(fd);
 }
 
-static int run_nft_cmd(const char *cmd, char *out, int len)
+#define NFT_CMD "/usr/sbin/nft"
+
+static int run_nft_cmd(char **argv, char **out)
 {
-	int ret = -1;
-	struct nft_ctx *nft;
+	int ret = VZCTL_E_SYSTEM;
+	int status, exitcode;
+	size_t size = STR_MAX;
+	char *buf = NULL;
+	FILE *fd = NULL;
 
-	if (!(nft = nft_ctx_new(NFT_CTX_DEFAULT)))
-		return vzctl_err(-1, errno, "Unable to connect to nft");
+	if ((fd = vzctl_popen(argv, NULL, 0)) == NULL)
+		return vzctl_err(ret, errno, "Unable to start %s command",
+			argv[0]);
 
-	if (nft_ctx_buffer_output(nft) || nft_ctx_buffer_error(nft)) {
-		ret = vzctl_err(-1, errno, "Unable to redirect nft output");
-		goto out;
+	if (out) {
+		char *p;
+		size_t n, sz;
+
+		if ((buf = malloc(size)) == NULL) {
+			ret = VZCTL_E_NOMEM;
+			goto err;
+		}
+
+		p = buf;
+		sz = size;
+		while ((n = fread(p, 1, sz, fd)) == sz) {
+			n = (p - buf) + sz;
+			size *= 2;
+			sz = size - n;
+
+			if ((buf = realloc(buf, size)) == NULL) {
+				ret = VZCTL_E_NOMEM;
+				goto err;
+			}
+
+			p = buf + n;
+		}
+
+		if (ferror(fd)) {
+			ret = vzctl_err(VZCTL_E_PIPE, errno,
+				"Reading failed with code %d",
+				errno);
+			goto err;
+		}
+
+		p[n] = '\0';
 	}
 
-	if (nft_run_cmd_from_buffer(nft, cmd)) {
-		ret = vzctl_err(-1, errno, "Unable to run command '%s'",
-				cmd);
+	status = vzctl_pclose(fd);
+	fd = NULL;
+
+	if ((exitcode = WEXITSTATUS(status))) {
+		vzctl_err(ret, errno, "Command %s failed with code %d",
+			argv[0], exitcode);
 		goto err;
 	}
 
-	if (out && len) {
-		const char *p = nft_ctx_get_output_buffer(nft);
-		strncpy(out, p, len);
-		out[len - 1] = '\0';
+	ret = VZCTL_E_OK;
+
+	if (out) {
+		*out = buf;
+		buf = NULL;
 	}
 
-	ret = 0;
-
 err:
-	nft_ctx_unbuffer_output(nft);
-	nft_ctx_unbuffer_error(nft);
-out:
-	nft_ctx_free(nft);
+	free(buf);
+	if (fd)
+		vzctl_pclose(fd);
 
 	return ret;
 }
@@ -375,58 +410,58 @@ static char *ctid2nft(struct vzctl_env_handle *h, ctid_t nft)
 static int exist_nft_table(struct vzctl_env_handle *h)
 {
 	ctid_t ctid;
-	char buf[STR_SIZE];
+	char ve[STR_SIZE];
+	char *argv[] = {NFT_CMD, "list", "counters", "table", "netdev", ve, NULL};
 
-	snprintf(buf, sizeof(buf),
-		 "list table netdev ve_%s",
-		 ctid2nft(h, ctid));
+	snprintf(ve, sizeof(ve), "ve_%s", ctid2nft(h, ctid));
 
-	return run_nft_cmd(buf, NULL, 0);
+	return run_nft_cmd(argv, NULL);
 }
 
 int vzctl2_clear_ve_netstat(struct vzctl_env_handle *h)
 {
 	ctid_t ctid;
-	char buf[STR_SIZE];
+	char ve[STR_SIZE];
+	char *argv[] = {NFT_CMD, "reset", "counters", "table", "netdev", ve, NULL};
 
 	if (exist_nft_table(h))
 		return 0;
 
-	snprintf(buf, sizeof(buf),
-		 "reset counters table netdev ve_%s",
-		 ctid2nft(h, ctid));
+	snprintf(ve, sizeof(ve), "ve_%s", ctid2nft(h, ctid));
 
-	return run_nft_cmd(buf, NULL, 0);
+	return run_nft_cmd(argv, NULL);
 }
 
 int vzctl2_clear_all_ve_netstat(void)
 {
-	return run_nft_cmd("reset counters netdev", NULL, 0);
+	char *argv[] = {NFT_CMD, "reset", "counters", "netdev", NULL};
+
+	return run_nft_cmd(argv, NULL);
 }
 
 int vzctl2_get_env_tc_netstat(struct vzctl_env_handle *h,
 		struct vzctl_tc_netstat *stat, int v6)
 {
-	ctid_t ctid;
-	char buf[STR_SIZE];
-	char out[4096];
+	int ret = VZCTL_E_SYSTEM;
+	char *out = NULL;
 	char *p;
+	char ve[STR_SIZE];
+	char *argv[] = {NFT_CMD, "list", "counters", "table", "netdev", ve, NULL};
 	const char *prefix = "counter counter_";
+	ctid_t ctid;
 
 	if (h == NULL || stat == NULL)
-		return -1;
+		return VZCTL_E_INVAL_PARAMETER_SYNTAX;
 
 	bzero(stat, sizeof(struct vzctl_tc_netstat));
 
 	if (exist_nft_table(h))
-		return 0;
+		return VZCTL_E_OK;
 
-	snprintf(buf, sizeof(buf),
-		 "list counters table netdev ve_%s",
-		 ctid2nft(h, ctid));
+	snprintf(ve, sizeof(ve), "ve_%s", ctid2nft(h, ctid));
 
-	if (run_nft_cmd(buf, out, sizeof(out)))
-		return -1;
+	if ((ret = run_nft_cmd(argv, &out)) != 0)
+		goto err;
 
 	/*
 	 * Sample for output from the command nft:
@@ -462,9 +497,11 @@ int vzctl2_get_env_tc_netstat(struct vzctl_env_handle *h,
 
 			if ((p = strstr(p, "packets ")) != NULL) {
 				if (sscanf(p + 8, "%u bytes %llu",
-				    pkt, bytes) != 2)
-					return vzctl_err(-1, 0,
-							 "Unable to parse nft output");
+				    pkt, bytes) != 2) {
+					ret = vzctl_err(VZCTL_E_INVAL, 0,
+							"Unable to parse nft output");
+					goto err;
+				}
 			}
 		}
 
@@ -472,7 +509,149 @@ int vzctl2_get_env_tc_netstat(struct vzctl_env_handle *h,
 			p++;
 	}
 
-	return 0;
+	ret = VZCTL_E_OK;
+
+err:
+	free(out);
+
+	return ret;
+}
+
+/*
+ * vzctl2_get_all_tc_netstat()
+ * Get stat information about all domain.
+ * The caller is responsible for freeing @stat when no longer needed.
+ * Returns 0 in case of success, or error code in case of failure.
+ * @param stat	return pointer to array of stat
+ * @param size	return size of stat array in elements
+ */
+int vzctl2_get_all_tc_netstat(struct vzctl_all_tc_netstat **stat, int *size)
+{
+	int ret = VZCTL_E_SYSTEM;
+	char *out = NULL;
+	char *p, *pnext = NULL;
+	char *argv[] = {NFT_CMD, "list", "counters", "netdev", NULL};
+	const char *table = "table netdev ve_";
+	const char *counter = "counter counter_";
+	struct vzctl_all_tc_netstat *s = NULL;
+	size_t cnt = 0;
+	size_t max = 32;
+
+	if (stat == NULL && size == NULL)
+		return VZCTL_E_INVAL_PARAMETER_SYNTAX;
+
+	if ((s = calloc(max, sizeof(*s))) == NULL)
+		return VZCTL_E_NOMEM;
+
+	if ((ret = run_nft_cmd(argv, &out)) != 0)
+		goto err;
+
+	/*
+	 * Sample for output from the command nft:
+	 *
+	 * "table netdev ve_ac00a592668f44988d3fd6cd0f8e38ff {
+	 *    counter counter_i4_1 {
+	 *	packets 31 bytes 9841
+	 *    }
+	 *  }
+	 *  table netdev ve_dd2c9fe655e747f4985e654c3d72c097 {
+	 *    counter counter_o6_1 {
+	 *	packets 30 bytes 9840
+	 *    }
+	 *  }"
+	 */
+	p = out;
+	do {
+		if ((p = strstr(p, table)) != NULL) {
+			ctid_t ctid;
+			char *p1;
+
+			if ((p1 = strstr(p, " {")) == NULL)
+				continue;
+
+			p += strlen(table);
+			*p1 = '\0';
+			if (vzctl2_get_normalized_uuid(p, ctid, sizeof(ctid)))
+				continue;
+
+			p = p1 + 1;
+			pnext = strstr(p, table);
+
+			if (cnt == max - 1) {
+				max *= 2;
+				if ((s = realloc(s, max * sizeof(*s))) == NULL) {
+					ret = VZCTL_E_NOMEM;
+					goto err;
+				}
+			}
+
+			bzero(&s[cnt], sizeof(*s));
+			strncpy(s[cnt].ctid, ctid, sizeof(ctid));
+
+			do {
+				char dir;
+				char ver;
+				unsigned int cls;
+
+				if ((p = strstr(p, counter)) != NULL &&
+				    (pnext == NULL || p < pnext) &&
+				    sscanf(p + strlen(counter), "%c%c_%u ",
+				    &dir, &ver, &cls) == 3 &&
+				    (dir == 'i' || dir == 'o') &&
+				    (ver == '4' || ver == '6') &&
+				    cls < TC_MAX_CLASSES) {
+					unsigned int *pkt;
+					unsigned long long *bytes;
+
+					if (ver == '4') {
+						bytes = (dir == 'i') ? &s[cnt].v4.incoming[cls] :
+							&s[cnt].v4.outgoing[cls];
+						pkt = (dir == 'i') ? &s[cnt].v4.incoming_pkt[cls] :
+							&s[cnt].v4.outgoing_pkt[cls];
+					} else {
+						bytes = (dir == 'i') ? &s[cnt].v6.incoming[cls] :
+							&s[cnt].v6.outgoing[cls];
+						pkt = (dir == 'i') ? &s[cnt].v6.incoming_pkt[cls] :
+							&s[cnt].v6.outgoing_pkt[cls];
+					}
+
+					if ((p = strstr(p, "packets ")) == NULL) {
+						ret = vzctl_err(VZCTL_E_INVAL, 0,
+								"Unable to parse nft output");
+						goto err;
+					}
+
+					if (sscanf(p + 8, "%u bytes %llu", pkt, bytes) != 2) {
+						ret = vzctl_err(VZCTL_E_INVAL, 0,
+								"Unable to parse nft output");
+						goto err;
+					}
+				}
+
+				if (p)
+					p++;
+			} while (p != NULL);
+
+			cnt++;
+		}
+
+		if (pnext) {
+			p = pnext;
+			pnext = NULL;
+		}
+	} while (p != NULL);
+
+	ret = VZCTL_E_OK;
+
+	*size = cnt;
+	*stat = s;
+	s = NULL;
+
+err:
+	free(out);
+	free(s);
+
+	return ret;
 }
 
 static int get_netstat(const char *dir, const char *name, unsigned long long* out)
