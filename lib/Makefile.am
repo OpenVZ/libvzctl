@@ -85,7 +85,7 @@ libvzctlexec_la_SOURCES = common.c execfn.c logger.c cgroup.c bitmap.c config.c 
 # 5. If any interfaces have been added since the last public release, then increment age.
 # 6. If any interfaces have been removed since the last public release, then set age to 0. 
 libvzctl2_la_LDFLAGS = -version-info 2:1:0 -Wl,--version-script=version.map
-libvzctl2_la_LIBADD = $(XML_LIBS) $(UTIL_LIBS) $(PLOOP_LIBS) $(NFTABLES_LIBS) $(VZEVENT_LIBS) -lcrypt $(UUID_LIBS) $(DBUS_LIBS) $(VCMMD_LIBS)
+libvzctl2_la_LIBADD = $(XML_LIBS) $(UTIL_LIBS) $(PLOOP_LIBS) $(JSONC_LIBS) $(VZEVENT_LIBS) -lcrypt $(UUID_LIBS) $(DBUS_LIBS) $(VCMMD_LIBS)
 
 libvzctlexec_la_LDFLAGS = -Wl,--version-script=version.map
 libvzctlexec_la_LIBADD =
