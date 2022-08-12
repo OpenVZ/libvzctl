@@ -93,6 +93,12 @@ AS_IF([test "x$vzlibexec_only" != xyes],
 		AC_MSG_ERROR([Please install ploop package]))
 	AC_SUBST(PLOOP_LIBS)
 	AC_DEFINE(USE_PLOOP)
+	AC_CHECK_HEADER([json-c/json.h], ,
+		AC_MSG_ERROR([Please install json-c-devel package]))
+	AC_CHECK_LIB([json-c], [json_tokener_new], JSONC_LIBS="-ljson-c",
+		AC_MSG_ERROR([Please install json-c package]))
+	AC_SUBST(JSONC_LIBS)
+	AC_DEFINE(USE_JSONC)
 	AS_IF([test "x$with_vzevent" = xyes],
 		AC_CHECK_HEADER([vz/vzevent.h], ,
 			AC_MSG_ERROR([Please install libvzevent devel package]))

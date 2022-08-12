@@ -41,6 +41,7 @@
 #include <linux/if.h>
 #include <linux/sockios.h>
 #include <linux/ethtool.h>
+#include <json-c/json.h>
 
 #include "env.h"
 #include "env_configure.h"
@@ -439,16 +440,42 @@ int vzctl2_clear_all_ve_netstat(void)
 	return run_nft_cmd(argv, NULL);
 }
 
+static json_object *json_get_key(json_object *obj, const char *key)
+{
+	struct json_object_iterator it = json_object_iter_begin(obj);
+	struct json_object_iterator ie = json_object_iter_end(obj);
+
+	for (; !json_object_iter_equal(&it, &ie); json_object_iter_next(&it)) {
+		const char *name = json_object_iter_peek_name(&it);
+		if (strcmp(name, key) == 0)
+			return json_object_iter_peek_value(&it);
+	}
+
+	return NULL;
+}
+
+static const char *json_get_key_string(json_object *obj, const char *key)
+{
+	json_object *val = json_get_key(obj, key);
+	if (val == NULL || json_object_get_type(val) != json_type_string)
+		return NULL;
+
+	return json_object_get_string(val);
+}
+
 int vzctl2_get_env_tc_netstat(struct vzctl_env_handle *h,
 		struct vzctl_tc_netstat *stat, int v6)
 {
 	int ret = VZCTL_E_SYSTEM;
 	char *out = NULL;
-	char *p;
 	char ve[STR_SIZE];
-	char *argv[] = {NFT_CMD, "list", "counters", "table", "netdev", ve, NULL};
-	const char *prefix = "counter counter_";
+	char *argv[] = {NFT_CMD, "-j", "list", "counters", "table", "netdev", ve, NULL};
 	ctid_t ctid;
+	json_tokener *tok = NULL;
+	json_object *obj = NULL;
+	json_object *tbl;
+	enum json_tokener_error jerr;
+	size_t i;
 
 	if (h == NULL || stat == NULL)
 		return VZCTL_E_INVAL_PARAMETER_SYNTAX;
@@ -463,55 +490,66 @@ int vzctl2_get_env_tc_netstat(struct vzctl_env_handle *h,
 	if ((ret = run_nft_cmd(argv, &out)) != 0)
 		goto err;
 
-	/*
-	 * Sample for output from the command nft:
-	 *
-	 * "table netdev ve_ac00a592668f44988d3fd6cd0f8e38ff {
-	 *    counter counter_o4_1 {
-	 *	packets 30 bytes 9840
-	 *    }
-	 *    counter counter_i6_1 {
-	 *	packets 31 bytes 9841
-	 *    }
-	 *  }"
-	 */
-	p = out;
-	while (p) {
-		char dir;
-		char ver;
-		unsigned int class;
+	tok = json_tokener_new();
+	obj = json_tokener_parse_ex(tok, out, strlen(out));
+	if ((jerr = json_tokener_get_error(tok)) != json_tokener_success) {
+		ret = vzctl_err(VZCTL_E_INVAL, 0,
+			"Unable to parse json: %s",
+			json_tokener_error_desc(jerr));
+		goto err;
+	}
 
-		if ((p = strstr(p, prefix)) != NULL &&
-		    sscanf(p + strlen(prefix), "%c%c_%u ",
-		    &dir, &ver, &class) == 3 &&
-		    (dir == 'i' || dir == 'o') &&
-		    ((ver == '4' && !v6) || (ver == '6' && v6)) &&
-		    class < TC_MAX_CLASSES) {
-			unsigned int *pkt;
-			unsigned long long *bytes;
+	if ((tbl = json_get_key(obj, "nftables")) == NULL) {
+		ret = vzctl_err(VZCTL_E_INVAL, 0, "Unable to get json table");
+		goto err;
+	}
 
-			bytes = (dir == 'i') ? &stat->incoming[class] :
-				&stat->outgoing[class];
-			pkt = (dir == 'i') ? &stat->incoming_pkt[class] :
-				&stat->outgoing_pkt[class];
+	if (json_object_get_type(tbl) != json_type_array) {
+		ret = vzctl_err(VZCTL_E_INVAL, 0, "Uncompatible json format");
+		goto err;
+	}
 
-			if ((p = strstr(p, "packets ")) != NULL) {
-				if (sscanf(p + 8, "%u bytes %llu",
-				    pkt, bytes) != 2) {
-					ret = vzctl_err(VZCTL_E_INVAL, 0,
-							"Unable to parse nft output");
-					goto err;
+	for (i = 0; i < json_object_array_length(tbl); i++) {
+		json_object *el = json_object_array_get_idx(tbl, i);
+		json_object *item = json_get_key(el, "counter");
+
+		if (item) {
+			const char *name = json_get_key_string(item, "name");
+			json_object *pks = json_get_key(item, "packets");
+			json_object *bts = json_get_key(item, "bytes");
+
+			if (name && pks && bts) {
+				char dir, ver;
+				unsigned int cls;
+
+				if (sscanf(name, "counter_%c%c_%u",
+				    &dir, &ver, &cls) != 3 ||
+				    (dir != 'i' && dir != 'o') ||
+				    (ver != '4' && ver != '6') ||
+				    (ver == '4' && v6) || (ver == '6' && !v6) ||
+				    cls >= TC_MAX_CLASSES)
+					continue;
+
+				if (dir == 'i') {
+					stat->incoming_pkt[cls] =
+						json_object_get_int(pks);
+					stat->incoming[cls] =
+						json_object_get_uint64(bts);
+				} else {
+					stat->outgoing_pkt[cls] =
+						json_object_get_int(pks);
+					stat->outgoing[cls] =
+						json_object_get_uint64(bts);
 				}
 			}
 		}
-
-		if (p)
-			p++;
 	}
 
 	ret = VZCTL_E_OK;
 
 err:
+	json_object_put(obj);
+	json_tokener_free(tok);
 	free(out);
 
 	return ret;
@@ -529,13 +567,16 @@ int vzctl2_get_all_tc_netstat(struct vzctl_all_tc_netstat **stat, int *size)
 {
 	int ret = VZCTL_E_SYSTEM;
 	char *out = NULL;
-	char *p, *pnext = NULL;
-	char *argv[] = {NFT_CMD, "list", "counters", "netdev", NULL};
-	const char *table = "table netdev ve_";
-	const char *counter = "counter counter_";
+	char *argv[] = {NFT_CMD, "-j", "list", "counters", "netdev", NULL};
+	ctid_t last_ctid = "";
 	struct vzctl_all_tc_netstat *s = NULL;
+	json_tokener *tok = NULL;
+	json_object *obj = NULL;
+	json_object *tbl;
+	enum json_tokener_error jerr;
 	size_t cnt = 0;
 	size_t max = 32;
+	size_t i;
 
 	if (stat == NULL && size == NULL)
 		return VZCTL_E_INVAL_PARAMETER_SYNTAX;
@@ -546,108 +587,99 @@ int vzctl2_get_all_tc_netstat(struct vzctl_all_tc_netstat **stat, int *size)
 	if ((ret = run_nft_cmd(argv, &out)) != 0)
 		goto err;
 
-	/*
-	 * Sample for output from the command nft:
-	 *
-	 * "table netdev ve_ac00a592668f44988d3fd6cd0f8e38ff {
-	 *    counter counter_i4_1 {
-	 *	packets 31 bytes 9841
-	 *    }
-	 *  }
-	 *  table netdev ve_dd2c9fe655e747f4985e654c3d72c097 {
-	 *    counter counter_o6_1 {
-	 *	packets 30 bytes 9840
-	 *    }
-	 *  }"
-	 */
-	p = out;
-	do {
-		if ((p = strstr(p, table)) != NULL) {
-			ctid_t ctid;
-			char *p1;
+	tok = json_tokener_new();
+	obj = json_tokener_parse_ex(tok, out, strlen(out));
+	if ((jerr = json_tokener_get_error(tok)) != json_tokener_success) {
+		ret = vzctl_err(VZCTL_E_INVAL, 0,
+			"Unable to parse json: %s",
+			json_tokener_error_desc(jerr));
+		goto err;
+	}
 
-			if ((p1 = strstr(p, " {")) == NULL)
-				continue;
+	if ((tbl = json_get_key(obj, "nftables")) == NULL) {
+		ret = vzctl_err(VZCTL_E_INVAL, 0, "Unable to get json table");
+		goto err;
+	}
 
-			p += strlen(table);
-			*p1 = '\0';
-			if (vzctl2_get_normalized_uuid(p, ctid, sizeof(ctid)))
-				continue;
+	if (json_object_get_type(tbl) != json_type_array) {
+		ret = vzctl_err(VZCTL_E_INVAL, 0, "Uncompatible json format");
+		goto err;
+	}
 
-			p = p1 + 1;
-			pnext = strstr(p, table);
+	for (i = 0; i < json_object_array_length(tbl); i++) {
+		json_object *el = json_object_array_get_idx(tbl, i);
+		json_object *item = json_get_key(el, "counter");
 
-			if (cnt == max - 1) {
-				max *= 2;
-				if ((s = realloc(s, max * sizeof(*s))) == NULL) {
-					ret = VZCTL_E_NOMEM;
-					goto err;
-				}
-			}
+		if (item) {
+			const char *table = json_get_key_string(item, "table");
+			const char *name = json_get_key_string(item, "name");
+			json_object *pks = json_get_key(item, "packets");
+			json_object *bts = json_get_key(item, "bytes");
 
-			bzero(&s[cnt], sizeof(*s));
-			strncpy(s[cnt].ctid, ctid, sizeof(ctid));
-
-			do {
-				char dir;
-				char ver;
+			if (table && name && pks && bts) {
+				ctid_t ctid;
+				char dir, ver;
 				unsigned int cls;
+				unsigned int *pkt;
+				unsigned long long *bytes;
 
-				if ((p = strstr(p, counter)) != NULL &&
-				    (pnext == NULL || p < pnext) &&
-				    sscanf(p + strlen(counter), "%c%c_%u ",
-				    &dir, &ver, &cls) == 3 &&
-				    (dir == 'i' || dir == 'o') &&
-				    (ver == '4' || ver == '6') &&
-				    cls < TC_MAX_CLASSES) {
-					unsigned int *pkt;
-					unsigned long long *bytes;
+				if (strncmp(table, "ve_", 3))
+					continue;
 
-					if (ver == '4') {
-						bytes = (dir == 'i') ? &s[cnt].v4.incoming[cls] :
-							&s[cnt].v4.outgoing[cls];
-						pkt = (dir == 'i') ? &s[cnt].v4.incoming_pkt[cls] :
-							&s[cnt].v4.outgoing_pkt[cls];
-					} else {
-						bytes = (dir == 'i') ? &s[cnt].v6.incoming[cls] :
-							&s[cnt].v6.outgoing[cls];
-						pkt = (dir == 'i') ? &s[cnt].v6.incoming_pkt[cls] :
-							&s[cnt].v6.outgoing_pkt[cls];
+				if (vzctl2_get_normalized_uuid(table + 3, ctid, sizeof(ctid)))
+					continue;
+
+				if (sscanf(name, "counter_%c%c_%u",
+				    &dir, &ver, &cls) != 3 ||
+				    (dir != 'i' && dir != 'o') ||
+				    (ver != '4' && ver != '6') ||
+				    cls >= TC_MAX_CLASSES)
+					continue;
+
+				if (strcmp(ctid, last_ctid)) {
+					if (strlen(last_ctid))
+						cnt++;
+
+					if (cnt == max - 1) {
+						max *= 2;
+						if ((s = realloc(s, max * sizeof(*s))) == NULL) {
+							ret = VZCTL_E_NOMEM;
+							goto err;
+						}
 					}
 
-					if ((p = strstr(p, "packets ")) == NULL) {
-						ret = vzctl_err(VZCTL_E_INVAL, 0,
-								"Unable to parse nft output");
-						goto err;
-					}
-
-					if (sscanf(p + 8, "%u bytes %llu", pkt, bytes) != 2) {
-						ret = vzctl_err(VZCTL_E_INVAL, 0,
-								"Unable to parse nft output");
-						goto err;
-					}
+					bzero(&s[cnt], sizeof(*s));
+					strncpy(s[cnt].ctid, ctid, sizeof(ctid));
+					strncpy(last_ctid, ctid, sizeof(last_ctid));
 				}
 
-				if (p)
-					p++;
-			} while (p != NULL);
+				if (ver == '4') {
+					pkt = (dir == 'i') ? &s[cnt].v4.incoming_pkt[cls] :
+						&s[cnt].v4.outgoing_pkt[cls];
+					bytes = (dir == 'i') ? &s[cnt].v4.incoming[cls] :
+						&s[cnt].v4.outgoing[cls];
+				} else {
+					pkt = (dir == 'i') ? &s[cnt].v6.incoming_pkt[cls] :
+						&s[cnt].v6.outgoing_pkt[cls];
+					bytes = (dir == 'i') ? &s[cnt].v6.incoming[cls] :
+						&s[cnt].v6.outgoing[cls];
+				}
 
-			cnt++;
+				*pkt = json_object_get_int(pks);
+				*bytes = json_object_get_uint64(bts);
+			}
 		}
+	}
 
-		if (pnext) {
-			p = pnext;
-			pnext = NULL;
-		}
-	} while (p != NULL);
-
-	ret = VZCTL_E_OK;
-
-	*size = cnt;
+	*size = strlen(last_ctid) ? cnt + 1 : 0;
 	*stat = s;
 	s = NULL;
 
+	ret = VZCTL_E_OK;
+
 err:
+	json_object_put(obj);
+	json_tokener_free(tok);
 	free(out);
 	free(s);
 
