@@ -622,12 +622,16 @@ int vzctl2_get_all_tc_netstat(struct vzctl_all_tc_netstat **stat, int *size)
 				unsigned int cls;
 				unsigned int *pkt;
 				unsigned long long *bytes;
+				int ctid_num;
 
 				if (strncmp(table, "ve_", 3))
 					continue;
 
-				if (vzctl2_get_normalized_uuid(table + 3, ctid, sizeof(ctid)))
-					continue;
+				if (vzctl2_get_normalized_uuid(table + 3, ctid, sizeof(ctid))) {
+					if (parse_int(table + 3, &ctid_num) || ctid_num < 0)
+							continue;
+					snprintf(ctid, sizeof(ctid), "%d", ctid_num);
+				}
 
 				if (sscanf(name, "counter_%c%c_%u",
 				    &dir, &ver, &cls) != 3 ||
