@@ -179,6 +179,8 @@ vzcreatepair()
 				sysctl -w net.ipv4.conf.${HNAME}.proxy_arp=1 ||\
 					vzerror "Unable to turn on proxy_arp on $HNAME" 1
 				${IP_CMD} a a fe80::ffff:1:1/128 dev ${HNAME}
+				firewall-cmd --zone=trusted --add-interface=$HNAME
+				firewall-cmd --permanent --zone=trusted --add-interface=$HNAME
 			fi
 			return
 		fi
@@ -203,6 +205,8 @@ vzcreatepair()
 		sysctl -w net.ipv4.conf.${HNAME}.proxy_arp=1 ||\
 			vzerror "Unable to turn on proxy_arp on $HNAME" 1
 		${IP_CMD} a a fe80::ffff:1:1/128 dev ${HNAME}
+		firewall-cmd --zone=trusted --add-interface=$HNAME
+		firewall-cmd --permanent --zone=trusted --add-interface=$HNAME
 	fi
 }
 

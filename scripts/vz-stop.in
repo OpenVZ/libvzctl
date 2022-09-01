@@ -40,6 +40,11 @@ for v in $VETH; do
 	[ -x /usr/bin/ovs-vsctl ] && ovs-vsctl --if-exists del-port "$v" 2>/dev/null
 	ip link set $v down >/dev/null 2>&1 && \
 		ip link set $v name "${v}M$(( $$ % 100 ))" >/dev/null 2>&1
+	isfw=`firewall-cmd --zone=trusted --query-interface=$v 2>/dev/null`
+	if [ "$isfw" = "yes" ]; then
+		firewall-cmd --zone=trusted --remove-interface=$v
+		firewall-cmd --permanent --zone=trusted --remove-interface=$v
+	fi
 done
 
 exit 0
