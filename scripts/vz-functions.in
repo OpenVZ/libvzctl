@@ -137,6 +137,19 @@ function vzcheckvar()
 	done
 }
 
+# Add device from $1 into trusted firewall zone in runtime and 
+vzaddtrustedfw()
+{
+	firewall-cmd --zone=trusted --add-interface=$1
+	if [ $? -ne 0 ]; then
+		vzerror "Unable to add host routed $1 into the trusted firewall zone in runtime " -1
+	fi
+	firewall-cmd --permanent --zone=trusted --add-interface=$1
+	if [ $? -ne 0 ]; then
+		vzerror "Unable to add host routed $1 into the trusted firewall zone permanent " -1
+	fi
+}
+
 # Creates a pair of veth devices, being one of them in the host, and the other
 # inside the container The function should be called with the following env
 # variables set:
@@ -179,8 +192,7 @@ vzcreatepair()
 				sysctl -w net.ipv4.conf.${HNAME}.proxy_arp=1 ||\
 					vzerror "Unable to turn on proxy_arp on $HNAME" 1
 				${IP_CMD} a a fe80::ffff:1:1/128 dev ${HNAME}
-				firewall-cmd --zone=trusted --add-interface=$HNAME
-				firewall-cmd --permanent --zone=trusted --add-interface=$HNAME
+				vzaddtrustedfw $HNAME
 			fi
 			return
 		fi
@@ -205,8 +217,7 @@ vzcreatepair()
 		sysctl -w net.ipv4.conf.${HNAME}.proxy_arp=1 ||\
 			vzerror "Unable to turn on proxy_arp on $HNAME" 1
 		${IP_CMD} a a fe80::ffff:1:1/128 dev ${HNAME}
-		firewall-cmd --zone=trusted --add-interface=$HNAME
-		firewall-cmd --permanent --zone=trusted --add-interface=$HNAME
+		vzaddtrustedfw $HNAME
 	fi
 }
 
