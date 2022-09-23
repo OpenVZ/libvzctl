@@ -376,11 +376,18 @@ int cg_get_ull(const char *ctid, const char *subsys, const char *name,
 static int cg_create(const char *ctid, struct cg_ctl *ctl)
 {
 	char path[PATH_MAX];
+	mode_t cmask;
+	int ret;
 
 	get_cgroup_name(ctid, ctl, path, sizeof(path));
 
 	logger(3, 0, "Create cgroup %s", path);
-	return make_dir2(path, 0755, 1);
+
+	cmask = umask(0);
+	ret = make_dir2(path, 0755, 1);
+	umask(cmask);
+
+	return ret;
 }
 
 static int rmdir_retry(int fd, const char *name)
