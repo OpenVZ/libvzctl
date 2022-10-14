@@ -122,7 +122,7 @@ static const char *get_mount_path(const char *in, char *out, int size)
 	return in;
 }
 
-static int do_umount_submounts(char *root)
+static int do_umount_submounts(struct vzctl_env_handle *h)
 {
 	FILE *fp;
 	struct mntent *mnt;
@@ -131,6 +131,8 @@ static int do_umount_submounts(char *root)
 	char buf[PATH_MAX + 1];
 	struct vzctl_str_param *it;
 	list_head_t head;
+	struct stat st;
+	char *root = h->env_param->fs->ve_root;
 
 	if (realpath(root, path) == NULL) {
 		logger(-1, errno, "realpath %s failed", root);
@@ -158,17 +160,17 @@ static int do_umount_submounts(char *root)
 					it->str);
 	}
 	free_str(&head);
+	
+	if (umount(root) && errno == EBUSY)
+		if (stat(root, &st) == 0)
+			vzctl2_send_umount_evt(EID(h), st.st_dev);
+
 	return 0;
 }
 
 static int do_env_umount(struct vzctl_env_handle *h)
 {
-	struct stat st;
-
-	if (stat(h->env_param->fs->ve_root, &st) == 0)
-		vzctl2_send_umount_evt(EID(h), st.st_dev);
-
-	do_umount_submounts(h->env_param->fs->ve_root);
+	do_umount_submounts(h);
 	if (h->env_param->fs->layout == VZCTL_LAYOUT_5)
 		return vzctl2_umount_disk(h, h->env_param->disk);
 	else
