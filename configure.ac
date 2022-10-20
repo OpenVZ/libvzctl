@@ -20,7 +20,7 @@
 
 # Generic configuration
 AC_PREREQ(2.59)
-AC_INIT(libvzctl, 8.0.50, igor@virtuozzo.com)
+AC_INIT(libvzctl, 8.0.51, igor@virtuozzo.com)
 
 # Change sysconfdir default since otherwise some important files
 # (an initscript, files for logrotate, cron, and udev) will be installed
