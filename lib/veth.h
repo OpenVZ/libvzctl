@@ -39,6 +39,7 @@
 #define VZ_OUI		0xC43772
 
 #define VETH_ACTIVE		0x0001
+#define LEGACY_VENET_NAME	"venet1"
 
 /** Data structure for devices.
  */
@@ -77,6 +78,9 @@ struct vzctl_veth_param {
 struct vzctl_env_handle;
 struct vzctl_env_param;
 
+int is_venet(const char *ifname);
+struct vzctl_veth_dev *find_veth_by_ifname_ve(list_head_t *head, 
+		const char *name);
 int apply_veth_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,
 	int flags);
 int apply_venet_param(struct vzctl_env_handle *h, struct vzctl_env_param *env,

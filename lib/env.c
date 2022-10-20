@@ -2473,6 +2473,13 @@ void vzctl2_free_veth_dev(struct vzctl_veth_dev *dev)
 
 int vzctl2_env_add_veth(struct vzctl_env_param *env, struct vzctl_veth_dev *dev)
 {
+	/* update IP_ADDRESS on venet0 ip changes (vz < 9.x compatibility) */
+	if (is_venet(dev->dev_name_ve)) {
+		env->net->delall = dev->ip_delall;
+		copy_ip_param(&env->net->ip, &dev->ip_list);
+		copy_ip_param(&env->net->ip_del, &dev->ip_del_list);
+	}
+
 	list_add_tail(&dev->list, &env->veth->dev_list);
 
 	return 0;

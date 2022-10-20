@@ -887,6 +887,12 @@ int vzctl_update_env_param(struct vzctl_env_handle *h, int flags)
 	if (flags & VZCTL_CONF_RUNTIME_PARAM)
 		get_env_ops()->env_get_runtime_param(h, flags);
 
+	/* sync IP_ADDRESS with veth */
+	struct vzctl_veth_dev *venet = find_veth_by_ifname_ve(
+			&h->env_param->veth->dev_list, LEGACY_VENET_NAME);
+	if (venet)
+		copy_ip_param(&venet->ip_list, &h->env_param->net->ip);
+
 	if (ret == VZCTL_E_INVAL && (flags & VZCTL_CONF_SKIP_PARAM_ERRORS))
 		return 0;
 

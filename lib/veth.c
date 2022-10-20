@@ -49,6 +49,10 @@
 static int env_veth_configure(struct vzctl_env_handle *h, int op,
 		struct vzctl_veth_dev *it_dev, int flags);
 
+int is_venet(const char *ifname)
+{
+	return strcmp(LEGACY_VENET_NAME, ifname) == 0;
+}
 void free_veth_dev(struct vzctl_veth_dev *dev)
 {
 	if (dev == NULL)
@@ -239,7 +243,7 @@ void generate_veth_name(struct vzctl_veth_dev *dev)
 
 }
 
-static struct vzctl_veth_dev *find_veth_by_ifname_ve(list_head_t *head,
+struct vzctl_veth_dev *find_veth_by_ifname_ve(list_head_t *head,
 		const char *name)
 {
 	struct vzctl_veth_dev *it;
@@ -731,7 +735,6 @@ static int remove_ipv6_addr(struct vzctl_net_param *net)
 	}
 	return cnt;
 }
-#define LEGACY_VENET_NAME	"venet0"
 int apply_venet_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags)
 {
 	int ret;
@@ -912,6 +915,10 @@ char *veth2str(struct vzctl_env_param *env, struct vzctl_veth_param *new,
 			if (sp >= ep)
 				break;
 		}
+
+		if (is_venet(it->dev_name_ve))
+			goto skip_ip;
+
 		if (it->dhcp == VZCTL_PARAM_ON ) {
 			sp += snprintf(sp, ep - sp, "dhcp=%s,",
 				it->dhcp == VZCTL_PARAM_ON ? "yes" : "no");
@@ -980,6 +987,7 @@ char *veth2str(struct vzctl_env_param *env, struct vzctl_veth_param *new,
 					break;
 			}
 		}
+skip_ip:
 		if (*(sp - 1) == ',')
 			*(sp - 1) = 0;
 		if (sp >= ep)
