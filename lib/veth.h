@@ -39,7 +39,7 @@
 #define VZ_OUI		0xC43772
 
 #define VETH_ACTIVE		0x0001
-#define LEGACY_VENET_NAME	"venet1"
+#define LEGACY_VENET_NAME	"venet0"
 
 /** Data structure for devices.
  */
