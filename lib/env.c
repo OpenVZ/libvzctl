@@ -80,8 +80,6 @@
 
 #define ENVRETRY	3
 
-int create_venet_link(void);
-
 #define LINUX_REBOOT_MAGIC1     0xfee1dead
 #define LINUX_REBOOT_MAGIC2     672274793
 #define LINUX_REBOOT_CMD_POWER_OFF	0x4321FEDC
@@ -805,9 +803,6 @@ int pre_setup_env(const struct start_param *param)
 		mkdir("/proc", 0555);
   	if (mount("proc", "/proc", "proc", 0, 0))
 		return vzctl_err(VZCTL_E_SYSTEM, errno, "Failed to mount /proc");
-	if (create_venet_link())
-		return vzctl_err(VZCTL_E_SYSTEM, 0, "Unable to create venet iface");
-
 	if (setup_devtmpfs())
 		return VZCTL_E_SYSTEM;
 
