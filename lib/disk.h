@@ -121,5 +121,6 @@ int get_disk_mount_param(struct vzctl_env_handle *h, struct vzctl_disk *d,
 		struct vzctl_mount_param *param, int flags,
 		char *mnt_opts, int mnt_opts_size);
 int is_dm_device(dev_t dev);
+int is_systemd(void);
 
 #endif

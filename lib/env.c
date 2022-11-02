@@ -556,10 +556,8 @@ static int create_file(const char* filename, const char *data, size_t size)
 
 static int replace_reach_runlevel_mark(void)
 {
-	int ret, err, n, is_upstart = 0, is_systemd = 0;
+	int ret, err, is_upstart = 0;
 	struct stat st;
-	char buf[4096];
-	char *p;
 
 	unlink(VZFIFO_FILE);
 	if (mkfifo(VZFIFO_FILE, 0644)) {
@@ -582,20 +580,8 @@ static int replace_reach_runlevel_mark(void)
 			return -1;
 	}
 
-	/* Check for systemd */
-	if (!is_upstart && (n = readlink(SBIN_INIT, buf, sizeof(buf) - 1)) > 0)
-	{
-		buf[n] = 0;
-		if ((p = strrchr(buf, '/')) == NULL)
-			p = buf;
-		else
-			p++;
-		if (strncmp(p, SYSTEMD_BIN, sizeof(SYSTEMD_BIN) - 1) == 0)
-			is_systemd = 1;
-	}
-
 	if (stat(INITTAB_FILE, &st)) {
-		if (is_upstart || is_systemd)
+		if (is_upstart || is_systemd())
 			return 0;
 		fprintf(stderr, "Warning: unable to stat " INITTAB_FILE " %s\n",
 			strerror(errno));
