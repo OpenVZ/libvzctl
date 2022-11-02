@@ -534,9 +534,29 @@ err:
 	return err;
 }
 
+static int create_file(const char* filename, const char *data, size_t size)
+{
+	int wfd;
+
+	wfd = open(filename, O_WRONLY|O_TRUNC|O_CREAT, 0644);
+	if (wfd == -1) {
+		fprintf(stderr, "Unable to create %s %s\n",
+			filename, strerror(errno));
+		return -1;
+	}
+	if (write(wfd, data, size) == -1) {
+		fprintf(stderr, "Unable to write to %s %s\n",
+				filename, strerror(errno));
+		close(wfd);
+		return -1;
+	}
+	close(wfd);
+	return 0;
+}
+
 static int replace_reach_runlevel_mark(void)
 {
-	int wfd, err, n, is_upstart = 0, is_systemd = 0;
+	int ret, err, n, is_upstart = 0, is_systemd = 0;
 	struct stat st;
 	char buf[4096];
 	char *p;
@@ -550,34 +570,16 @@ static int replace_reach_runlevel_mark(void)
 	/* Create upstart specific script */
 	if (!stat(EVENTS_DIR_UBUNTU, &st)) {
 		is_upstart = 1;
-		wfd = open(EVENTS_FILE_UBUNTU, O_WRONLY|O_TRUNC|O_CREAT, 0644);
-		if (wfd == -1) {
-			fprintf(stderr, "Unable to create " EVENTS_FILE_UBUNTU " %s\n",
-				strerror(errno));
+		ret = create_file(EVENTS_FILE_UBUNTU,
+				EVENTS_SCRIPT_UBUNTU, sizeof(EVENTS_SCRIPT_UBUNTU) - 1);
+		if (ret)
 			return -1;
-		}
-		if (write(wfd, EVENTS_SCRIPT_UBUNTU, sizeof(EVENTS_SCRIPT_UBUNTU) - 1) == -1) {
-			fprintf(stderr, "Unable to write to "EVENTS_FILE_UBUNTU  " %s\n",
-					strerror(errno));
-			close(wfd);
-			return -1;
-		}
-		close(wfd);
 	} else if (!stat(EVENTS_DIR, &st)) {
 		is_upstart = 1;
-		wfd = open(EVENTS_FILE, O_WRONLY|O_TRUNC|O_CREAT, 0644);
-		if (wfd == -1) {
-			fprintf(stderr, "Unable to create " EVENTS_FILE " %s\n",
-					strerror(errno));
+		ret = create_file(EVENTS_FILE,
+				EVENTS_SCRIPT, sizeof(EVENTS_SCRIPT) - 1);
+		if (ret)
 			return -1;
-		}
-		if (write(wfd, EVENTS_SCRIPT, sizeof(EVENTS_SCRIPT) - 1) == -1) {
-			fprintf(stderr, "Unable to write to " EVENTS_FILE  " %s\n",
-					strerror(errno));
-			close(wfd);
-			return -1;
-		}
-		close(wfd);
 	}
 
 	/* Check for systemd */
