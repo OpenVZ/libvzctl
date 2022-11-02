@@ -70,7 +70,7 @@ static const char *get_fsuuid(const char *str, char *buf)
 #define SYSTEMD_UNIT_DESC "Description=ploop with UUID="
 #define SYSTEMD_MOUNT_UNIT_SUFFIX ".mount"
 
-static int is_systemd(void)
+int is_systemd(void)
 {
 	char buf[PATH_MAX];
 	char *p;

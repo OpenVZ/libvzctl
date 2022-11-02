@@ -120,5 +120,6 @@ int env_configure_udev_rules(void);
 disk_type get_disk_type(struct vzctl_disk *disk);
 int get_mnt_by_dev(const char *device, char *out, int size);
 int is_dm_device(dev_t dev);
+int is_systemd(void);
 
 #endif
