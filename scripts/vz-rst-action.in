@@ -51,7 +51,7 @@ update_devices()
 	rm -f $newdev
 	[ -d $newdir ] || mkdir -p $newdir
 	mknod -m 660 $newdev b $major $minor
-	[ -e "$olddev" ] || return
+	[ -e "$olddev" ] || return 0
 
 	omj=$(stat -c %t $olddev)
 	omj=$(printf "%d" 0x$omj)
