@@ -501,7 +501,7 @@ char *devices2str(struct vzctl_dev_param *dev)
 
 char *devnodes2str(struct vzctl_dev_param *dev, int ignore_none_perm)
 {
-	char mask[3];
+	char mask[5];
 	int r;
 	struct vzctl_dev_perm *it;
 	list_head_t *head = &dev->dev;
