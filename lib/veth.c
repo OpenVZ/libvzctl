@@ -376,6 +376,11 @@ static int veth_ctl(struct vzctl_env_handle *h, int op, list_head_t *head,
 				op == ADD ? "create" : "remove");
 
 	list_for_each(it, head, list) {
+		//	Thus, apply_venet_param is only responsible for adding and editing venet0, and
+		//	apply_veth_param for removing venet0. For more informations look on commit message
+		if (is_venet(it->dev_name_ve) && op == ADD)
+			continue;
+
 		ret = do_veth_ctl(h, op, it, flags);
 		if (ret)
 			break;
