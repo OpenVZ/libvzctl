@@ -859,27 +859,29 @@ char *veth2str(struct vzctl_env_param *env, struct vzctl_veth_param *new,
 			if (sp >= ep)
 				break;
 		}
-		if (it->network != NULL && it->network[0] != 0) {
-			sp += snprintf(sp, ep - sp, "network=%s,",
-					it->network);
-			if (sp >= ep)
-				break;
-		}
-		if (it->nettype == VZCTL_NETTYPE_BRIDGE) {
-			sp += snprintf(sp, ep - sp, "type=bridge,");
-			if (sp >= ep)
-				break;
-		} else if (it->nettype == VZCTL_NETTYPE_ROUTED) {
+		if (it->nettype == VZCTL_NETTYPE_ROUTED) {
 			sp += snprintf(sp, ep - sp, "type=routed,");
 			if (sp >= ep)
 				break;
+		} else {
+			if (it->nettype == VZCTL_NETTYPE_BRIDGE) {
+				sp += snprintf(sp, ep - sp, "type=bridge,");
+				if (sp >= ep)
+					break;
+
+			}
+			if (it->network != NULL && it->network[0] != 0) {
+				sp += snprintf(sp, ep - sp, "network=%s,",
+						it->network);
+				if (sp >= ep)
+					break;
+			}
 		}
 		if (it->vporttype == VZCTL_VPORTTYPE_OVS) {
 			sp += snprintf(sp, ep - sp, "vport=ovs,");
 			if (sp >= ep)
 				break;
 		}
-
 		if (it->gw != NULL && it->gw[0] != 0) {
 			sp += snprintf(sp, ep - sp, "gw=%s,", it->gw);
 			if (sp >= ep)
