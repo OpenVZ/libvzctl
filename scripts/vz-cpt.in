@@ -107,6 +107,7 @@ cg_controllers="--cgroup-dump-controller hugetlb \
  --cgroup-dump-controller name=systemd \
  --cgroup-dump-controller cpuset \
  --cgroup-dump-controller cpuacct,cpu \
+ --cgroup-dump-controller cpu,cpuacct \
  --cgroup-dump-controller beancounter \
  --cgroup-dump-controller memory \
  --cgroup-dump-controller blkio"
