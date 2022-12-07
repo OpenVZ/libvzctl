@@ -1009,6 +1009,28 @@ int configure_disk_perm(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	return 0;
 }
 
+static int is_ploop_device(dev_t dev)
+{
+	char device_path[PATH_MAX], buf1[PATH_MAX];
+	char *p;
+	int n;
+
+	snprintf(device_path, sizeof(device_path), "/sys/dev/block/%d:%d", major(dev),
+		 minor(dev));
+
+	if ((n = readlink(device_path, buf1, sizeof(buf1) - 1)) > 0) {
+		buf1[n] = 0;
+		if ((p = strrchr(buf1, '/')) == NULL)
+			p = buf1;
+		else
+			p++;
+		if (strncmp(p, "ploop", sizeof("ploop")-1) == 0)
+			return 1;
+	}
+
+	return 0;
+}
+
 int is_dm_device(dev_t dev)
 {
 	char x[PATH_MAX];
@@ -1587,7 +1609,8 @@ int vzctl_setup_disk(struct vzctl_env_handle *h, struct vzctl_env_disk *env_disk
 		if (disk->enabled == VZCTL_PARAM_OFF)
 			continue;
 
-		int automount = (is_dm_device(disk->part_dev) && !is_root_disk(disk)) ? 1 : 0;
+		int automount = ((is_dm_device(disk->part_dev) || is_ploop_device(disk->part_dev))
+				 && !is_root_disk(disk));
 
 		ret = do_setup_disk(h, disk, flags, automount);
 		if (ret && is_permanent_disk(disk))
