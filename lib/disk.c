@@ -749,7 +749,7 @@ int mount_disk_image(struct vzctl_env_handle *h, struct vzctl_disk *d, int flags
 	}
 
 	switch(get_disk_type(d)) {
-	case DISK_PLOOP: 
+	case DISK_PLOOP:
 		return mount_ploop_image(h, d, &param);
 	default:
 		return VZCTL_E_INVAL;
@@ -778,7 +778,7 @@ int update_disk_info(struct vzctl_env_handle *h, struct vzctl_disk *disk)
 			disk->devname = strdup(devname);
 			free(disk->partname);
 			disk->partname = strdup(devname);
-			
+
 			return 0;
 		}
 
@@ -1185,7 +1185,7 @@ static int create_image(struct vzctl_env_handle *h,
 	};
 
 	if (make_dir(param->path, 1))
-		return VZCTL_E_SYSTEM; 
+		return VZCTL_E_SYSTEM;
 
 	ret = vzctl_create_image(h, param->path, &create_param);
 	if (ret)
@@ -1529,7 +1529,7 @@ int vzctl2_set_disk(struct vzctl_env_handle *h, struct vzctl_disk_param *param)
 		return vzctl_err(VZCTL_E_INVAL, 0,
 				"Unable to configure the disk with uuid %s: no such disk",
 				param->uuid);
-	
+
 	d->updated = 1;
 	if (param->size) {
 		ret = vzctl2_resize_disk(h, param->uuid, param->size,
@@ -1653,7 +1653,7 @@ static int get_disk_iostat(const char *device, struct vzctl_iostat *stat)
 		return vzctl_err(VZCTL_E_SYSTEM, errno, "Cant open %s", fname);
 	}
 	/*
-	   /sys/block/ploop/stat fields: 
+	   /sys/block/ploop/stat fields:
 	   1 - reads completed successfully
 	   2 - reads merged
 	   3 - sectors read
