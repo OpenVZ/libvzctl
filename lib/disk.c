@@ -38,6 +38,7 @@
 #include <dirent.h>
 #include <string.h>
 #include <sys/sysmacros.h>
+#include <stdbool.h>
 
 #include "libvzctl.h"
 #include "vzerror.h"
@@ -1019,15 +1020,15 @@ int configure_disk_perm(struct vzctl_env_handle *h, struct vzctl_disk *disk,
 	return 0;
 }
 
-int is_dm_device(dev_t dev)
+bool is_dm_device(dev_t dev)
 {
 	char x[PATH_MAX];
 
 	snprintf(x, sizeof(x), "/sys/dev/block/%d:%d/dm",
 			major(dev), minor(dev));
 	if (access(x, F_OK) == 0)
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
 static int configure_sysfsperm(struct vzctl_env_handle *h, struct vzctl_disk *d,
