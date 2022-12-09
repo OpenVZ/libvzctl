@@ -374,10 +374,7 @@ static int env_configure_disk(struct exec_disk_param *param)
 		if (access(disk->mnt, F_OK))
 			make_dir(disk->mnt, 1);
 
-		ret = is_dm_device(disk->part_dev);
-		if (ret == -1)
-			return -1;
-		else if (ret == 1)
+		if (is_dm_device(disk->part_dev))
 			goto skip_configure;
 
 		if (is_systemd()) {
