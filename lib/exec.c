@@ -1285,7 +1285,7 @@ int vzctl2_wrap_exec_script(char *const argv[], char *const env[], int flags)
 static struct vzctl_exec_handle *alloc_exec_handle(void)
 {
 	struct vzctl_exec_handle *h;
-	h = calloc(1, sizeof(struct vzctl_exec_handle *));
+	h = calloc(1, sizeof(struct vzctl_exec_handle));
 	if (h == NULL) {
 		vzctl_err(VZCTL_E_NOMEM, ENOMEM, "alloc_exec_handle");
 		return NULL;
