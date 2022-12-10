@@ -52,6 +52,8 @@ centos:
 		$(DESTDIR)$(distconfdir)/centos.conf
 	$(INSTALL_DATA) $(srcdir)/redhat.conf \
 		$(DESTDIR)$(distconfdir)/vzlinux.conf
+	$(INSTALL_DATA) $(srcdir)/redhat.conf \
+		$(DESTDIR)$(distconfdir)/almalinux.conf
 	for ver in $(CENTOS_VER); do \
 		$(INSTALL_DATA) $(srcdir)/redhat.conf \
 			$(DESTDIR)$(distconfdir)/centos-$$ver.conf; \
