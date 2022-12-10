@@ -502,11 +502,11 @@ function setup()
 	if [ -n "${GW6DEL}" ]; then
 		remove_route "$DEVICE" '-6'
 	fi
-	if [ -n "${GW}" ]; then
+	if [ -n "${GW}" -a "${DHCP4}" != "yes" ]; then
 		setup_gw ${DEVICE} "${GW}"
 	fi
 
-	if [ -n "${GW6}" ]; then
+	if [ -n "${GW6}" -a "${DHCP6}" != "yes" ]; then
 		setup_gw ${DEVICE} "${GW6}"
 	fi
 
