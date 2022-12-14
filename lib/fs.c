@@ -81,6 +81,9 @@ static int do_umount(const char *mnt)
 		ret = umount(mnt);
 		if (ret == 0)
 			return 0;
+		//was unmounted before [EINVAL target is not a mount point]
+		if (ret == -1 && errno == EINVAL)
+			return 0;
 		if (ret == -1 && errno != EBUSY)
 			break;
 		sleep(1);
