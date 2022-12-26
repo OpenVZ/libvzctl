@@ -742,13 +742,13 @@ static int remove_ipv6_addr(struct vzctl_net_param *net)
 }
 int apply_venet_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, int flags)
 {
-	int ret;
+	int ret = 0;
 	struct vzctl_net_param *net = env->net;
 	struct vzctl_veth_dev *venet;
 
 	if (list_empty(&net->ip) &&
 			list_empty(&net->ip_del) &&
-			!net->delall)
+			!net->delall && !(h->ctx->state & VZCTL_STATE_STARTING))
 		return 0;
 
 	if (!is_env_run(h))
@@ -761,7 +761,8 @@ int apply_venet_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, i
 	}
 
 	venet = find_veth_by_ifname_ve(&h->env_param->veth->dev_list, LEGACY_VENET_NAME);
-	if (venet == NULL) {
+
+	if (venet == NULL && !list_empty(&net->ip)) {
 		// generate venet mac and preserve it in the CT config
 		venet = alloc_veth_dev();
 		if (venet == NULL)
@@ -780,15 +781,18 @@ int apply_venet_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, i
 		if (ret)
 			return ret;
 	}
-	venet->mac_filter = 1;
-	venet->ip_filter = 1;
-	venet->ip_delall = net->delall;
-	list_moveall(&net->ip, &venet->ip_list);
-	list_moveall(&net->ip_del, &venet->ip_del_list);
-	ret = do_veth_ctl(h, ADD, venet, flags);
-	list_moveall(&venet->ip_list, &net->ip);
-	list_moveall(&venet->ip_del_list, &net->ip_del);
 
+	if (venet) {
+		venet->mac_filter = 1;
+		venet->ip_filter = 1;
+		venet->ip_delall = net->delall;
+
+		list_moveall(&net->ip, &venet->ip_list);
+		list_moveall(&net->ip_del, &venet->ip_del_list);
+		ret = do_veth_ctl(h, ADD, venet, flags);
+		list_moveall(&venet->ip_list, &net->ip);
+		list_moveall(&venet->ip_del_list, &net->ip_del);
+	}
 	return ret;
 }
 
