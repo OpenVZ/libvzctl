@@ -345,13 +345,15 @@ function vzarp()
 
 clean_routed_ips()
 {
-	[ -z "$NETDEVICES" ] && vzgetnetdev
-	for ip in `cat $VE_STATE_DIR/$VEID 2>/dev/null`; do
-		ip=${ip%%/*}
-		vzdelrouting $ip
-		vzarp del $ip
-	done
-	> $VE_STATE_DIR/$VEID
+      if [ -f "$VE_STATE_DIR/$VEID" ]; then
+              [ -z "$NETDEVICES" ] && vzgetnetdev
+              for ip in `cat $VE_STATE_DIR/$VEID 2>/dev/null`; do
+                      ip=${ip%%/*}
+                      vzdelrouting $ip
+                      vzarp del $ip
+              done
+              > $VE_STATE_DIR/$VEID
+      fi
 }
 
 function parallel_execution()
