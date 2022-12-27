@@ -787,6 +787,9 @@ int apply_venet_param(struct vzctl_env_handle *h, struct vzctl_env_param *env, i
 		venet->ip_filter = 1;
 		venet->ip_delall = net->delall;
 
+		if (list_empty(&net->ip) && list_empty(&net->ip_del))
+			venet->ip_delall = 1;
+
 		list_moveall(&net->ip, &venet->ip_list);
 		list_moveall(&net->ip_del, &venet->ip_del_list);
 		ret = do_veth_ctl(h, ADD, venet, flags);
