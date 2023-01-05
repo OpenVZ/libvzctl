@@ -405,6 +405,7 @@ struct vzctl_create_image_param {
 	int mode;
 	unsigned long size;
 	char *enc_keyid;
+	unsigned int timeout;
 };
 
 struct vzctl_cpuinfo {
