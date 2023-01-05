@@ -390,7 +390,7 @@ static int do_create_private(struct vzctl_env_handle *h, const char *dst,
 				&h->env_param->tmpl->ostmpl,
 				vzctl2_layout2fstype(layout),
 				applist, use_ostmpl, tarball,
-				sizeof(tarball));
+				sizeof(tarball), 0);
 	if (ret)
 		return ret;
 
@@ -456,7 +456,7 @@ int vzctl2_prepare_root_image(const char *dst, const char *ostemplate,
 	ostmpl = strdup(ostemplate);
 	ret = vztmpl_get_cache_tarball(NULL, &ostmpl,
 				vzctl2_layout2fstype(VZCTL_LAYOUT_5),
-				NULL, 1, tarball, sizeof(tarball));
+				NULL, 1, tarball, sizeof(tarball), param->timeout);
 	if (ret)
 		goto err;
 

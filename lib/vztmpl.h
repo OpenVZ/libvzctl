@@ -32,6 +32,6 @@ int vztmpl_is_jquota_supported(const char *ostmpl);
 int vztmpl_install_app(const char *ctid, const char *apps, int force);
 int vztmpl_get_cache_tarball(const char *cache_config, char **ostmpl,
 		const char *fstype, char **applist, int use_ostmpl,
-		char *tarball, int len);
+		char *tarball, int len, unsigned int timeout);
 int vztmpl_get_applist(ctid_t ctid, list_head_t *head, const char *ostmpl);
 #endif

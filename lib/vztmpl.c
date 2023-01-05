@@ -156,15 +156,16 @@ int vztmpl_is_jquota_supported(const char *ostmpl)
 	return (strncmp(buf, "yes", 3) == 0);
 }
 
-static int vztmpl_create_cache(const char *ostmpl, const char *fstype)
+static int vztmpl_create_cache(const char *ostmpl, const char *fstype, unsigned int timeout)
 {
 	const char *p;
-	char *arg[10];
+	char *arg[12];
 	char progress[STR_SIZE] = "";
 	char image_format[STR_SIZE];
 	char fs_type[STR_SIZE];
 	char *env[] = {progress, NULL };
 	int i = 0;
+	char timeoutBuf[STR_SIZE];
 
 	arg[i++] = VZPKG;
 	arg[i++] = "create";
@@ -182,6 +183,11 @@ static int vztmpl_create_cache(const char *ostmpl, const char *fstype)
 	vzctl2_get_def_img_fmt(image_format, sizeof(image_format));
 	arg[i++] = "--veimgfmt";
 	arg[i++] = image_format;
+
+	snprintf(timeoutBuf, sizeof(timeoutBuf), "%d", timeout);
+	arg[i++] = "--timeout";
+	arg[i++] = timeoutBuf;
+
 	arg[i++] = NULL;
 
 	if ((p = getenv("VZ_PROGRESS_FD")))
@@ -190,11 +196,12 @@ static int vztmpl_create_cache(const char *ostmpl, const char *fstype)
 	return vzctl2_wrap_exec_script(arg, env, 0);
 }
 
-static int vztmpl_create_appcache(const char *config, const char *ostmpl, const char *fstype)
+static int vztmpl_create_appcache(const char *config, const char *ostmpl, const char *fstype, unsigned int timeout)
 {
-	char *arg[13];
+	char *arg[15];
 	char image_format[STR_SIZE];
 	char fs_type[STR_SIZE];
+	char timeoutBuf[STR_SIZE];
 	int i = 0;
 
 	arg[i++] = VZPKG;
@@ -216,6 +223,10 @@ static int vztmpl_create_appcache(const char *config, const char *ostmpl, const 
 	vzctl2_get_def_img_fmt(image_format, sizeof(image_format));
 	arg[i++] = "--veimgfmt";
 	arg[i++] = image_format;
+
+	snprintf(timeoutBuf, sizeof(timeoutBuf), "%d", timeout);
+	arg[i++] = "--timeout";
+	arg[i++] = timeoutBuf;
 
 	arg[i++] = NULL;
 
@@ -351,7 +362,7 @@ err:
 
 int vztmpl_get_cache_tarball(const char *config, char **ostmpl,
 		const char *fstype, char **applist, int use_ostmpl,
-		char *tarball, int len)
+		char *tarball, int len, unsigned int timeout)
 {
 	int ret = 0;
 	const char *config_name = config;
@@ -402,12 +413,12 @@ int vztmpl_get_cache_tarball(const char *config, char **ostmpl,
 					"appcache utility...",
 					*ostmpl, config_name ?: "" );
 
-			if (vztmpl_create_appcache(config_name, *ostmpl, fstype))
+			if (vztmpl_create_appcache(config_name, *ostmpl, fstype, timeout))
 				goto err;
 		} else {
 			logger(0, 0, "Cached package set '%s' is not found, run"
 					" create cache utility...", *ostmpl);
-			if (vztmpl_create_cache(*ostmpl, fstype))
+			if (vztmpl_create_cache(*ostmpl, fstype, timeout))
 				goto err;
 		}
 	}
