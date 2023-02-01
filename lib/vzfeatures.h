@@ -25,7 +25,6 @@
 #define _VZFEATURES_H_
 
 struct vzctl_features_param {
-	unsigned long ipt_mask;
 	unsigned long long mask;
 	unsigned long long known;
 	unsigned long long tech;

@@ -42,7 +42,6 @@
 #include "net.h"
 #include "io.h"
 #include "meminfo.h"
-#include "iptables.h"
 #include "list.h"
 #include "vzctl_param.h"
 #include "config.h"
@@ -138,9 +137,6 @@ static struct vzctl_config_param config_param_map[] = {
 {"NETDEV",	VZCTL_PARAM_NETDEV},
 {"PCI",		VZCTL_PARAM_PCI},
 
-#ifndef VZ8
-{"IPTABLES",	VZCTL_PARAM_IPTABLES},
-#endif
 {"IOPRIO",	VZCTL_PARAM_IOPRIO},
 {"IOLIMIT",	VZCTL_PARAM_IOLIMIT},
 {"IOPSLIMIT",	VZCTL_PARAM_IOPSLIMIT},
@@ -542,11 +538,6 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 		break;
 	case VZCTL_PARAM_DEVNODES:
 		ret = parse_devnodes(env->dev, str, replace);
-		break;
-	case VZCTL_PARAM_IPTABLES:
-		ret = parse_iptables(&env->features->ipt_mask, str);
-		if (ret == VZCTL_E_INVAL && flags & VZCTL_CONF_PARAM)
-			ret = 0;
 		break;
 	case VZCTL_PARAM_NETDEV:
 		ret = parse_netdev(&env->netdev->dev, str, replace);
@@ -1150,12 +1141,6 @@ static char *env_param2str(struct vzctl_env_handle *h,
 		return devices2str(env->dev);
 	case VZCTL_PARAM_DEVNODES:
 		return devnodes2str(env->dev, 0);
-	case VZCTL_PARAM_IPTABLES:
-		if (env->features->ipt_mask) {
-			iptables_mask2str(env->features->ipt_mask, buf, sizeof(buf));
-			return strdup(buf);
-		}
-		break;
 	case VZCTL_PARAM_NETDEV:
 		return netdev2str(h->env_param->netdev, env->netdev);
 	case VZCTL_PARAM_PCI:
