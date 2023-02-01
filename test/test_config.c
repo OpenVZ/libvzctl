@@ -1471,37 +1471,6 @@ void test_config_high_availability(vzctl_env_handle_ptr h)
 	vzctl2_env_close(h_res);
 }
 
-void test_config_netfilter(vzctl_env_handle_ptr h)
-{
-	int err;
-	vzctl_env_handle_ptr h_res = NULL;
-	vzctl_env_param_ptr new_param;
-	int i;
-	unsigned res;
-
-	TEST()
-	for (i = VZCTL_NF_DISABLED; i <= VZCTL_NF_FULL; i++) {
-		CHECK_PTR(new_param, vzctl2_alloc_env_param())
-
-		printf("(info) set netfilter: %d\n", i);
-		CHECK_RET(vzctl2_env_set_netfilter(new_param, i))
-		CHECK_RET(vzctl2_apply_param(h, new_param, VZCTL_SAVE))
-
-		vzctl2_free_env_param(new_param);
-
-		vzctl2_env_close(h_res);
-		CHECK_PTR(h_res, vzctl2_env_open(ctid, VZCTL_CONF_SKIP_NON_EXISTS, &err))
-		CHECK_RET(vzctl2_env_get_netfilter(vzctl2_get_env_param(h_res), &res))
-		if (res != i) {
-			printf("\t(err) %d/%d\n",
-					i, res);
-			TEST_ERR("vzctl2_env_get_netfilter after save")
-		}
-	}
-
-	vzctl2_env_close(h_res);
-}
-
 void test_config_autocompact(vzctl_env_handle_ptr h)
 {
 	int err;
@@ -1637,7 +1606,6 @@ void test_config()
 	test_config_layout(h);
 	test_config_APPLY_IPONLY(h);
 	test_config_FEATURES(h);
-	test_config_netfilter(h);
 	test_config_NAME(h);
 	test_config_high_availability(h);
 	test_config_autocompact(h);

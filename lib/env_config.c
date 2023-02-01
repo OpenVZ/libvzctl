@@ -140,7 +140,6 @@ static struct vzctl_config_param config_param_map[] = {
 
 #ifndef VZ8
 {"IPTABLES",	VZCTL_PARAM_IPTABLES},
-{"NETFILTER",	VZCTL_PARAM_NETFILTER},
 #endif
 {"IOPRIO",	VZCTL_PARAM_IOPRIO},
 {"IOLIMIT",	VZCTL_PARAM_IOLIMIT},
@@ -548,9 +547,6 @@ static int add_env_param(struct vzctl_env_handle *h, struct vzctl_env_param *env
 		ret = parse_iptables(&env->features->ipt_mask, str);
 		if (ret == VZCTL_E_INVAL && flags & VZCTL_CONF_PARAM)
 			ret = 0;
-		break;
-	case VZCTL_PARAM_NETFILTER:
-		ret = parse_netfilter(&env->features->nf_mask, str);
 		break;
 	case VZCTL_PARAM_NETDEV:
 		ret = parse_netdev(&env->netdev->dev, str, replace);
@@ -1157,12 +1153,6 @@ static char *env_param2str(struct vzctl_env_handle *h,
 	case VZCTL_PARAM_IPTABLES:
 		if (env->features->ipt_mask) {
 			iptables_mask2str(env->features->ipt_mask, buf, sizeof(buf));
-			return strdup(buf);
-		}
-		break;
-	case VZCTL_PARAM_NETFILTER:
-		if (env->features->nf_mask) {
-			netfilter_mask2str(env->features->nf_mask, buf, sizeof(buf));
 			return strdup(buf);
 		}
 		break;

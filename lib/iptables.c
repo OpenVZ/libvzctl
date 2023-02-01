@@ -74,20 +74,6 @@ static struct iptables_s _g_iptables[] = {
 	{NULL}
 };
 
-#define VE_NF_STATELESS	(VE_IP_FILTER | VE_IP_MANGLE)
-#define VE_NF_STATELESS6	(VE_IP_FILTER6 | VE_IP_MANGLE6)
-#define VE_NF_STATEFUL	(VE_NF_STATELESS | VE_NF_CONNTRACK | VE_IP_CONNTRACK | \
-			VE_IP_CONNTRACK_FTP | VE_IP_CONNTRACK_IRC)
-#define VE_NF_STATEFUL6	(VE_NF_STATELESS6 | VE_NF_CONNTRACK | VE_IP_CONNTRACK)
-
-static struct iptables_s _g_netfilter[] = {
-	{"disabled",	VZCTL_NF_DISABLED,	VE_IP_NONE},
-	{"stateless",	VZCTL_NF_STATELESS,	VE_NF_STATELESS | VE_NF_STATELESS6},
-	{"stateful",	VZCTL_NF_STATEFUL,	VE_NF_STATEFUL | VE_NF_STATEFUL6},
-	{"full",	VZCTL_NF_FULL,		VE_IP_ALL},
-	{NULL}
-};
-
 static struct iptables_s *find_ipt_by_name(struct iptables_s *ipt, const char *name)
 {
 	struct iptables_s *p;
@@ -127,17 +113,6 @@ void iptables_mask2str(unsigned long mask, char *buf, int size)
 	}
 }
 
-void netfilter_mask2str(unsigned long id, char *buf, int size)
-{
-	struct iptables_s *p;
-
-	p = find_ipt_by_id(_g_netfilter, id);
-	if (p != NULL)
-		snprintf(buf, size, "%s", p->name);
-	else
-		*buf = '\0';
-}
-
 static unsigned long long get_iptables_mask(unsigned long id)
 {
 	struct iptables_s *p;
@@ -150,22 +125,9 @@ static unsigned long long get_iptables_mask(unsigned long id)
 	return mask;
 }
 
-static unsigned long long get_netfilter_mask(unsigned long id)
-{
-	struct iptables_s *p;
-
-	p = find_ipt_by_id(_g_netfilter, id);
-	if (p != NULL)
-		return p->ipt_mask;
-
-	return 0;
-}
-
 unsigned long long get_ipt_mask(struct vzctl_features_param *param)
 {
-	if (param->nf_mask)
-		return get_netfilter_mask(param->nf_mask);
-	else if (param->ipt_mask)
+	if (param->ipt_mask)
 		return get_iptables_mask(param->ipt_mask);
 
 	return VE_IP_DEFAULT;
@@ -199,34 +161,4 @@ static int parse_ipt(struct iptables_s *ipt, unsigned long *mask, const char *va
 int parse_iptables(unsigned long *mask, const char *val)
 {
 	return parse_ipt(_g_iptables, mask, val);
-}
-
-int parse_netfilter(unsigned long *id, const char *val)
-{
-	struct iptables_s *p;
-
-	p = find_ipt_by_name(_g_netfilter, val);
-	if (p == NULL)
-		return vzctl_err(VZCTL_E_INVAL, 0, "An incorrect netfilter: %s", val);
-
-	*id = p->id;
-
-	return 0;
-}
-
-int vzctl2_env_set_netfilter(struct vzctl_env_param *env, unsigned mode)
-{
-	if (mode < VZCTL_NF_DISABLED || mode > VZCTL_NF_FULL)
-		return vzctl_err(VZCTL_E_INVAL, 0, "An incorrect netfilter: %u", mode);
-
-	env->features->nf_mask = mode;
-
-	return 0;
-}
-
-int vzctl2_env_get_netfilter(struct vzctl_env_param *env, unsigned *mode)
-{
-	*mode = (unsigned) env->features->nf_mask;
-
-	return 0;
 }

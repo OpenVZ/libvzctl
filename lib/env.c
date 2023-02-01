@@ -1520,13 +1520,9 @@ static int check_setmode(struct vzctl_env_handle *h, struct vzctl_env_param *env
 			h->env_param->dq->journaled_quota != env->dq->journaled_quota)
 		ret = vzctl_err(VZCTL_E_ENV_RUN, 0, "Unable to change quota mode"
 				" for the running Container");
-	if (env->features->nf_mask &&
-			env->features->nf_mask != h->env_param->features->nf_mask)
+	if (env->features->ipt_mask)
 		ret = vzctl_err(VZCTL_E_ENV_RUN, 0, "Unable to set"
-                                                " netfilter for the running Container");
-	else if (env->features->ipt_mask)
-		ret = vzctl_err(VZCTL_E_ENV_RUN, 0, "Unable to set"
-                                                " iptables for the running Container");
+				" iptables for the running Container");
 
 	if (env->features->known)
 		ret = vzctl_err(VZCTL_E_ENV_RUN, 0, "Unable to set"

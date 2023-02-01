@@ -28,8 +28,6 @@ struct vzctl_features_param;
 
 int parse_iptables(unsigned long *mask, const char *val);
 void iptables_mask2str(unsigned long mask, char *buf, int size);
-int parse_netfilter(unsigned long *mask, const char *val);
-void netfilter_mask2str(unsigned long mask, char *buf, int size);
 unsigned long long get_ipt_mask(struct vzctl_features_param *param);
 
 #endif //_IPTABLES_H_

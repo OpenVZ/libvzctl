@@ -200,19 +200,6 @@ struct vzctl_exec_handle {
 	int comm[2];
 };
 
-/* Netfilter:
- *    "disabled"   -- no iptables in CT allowed
- *    "stateless"  -- all but conntracks and NAT (filter, mangle) are allowed
- *    "stateful"   -- all but NAT is allowed
- *    "full"       -- all netfilter functionality is allowed
- */
-enum {
-	VZCTL_NF_DISABLED = 1,
-	VZCTL_NF_STATELESS,
-	VZCTL_NF_STATEFUL,
-	VZCTL_NF_FULL,
-};
-
 typedef enum {
 	VZCTL_AUTOSTART_NONE	= -1,
 	VZCTL_AUTOSTART_OFF	= 0,
@@ -923,8 +910,6 @@ int vzctl2_env_add_pcidev(vzctl_env_param_ptr env, const char *dev);
 int vzctl2_env_del_pcidev(vzctl_env_param_ptr env, const char *dev);
 int vzctl2_env_set_features(vzctl_env_param_ptr env, struct vzctl_feature_param *param);
 int vzctl2_env_get_features(vzctl_env_param_ptr env, struct vzctl_feature_param *param);
-int vzctl2_env_set_netfilter(struct vzctl_env_param *env, unsigned mode);
-int vzctl2_env_get_netfilter(struct vzctl_env_param *env, unsigned *mode);
 int vzctl2_env_get_autocompact(vzctl_env_param_ptr env, int *enable);
 int vzctl2_env_set_autocompact(vzctl_env_param_ptr env, int enable);
 int vzctl2_env_get_bootorder(struct vzctl_env_param *env, unsigned long *bootorder);
