@@ -129,12 +129,14 @@ set_network_config()
 	[ -n "$NAMESERVER" -o  -n "$SEARCHDOMAIN" ] && netconfig -v update -m dns-resolver
 }
 
-if [ -e /etc/systemd/system/dbus-org.freedesktop.resolve1.service ]; then
-	set_resolved "${NAMESERVER}" "${SEARCHDOMAIN}"
+if ( systemctl -q is-active resolvconf ); then
+        set_resolvconf "${NAMESERVER}" "${SEARCHDOMAIN}"
+elif ( systemctl -q is-active sytsemd-resolved ); then
+        set_resolved "${NAMESERVER}" "${SEARCHDOMAIN}"
 elif [ -e /sbin/netconfig -a -e /etc/sysconfig/network/config ]; then
-	set_network_config
+        set_network_config
 else
-	set_resolvconf "${NAMESERVER}" "${SEARCHDOMAIN}"
+        echo "resolver is not running"
 fi
 
 exit 0
