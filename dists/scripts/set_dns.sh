@@ -131,7 +131,7 @@ set_network_config()
 
 if ( systemctl -q is-active resolvconf ); then
         set_resolvconf "${NAMESERVER}" "${SEARCHDOMAIN}"
-elif ( systemctl -q is-active sytsemd-resolved ); then
+elif ( systemctl -q is-active systemd-resolved ); then
         set_resolved "${NAMESERVER}" "${SEARCHDOMAIN}"
 elif [ -e /sbin/netconfig -a -e /etc/sysconfig/network/config ]; then
         set_network_config
