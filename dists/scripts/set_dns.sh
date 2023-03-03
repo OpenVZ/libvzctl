@@ -1,6 +1,6 @@
 #!/bin/bash
 # Copyright (c) 1999-2017, Parallels International GmbH
-# Copyright (c) 2017-2019 Virtuozzo International GmbH. All rights reserved.
+# Copyright (c) 2017-2023 Virtuozzo International GmbH. All rights reserved.
 #
 # This file is part of OpenVZ libraries. OpenVZ is free software; you can
 # redistribute it and/or modify it under the terms of the GNU Lesser General
@@ -44,6 +44,11 @@ set_resolvconf()
 		if [ -e "$RESOLVCONF" ]; then
 			cfgfile=$RESOLVCONF
 			[ "${VE_STATE}" = "running" ] && post_configure_cmd='resolvconf -u'
+			if  [ "${VE_STATE}" = "starting" ] && 
+				[ -e /etc/systemd/system/systemd-resolved.service ] &&
+				[ $(readlink /etc/systemd/system/systemd-resolved.service) == '/dev/null' ]; then
+				grep -qF -- "resolvconf -u" "/etc/rc.local" || echo "resolvconf -u" >> "/etc/rc.local"
+			fi
 		fi
 	fi
 
@@ -129,14 +134,14 @@ set_network_config()
 	[ -n "$NAMESERVER" -o  -n "$SEARCHDOMAIN" ] && netconfig -v update -m dns-resolver
 }
 
-if ( systemctl -q is-active resolvconf ); then
-        set_resolvconf "${NAMESERVER}" "${SEARCHDOMAIN}"
-elif ( systemctl -q is-active systemd-resolved ); then
-        set_resolved "${NAMESERVER}" "${SEARCHDOMAIN}"
+if  [ -e /etc/systemd/system/dbus-org.freedesktop.resolve1.service ] &&
+    [ -e /etc/systemd/system/systemd-resolved.service ] &&
+    [ $(readlink /etc/systemd/system/systemd-resolved.service) != '/dev/null' ]; then
+    set_resolved "${NAMESERVER}" "${SEARCHDOMAIN}"
 elif [ -e /sbin/netconfig -a -e /etc/sysconfig/network/config ]; then
-        set_network_config
+    set_network_config
 else
-        echo "resolver is not running"
+    set_resolvconf "${NAMESERVER}" "${SEARCHDOMAIN}"
 fi
 
 exit 0
