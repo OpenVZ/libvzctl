@@ -64,7 +64,7 @@ set_resolvconf()
 			put_param2 "${cfgfile}" search "${search}"
 		fi
 	fi
-	if [ -n "${server}" ]; then
+	if [ -n "${server}" -a ! -L "${cfgfile}" ]; then
 		[ -f "${cfgfile}" ] || touch "${cfgfile}"
 		${CP} ${cfgfile} ${cfgfile}.$$ || error "Can't copy file $cfgfile" $VZ_FS_NO_DISK_SPACE
 		sed "/nameserver.*/d" ${cfgfile} > ${cfgfile}.$$
