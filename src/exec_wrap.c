@@ -41,8 +41,13 @@ static void usage()
 	printf("          <ID> <""> <in:out:err:comm> <timeout> <0|1|4> <flags> [arg...arg]\n");
 }
 
+static int cleaning_up_in_progress;
 static void cleanup(int sig)
 {
+	/* Avoid reentrance into the signal handler */
+	if (cleaning_up_in_progress)
+		return;
+	cleaning_up_in_progress = 1;
 	vzctl2_cancel_last_operation();
 }
 
