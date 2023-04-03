@@ -134,9 +134,16 @@ set_network_config()
 	[ -n "$NAMESERVER" -o  -n "$SEARCHDOMAIN" ] && netconfig -v update -m dns-resolver
 }
 
-if  [ -e /etc/systemd/system/dbus-org.freedesktop.resolve1.service ] &&
-    [ -e /etc/systemd/system/systemd-resolved.service ] &&
-    [ $(readlink /etc/systemd/system/systemd-resolved.service) != '/dev/null' ]; then
+is_systemd_resolved_debian= [ -e /etc/systemd/system/dbus-org.freedesktop.resolve1.service ] &&
+    [ -L /etc/systemd/system/systemd-resolved.service ] &&
+    [ $(readlink /etc/systemd/system/systemd-resolved.service) != '/dev/null' ] && echo '1'
+
+is_systemd_resolved_ubuntu= [ -e /etc/systemd/system/dbus-org.freedesktop.resolve1.service ] &&
+     [ -L /etc/resolv.conf ] &&
+     [[ $(readlink /etc/resolv.conf) =~ 'systemd/resolve' ]] &&
+     [[ ! $(readlink /etc/resolv.conf) =~ 'resolvconf' ]] && echo '1'
+
+if  $is_systemd_resolved_debian || $is_systemd_resolved_ubuntu ; then
     set_resolved "${NAMESERVER}" "${SEARCHDOMAIN}"
 elif [ -e /sbin/netconfig -a -e /etc/sysconfig/network/config ]; then
     set_network_config
