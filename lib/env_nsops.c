@@ -1982,7 +1982,7 @@ static int ns_set_disk_io(struct vzctl_env_handle *h, unsigned int *limit,
 static int ns_set_iolimit(struct vzctl_env_handle *h, unsigned int speed)
 {
 	int rc;
-	logger(0, 0, "Set up iopslimit: %u", speed);
+	logger(0, 0, "Set up iolimit: %u", speed);
 
 	if (is_ub_supported())
 		rc = cg_env_set_iolimit(EID(h), speed, speed * 3, 10*1000);
