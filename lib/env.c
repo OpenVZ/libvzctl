@@ -331,6 +331,7 @@ int vzctl2_env_pause(struct vzctl_env_handle *h, int flags)
 		return vzctl_err(ret, 0, "Unable to pause the Container");
 
 	logger(0, 0, "The Container has been successfully paused");
+	vzctl2_send_state_evt(EID(h), VZCTL_ENV_SUSPENDED);
 
 	return 0;
 }
@@ -980,10 +981,13 @@ int vzctl_env_start(struct vzctl_env_handle *h, int flags)
 
 		struct vzctl_cpt_param cpt = {};
 		ret = vzctl2_cpt_cmd(h, 0, VZCTL_CMD_RESUME, &cpt, flags);
-		if (ret)
+		if (ret) {
 			logger(-1, 0, "Unable to unpause the Container");
-		else
+		}
+		else {
 			logger(0, 0, "The Container has been successfully unpaused");
+			vzctl2_send_state_evt(EID(h), VZCTL_ENV_STARTED);
+		}
 	
 		return ret;
 	}
@@ -1187,8 +1191,9 @@ int vzctl_env_chkpnt(struct vzctl_env_handle *h, int cmd,
 	do_env_post_stop(h, flags);
 end:
 
-	if (ret)
+	if (ret) {
 		logger(-1, 0, "Checkpointing failed");
+	}
 	else {
 		vzctl2_send_state_evt(EID(h), VZCTL_ENV_SUSPENDED);
 		logger(0, 0, "Checkpointing completed successfully");
