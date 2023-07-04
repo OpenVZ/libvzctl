@@ -140,10 +140,28 @@ function vzcheckvar()
 # Add device from $1 into trusted firewall zone in runtime and 
 vzaddtrustedfw()
 {
-	firewall-cmd --zone=trusted --add-interface=$1
-	if [ $? -ne 0 ]; then
-		vzerror "Unable to add host routed $1 into the trusted firewall zone in runtime " -1
+	i=1
+	res=1
+	answ=''
+
+	while [ $i -le 5 ] && [ $res -ne 0 ];
+	do
+		answ=$( firewall-cmd --zone=trusted --add-interface=$1 2>&1)
+		res=$?
+
+		if [ $i -lt 5 ] && [ $res -ne 0 ]; then
+			echo "firewall-cmd finished with code: $res, firewall-cmd has been run again"
+			sleep 10
+		fi
+
+		((i++))
+	done
+
+	if [ $res -ne 0 ]; then
+		vzerror "After $i tries, firewall-cmd has been returned non-zero code: $res, firewall-cmd finished 
+		with message: $answ,  Unable to add host routed $1 into the trusted firewall zone in runtime " -1
 	fi
+
 	firewall-cmd --permanent --zone=trusted --add-interface=$1
 	if [ $? -ne 0 ]; then
 		vzerror "Unable to add host routed $1 into the trusted firewall zone permanent " -1
