@@ -883,4 +883,7 @@ vzflush_nft_rules()
 		configured=`nft list chain netdev ve_${ctid} net_${dev} 2> /dev/null`
 		[ -n "${configured}" ] && vzrun ${NFT_CMD} delete chain netdev ve_${ctid} net_${dev}
 	done
+
+	configured=`nft list tables 2>/dev/null | grep ve_${ctid}`
+	[ -n "${configured}" ] && vzrun ${NFT_CMD} delete table netdev ve_${ctid}
 }
