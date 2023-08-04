@@ -105,17 +105,17 @@ static int move_self_to_systemd(void)
 
 	len = snprintf(self, sizeof(self), "%d", getpid());
 
-	fd = open("/sys/fs/cgroup/systemd/tasks", O_RDWR);
+	fd = open("/sys/fs/cgroup/systemd/cgroup.procs", O_RDWR);
 	if (fd < 0) {
 		if (errno == ENOENT)
 			return 0;
-		return vzctl_err(-1, errno, "Can't open /sys/fs/cgroup/systemd/tasks");
+		return vzctl_err(-1, errno, "Can't open /sys/fs/cgroup/systemd/cgroup.procs");
 	}
 
 	if (write(fd, self, len) == -1) {
 		close(fd);
 		return vzctl_err(-1, errno,
-				"Failed write to /sys/fs/cgroup/systemd/tasks <%s>",
+				"Failed write to /sys/fs/cgroup/systemd/cgroup.procs <%s>",
 				self);
 	}
 
@@ -2116,7 +2116,7 @@ int vzctl2_set_limits(struct vzctl_env_handle *h, int release)
 				goto err;
 		}
 
-		ret = cg_set_ul(EID(h), CG_UB, "tasks", getpid());
+		ret = cg_set_ul(EID(h), CG_UB, "cgroup.procs", getpid());
 		if (ret)
 			goto err;
 	}

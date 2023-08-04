@@ -612,7 +612,7 @@ static int cg_move_tasks(const char *from, const char *to, const char *name)
 			vzctl_err(-1, 0, "cg_move_tasks: invalid pid %s", it->str);
 			continue;
 		}
-		cg_set_ul(to, name, "tasks", pid);
+		cg_set_ul(to, name, "cgroup.procs", pid);
 	}
 
 	return 0;
@@ -747,7 +747,7 @@ int cg_attach_task(const char *ctid, pid_t pid, char *cg_subsys_except)
 		if (cg_subsys_except &&
 			 !strcmp(cg_ctl_map[i].subsys, cg_subsys_except))
 			continue;
-		if (cg_set_ul(ctid, cg_ctl_map[i].subsys, "tasks", pid))
+		if (cg_set_ul(ctid, cg_ctl_map[i].subsys, "cgroup.procs", pid))
 			return -1;
 	}
 
@@ -1027,7 +1027,7 @@ static int cg_get_tasks(const char *ctid, const char *name, list_head_t *list)
 	char *p;
 	int n, ret = 0;
 
-	ret = cg_get_path(ctid, name, "tasks", path, sizeof(path));
+	ret = cg_get_path(ctid, name, "cgroup.procs", path, sizeof(path));
 	if (ret)
 		return ret;
 
