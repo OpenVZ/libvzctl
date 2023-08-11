@@ -747,8 +747,10 @@ int cg_attach_task(const char *ctid, pid_t pid, char *cg_subsys_except)
 		if (cg_subsys_except &&
 			 !strcmp(cg_ctl_map[i].subsys, cg_subsys_except))
 			continue;
-		if (cg_set_ul(ctid, cg_ctl_map[i].subsys, "cgroup.procs", pid))
-			return -1;
+		if (cg_set_ul(ctid, cg_ctl_map[i].subsys, "cgroup.procs", pid) &&
+		    (strcmp(cg_ctl_map[i].subsys, CG_UNIFIED) ||
+		     cg_set_ul(ctid, cg_ctl_map[i].subsys, "user.slice/cgroup.procs", pid)))
+				return -1;
 	}
 
 	return 0;
