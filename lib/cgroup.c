@@ -121,10 +121,12 @@ static int cg_is_systemd(const char *subsys)
 
 static int cg_is_supported(const char *subsys)
 {
-	if (strcmp(subsys, CG_UB) == 0 && !is_ub_supported())
-		return 0;
-	if (strcmp(subsys, CG_RDMA) == 0 && access("/sys/fs/cgroup/"CG_RDMA, F_OK))
-		return 0;
+	if (!strcmp(subsys, CG_UB) ||
+	    !strcmp(subsys, CG_RDMA)) {
+		if (!find_str(&cgroup_hierarchies, subsys))
+			return 0;
+	}
+
 	return 1;
 }
 
