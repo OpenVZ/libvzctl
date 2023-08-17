@@ -813,5 +813,5 @@ err:
 
 int is_ub_supported()
 {
-	return (access("/sys/fs/cgroup/beancounter", F_OK) == 0);
+	return cg_is_supported(CG_UB);
 }

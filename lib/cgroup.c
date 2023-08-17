@@ -119,7 +119,7 @@ static int cg_is_systemd(const char *subsys)
 	return strcmp(subsys, "systemd") == 0;
 }
 
-static int cg_is_supported(const char *subsys)
+int cg_is_supported(const char *subsys)
 {
 	if (!strcmp(subsys, CG_UB) ||
 	    !strcmp(subsys, CG_RDMA)) {

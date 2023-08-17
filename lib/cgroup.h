@@ -102,4 +102,5 @@ int bindmount_env_cgroup(struct vzctl_env_handle *h);
 int cg_set_veid(const char *ctid, int veid);
 int cg_freezer_cmd(const char *ctid, int cmd, int rec);
 int cg_read_freezer_state(const char *ctid, char *out, int size);
+int cg_is_supported(const char *subsys);
 #endif
