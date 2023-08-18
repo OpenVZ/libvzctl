@@ -52,6 +52,10 @@
 
 struct vzctl_env_handle;
 
+int init_cgroups(void);
+void fini_cgroups(void);
+int is_cgroup_v2(void);
+
 const char *cg_get_slice_name(void);
 int cg_get_path(const char *ctid, const char *subsys, const char *name,
 		char *out, int size);

@@ -44,6 +44,7 @@
 #include "util.h"
 #include "config.h"
 #include "net.h"
+#include "cluster.h"
 
 struct cg_ctl {
 	char *subsys;
@@ -67,6 +68,47 @@ static struct cg_ctl cg_ctl_map[] = {
 	{CG_RDMA},
 	{"systemd"},
 };
+
+static int get_cgroups(list_head_t *head);
+
+typedef enum {
+	CGROUP_UNKNOWN = -1,
+	CGROUP_V1,
+	CGROUP_V2,
+} cgroup_version_t;
+
+static cgroup_version_t cgroup_version = CGROUP_UNKNOWN;
+LIST_HEAD(cgroup_hierarchies);
+
+int init_cgroups(void)
+{
+	int ret;
+
+	/* Check cgroup v1 vs v2 */
+	ret = is_cgroup2("/sys/fs/cgroup/");
+	if (ret < 0)
+		return -1;
+	if (ret)
+		cgroup_version = CGROUP_V2;
+	else
+		cgroup_version = CGROUP_V1;
+
+	/* Check cgroup hierarchies */
+	if (get_cgroups(&cgroup_hierarchies))
+		return -1;
+
+	return 0;
+}
+
+void fini_cgroups(void)
+{
+	free_str(&cgroup_hierarchies);
+}
+
+int is_cgroup_v2(void)
+{
+	return cgroup_version == CGROUP_V2;
+}
 
 static int cg_get_tasks(const char *ctid, const char *name, list_head_t *list);
 static pthread_mutex_t cg_ctl_map_mtx = PTHREAD_MUTEX_INITIALIZER;

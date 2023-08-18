@@ -83,11 +83,15 @@ int ns_open(void)
 				errno != EEXIST)
 		return vzctl_err(VZCTL_E_CREATE_DIR, errno,
 				"Can't create directory " NETNS_RUN_DIR);
+
+	if (init_cgroups())
+		return vzctl_err(-1, 0, "Can't detect cgroups");
 	return 0;
 }
 
 void ns_close()
 {
+	fini_cgroups();
 	return;
 }
 
