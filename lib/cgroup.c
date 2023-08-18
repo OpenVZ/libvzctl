@@ -1170,7 +1170,6 @@ static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t *head)
 	struct vzctl_str_param *it;
 	const char *mnt;
 	struct cg_ctl *ctl;
-	LIST_HEAD(cgroups);
 
 	snprintf(s, sizeof(s), "%s/sys", ve_root);
 	if (access(s, F_OK) && make_dir(s, 1))
@@ -1188,10 +1187,6 @@ static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t *head)
 		return vzctl_err(VZCTL_E_MOUNT, errno,
 				"Can't pre-mount tmpfs in %s", s);
 
-	ret = get_cgroups(&cgroups);
-	if (ret)
-		return ret;
-
 	for (i = 0; i < sizeof(cg_ctl_map)/sizeof(cg_ctl_map[0]); i++) {
 		if (!cg_is_supported(cg_ctl_map[i].subsys))
 			continue;
@@ -1202,7 +1197,7 @@ static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t *head)
 		if (ctl->is_prvt)
 			continue;
 		if (!cg_is_systemd(ctl->subsys) &&
-				find_str(&cgroups, ctl->subsys) == NULL)
+				find_str(&cgroup_hierarchies, ctl->subsys) == NULL)
 			continue;
 		if (find_str(head, ctl->mount_path) != NULL)
 			continue;
@@ -1244,8 +1239,6 @@ err:
 		snprintf(s, sizeof(s), "%s/sys", ve_root);
 		umount(s);
 	}
-
-	free_str(&cgroups);
 
 	return ret;
 }
