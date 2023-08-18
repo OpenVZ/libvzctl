@@ -311,6 +311,30 @@ static int cg_read(const char *path, char *out, int size)
 	return 0;
 }
 
+/* For parsing specific event from cgroup-v2 cgroup.events file */
+static int cg_events_get(const char *path, const char *event, char *out, int size)
+{
+	int elen = strlen(event);
+	char buf[32];
+	FILE *fp;
+
+	fp = fopen(path, "r");
+	if (fp == NULL)
+		return vzctl_err(-1, errno, "Can't open cgroup.events %s", path);
+
+	while (fgets(buf, sizeof(buf), fp)) {
+		if (strncmp(event, buf, elen) || buf[elen] != ' ')
+			continue;
+
+		snprintf(out, size, "%s", &buf[elen + 1]);
+		fclose(fp);
+		return 0;
+	}
+
+	fclose(fp);
+	return vzctl_err(-1, 0, "Failed to find %s in %s", event, path);
+}
+
 const char *cg_get_slice_name(void)
 {
 	static int inited = 0;
@@ -1394,34 +1418,44 @@ int cg_read_freezer_state(const char *ctid, char *out, int size)
 	int ret;
 	char path[STR_SIZE];
 
-	ret = cg_get_path(ctid, CG_FREEZER, "freezer.state", path, sizeof(path));
+	ret = cg_get_path(ctid,
+			  is_cgroup_v2() ? CG_UNIFIED : CG_FREEZER,
+			  is_cgroup_v2() ? "cgroup.events" : "freezer.state",
+			  path, sizeof(path));
 	if (ret)
 		return ret;
 
 	if (access(path, F_OK))
 		return 0;
 
+	if (is_cgroup_v2())
+		return cg_events_get(path, "frozen", out, size);
+
 	return cg_read(path, out, size);
 }
 
 static int cg_write_freezer_state(const char *ctid, const char *state, int rec)
 {
-	char buf[PATH_MAX];
 	struct vzctl_str_param *it;
-	int ret = 0;
+	char buf[PATH_MAX];
 	LIST_HEAD(head);
+	int ret = 0;
 
-	if (cg_get_path(ctid, CG_FREEZER, "", buf, sizeof(buf)))
+	if (cg_get_path(ctid, is_cgroup_v2() ? CG_UNIFIED : CG_FREEZER,
+			"", buf, sizeof(buf)))
 		return VZCTL_E_SYSTEM;
 
 	if (rec) {
 		if (get_dir_list(&head, buf, -1))
 			return VZCTL_E_SYSTEM;
-	} else
+	} else {
 		add_str_param(&head, buf);
+	}
 
 	list_for_each(it, &head, list) {
-		snprintf(buf, sizeof(buf), "%s/freezer.state", it->str);
+		snprintf(buf, sizeof(buf),
+			 is_cgroup_v2() ? "%s/cgroup.freeze" : "%s/freezer.state",
+			 it->str);
 		if (access(buf, F_OK))
 			continue;
 		if (write_data(buf, state) == -1) {
@@ -1436,13 +1470,12 @@ static int cg_write_freezer_state(const char *ctid, const char *state, int rec)
 
 static int cg_wait_freezer_state(const char *ctid, const char *state)
 {
-	char buf[64];
+	char buf[64] = "";
 	int i, len;
 
 	len = strlen(state);
 	for (i = 0; i < MAX_SHTD_TM; i++) {
-		if (cg_get_param(ctid, CG_FREEZER, "freezer.state",
-					buf, sizeof(buf)))
+		if (cg_read_freezer_state(ctid, buf, sizeof(buf)))
 			return VZCTL_E_SYSTEM;
 
 		if (strncmp(buf, state, len) == 0)
@@ -1450,15 +1483,15 @@ static int cg_wait_freezer_state(const char *ctid, const char *state)
 		sleep(1);
 	}
 	return vzctl_err(VZCTL_E_TIMEOUT, 0, "Waiting for state '%s' timed out",
-			state);
+			 state);
 }
 
 int cg_freezer_cmd(const char *ctid, int cmd, int rec)
 {
 	int ret;
 	const char *state, *rollback;
-	const char *freeze = "FROZEN";
-	const char *unfreeze =  "THAWED";
+	const char *freeze = is_cgroup_v2() ? "1" : "FROZEN";
+	const char *unfreeze = is_cgroup_v2() ? "0" : "THAWED";
 
 	switch (cmd) {
 	case VZCTL_CMD_RESUME:

@@ -190,7 +190,8 @@ static int dump(struct vzctl_env_handle *h, int cmd,
 		vzctl2_get_log_verbose() + 1);
 	env[i++] = strdup(buf);
 
-	cg_get_path(EID(h), CG_FREEZER, "", path, sizeof(path));
+	cg_get_path(EID(h), is_cgroup_v2() ? CG_UNIFIED : CG_FREEZER,
+		    "", path, sizeof(path));
 	snprintf(buf, sizeof(buf), "VE_FREEZE_CG=%s", path);
 	env[i++] = strdup(buf);
 

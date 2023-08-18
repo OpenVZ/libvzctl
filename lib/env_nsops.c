@@ -1839,7 +1839,9 @@ static int ns_env_get_cpt_state(struct vzctl_env_handle *h, int *state)
 	if (ret)
 		return ret;
 
-	if (strcmp(buf, "FROZEN") == 0)
+	if (!strcmp(buf, "FROZEN"))
+		*state |= ENV_STATUS_CPT_SUSPENDED;
+	if (!strcmp(buf, "1"))
 		*state |= ENV_STATUS_CPT_SUSPENDED;
 
 	return 0;
