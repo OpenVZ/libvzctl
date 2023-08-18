@@ -37,6 +37,7 @@ extern "C" {
 char **vzctl_get_storage(void);
 int is_nfs(const char *path);
 int is_pcs(const char *path);
+int is_cgroup2(const char *path);
 int is_shared_fs(const char *path);
 
 #ifdef __cplusplus

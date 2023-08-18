@@ -129,6 +129,9 @@ char **vzctl2_get_storage(void)
 #define EXT4_SUPER_MAGIC        0xEF53
 #endif
 
+#ifndef CGROUP2_SUPER_MAGIC
+#define CGROUP2_SUPER_MAGIC	0x63677270
+#endif
 
 static int check_fs_type(const char *path, long magic)
 {
@@ -154,6 +157,11 @@ int is_nfs(const char *path)
 int is_pcs(const char *path)
 {
 	return check_fs_type(path, FUSE_SUPER_MAGIC);
+}
+
+int is_cgroup2(const char *path)
+{
+	return check_fs_type(path, CGROUP2_SUPER_MAGIC);
 }
 
 int is_shared_fs(const char *path)
