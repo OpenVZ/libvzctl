@@ -862,9 +862,12 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 		}
 	}
 
-	ret = cg_env_set_memory(h->ctid, "memory.use_hierarchy", 1);
-	if (ret)
-		return ret;
+	/* Memory controller is hierarchical by defalut on cgroup-v2 */
+	if (!is_cgroup_v2()) {
+		ret = cg_env_set_memory(h->ctid, "memory.use_hierarchy", 1);
+		if (ret)
+			return ret;
+	}
 
 	/* There is no need to initialize mems and cpus on cgroup-v2 */
 	if (!is_cgroup_v2()) {
