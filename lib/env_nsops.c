@@ -396,8 +396,6 @@ static int ns_set_ub(struct vzctl_env_handle *h,
 	return 0;
 }
 
-#define PAGE_COUNTER_MAX ((unsigned long)LONG_MAX)
-
 static int set_memlimit_iteratively(const char *ctid, unsigned long l,
 		unsigned long r)
 {
@@ -419,6 +417,52 @@ static int set_memlimit_iteratively(const char *ctid, unsigned long l,
 	return 0;
 }
 
+static int cgv2_ns_set_memory_param(struct vzctl_env_handle *h,
+				  struct vzctl_ub_param *ub, int flags)
+{
+	int ret = 0;
+	int pagesize = get_pagesize();
+	float x;
+	unsigned long cur_mem, cur_swap, new_mem = 0, new_swap;
+	unsigned long cur_mem_usage = 0, cur_swap_usage = 0;
+
+	if (ub->physpages == NULL || ub->swappages == NULL)
+		return vzctl_err(-1, 0, "Should have both mem and swap set for cgroup-v2");
+
+	cgv2_env_get_memory(h->ctid, CGV2_MEM_CURR, &cur_mem_usage);
+	cgv2_env_get_memory(h->ctid, CGV2_SWAP_CURR, &cur_swap_usage);
+
+	logger(3, 0, "current mem %lu and swap %lu usage",
+	       cur_mem_usage, cur_swap_usage);
+
+	ret = cgv2_env_get_memory(h->ctid, CGV2_SWAP_MAX, &cur_swap);
+	if (ret)
+		return ret;
+
+	ret = cgv2_env_get_memory(h->ctid, CGV2_MEM_MAX, &cur_mem);
+	if (ret)
+		return ret;
+
+	x = (float)pagesize * ub->swappages->l;
+	new_swap = x > PAGE_COUNTER_MAX ? PAGE_COUNTER_MAX : (unsigned long) x;
+	x = (float)pagesize * ub->physpages->l;
+	new_mem = x > PAGE_COUNTER_MAX ? PAGE_COUNTER_MAX : (unsigned long) x;
+
+	ret = cgv2_env_set_memory(h->ctid, CGV2_SWAP_MAX, new_swap);
+	if (ret)
+		goto err;
+
+	ret = cgv2_env_set_memory(h->ctid, CGV2_MEM_MAX, new_mem);
+	if (ret)
+		goto err;
+
+	return 0;
+
+err:
+	return vzctl_err(ret, 0, "Current/set swap: %lu/%lu mem: %lu/%lu",
+			cur_swap, new_swap, cur_mem, new_mem);
+}
+
 static int ns_set_memory_param(struct vzctl_env_handle *h,
 		struct vzctl_ub_param *ub, int flags)
 {
@@ -430,6 +474,9 @@ static int ns_set_memory_param(struct vzctl_env_handle *h,
 
 	if (ub->physpages == NULL && ub->swappages == NULL)
 		return 0;
+
+	if (is_cgroup_v2())
+		return cgv2_ns_set_memory_param(h, ub, flags);
 
 	cg_env_get_memory(h->ctid, CG_MEM_USAGE, &cur_mem_usage);
 	cg_env_get_memory(h->ctid, CG_SWAP_USAGE, &cur_ms_usage);

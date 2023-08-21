@@ -861,6 +861,22 @@ int cg_env_set_memory(const char *ctid, const char *name, unsigned long value)
 	return rc;
 }
 
+int cgv2_env_set_memory(const char *ctid, const char *name, unsigned long value)
+{
+	char data[32] = "max";
+	int rc;
+
+	if (value != PAGE_COUNTER_MAX)
+		snprintf(data, sizeof(data), "%lu", value);
+
+	rc = cg_set_param(ctid, CG_UNIFIED, name, data);
+	if (rc == -1 && errno == EBUSY)
+		vzctl_err(rc, 0, "Lowering the current memory limit (%s) is prohibited.",
+			  name);
+
+	return rc;
+}
+
 int cg_env_set_ub(const char *ctid, const char *name, unsigned long b, unsigned long l)
 {
 	int rc;
@@ -948,6 +964,23 @@ int cg_set_disk_iopslimit(const char *ctid, dev_t dev, unsigned int limit)
 int cg_env_get_memory(const char *ctid, const char *name, unsigned long *value)
 {
 	return cg_get_ul(ctid, CG_MEMORY, name, value);
+}
+
+int cgv2_env_get_memory(const char *ctid, const char *name, unsigned long *value)
+{
+	char data[32];
+	int ret;
+
+	ret = cg_get_param(ctid, CG_UNIFIED, name, data, sizeof(data));
+	if (ret)
+		return ret;
+
+	if (!strcmp(data, "max")) {
+		*value = PAGE_COUNTER_MAX;
+		return 0;
+	}
+
+	return parse_ul(data, value);
 }
 
 int cg_env_set_net_classid(const char *ctid, unsigned int classid)

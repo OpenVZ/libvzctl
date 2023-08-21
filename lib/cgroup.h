@@ -45,6 +45,14 @@
 #define CG_SWAP_USAGE	"memory.memsw.usage_in_bytes"
 #define CG_KMEM_LIMIT	"memory.kmem.limit_in_bytes"
 #define CG_KMEM_USAGE	"memory.kmem.usage_in_bytes"
+
+#define CGV2_MEM_MAX	"memory.max"
+#define CGV2_MEM_CURR	"memory.current"
+#define CGV2_SWAP_MAX	"memory.swap.max"
+#define CGV2_SWAP_CURR	"memory.swap.current"
+
+#define PAGE_COUNTER_MAX ((unsigned long)LONG_MAX)
+
 #define CG_NET_CLASSID	"net_cls.classid"
 
 /* For x86-64 kernels */
@@ -87,6 +95,8 @@ int cg_env_set_nodemask(const char *ctid, unsigned long *nodemask, int size);
 int cg_env_set_devices(const char *ctid, const char *name, const char *data);
 int cg_env_set_memory(const char *ctid, const char *name, unsigned long value);
 int cg_env_get_memory(const char *ctid, const char *name, unsigned long *value);
+int cgv2_env_set_memory(const char *ctid, const char *name, unsigned long value);
+int cgv2_env_get_memory(const char *ctid, const char *name, unsigned long *value);
 int cg_env_set_ub(const char *ctid, const char *name, unsigned long b, unsigned long l);
 int cg_set_disk_iolimit(const char *ctid, dev_t dev, unsigned int limit);
 int cg_set_disk_iopslimit(const char *ctid, dev_t dev, unsigned int limit);
