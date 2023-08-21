@@ -37,6 +37,7 @@
 #include "exec.h"
 #include "util.h"
 #include "bitmap.h"
+#include "cgroup.h"
 
 #define VCMMCTL_BIN     "/usr/sbin/vcmmdctl"
 static int vcmm_error(int rc, const char *msg)
@@ -194,6 +195,10 @@ static int get_vcmm_config(struct vzctl_env_handle *h,
 
 int is_managed_by_vcmmd(void)
 {
+	/* FIXME temporary disable vcmmd it should also switch to cgroup v2 */
+	if (is_cgroup_v2())
+		return 0;
+
 	return access(VCMMCTL_BIN, F_OK) == 0;
 }
 
