@@ -866,27 +866,30 @@ static int init_env_cgroup(struct vzctl_env_handle *h, int flags)
 	if (ret)
 		return ret;
 
-	/* Init cpu: copy settings from parent */
-	for (i = 0; i < sizeof(cpu)/sizeof(cpu[0]); i++) {
-		ret = cg_get_param("", CG_CPUSET, cpu[i], buf, sizeof(buf));
-		if (ret)
-			return -1;
-
-		if (buf[0] == '\0') {
-			/* Setup parent */
-			ret = cg_get_param(NULL, CG_CPUSET, cpu[i], buf,
-					sizeof(buf));
+	/* There is no need to initialize mems and cpus on cgroup-v2 */
+	if (!is_cgroup_v2()) {
+		/* Init cpu: copy settings from parent */
+		for (i = 0; i < sizeof(cpu)/sizeof(cpu[0]); i++) {
+			ret = cg_get_param("", CG_CPUSET, cpu[i], buf, sizeof(buf));
 			if (ret)
 				return -1;
 
-			ret = cg_set_param("", CG_CPUSET, cpu[i], buf);
+			if (buf[0] == '\0') {
+				/* Setup parent */
+				ret = cg_get_param(NULL, CG_CPUSET, cpu[i], buf,
+						sizeof(buf));
+				if (ret)
+					return -1;
+
+				ret = cg_set_param("", CG_CPUSET, cpu[i], buf);
+				if (ret)
+					return ret;
+			}
+
+			ret = cg_set_param(h->ctid, CG_CPUSET, cpu[i], buf);
 			if (ret)
 				return ret;
 		}
-
-		ret = cg_set_param(h->ctid, CG_CPUSET, cpu[i], buf);
-		if (ret)
-			return ret;
 	}
 
 	/* Init devices: set default perm */
