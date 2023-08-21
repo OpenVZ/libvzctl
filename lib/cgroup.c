@@ -67,6 +67,7 @@ static struct cg_ctl cg_ctl_map[] = {
 	{CG_PIDS},
 	{CG_RDMA},
 	{"systemd"},
+	{CG_UNIFIED},
 };
 
 static int get_cgroups(list_head_t *head);
@@ -121,6 +122,16 @@ static int cg_is_systemd(const char *subsys)
 
 int cg_is_supported(const char *subsys)
 {
+	if (is_cgroup_v2()) {
+		return !strcmp(subsys, CG_UNIFIED) ||
+		       !strcmp(subsys, CG_VE) ||
+		       /* FIXME devices cgroup in v2 is BPF based, will switch to it later */
+		       !strcmp(subsys, CG_DEVICES);
+	}
+
+	if (!strcmp(subsys, CG_UNIFIED))
+		return 0;
+
 	if (!strcmp(subsys, CG_UB) ||
 	    !strcmp(subsys, CG_RDMA)) {
 		if (!find_str(&cgroup_hierarchies, subsys))
@@ -150,6 +161,9 @@ static int get_mount_path(const char *subsys, char *out, int size)
 	char target[4096];
 	char ops[4096];
 	int ret = 1;
+	int is_unified;
+
+	is_unified = !strcmp(CG_UNIFIED, subsys);
 
 	fp = fopen("/proc/mounts", "r");
 	if (fp == NULL)
@@ -157,13 +171,17 @@ static int get_mount_path(const char *subsys, char *out, int size)
 
 	while (fgets(buf, sizeof(buf), fp)) {
 		/* cgroup /sys/fs/cgroup/devices cgroup rw,nosuid,nodev,noexec,relatime,devices */
-		n = sscanf(buf, "%*s %4095s cgroup %4095s",
-				target, ops);
+		if (is_unified)
+			n = sscanf(buf, "%*s %4095s cgroup2 %4095s",
+				   target, ops);
+		else
+			n = sscanf(buf, "%*s %4095s cgroup %4095s",
+				   target, ops);
 		if (n != 2)
 			continue;
 
-		if (has_substr(ops, !cg_is_systemd(subsys) ?
-					subsys : "name=systemd"))
+		if (is_unified || has_substr(ops, !cg_is_systemd(subsys) ?
+						  subsys : "name=systemd"))
 		{
 			strncpy(out, target, size);
 			out[size-1] = '\0';
