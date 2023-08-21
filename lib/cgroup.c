@@ -1261,10 +1261,41 @@ err:
 	return ret;
 }
 
+static int cg2_bindmount_cgroup(struct vzctl_env_handle *h)
+{
+	char *ve_root = h->env_param->fs->ve_root;
+	char s[PATH_MAX], d[PATH_MAX];
+	struct cg_ctl *ctl;
+	int ret = 0;
+
+	snprintf(s, sizeof(s), "%s/sys", ve_root);
+	if (access(s, F_OK) && make_dir(s, 1))
+		return vzctl_err(VZCTL_E_CREATE_DIR, errno,
+				 "Can't create %s", s);
+	if (mount(NULL, s, "sysfs", 0, NULL))
+		return vzctl_err(VZCTL_E_MOUNT, errno,
+				 "Can't pre-mount sysfs in %s", s);
+
+	snprintf(d, sizeof(d), "%s/sys/fs/cgroup", ve_root);
+	if (access(d, F_OK) && make_dir(d, 1))
+		return vzctl_err(VZCTL_E_CREATE_DIR, errno,
+				 "Can't create %s", d);
+
+	ret = cg_get_ctl(CG_UNIFIED, &ctl);
+	if (ret)
+		return ret;
+	get_cgroup_name(EID(h), ctl, s, sizeof(s));
+
+	return do_bindmount(s, d, MS_BIND|MS_PRIVATE);
+}
+
 int bindmount_env_cgroup(struct vzctl_env_handle *h)
 {
 	int ret;
 	LIST_HEAD(head);
+
+	if (is_cgroup_v2())
+		return cg2_bindmount_cgroup(h);
 
 	if (!is_ub_supported())
 		return 0;
