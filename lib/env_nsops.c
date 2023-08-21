@@ -445,7 +445,7 @@ static int ns_set_memory_param(struct vzctl_env_handle *h,
 	if (ret)
 		return ret;
 
-	x = ub->swappages ? (float)pagesize * ub->swappages->l : cur_ms;
+	x = ub->swappages ? (float)pagesize * ub->swappages->l : cur_ms - cur_mem;
 	x += ub->physpages ? (float)pagesize * ub->physpages->l : cur_mem;
 	new_ms = x > PAGE_COUNTER_MAX ? PAGE_COUNTER_MAX : (unsigned long) x;
 
