@@ -1832,7 +1832,7 @@ static int ns_env_cpt_cmd(struct vzctl_env_handle *h, int action, int cmd,
 
 static int ns_env_get_cpt_state(struct vzctl_env_handle *h, int *state)
 {
-	char buf[STR_SIZE];
+	char buf[STR_SIZE] = {};
 	int ret;
 
 	ret = cg_read_freezer_state(EID(h), buf, sizeof(buf));
