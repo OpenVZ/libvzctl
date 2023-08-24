@@ -762,6 +762,11 @@ int cg_env_set_cpuunits(const char *ctid, unsigned int cpuunits)
 	return cg_set_ul(ctid, CG_CPU, "cpu.shares", cpuunits * 1024 / 1000);
 }
 
+int cgv2_env_set_cpuunits(const char *ctid, unsigned int cpuunits)
+{
+	return cg_set_ul(ctid, CG_UNIFIED, "cpu.weight", cpuunits / 10);
+}
+
 int cg_env_set_cpulimit(const char *ctid, float limit)
 {
 	unsigned long limit1024 = limit * 1024 / 100;

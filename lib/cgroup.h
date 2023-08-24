@@ -86,7 +86,8 @@ int cg_set_ull(const char *ctid, const char *subsys, const char *name,
 		unsigned long long value);
 int cg_get_ull(const char *ctid, const char *subsys, const char *name,
 		unsigned long long *value);
-	int cg_env_set_cpuunits(const char *ctid, unsigned int cpuunits);
+int cg_env_set_cpuunits(const char *ctid, unsigned int cpuunits);
+int cgv2_env_set_cpuunits(const char *ctid, unsigned int cpuunits);
 int cg_env_set_cpulimit(const char *ctid, float limit);
 int cg_env_get_cpulimit(const char *ctid, float *limit);
 int cg_env_set_vcpus(const char *ctid, unsigned int vcpus);
