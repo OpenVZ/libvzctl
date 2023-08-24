@@ -389,7 +389,7 @@ static int ns_set_ub(struct vzctl_env_handle *h,
 		if (cg_set_ul(EID(h), CG_VE, "ve.netif_max_nr", ub->num_netif->l))
 			return VZCTL_E_SETUBC;
 	}
-	if (ub->kmemsize) {
+	if (ub->kmemsize && !is_cgroup_v2()) {
 		if (cg_env_set_memory(h->ctid, CG_KMEM_LIMIT, ub->kmemsize->l))
 			return VZCTL_E_SETUBC;
 	}
