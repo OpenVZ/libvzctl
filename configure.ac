@@ -1,5 +1,5 @@
 #  Copyright (c) 2000-2017, Parallels International GmbH
-# Copyright (c) 2017-2019 Virtuozzo International GmbH. All rights reserved.
+# Copyright (c) 2017-2023 Virtuozzo International GmbH. All rights reserved.
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 
 # Generic configuration
 AC_PREREQ(2.59)
-AC_INIT(libvzctl, 8.0.81, igor@virtuozzo.com)
+AC_INIT(libvzctl, 8.0.81.0, aleksandr.leskin@virtuozzo.com)
 
 # Change sysconfdir default since otherwise some important files
 # (an initscript, files for logrotate, cron, and udev) will be installed
