@@ -762,13 +762,17 @@ static int ns_apply_cpu_param(struct vzctl_env_handle *h, struct vzctl_cpu_param
 		if (ret)
 			return ret;
 	}
-	if (cpu->limit_res) {
+	/*
+	 * FIXME need to implement after cpu.rate and cpu.nr_cpus
+	 * are available in kernel for cgroup-v2.
+	 */
+	if (cpu->limit_res && !is_cgroup_v2()) {
 		logger(0, 0, "CPU limit: %0.1f%%", cpu->limit);
 		ret = cg_env_set_cpulimit(h->ctid, cpu->limit);
 		if (ret)
 			return ret;
 	}
-	if (cpu->vcpus) {
+	if (cpu->vcpus && !is_cgroup_v2()) {
 		ret = cg_env_set_vcpus(h->ctid, *cpu->vcpus);
 		if (ret)
 			return ret;
@@ -2125,6 +2129,10 @@ static int ns_get_runtime_param(struct vzctl_env_handle *h, int flags)
 	if (!ns_is_env_run(h))
 		return 0;
 
+	/*
+	 * FIXME need to implement after cpu.rate
+	 * is available in kernel for cgroup-v2.
+	 */
 	if (cg_env_get_cpulimit(EID(h), &limit) == 0 && limit != 0) {
 		struct vzctl_cpu_param *cpu = h->env_param->cpu;
 		if (cpu->limit_res == NULL) {
