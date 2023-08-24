@@ -592,7 +592,11 @@ static int ns_apply_res_param(struct vzctl_env_handle *h,
 	}
 
 
-	if (env->res->ub->pagecache_isolation) {
+	/*
+	 * FIXME need to implement after memory.disable_cleancache
+	 * is available in kernel for cgroup-v2.
+	 */
+	if (env->res->ub->pagecache_isolation && !is_cgroup_v2()) {
 		ret = cg_env_set_memory(EID(h), "memory.disable_cleancache",
 			env->res->ub->pagecache_isolation == VZCTL_PARAM_ON ?
 				1 : 0);
