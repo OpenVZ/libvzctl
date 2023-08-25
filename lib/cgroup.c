@@ -792,10 +792,12 @@ static int cg_env_set_mask(const char *ctid, const char *name,  unsigned long *c
 	char buf[4096];
 	unsigned long *mask;
 
-	snprintf(cg_name, sizeof(cg_name), "cpuset.%s", name);
-	if (cg_get_param("", CG_CPUSET, cg_name, buf, sizeof(buf)) < 0)
-		return vzctl_err(VZCTL_E_CPUMASK, 0,
-				"Unable to get active %s mask", cg_name);
+	snprintf(cg_name, sizeof(cg_name),
+		 is_cgroup_v2() ? "cpuset.%s.effective" : "cpuset.%s", name);
+	if (cg_get_param("", is_cgroup_v2() ? CG_UNIFIED : CG_CPUSET,
+			 cg_name, buf, sizeof(buf)) < 0)
+	return vzctl_err(VZCTL_E_CPUMASK, 0, "Unable to get active %s mask",
+			 cg_name);
 
 	mask = malloc(size);
 	if (mask == NULL)
@@ -822,9 +824,10 @@ static int cg_env_set_mask(const char *ctid, const char *name,  unsigned long *c
 	free(mask);
 
 	snprintf(cg_name, sizeof(cg_name), "cpuset.%s", name);
-	if (cg_set_param(ctid, CG_CPUSET, cg_name, buf))
-		return vzctl_err(VZCTL_E_CPUMASK, errno,
-				"Unable to set %s", cg_name);
+	if (cg_set_param(ctid, is_cgroup_v2() ? CG_UNIFIED : CG_CPUSET,
+			 cg_name, buf))
+		return vzctl_err(VZCTL_E_CPUMASK, errno, "Unable to set %s",
+				 cg_name);
 
 	return 0;
 }
