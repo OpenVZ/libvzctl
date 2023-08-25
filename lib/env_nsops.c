@@ -613,10 +613,10 @@ static int ns_apply_res_param(struct vzctl_env_handle *h,
 	}
 
 	if (env->res->ub->numproc) {
-		ret = cg_set_ull(EID(h), CG_PIDS, "pids.max",
-				env->res->ub->numproc->l >= PIDS_MAX ?
-				PID_MAX_LIMIT :
-				env->res->ub->numproc->l);
+		ret = cg_set_ull(EID(h), is_cgroup_v2() ? CG_UNIFIED : CG_PIDS,
+				 "pids.max",
+				 env->res->ub->numproc->l >= PIDS_MAX ?
+				 PID_MAX_LIMIT : env->res->ub->numproc->l);
 		if (ret == -1)
 			return ret;
 	}
