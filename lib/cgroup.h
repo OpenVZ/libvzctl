@@ -97,6 +97,7 @@ int cg_env_set_memory(const char *ctid, const char *name, unsigned long value);
 int cg_env_get_memory(const char *ctid, const char *name, unsigned long *value);
 int cgv2_env_set_memory(const char *ctid, const char *name, unsigned long value);
 int cgv2_env_get_memory(const char *ctid, const char *name, unsigned long *value);
+int cgv2_env_set_unified(const char *ctid, const char *name, unsigned long value);
 int cg_env_set_ub(const char *ctid, const char *name, unsigned long b, unsigned long l);
 int cg_set_disk_iolimit(const char *ctid, dev_t dev, unsigned int limit);
 int cg_set_disk_iopslimit(const char *ctid, dev_t dev, unsigned int limit);

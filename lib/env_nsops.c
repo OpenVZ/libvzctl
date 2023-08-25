@@ -380,9 +380,17 @@ static int ns_set_ub(struct vzctl_env_handle *h,
 	SET_UB_LIMIT(numiptent)
 #undef SET_UB_LIMIT
 	if (ub->num_memory_subgroups != NULL) {
-		if (cg_env_set_memory(h->ctid, "cgroup.max.descendants",
+		if (is_cgroup_v2()) {
+			if (cgv2_env_set_unified(h->ctid,
+						 "cgroup.max.descendants",
 						 ub->num_memory_subgroups->l))
-			return VZCTL_E_SETUBC;
+				return VZCTL_E_SETUBC;
+		} else {
+			if (cg_env_set_memory(h->ctid,
+					      "cgroup.max.descendants",
+					      ub->num_memory_subgroups->l))
+				return VZCTL_E_SETUBC;
+		}
 	}
 
 	if (ub->num_netif != NULL) {

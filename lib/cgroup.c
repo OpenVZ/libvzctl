@@ -877,6 +877,11 @@ int cgv2_env_set_memory(const char *ctid, const char *name, unsigned long value)
 	return rc;
 }
 
+int cgv2_env_set_unified(const char *ctid, const char *name, unsigned long value)
+{
+	return cg_set_ul(ctid, CG_UNIFIED, name, value);
+}
+
 int cg_env_set_ub(const char *ctid, const char *name, unsigned long b, unsigned long l)
 {
 	int rc;
