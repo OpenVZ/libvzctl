@@ -961,13 +961,31 @@ static int cg_set_disk_io(const char *ctid, dev_t dev, const char *name,
 	return 0;
 }
 
+static int cgv2_set_disk_io(const char *ctid, dev_t dev, const char *name,
+		unsigned int limit)
+{
+	char d[STR_SIZE];
+
+	snprintf(d, sizeof(d), "%d:%d r%s=%u w%s=%u",
+		 gnu_dev_major(dev), gnu_dev_minor(dev),
+		 name, limit, name, limit);
+
+	return cg_set_param(ctid, CG_UNIFIED, "io.max", d);
+}
+
 int cg_set_disk_iolimit(const char *ctid, dev_t dev, unsigned int limit)
 {
+	if (is_cgroup_v2())
+		return cgv2_set_disk_io(ctid, dev, "bps", limit);
+
 	return cg_set_disk_io(ctid, dev, "bps", limit);
 }
 
 int cg_set_disk_iopslimit(const char *ctid, dev_t dev, unsigned int limit)
 {
+	if (is_cgroup_v2())
+		return cgv2_set_disk_io(ctid, dev, "iops", limit);
+
 	return cg_set_disk_io(ctid, dev, "iops", limit);
 }
 
