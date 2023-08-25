@@ -800,6 +800,9 @@ static int set_net_classid(struct vzctl_env_handle *h)
 	int ret;
 	unsigned int classid = 0;
 
+	if (is_cgroup_v2())
+		return 0;
+
 	if (h->env_param->vz->tc->traffic_shaping != VZCTL_PARAM_ON)
 		return 0;
 
