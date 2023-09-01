@@ -3123,32 +3123,6 @@ int vzctl2_get_env_iostat(const ctid_t ctid, struct vzctl_iostat *stat, int size
 	return 0;
 }
 
-static int read_cg_memory(const char *id, const char *name, unsigned long long *out)
-{
-	int rc;
-	FILE *fp;
-	char buf[PATH_MAX];
-
-	rc = cg_get_path(id, CG_MEMORY, name, buf, sizeof(buf));
-	if (rc)
-		return rc;
-
-	if ((fp = fopen(buf, "r")) == NULL) {
-		if (errno == ENOENT)
-			return VZCTL_E_ENV_NOT_RUN;
-		return vzctl_err(VZCTL_E_SYSTEM, 0, "Cannot open %s", buf);
-	}
-
-	if (fscanf(fp, "%llu", out) != 1) {
-		fclose(fp);
-		return vzctl_err(VZCTL_E_SYSTEM, 0, "Cannot parse data from %s", buf);
-	}
-
-	fclose(fp);
-
-	return 0;
-}
-
 int vzctl2_get_env_meminfo(const ctid_t ctid, struct vzctl_meminfo *meminfo, int size)
 {
 	int rc;
@@ -3162,17 +3136,17 @@ int vzctl2_get_env_meminfo(const ctid_t ctid, struct vzctl_meminfo *meminfo, int
 		return vzctl_err(VZCTL_E_INVAL, 0, "Invalid CTID: %s", ctid);
 
 	bzero(meminfo, size);
-	rc = read_cg_memory(id, "memory.limit_in_bytes", &data.total);
+	rc = cg_get_ull(id, CG_MEMORY, "memory.limit_in_bytes", &data.total);
 	if (rc)
 		return rc;
-	rc = read_cg_memory(id, "memory.usage_in_bytes", &memused);
+	rc = cg_get_ull(id, CG_MEMORY, "memory.usage_in_bytes", &memused);
 	if (rc)
 		return rc;
-	rc = read_cg_memory(id, "memory.memsw.limit_in_bytes", &val);
+	rc = cg_get_ull(id, CG_MEMORY, "memory.memsw.limit_in_bytes", &val);
 	if (rc)
 		return rc;
 	swaptotal = data.total - val;
-	rc = read_cg_memory(id, "memory.memsw.usage_in_bytes", &val);
+	rc = cg_get_ull(id, CG_MEMORY, "memory.memsw.usage_in_bytes", &val);
 	if (rc)
 		return rc;
 	swapused = val - memused;
