@@ -808,12 +808,9 @@ int cg_attach_task(const char *ctid, pid_t pid, char *cg_subsys_except)
 /**************************************************************************/
 int cg_env_set_cpuunits(const char *ctid, unsigned int cpuunits)
 {
+	if (is_cgroup_v2())
+		return cg_set_ul(ctid, CG_UNIFIED, "cpu.weight", cpuunits / 10);
 	return cg_set_ul(ctid, CG_CPU, "cpu.shares", cpuunits * 1024 / 1000);
-}
-
-int cgv2_env_set_cpuunits(const char *ctid, unsigned int cpuunits)
-{
-	return cg_set_ul(ctid, CG_UNIFIED, "cpu.weight", cpuunits / 10);
 }
 
 int cg_env_set_cpulimit(const char *ctid, float limit)

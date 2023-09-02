@@ -755,10 +755,7 @@ static int ns_apply_cpu_param(struct vzctl_env_handle *h, struct vzctl_cpu_param
 	int ret;
 
 	if (cpu->units) {
-		if (is_cgroup_v2())
-			ret = cgv2_env_set_cpuunits(h->ctid, *cpu->units);
-		else
-			ret = cg_env_set_cpuunits(h->ctid, *cpu->units);
+		ret = cg_env_set_cpuunits(h->ctid, *cpu->units);
 		if (ret)
 			return ret;
 	}
