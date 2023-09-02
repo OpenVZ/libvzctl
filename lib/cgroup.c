@@ -121,6 +121,11 @@ const char* cg_get_freezer_subsys()
 	return is_cgroup_v2() ? CG_UNIFIED : CG_FREEZER;
 }
 
+const char* cg_get_cpuset_subsys()
+{
+	return is_cgroup_v2() ? CG_UNIFIED : CG_CPUSET;
+}
+
 static int cg_get_tasks(const char *ctid, const char *name, list_head_t *list);
 static pthread_mutex_t cg_ctl_map_mtx = PTHREAD_MUTEX_INITIALIZER;
 typedef int (*cgroup_filter_f)(const char *subsys);
@@ -835,7 +840,7 @@ static int cg_env_set_mask(const char *ctid, const char *name,  unsigned long *c
 
 	snprintf(cg_name, sizeof(cg_name),
 		 is_cgroup_v2() ? "cpuset.%s.effective" : "cpuset.%s", name);
-	if (cg_get_param("", is_cgroup_v2() ? CG_UNIFIED : CG_CPUSET,
+	if (cg_get_param("", cg_get_cpuset_subsys(),
 			 cg_name, buf, sizeof(buf)) < 0)
 	return vzctl_err(VZCTL_E_CPUMASK, 0, "Unable to get active %s mask",
 			 cg_name);
@@ -865,7 +870,7 @@ static int cg_env_set_mask(const char *ctid, const char *name,  unsigned long *c
 	free(mask);
 
 	snprintf(cg_name, sizeof(cg_name), "cpuset.%s", name);
-	if (cg_set_param(ctid, is_cgroup_v2() ? CG_UNIFIED : CG_CPUSET,
+	if (cg_set_param(ctid, cg_get_cpuset_subsys(),
 			 cg_name, buf))
 		return vzctl_err(VZCTL_E_CPUMASK, errno, "Unable to set %s",
 				 cg_name);
