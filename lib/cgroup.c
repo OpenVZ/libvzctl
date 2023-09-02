@@ -131,6 +131,11 @@ const char* cg_get_pids_subsys()
 	return is_cgroup_v2() ? CG_UNIFIED : CG_PIDS;
 }
 
+const char* cg_get_blkio_subsys()
+{
+	return is_cgroup_v2() ? CG_UNIFIED : CG_BLKIO;
+}
+
 static int cg_get_tasks(const char *ctid, const char *name, list_head_t *list);
 static pthread_mutex_t cg_ctl_map_mtx = PTHREAD_MUTEX_INITIALIZER;
 typedef int (*cgroup_filter_f)(const char *subsys);

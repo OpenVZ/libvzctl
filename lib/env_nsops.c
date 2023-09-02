@@ -2096,7 +2096,7 @@ static int ns_set_ioprio(struct vzctl_env_handle *h, int prio)
 				"Invalid ioprio %d", prio);
 
 	logger(0, 0, "Set up ioprio: %d", prio);
-	if (cg_set_ul(EID(h), is_cgroup_v2() ? CG_UNIFIED : CG_BLKIO,
+	if (cg_set_ul(EID(h), cg_get_blkio_subsys(),
 		      is_cgroup_v2() ? "io.weight" : "blkio.weight",
 		      ioprio_weight[prio]))
 		return VZCTL_E_SET_IO;
