@@ -149,6 +149,7 @@ static const char* CG_MEMORY_PARAM_NAME_MAX[CGROUP_MAX]					=	{	CG_MEM_LIMIT,	CG
 static const char* CG_MEMORY_PARAM_NAME_CURRENT[CGROUP_MAX]				=	{	CG_MEM_USAGE,	CGV2_MEM_CURR	};
 static const char* CG_MEMORY_PARAM_NAME_SWAP_MAX[CGROUP_MAX]			=	{	CG_SWAP_LIMIT,	CGV2_SWAP_MAX	};
 static const char* CG_MEMORY_PARAM_NAME_SWAP_CURRENT[CGROUP_MAX]		=	{	CG_SWAP_USAGE,	CGV2_SWAP_CURR	};
+static const char* CG_BLKIO_PARAM_NAME_WEIGHT[CGROUP_MAX]				=	{	"blkio.weight",	"io.weight"	};
 
 const char* cg_get_memory_param_name_max()
 {
@@ -168,6 +169,11 @@ const char* cg_get_memory_param_name_swap_max()
 const char* cg_get_memory_param_name_swap_current()
 {
 	return CG_MEMORY_PARAM_NAME_SWAP_CURRENT[cgroup_version];
+}
+
+const char* cg_get_blkio_param_name_weight()
+{
+	return CG_BLKIO_PARAM_NAME_WEIGHT[cgroup_version];
 }
 
 static int cg_get_tasks(const char *ctid, const char *name, list_head_t *list);
@@ -875,12 +881,13 @@ int cg_env_set_vcpus(const char *ctid, unsigned int vcpus)
 
 static int cg_env_set_mask(const char *ctid, const char *name,  unsigned long *cpumask, int size)
 {
+	static const char* CG_CPUSET_TEMPL_VAL[CGROUP_MAX] = { "cpuset.%s", "cpuset.%s.effective" };
 	char cg_name[64];
 	char buf[4096];
 	unsigned long *mask;
 
 	snprintf(cg_name, sizeof(cg_name),
-		 is_cgroup_v2() ? "cpuset.%s.effective" : "cpuset.%s", name);
+			CG_CPUSET_TEMPL_VAL[cgroup_version], name);
 	if (cg_get_param("", cg_get_cpuset_subsys(),
 			 cg_name, buf, sizeof(buf)) < 0)
 	return vzctl_err(VZCTL_E_CPUMASK, 0, "Unable to get active %s mask",
@@ -1473,10 +1480,11 @@ int cg_read_freezer_state(const char *ctid, char *out, int size)
 {
 	int ret;
 	char path[STR_SIZE];
+	static const char* CG_FREEZER_PARAM_NAME_STATE[CGROUP_MAX] = { "freezer.state", "cgroup.events" };
 
 	ret = cg_get_path(ctid,
 				cg_get_freezer_subsys(),
-				is_cgroup_v2() ? "cgroup.events" : "freezer.state",
+				CG_FREEZER_PARAM_NAME_STATE[cgroup_version],
 				path, sizeof(path));
 	if (ret)
 		return ret;
@@ -1492,6 +1500,7 @@ int cg_read_freezer_state(const char *ctid, char *out, int size)
 
 static int cg_write_freezer_state(const char *ctid, const char *state, int rec)
 {
+	static const char* CG_FREEZER_TEMPL_VAL_STATE[CGROUP_MAX] = { "%s/freezer.state", "%s/cgroup.freeze" };
 	struct vzctl_str_param *it;
 	char buf[PATH_MAX];
 	LIST_HEAD(head);
@@ -1510,8 +1519,8 @@ static int cg_write_freezer_state(const char *ctid, const char *state, int rec)
 
 	list_for_each(it, &head, list) {
 		snprintf(buf, sizeof(buf),
-			 is_cgroup_v2() ? "%s/cgroup.freeze" : "%s/freezer.state",
-			 it->str);
+			CG_FREEZER_TEMPL_VAL_STATE[cgroup_version],
+			it->str);
 		if (access(buf, F_OK))
 			continue;
 		if (write_data(buf, state) == -1) {
@@ -1546,8 +1555,10 @@ int cg_freezer_cmd(const char *ctid, int cmd, int rec)
 {
 	int ret;
 	const char *state, *rollback;
-	const char *freeze = is_cgroup_v2() ? "1" : "FROZEN";
-	const char *unfreeze = is_cgroup_v2() ? "0" : "THAWED";
+	static const char* CG_FREEZE_PARAM_VALUE[CGROUP_MAX] = { "FROZEN", "1" };
+	static const char* CG_UNFREEZE_PARAM_VALUE[CGROUP_MAX] = { "THAWED", "0" };
+	const char *freeze = CG_FREEZE_PARAM_VALUE[cgroup_version];
+	const char *unfreeze = CG_UNFREEZE_PARAM_VALUE[cgroup_version];
 
 	switch (cmd) {
 	case VZCTL_CMD_RESUME:

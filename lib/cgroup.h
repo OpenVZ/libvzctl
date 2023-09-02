@@ -74,6 +74,7 @@ const char* cg_get_memory_param_name_max();
 const char* cg_get_memory_param_name_current();
 const char* cg_get_memory_param_name_swap_max();
 const char* cg_get_memory_param_name_swap_current();
+const char* cg_get_blkio_param_name_weight();
 
 const char *cg_get_slice_name(void);
 int cg_get_path(const char *ctid, const char *subsys, const char *name,
