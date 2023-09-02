@@ -3137,27 +3137,23 @@ int vzctl2_get_env_meminfo(const ctid_t ctid, struct vzctl_meminfo *meminfo, int
 
 	bzero(meminfo, size);
 	rc = cg_get_ull(id, cg_get_memory_subsys(),
-			is_cgroup_v2() ? "memory.max" :
-					 "memory.limit_in_bytes",
+			cg_get_memory_param_name_max(),
 			&data.total);
 	if (rc)
 		return rc;
 	rc = cg_get_ull(id, cg_get_memory_subsys(),
-			is_cgroup_v2() ? "memory.current" :
-					 "memory.usage_in_bytes",
+			cg_get_memory_param_name_current(),
 			&memused);
 	if (rc)
 		return rc;
 	rc = cg_get_ull(id, cg_get_memory_subsys(),
-			is_cgroup_v2() ? "memory.swap.max" :
-					 "memory.memsw.limit_in_bytes",
+			cg_get_memory_param_name_swap_max(),
 			&val);
 	if (rc)
 		return rc;
 	swaptotal = is_cgroup_v2() ? val : data.total - val;
 	rc = cg_get_ull(id, cg_get_memory_subsys(),
-			is_cgroup_v2() ? "memory.swap.current" :
-					 "memory.memsw.usage_in_bytes",
+			cg_get_memory_param_name_swap_current(),
 			&val);
 	if (rc)
 		return rc;

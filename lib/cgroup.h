@@ -70,6 +70,10 @@ const char* cg_get_freezer_subsys();
 const char* cg_get_cpuset_subsys();
 const char* cg_get_pids_subsys();
 const char* cg_get_blkio_subsys();
+const char* cg_get_memory_param_name_max();
+const char* cg_get_memory_param_name_current();
+const char* cg_get_memory_param_name_swap_max();
+const char* cg_get_memory_param_name_swap_current();
 
 const char *cg_get_slice_name(void);
 int cg_get_path(const char *ctid, const char *subsys, const char *name,

@@ -144,6 +144,32 @@ const char* cg_get_blkio_subsys()
 	return CG_BLKIO_SUBSYS[cgroup_version];
 }
 
+//cgroup parameters
+static const char* CG_MEMORY_PARAM_NAME_MAX[CGROUP_MAX]					=	{	CG_MEM_LIMIT,	CGV2_MEM_MAX	};
+static const char* CG_MEMORY_PARAM_NAME_CURRENT[CGROUP_MAX]				=	{	CG_MEM_USAGE,	CGV2_MEM_CURR	};
+static const char* CG_MEMORY_PARAM_NAME_SWAP_MAX[CGROUP_MAX]			=	{	CG_SWAP_LIMIT,	CGV2_SWAP_MAX	};
+static const char* CG_MEMORY_PARAM_NAME_SWAP_CURRENT[CGROUP_MAX]		=	{	CG_SWAP_USAGE,	CGV2_SWAP_CURR	};
+
+const char* cg_get_memory_param_name_max()
+{
+	return CG_MEMORY_PARAM_NAME_MAX[cgroup_version];
+}
+
+const char* cg_get_memory_param_name_current()
+{
+	return CG_MEMORY_PARAM_NAME_CURRENT[cgroup_version];
+}
+
+const char* cg_get_memory_param_name_swap_max()
+{
+	return CG_MEMORY_PARAM_NAME_SWAP_MAX[cgroup_version];
+}
+
+const char* cg_get_memory_param_name_swap_current()
+{
+	return CG_MEMORY_PARAM_NAME_SWAP_CURRENT[cgroup_version];
+}
+
 static int cg_get_tasks(const char *ctid, const char *name, list_head_t *list);
 static pthread_mutex_t cg_ctl_map_mtx = PTHREAD_MUTEX_INITIALIZER;
 typedef int (*cgroup_filter_f)(const char *subsys);
