@@ -1376,7 +1376,7 @@ err:
 	return ret;
 }
 
-static int cg2_bindmount_cgroup(struct vzctl_env_handle *h)
+static int cgv2_bindmount_cgroup(struct vzctl_env_handle *h)
 {
 	char *ve_root = h->env_param->fs->ve_root;
 	char s[PATH_MAX], d[PATH_MAX];
@@ -1410,7 +1410,7 @@ int bindmount_env_cgroup(struct vzctl_env_handle *h)
 	LIST_HEAD(head);
 
 	if (is_cgroup_v2())
-		return cg2_bindmount_cgroup(h);
+		return cgv2_bindmount_cgroup(h);
 
 	if (!is_ub_supported())
 		return 0;
