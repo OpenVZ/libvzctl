@@ -73,9 +73,10 @@ static struct cg_ctl cg_ctl_map[] = {
 static int get_cgroups(list_head_t *head);
 
 typedef enum {
-	CGROUP_UNKNOWN = -1,
-	CGROUP_V1,
+	CGROUP_UNKNOWN = 0,
+	CGROUP_V1 = CGROUP_UNKNOWN,
 	CGROUP_V2,
+	CGROUP_MAX
 } cgroup_version_t;
 
 static cgroup_version_t cgroup_version = CGROUP_UNKNOWN;
@@ -111,29 +112,36 @@ int is_cgroup_v2(void)
 	return cgroup_version == CGROUP_V2;
 }
 
+//cgroup subsystems
+static const char* CG_MEMORY_SUBSYS[CGROUP_MAX]		=	{	CG_MEMORY,	CG_UNIFIED	};
+static const char* CG_FREEZER_SUBSYS[CGROUP_MAX]	=	{	CG_FREEZER,	CG_UNIFIED	};
+static const char* CG_PIDS_SUBSYS[CGROUP_MAX]		=	{	CG_PIDS,	CG_UNIFIED	};
+static const char* CG_CPUSET_SUBSYS[CGROUP_MAX]		=	{	CG_CPUSET,	CG_UNIFIED	};
+static const char* CG_BLKIO_SUBSYS[CGROUP_MAX]		=	{	CG_BLKIO,	CG_UNIFIED	};
+
 const char* cg_get_memory_subsys()
 {
-	return is_cgroup_v2() ? CG_UNIFIED : CG_MEMORY;
+	return CG_MEMORY_SUBSYS[cgroup_version];
 }
 
 const char* cg_get_freezer_subsys()
 {
-	return is_cgroup_v2() ? CG_UNIFIED : CG_FREEZER;
+	return CG_FREEZER_SUBSYS[cgroup_version];
 }
 
 const char* cg_get_cpuset_subsys()
 {
-	return is_cgroup_v2() ? CG_UNIFIED : CG_CPUSET;
+	return CG_CPUSET_SUBSYS[cgroup_version];
 }
 
 const char* cg_get_pids_subsys()
 {
-	return is_cgroup_v2() ? CG_UNIFIED : CG_PIDS;
+	return CG_PIDS_SUBSYS[cgroup_version];
 }
 
 const char* cg_get_blkio_subsys()
 {
-	return is_cgroup_v2() ? CG_UNIFIED : CG_BLKIO;
+	return CG_BLKIO_SUBSYS[cgroup_version];
 }
 
 static int cg_get_tasks(const char *ctid, const char *name, list_head_t *list);
