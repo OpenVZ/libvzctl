@@ -79,7 +79,7 @@ typedef enum {
 	CGROUP_MAX
 } cgroup_version_t;
 
-static cgroup_version_t cgroup_version = CGROUP_UNKNOWN;
+static cgroup_version_t g_cgroup_version = CGROUP_UNKNOWN;
 LIST_HEAD(cgroup_hierarchies);
 
 int init_cgroups(void)
@@ -91,9 +91,9 @@ int init_cgroups(void)
 	if (ret < 0)
 		return -1;
 	if (ret)
-		cgroup_version = CGROUP_V2;
+		g_cgroup_version = CGROUP_V2;
 	else
-		cgroup_version = CGROUP_V1;
+		g_cgroup_version = CGROUP_V1;
 
 	/* Check cgroup hierarchies */
 	if (get_cgroups(&cgroup_hierarchies))
@@ -109,7 +109,7 @@ void fini_cgroups(void)
 
 int is_cgroup_v2(void)
 {
-	return cgroup_version == CGROUP_V2;
+	return g_cgroup_version == CGROUP_V2;
 }
 
 //cgroup subsystems
@@ -121,27 +121,27 @@ static const char* CG_BLKIO_SUBSYS[CGROUP_MAX]		=	{	CG_BLKIO,	CG_UNIFIED	};
 
 const char* cg_get_memory_subsys()
 {
-	return CG_MEMORY_SUBSYS[cgroup_version];
+	return CG_MEMORY_SUBSYS[g_cgroup_version];
 }
 
 const char* cg_get_freezer_subsys()
 {
-	return CG_FREEZER_SUBSYS[cgroup_version];
+	return CG_FREEZER_SUBSYS[g_cgroup_version];
 }
 
 const char* cg_get_cpuset_subsys()
 {
-	return CG_CPUSET_SUBSYS[cgroup_version];
+	return CG_CPUSET_SUBSYS[g_cgroup_version];
 }
 
 const char* cg_get_pids_subsys()
 {
-	return CG_PIDS_SUBSYS[cgroup_version];
+	return CG_PIDS_SUBSYS[g_cgroup_version];
 }
 
 const char* cg_get_blkio_subsys()
 {
-	return CG_BLKIO_SUBSYS[cgroup_version];
+	return CG_BLKIO_SUBSYS[g_cgroup_version];
 }
 
 //cgroup parameters
@@ -153,27 +153,27 @@ static const char* CG_BLKIO_PARAM_NAME_WEIGHT[CGROUP_MAX]				=	{	"blkio.weight",
 
 const char* cg_get_memory_param_name_max()
 {
-	return CG_MEMORY_PARAM_NAME_MAX[cgroup_version];
+	return CG_MEMORY_PARAM_NAME_MAX[g_cgroup_version];
 }
 
 const char* cg_get_memory_param_name_current()
 {
-	return CG_MEMORY_PARAM_NAME_CURRENT[cgroup_version];
+	return CG_MEMORY_PARAM_NAME_CURRENT[g_cgroup_version];
 }
 
 const char* cg_get_memory_param_name_swap_max()
 {
-	return CG_MEMORY_PARAM_NAME_SWAP_MAX[cgroup_version];
+	return CG_MEMORY_PARAM_NAME_SWAP_MAX[g_cgroup_version];
 }
 
 const char* cg_get_memory_param_name_swap_current()
 {
-	return CG_MEMORY_PARAM_NAME_SWAP_CURRENT[cgroup_version];
+	return CG_MEMORY_PARAM_NAME_SWAP_CURRENT[g_cgroup_version];
 }
 
 const char* cg_get_blkio_param_name_weight()
 {
-	return CG_BLKIO_PARAM_NAME_WEIGHT[cgroup_version];
+	return CG_BLKIO_PARAM_NAME_WEIGHT[g_cgroup_version];
 }
 
 static int cg_get_tasks(const char *ctid, const char *name, list_head_t *list);
@@ -887,7 +887,7 @@ static int cg_env_set_mask(const char *ctid, const char *name,  unsigned long *c
 	unsigned long *mask;
 
 	snprintf(cg_name, sizeof(cg_name),
-			CG_CPUSET_TEMPL_VAL[cgroup_version], name);
+			CG_CPUSET_TEMPL_VAL[g_cgroup_version], name);
 	if (cg_get_param("", cg_get_cpuset_subsys(),
 			 cg_name, buf, sizeof(buf)) < 0)
 	return vzctl_err(VZCTL_E_CPUMASK, 0, "Unable to get active %s mask",
@@ -1484,7 +1484,7 @@ int cg_read_freezer_state(const char *ctid, char *out, int size)
 
 	ret = cg_get_path(ctid,
 				cg_get_freezer_subsys(),
-				CG_FREEZER_PARAM_NAME_STATE[cgroup_version],
+				CG_FREEZER_PARAM_NAME_STATE[g_cgroup_version],
 				path, sizeof(path));
 	if (ret)
 		return ret;
@@ -1519,7 +1519,7 @@ static int cg_write_freezer_state(const char *ctid, const char *state, int rec)
 
 	list_for_each(it, &head, list) {
 		snprintf(buf, sizeof(buf),
-			CG_FREEZER_TEMPL_VAL_STATE[cgroup_version],
+			CG_FREEZER_TEMPL_VAL_STATE[g_cgroup_version],
 			it->str);
 		if (access(buf, F_OK))
 			continue;
@@ -1557,8 +1557,8 @@ int cg_freezer_cmd(const char *ctid, int cmd, int rec)
 	const char *state, *rollback;
 	static const char* CG_FREEZE_PARAM_VALUE[CGROUP_MAX] = { "FROZEN", "1" };
 	static const char* CG_UNFREEZE_PARAM_VALUE[CGROUP_MAX] = { "THAWED", "0" };
-	const char *freeze = CG_FREEZE_PARAM_VALUE[cgroup_version];
-	const char *unfreeze = CG_UNFREEZE_PARAM_VALUE[cgroup_version];
+	const char *freeze = CG_FREEZE_PARAM_VALUE[g_cgroup_version];
+	const char *unfreeze = CG_UNFREEZE_PARAM_VALUE[g_cgroup_version];
 
 	switch (cmd) {
 	case VZCTL_CMD_RESUME:
