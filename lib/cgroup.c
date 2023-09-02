@@ -111,6 +111,11 @@ int is_cgroup_v2(void)
 	return cgroup_version == CGROUP_V2;
 }
 
+const char* cg_get_memory_subsys()
+{
+	return is_cgroup_v2() ? CG_UNIFIED : CG_MEMORY;
+}
+
 static int cg_get_tasks(const char *ctid, const char *name, list_head_t *list);
 static pthread_mutex_t cg_ctl_map_mtx = PTHREAD_MUTEX_INITIALIZER;
 typedef int (*cgroup_filter_f)(const char *subsys);
