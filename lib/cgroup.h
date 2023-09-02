@@ -68,6 +68,7 @@ int is_cgroup_v2(void);
 const char* cg_get_memory_subsys();
 const char* cg_get_freezer_subsys();
 const char* cg_get_cpuset_subsys();
+const char* cg_get_pids_subsys();
 
 const char *cg_get_slice_name(void);
 int cg_get_path(const char *ctid, const char *subsys, const char *name,
