@@ -116,6 +116,11 @@ const char* cg_get_memory_subsys()
 	return is_cgroup_v2() ? CG_UNIFIED : CG_MEMORY;
 }
 
+const char* cg_get_freezer_subsys()
+{
+	return is_cgroup_v2() ? CG_UNIFIED : CG_FREEZER;
+}
+
 static int cg_get_tasks(const char *ctid, const char *name, list_head_t *list);
 static pthread_mutex_t cg_ctl_map_mtx = PTHREAD_MUTEX_INITIALIZER;
 typedef int (*cgroup_filter_f)(const char *subsys);
@@ -1424,9 +1429,9 @@ int cg_read_freezer_state(const char *ctid, char *out, int size)
 	char path[STR_SIZE];
 
 	ret = cg_get_path(ctid,
-			  is_cgroup_v2() ? CG_UNIFIED : CG_FREEZER,
-			  is_cgroup_v2() ? "cgroup.events" : "freezer.state",
-			  path, sizeof(path));
+				cg_get_freezer_subsys(),
+				is_cgroup_v2() ? "cgroup.events" : "freezer.state",
+				path, sizeof(path));
 	if (ret)
 		return ret;
 
@@ -1446,7 +1451,7 @@ static int cg_write_freezer_state(const char *ctid, const char *state, int rec)
 	LIST_HEAD(head);
 	int ret = 0;
 
-	if (cg_get_path(ctid, is_cgroup_v2() ? CG_UNIFIED : CG_FREEZER,
+	if (cg_get_path(ctid, cg_get_freezer_subsys(),
 			"", buf, sizeof(buf)))
 		return VZCTL_E_SYSTEM;
 
