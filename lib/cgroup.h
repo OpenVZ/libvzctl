@@ -92,7 +92,7 @@ int cg_get_param(const char *ctid, const char *subsys, const char *name, char *o
 int cg_get_ul(const char *ctid, const char *subsys, const char *name,
 		unsigned long *value);
 int cg_set_ul(const char *ctid, const char *subsys, const char *name,
-                unsigned long value);
+		unsigned long value);
 int cg_set_ull(const char *ctid, const char *subsys, const char *name,
 		unsigned long long value);
 int cg_get_ull(const char *ctid, const char *subsys, const char *name,

@@ -145,11 +145,11 @@ const char* cg_get_blkio_subsys()
 }
 
 //cgroup parameters
-static const char* CG_MEMORY_PARAM_NAME_MAX[CGROUP_MAX]					=	{	CG_MEM_LIMIT,	CGV2_MEM_MAX	};
-static const char* CG_MEMORY_PARAM_NAME_CURRENT[CGROUP_MAX]				=	{	CG_MEM_USAGE,	CGV2_MEM_CURR	};
-static const char* CG_MEMORY_PARAM_NAME_SWAP_MAX[CGROUP_MAX]			=	{	CG_SWAP_LIMIT,	CGV2_SWAP_MAX	};
-static const char* CG_MEMORY_PARAM_NAME_SWAP_CURRENT[CGROUP_MAX]		=	{	CG_SWAP_USAGE,	CGV2_SWAP_CURR	};
-static const char* CG_BLKIO_PARAM_NAME_WEIGHT[CGROUP_MAX]				=	{	"blkio.weight",	"io.weight"	};
+static const char* CG_MEMORY_PARAM_NAME_MAX[CGROUP_MAX]			=	{	CG_MEM_LIMIT,	CGV2_MEM_MAX	};
+static const char* CG_MEMORY_PARAM_NAME_CURRENT[CGROUP_MAX]		=	{	CG_MEM_USAGE,	CGV2_MEM_CURR	};
+static const char* CG_MEMORY_PARAM_NAME_SWAP_MAX[CGROUP_MAX]		=	{	CG_SWAP_LIMIT,	CGV2_SWAP_MAX	};
+static const char* CG_MEMORY_PARAM_NAME_SWAP_CURRENT[CGROUP_MAX]	=	{	CG_SWAP_USAGE,	CGV2_SWAP_CURR	};
+static const char* CG_BLKIO_PARAM_NAME_WEIGHT[CGROUP_MAX]		=	{	"blkio.weight",	"io.weight"	};
 
 const char* cg_get_memory_param_name_max()
 {
@@ -188,10 +188,10 @@ static int cg_is_systemd(const char *subsys)
 int cg_is_supported(const char *subsys)
 {
 	if (is_cgroup_v2()) {
-		return !strcmp(subsys, CG_UNIFIED) ||
-		       !strcmp(subsys, CG_VE) ||
-		       /* FIXME devices cgroup in v2 is BPF based, will switch to it later */
-		       !strcmp(subsys, CG_DEVICES);
+		return	!strcmp(subsys, CG_UNIFIED) ||
+			!strcmp(subsys, CG_VE) ||
+			/* FIXME devices cgroup in v2 is BPF based, will switch to it later */
+			!strcmp(subsys, CG_DEVICES);
 	}
 
 	if (!strcmp(subsys, CG_UNIFIED))
@@ -463,21 +463,17 @@ int cg_set_param(const char *ctid, const char *subsys, const char *name, const c
 int cg_set_ul(const char *ctid, const char *subsys, const char *name,
 		unsigned long value)
 {
-        char data[32];
-
-        snprintf(data, sizeof(data), "%lu", value);
-
-        return cg_set_param(ctid, subsys, name, data);
+	char data[32];
+	snprintf(data, sizeof(data), "%lu", value);
+	return cg_set_param(ctid, subsys, name, data);
 }
 
 int cg_set_ull(const char *ctid, const char *subsys, const char *name,
 		unsigned long long value)
 {
-        char data[32];
-
-        snprintf(data, sizeof(data), "%llu", value);
-
-        return cg_set_param(ctid, subsys, name, data);
+	char data[32];
+	snprintf(data, sizeof(data), "%llu", value);
+	return cg_set_param(ctid, subsys, name, data);
 }
 
 
@@ -1304,33 +1300,33 @@ static int create_perctl_symlink(const char *root, const char *path)
 
 static int get_cgroups(list_head_t *head)
 {
-       int ret = 0;
-       FILE *fp;
-       char buf[STR_SIZE];
+	int ret = 0;
+	FILE *fp;
+	char buf[STR_SIZE];
 
-       fp = fopen("/proc/cgroups", "r");
-       if (fp == NULL)
-               return vzctl_err(VZCTL_E_SYSTEM, errno,
-                               "Unable to open /proc/cgroups");
+	fp = fopen("/proc/cgroups", "r");
+	if (fp == NULL)
+		return vzctl_err(VZCTL_E_SYSTEM, errno,
+				"Unable to open /proc/cgroups");
 
-       while (fgets(buf, sizeof(buf), fp)) {
-               if (sscanf(buf, "%s", buf) != 1)
-                       continue;
+	while (fgets(buf, sizeof(buf), fp)) {
+		if (sscanf(buf, "%s", buf) != 1)
+			continue;
 
-               if (buf[0] == '#')
-                       continue;
+		if (buf[0] == '#')
+			continue;
 
-               if (add_str_param(head, buf) == NULL) {
-                       ret = VZCTL_E_NOMEM;
-                       break;
-               }
-       }
-       fclose(fp);
+		if (add_str_param(head, buf) == NULL) {
+			ret = VZCTL_E_NOMEM;
+			break;
+		}
+	}
+	fclose(fp);
 
-       if (ret)
-               free_str(head);
+	if (ret)
+		free_str(head);
 
-       return ret;
+	return ret;
 }
 
 static int cg_bindmount_cgroup(struct vzctl_env_handle *h, list_head_t *head)
