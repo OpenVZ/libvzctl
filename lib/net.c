@@ -1,6 +1,6 @@
 /*
  *  Copyright (c) 1999-2017, Parallels International GmbH
- * Copyright (c) 2017-2019 Virtuozzo International GmbH. All rights reserved.
+ * Copyright (c) 2017-2023 Virtuozzo International GmbH. All rights reserved.
  *
  * This file is part of OpenVZ libraries. OpenVZ is free software; you can
  * redistribute it and/or modify it under the terms of the GNU Lesser General
@@ -488,7 +488,7 @@ int vzctl2_get_env_tc_netstat(struct vzctl_env_handle *h,
 	snprintf(ve, sizeof(ve), "ve_%s", ctid2nft(h, ctid));
 
 	if ((ret = run_nft_cmd(argv, &out)) != 0)
-		goto err;
+		return ret;
 
 	tok = json_tokener_new();
 	obj = json_tokener_parse_ex(tok, out, strlen(out));
@@ -584,8 +584,10 @@ int vzctl2_get_all_tc_netstat(struct vzctl_all_tc_netstat **stat, int *size)
 	if ((s = calloc(max, sizeof(*s))) == NULL)
 		return VZCTL_E_NOMEM;
 
-	if ((ret = run_nft_cmd(argv, &out)) != 0)
-		goto err;
+	if ((ret = run_nft_cmd(argv, &out)) != 0) {
+		free(s);
+		return ret;
+	}
 
 	tok = json_tokener_new();
 	obj = json_tokener_parse_ex(tok, out, strlen(out));
