@@ -369,8 +369,15 @@ static int run_nft_cmd(char **argv, char **out)
 	fd = NULL;
 
 	if ((exitcode = WEXITSTATUS(status))) {
-		vzctl_err(ret, errno, "Command %s failed with code %d",
-			argv[0], exitcode);
+		char *cmd = arg2str(argv);
+		if (cmd == NULL) {
+			vzctl_err(-ENOMEM, ENOMEM, "%s: malloc", __FUNCTION__);
+			ret = VZCTL_E_NOMEM;
+			goto err;
+		}
+		vzctl_err(ret, errno, "%s: Command '%s' failed with code %d",
+			__FUNCTION__, cmd, exitcode);
+		free(cmd);
 		goto err;
 	}
 
