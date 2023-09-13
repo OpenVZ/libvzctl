@@ -691,8 +691,11 @@ static int create_disk_snapshot(const char *path, const char *guid,
 
 		ret = ploop_create_temporary_snapshot(di, &snap,
 				get_snap_holder_fd(holder));
-		if (ret)
+		if (ret) {
 			vzctl2_release_snap_holder(holder);
+		} else {
+			strncpy(tsnap->device, snap.device, sizeof(snap.device));
+		}
 	} else {
 		struct ploop_snapshot_param snap = {
 			.guid = (char *) guid,

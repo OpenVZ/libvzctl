@@ -453,6 +453,7 @@ struct vzctl_tsnapshot_param {
 	char *component_name;
 	char *snap_dir;
 	char *cbt_uuid;
+	char device[64]; // out param
 	int dummy[32];
 };
 
