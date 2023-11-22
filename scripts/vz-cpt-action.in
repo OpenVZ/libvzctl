@@ -127,7 +127,10 @@ case "$CRTOOLS_SCRIPT_ACTION" in
 	[ -n "$STATUSFD" ] && printf '\0\0\0\0' >&${STATUSFD}
 	[ -n "$WAITFD" ] && ret=$(head -c 4 <&$WAITFD | hexdump -e '"%d"' -n 4)
 
-	[ "$ret" = "0" ]
+	if [ "$ret" != "0" ]; then
+		echo "Error reported to criu via WAITFD from vzctl, see vzctl.log"
+		exit 1
+	fi
 	;;
 "dump-alive")
 	if [ -z "$CRTOOLS_IMAGE_DIR" ]; then
