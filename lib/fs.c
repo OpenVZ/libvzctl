@@ -44,6 +44,7 @@
 #include "env_ops.h"
 #include "evt.h"
 #include "create.h"
+#include <ploop/libploop.h>
 
 #ifndef MNT_DETACH
 #define MNT_DETACH      0x00000002
@@ -132,6 +133,7 @@ static int do_umount_submounts(struct vzctl_env_handle *h)
 	int len;
 	char path[PATH_MAX + 1];
 	char buf[PATH_MAX + 1];
+	char ploop[PATH_MAX + 1];
 	struct vzctl_str_param *it;
 	list_head_t head;
 	struct stat st;
@@ -164,6 +166,17 @@ static int do_umount_submounts(struct vzctl_env_handle *h)
 	}
 	free_str(&head);
 	
+	//store stats fs for ploop devices
+	if (h->env_param->fs->layout == VZCTL_LAYOUT_5)
+	{
+		//generate generic ploop image path
+		snprintf(ploop, sizeof(ploop), "%s/%s/root.hds", h->env_param->fs->ve_private, VZCTL_VE_ROOTHDD_DIR);
+		if (access(ploop, F_OK) == 0)
+		{
+			ploop_store_statfs_info(root, ploop);
+		}
+	}
+
 	if (umount(root) && errno == EBUSY)
 		if (stat(root, &st) == 0)
 			vzctl2_send_umount_evt(EID(h), st.st_dev);
